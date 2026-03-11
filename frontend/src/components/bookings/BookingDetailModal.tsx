@@ -5,6 +5,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   X, MapPin, CalendarDays, Tag, CheckCircle, CreditCard, FileText, Grid3x3,
 } from "lucide-react";
+import { AspectRatio } from "@/components/ui/aspect-ratio";
 import DisputeThread from "@/components/bookings/DisputeThread";
 import WorkerCustomizeSection from "./WorkerCustomizeSection";
 import BookingDetailFooter from "./BookingDetailFooter";
@@ -157,13 +158,15 @@ export default function BookingDetailModal({
 
         {/* Scrollable body */}
         <div className="overflow-y-auto flex-1">
-          {booking.image_url ? (
-            <img src={booking.image_url} alt={booking.title} className="w-full h-48 object-cover" />
-          ) : (
-            <div className="w-full h-32 bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
-              <Grid3x3 className="h-10 w-10 text-gray-300" />
-            </div>
-          )}
+          <AspectRatio ratio={16 / 9}>
+            {booking.image_url ? (
+              <img src={booking.image_url} alt={booking.title} className="w-full h-full object-cover" />
+            ) : (
+              <div className="w-full h-full bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
+                <Grid3x3 className="h-10 w-10 text-gray-300" />
+              </div>
+            )}
+          </AspectRatio>
 
           <div className="px-5 py-4 space-y-4">
             {/* Modification banner */}

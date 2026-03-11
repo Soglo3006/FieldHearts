@@ -168,6 +168,8 @@ export default function SettingsPage({ onClose, scrollRef }: { onClose: () => vo
         }),
       ]);
       if (response.ok) {
+        i18n.changeLanguage(language);
+        localStorage.setItem("i18nextLng", language);
         setSettingsSaved(true);
         setTimeout(() => setSettingsSaved(false), 2500);
       }
@@ -436,7 +438,7 @@ export default function SettingsPage({ onClose, scrollRef }: { onClose: () => vo
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <Label className="mb-2 block text-sm">{t("settings.language")}</Label>
-                <Select value={language} onValueChange={(val) => { setLanguage(val); i18n.changeLanguage(val); localStorage.setItem("i18nextLng", val); }}>
+                <Select value={language} onValueChange={setLanguage}>
                   <SelectTrigger className="cursor-pointer text-sm"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="en" className="cursor-pointer">English</SelectItem>

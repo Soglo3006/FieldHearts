@@ -59,10 +59,10 @@ export default function ListingsGrid({ filters }: { filters?: ListingsFilters })
 
   useEffect(() => {
     setCurrentPage(1);
+    setLoading(true);
     const controller = new AbortController();
 
     const fetchListings = async () => {
-      setLoading(true);
       try {
         const params = new URLSearchParams();
         if (filters?.search)                               params.set("search", filters.search);
@@ -77,13 +77,14 @@ export default function ListingsGrid({ filters }: { filters?: ListingsFilters })
         const query = params.toString();
         const url = `${process.env.NEXT_PUBLIC_API_URL}/services${query ? `?${query}` : ""}`;
         const res = await fetch(url, { signal: controller.signal });
-        if (!res.ok) return;
-        const data = await res.json();
+        const data = res.ok ? await res.json() : [];
         setListings(Array.isArray(data) ? data : []);
-      } catch (e) {
-        if ((e as Error).name !== "AbortError") setListings([]);
-      } finally {
         setLoading(false);
+      } catch (e) {
+        if ((e as Error).name !== "AbortError") {
+          setListings([]);
+          setLoading(false);
+        }
       }
     };
 

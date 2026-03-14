@@ -33,6 +33,7 @@ interface Listing {
   title: string;
   price: number;
   location: string;
+  city?: string | null;
   image_url?: string;
   created_at: string;
   category: string;
@@ -62,7 +63,7 @@ function ListingCard({ listing, t }: { listing: Listing; t: (key: string, opts?:
           <div className="flex items-center justify-between text-xs text-gray-500 mt-auto">
             <div className="flex items-center gap-1 min-w-0">
               <MapPin className="h-3 w-3 shrink-0" />
-              <span className="line-clamp-1">{listing.location}</span>
+              <span className="line-clamp-1">{listing.city ?? listing.location}</span>
             </div>
             <div className="flex items-center gap-1 shrink-0 ml-2">
               <Clock className="h-3 w-3" />
@@ -126,42 +127,25 @@ export default function HomePage() {
         );
         setSortedCategories(sorted);
 
-        // Listings near you via geolocation
-        const resolveNearby = (city: string) => {
-          if (city) {
-            const nearby = data.filter((l) =>
-              l.location.toLowerCase().includes(city.toLowerCase())
-            );
-            setNearbyListings(nearby.length > 0 ? nearby.slice(0, 3) : data.slice(0, 3));
-          } else {
-            setNearbyListings(data.slice(0, 3));
-          }
-        };
-
+        // Listings near you via geolocation — uses real coordinates
         if (navigator.geolocation) {
           navigator.geolocation.getCurrentPosition(
             async (pos) => {
               try {
                 const { latitude, longitude } = pos.coords;
-                const geoRes = await fetch(
-                  `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`,
-                  { headers: { "Accept-Language": "en" } }
+                const nearbyRes = await fetch(
+                  `${API_URL}/services?userLat=${latitude}&userLng=${longitude}&radius=50`
                 );
-                const geoData = await geoRes.json();
-                const city =
-                  geoData.address?.city ||
-                  geoData.address?.town ||
-                  geoData.address?.village ||
-                  "";
-                resolveNearby(city);
+                const nearbyData: Listing[] = await nearbyRes.json();
+                setNearbyListings(nearbyData.length > 0 ? nearbyData.slice(0, 3) : data.slice(0, 3));
               } catch {
                 setNearbyListings(data.slice(0, 3));
               }
             },
-            () => resolveNearby("")
+            () => setNearbyListings(data.slice(0, 3))
           );
         } else {
-          resolveNearby("");
+          setNearbyListings(data.slice(0, 3));
         }
       } catch {
         // API unreachable

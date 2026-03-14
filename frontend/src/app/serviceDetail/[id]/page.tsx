@@ -29,6 +29,10 @@ interface Service {
   subcategory: string | null;
   price: number;
   location: string;
+  address?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  city?: string | null;
   poster_type: string | null;
   availability: string | null;
   language: string | null;
@@ -342,7 +346,7 @@ export default function ServiceDetailPage() {
       )}
 
       {isMapOpen && (
-        <LocationMapModal location={service.location} onClose={() => setIsMapOpen(false)} />
+        <LocationMapModal location={service.city ?? service.location} lat={service.latitude} lng={service.longitude} onClose={() => setIsMapOpen(false)} />
       )}
     </div>
   );

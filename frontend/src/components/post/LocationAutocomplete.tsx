@@ -1,16 +1,23 @@
 "use client";
 
 import { useEffect } from "react";
-import usePlacesAutocomplete from "use-places-autocomplete";
+import usePlacesAutocomplete, { getGeocode, getLatLng } from "use-places-autocomplete";
 import { useJsApiLoader, type Libraries } from "@react-google-maps/api";
 import { Input } from "@/components/ui/input";
 import { MapPin } from "lucide-react";
 
 const LIBRARIES: Libraries = ["places"];
 
+export interface LocationDetails {
+  address: string;
+  lat: number;
+  lng: number;
+  city: string;
+}
+
 interface Props {
   value: string;
-  onChange: (value: string) => void;
+  onChange: (value: string, details?: LocationDetails) => void;
   placeholder?: string;
   id?: string;
   required?: boolean;
@@ -26,7 +33,7 @@ function PlacesInput({ value, onChange, placeholder, id, required }: Props) {
   } = usePlacesAutocomplete({
     defaultValue: value,
     debounce: 300,
-    requestOptions: { types: ["(cities)"] },
+    requestOptions: { types: ["address"], componentRestrictions: { country: "ca" } },
   });
 
   useEffect(() => {
@@ -57,11 +64,29 @@ function PlacesInput({ value, onChange, placeholder, id, required }: Props) {
             <li
               key={place_id}
               className="flex items-center gap-2 px-4 py-3 hover:bg-green-50 cursor-pointer text-sm text-gray-700"
-              onMouseDown={(e) => {
+              onMouseDown={async (e) => {
                 e.preventDefault();
                 setValue(description, false);
-                onChange(description);
                 clearSuggestions();
+                try {
+                  const results = await getGeocode({ address: description });
+                  const { lat, lng } = await getLatLng(results[0]);
+                  const components = results[0].address_components;
+                  const cityComp = components.find(
+                    (c) =>
+                      c.types.includes("locality") ||
+                      c.types.includes("sublocality_level_1") ||
+                      c.types.includes("postal_town") ||
+                      c.types.includes("administrative_area_level_3") ||
+                      c.types.includes("administrative_area_level_2")
+                  );
+                  // fallback: second part of description (city is after first comma for full addresses)
+                  const fallbackCity = description.split(",")[1]?.trim() ?? description.split(",")[0].trim();
+                  const city = cityComp?.long_name ?? fallbackCity;
+                  onChange(description, { address: description, lat, lng, city });
+                } catch {
+                  onChange(description);
+                }
               }}
             >
               <MapPin className="w-3 h-3 text-green-600 flex-shrink-0" />

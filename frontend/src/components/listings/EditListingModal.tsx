@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import ImageUploader from "@/components/ui/ImageUploader";
-import LocationAutocomplete from "@/components/post/LocationAutocomplete";
+import LocationAutocomplete, { type LocationDetails } from "@/components/post/LocationAutocomplete";
 import {
   Select,
   SelectContent,
@@ -31,6 +31,10 @@ export interface Service {
   description: string;
   price: string | number;
   location: string;
+  address?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  city?: string | null;
   category: string | null;
   category_id?: number | null;
   subcategory: string | null;
@@ -56,6 +60,11 @@ export default function EditListingModal({ service, accessToken, onClose, onSave
   const [description, setDescription] = useState(service.description);
   const [price, setPrice] = useState(String(service.price));
   const [location, setLocation] = useState(service.location);
+  const [locationDetails, setLocationDetails] = useState<LocationDetails | null>(
+    service.latitude != null && service.longitude != null
+      ? { address: service.address ?? service.location, lat: service.latitude, lng: service.longitude, city: service.city ?? service.location }
+      : null
+  );
   const [category, setCategory] = useState(service.category ?? "");
   const [subcategory, setSubcategory] = useState(service.subcategory ?? "");
   const [posterType, setPosterType] = useState(service.poster_type ?? "");
@@ -102,6 +111,10 @@ export default function EditListingModal({ service, accessToken, onClose, onSave
             description: description.trim(),
             price: parseFloat(price),
             location: location.trim(),
+            address: locationDetails?.address ?? location.trim(),
+            latitude: locationDetails?.lat ?? null,
+            longitude: locationDetails?.lng ?? null,
+            city: locationDetails?.city ?? location.trim(),
             category: category || null,
             subcategory: subcategory || null,
             poster_type: posterType || null,
@@ -213,7 +226,7 @@ export default function EditListingModal({ service, accessToken, onClose, onSave
             </Label>
             <LocationAutocomplete
               value={location}
-              onChange={setLocation}
+              onChange={(val, details) => { setLocation(val); setLocationDetails(details ?? null); }}
               placeholder="City, region (ex: Toronto, ON)"
             />
           </div>

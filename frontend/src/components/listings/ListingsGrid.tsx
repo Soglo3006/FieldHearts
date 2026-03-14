@@ -14,6 +14,7 @@ interface ApiService {
   title: string;
   price: number;
   location: string;
+  city?: string | null;
   created_at: string;
   image_url: string | null;
   category_name: string | null;
@@ -198,7 +199,7 @@ export default function ListingsGrid({ filters }: { filters?: ListingsFilters })
                   <div className="flex items-center justify-between text-xs text-gray-500 mt-auto">
                     <div className="flex items-center gap-1 min-w-0">
                       <MapPin className="h-3 w-3 flex-shrink-0" />
-                      <span className="line-clamp-1">{s.location}</span>
+                      <span className="line-clamp-1">{s.city ?? s.location}</span>
                     </div>
                     <div className="flex items-center gap-1 flex-shrink-0 ml-2">
                       <Clock className="h-3 w-3" />

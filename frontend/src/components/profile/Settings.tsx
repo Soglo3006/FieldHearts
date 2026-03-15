@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import ProfilePictureUploader from "@/components/profile/ProfilePicture";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabaseClient";
 import {
@@ -41,22 +42,13 @@ function PaymentMethodsPage({ onBack, onClose }: { onBack: () => void; onClose: 
   );
 }
 
-function BillingHistoryPage({ onBack, onClose }: { onBack: () => void; onClose: () => void }) {
-  const { t } = useTranslation();
-  return (
-    <div className="bg-gray-50">
-      <div className="bg-white border-b relative">
-        <button onClick={onClose} className="absolute top-3 right-3 sm:top-4 sm:right-4 text-gray-500 hover:text-gray-900 text-xl cursor-pointer">✕</button>
-        <button onClick={onBack} className="absolute top-3 left-3 sm:top-4 sm:left-4 text-gray-600 hover:text-gray-900 cursor-pointer text-sm sm:text-base">← Back</button>
-        <div className="px-3 sm:px-4 py-4 sm:py-6 text-center">
-          <h1 className="text-lg sm:text-3xl font-bold text-gray-900 mt-6 sm:mt-0">{t("settings.billingHistory")}</h1>
-        </div>
-      </div>
-      <div className="px-3 sm:px-4 py-4 sm:py-8">
-        <Card className="p-4 sm:p-6">{t("settings.comingSoon")}</Card>
-      </div>
-    </div>
-  );
+function BillingHistoryPage({ onClose }: { onBack: () => void; onClose: () => void }) {
+  const router = useRouter();
+  useEffect(() => {
+    onClose();
+    router.push("/wallet");
+  }, []);
+  return null;
 }
 
 export default function SettingsPage({ onClose, scrollRef }: { onClose: () => void; scrollRef?: React.RefObject<HTMLDivElement | null> }) {

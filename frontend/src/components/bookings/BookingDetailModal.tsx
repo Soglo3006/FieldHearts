@@ -40,6 +40,7 @@ export interface BookingDetail {
   cancel_reason?: string | null;
   client_name?: string;
   worker_name?: string;
+  service_type?: "offer" | "looking";
 }
 
 interface Props {
@@ -54,11 +55,11 @@ interface Props {
 }
 
 const STATUS_BADGE: Record<BookingStatus, string> = {
-  pending:   "bg-amber-100 text-amber-800 border-amber-200",
+  pending:   "bg-yellow-100 text-yellow-800 border-yellow-200",
   accepted:  "bg-blue-100 text-blue-800 border-blue-200",
-  active:    "bg-indigo-100 text-indigo-800 border-indigo-200",
+  active:    "bg-green-100 text-green-800 border-green-200",
   completed: "bg-green-100 text-green-800 border-green-200",
-  cancelled: "bg-gray-100 text-gray-600 border-gray-200",
+  cancelled: "bg-red-100 text-red-700 border-red-200",
   rejected:  "bg-red-100 text-red-700 border-red-200",
 };
 
@@ -140,7 +141,7 @@ export default function BookingDetailModal({
               {t(`bookings.${booking.status}`)}
             </span>
             {booking.is_one_time && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-800">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-800">
                 <Tag className="h-3 w-3" /> {t("bookings.oneTime")}
               </span>
             )}
@@ -180,18 +181,55 @@ export default function BookingDetailModal({
             {/* Service info */}
             <div>
               <h2 className="text-lg font-bold text-gray-900 mb-1">{booking.title}</h2>
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-gray-500">
-                <span className="text-xl font-extrabold text-green-700">
-                  ${Number(booking.custom_price ?? booking.price)}
-                  {booking.custom_price && Number(booking.custom_price) !== Number(booking.price) && (
-                    <span className="text-sm text-gray-400 line-through ml-2">${Number(booking.price)}</span>
-                  )}
-                </span>
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-gray-500 mb-2">
                 {booking.category && <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full text-xs">{booking.category}</span>}
                 {booking.service_location && (
                   <span className="flex items-center gap-1"><MapPin className="h-3.5 w-3.5" />{booking.service_location}</span>
                 )}
               </div>
+              {(() => {
+                const base = Number(booking.custom_price ?? booking.price);
+                const origBase = Number(booking.price);
+                const buyerCommission = base * 0.05;
+                const transactionFee  = base * 0.03;
+                const gst             = base * 0.05;
+                const qst             = base * 0.09975;
+                const total = base + buyerCommission + transactionFee + gst + qst;
+                const fmt = (n: number) => n.toFixed(2);
+                return (
+                  <div className="bg-gray-50 rounded-lg p-3 space-y-1.5 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">{t("serviceDetail.servicePrice")}</span>
+                      <span className="font-semibold">
+                        ${fmt(base)}
+                        {booking.custom_price && Number(booking.custom_price) !== origBase && (
+                          <span className="text-xs text-gray-400 line-through ml-2">${fmt(origBase)}</span>
+                        )}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">{t("serviceDetail.buyerCommission")}</span>
+                      <span className="text-gray-700">${fmt(buyerCommission)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">{t("serviceDetail.transactionFee")}</span>
+                      <span className="text-gray-700">${fmt(transactionFee)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">{t("serviceDetail.gst")}</span>
+                      <span className="text-gray-700">${fmt(gst)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">{t("serviceDetail.qst")}</span>
+                      <span className="text-gray-700">${fmt(qst)}</span>
+                    </div>
+                    <div className="flex justify-between font-bold border-t border-gray-200 pt-2">
+                      <span>{t("serviceDetail.total")}</span>
+                      <span className="text-green-700">${fmt(total)}</span>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
 
             {serviceDescription && (
@@ -262,7 +300,7 @@ export default function BookingDetailModal({
               </div>
             )}
             {booking.status === "active" && (
-              <div className="bg-indigo-50 border border-indigo-200 rounded-lg px-3 py-2 text-xs text-indigo-700 space-y-1">
+              <div className="bg-green-50 border border-green-200 rounded-lg px-3 py-2 text-xs text-green-700 space-y-1">
                 <div className="flex items-center gap-1.5 font-medium">{t("bookings.jobInProgress")}</div>
                 <div className="flex gap-4">
                   <span className={`flex items-center gap-1 ${booking.completed_by_worker ? "text-green-600" : "text-gray-400"}`}>

@@ -180,8 +180,10 @@ export default function ListingsGrid({ filters }: { filters?: ListingsFilters })
                     <h3 className="font-semibold text-gray-900 line-clamp-1 flex-1 group-hover:text-green-700 transition-colors text-sm">
                       {s.title}
                     </h3>
-                    {s.type === "looking" && (
+                    {s.type === "looking" ? (
                       <Badge className="bg-blue-100 text-blue-700 text-xs flex-shrink-0 border-0">{t("listings.looking")}</Badge>
+                    ) : (
+                      <Badge className="bg-green-100 text-green-700 text-xs flex-shrink-0 border-0">{t("listings.offering")}</Badge>
                     )}
                   </div>
 

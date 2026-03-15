@@ -21,9 +21,12 @@ interface RatingsPageProps {
   displayName: string;
 }
 
+const REVIEWS_PER_PAGE = 5;
+
 export default function RatingsPage({ onClose, profileId, displayName }: RatingsPageProps) {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
     const fetchReviews = async () => {
@@ -44,6 +47,9 @@ export default function RatingsPage({ onClose, profileId, displayName }: Ratings
   const averageRating = reviews.length > 0
     ? (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1)
     : null;
+
+  const totalPages = Math.ceil(reviews.length / REVIEWS_PER_PAGE);
+  const paginatedReviews = reviews.slice((currentPage - 1) * REVIEWS_PER_PAGE, currentPage * REVIEWS_PER_PAGE);
 
   const renderStars = (rating: number) => {
     return Array.from({ length: 5 }, (_, i) => (
@@ -117,7 +123,7 @@ export default function RatingsPage({ onClose, profileId, displayName }: Ratings
           </Card>
         ) : (
           <div className="space-y-4">
-            {reviews.map((review) => (
+            {paginatedReviews.map((review) => (
               <Card key={review.id} className="p-6">
                 <div className="flex items-start gap-4">
                   <Avatar className="h-10 w-10 shrink-0">
@@ -129,7 +135,7 @@ export default function RatingsPage({ onClose, profileId, displayName }: Ratings
                     <div className="flex items-center justify-between mb-1">
                       <p className="font-semibold text-gray-900">{review.reviewer_name}</p>
                       <p className="text-xs text-gray-400">
-                        {new Date(review.created_at).toLocaleDateString("en-US", {
+                        {new Date(review.created_at).toLocaleDateString("fr-CA", {
                           month: "long", day: "numeric", year: "numeric"
                         })}
                       </p>
@@ -144,6 +150,22 @@ export default function RatingsPage({ onClose, profileId, displayName }: Ratings
                 </div>
               </Card>
             ))}
+
+            {totalPages > 1 && (
+              <div className="flex items-center justify-center gap-2 pt-2">
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                  <Button
+                    key={page}
+                    variant={currentPage === page ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setCurrentPage(page)}
+                    className={`px-4 ${currentPage === page ? "bg-green-600 hover:bg-green-700 text-white" : ""}`}
+                  >
+                    {page}
+                  </Button>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>

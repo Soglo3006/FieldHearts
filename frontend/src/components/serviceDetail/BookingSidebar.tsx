@@ -33,39 +33,56 @@ export default function BookingSidebar({
           {serviceType === "offer" ? t("serviceDetail.readyToBook") : t("serviceDetail.interested")}
         </h3>
 
-        <div className="bg-gray-50 rounded-lg p-3 space-y-2 mb-6">
-          <div className="flex justify-between text-sm">
-            <span className="text-gray-600">{serviceType === "offer" ? t("serviceDetail.servicePrice") : t("serviceDetail.budget")}</span>
-            <span className="font-semibold text-gray-900">${price}</span>
-          </div>
-          <div className="flex justify-between text-sm border-t border-gray-200 pt-2">
-            <span className="text-gray-600">{t("serviceDetail.platformFee")}</span>
-            <span className="font-semibold text-gray-900">$5</span>
-          </div>
-          <div className="flex justify-between text-base font-bold border-t border-gray-200 pt-2">
-            <span>{t("serviceDetail.total")}</span>
-            <span className="text-green-700">${price + 5}</span>
-          </div>
-        </div>
+        {(() => {
+          const buyerCommission  = price * 0.05;
+          const transactionFee   = price * 0.03;
+          const gst              = price * 0.05;
+          const qst              = price * 0.09975;
+          const total = price + buyerCommission + transactionFee + gst + qst;
+          const fmt = (n: number) => n.toFixed(2);
+          return (
+            <div className="bg-gray-50 rounded-lg p-3 space-y-1.5 mb-6 text-sm">
+              <div className="flex justify-between">
+                <span className="text-gray-600">{serviceType === "offer" ? t("serviceDetail.servicePrice") : t("serviceDetail.budget")}</span>
+                <span className="font-semibold text-gray-900">${fmt(price)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">{t("serviceDetail.buyerCommission")}</span>
+                <span className="text-gray-700">${fmt(buyerCommission)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">{t("serviceDetail.transactionFee")}</span>
+                <span className="text-gray-700">${fmt(transactionFee)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">{t("serviceDetail.gst")}</span>
+                <span className="text-gray-700">${fmt(gst)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">{t("serviceDetail.qst")}</span>
+                <span className="text-gray-700">${fmt(qst)}</span>
+              </div>
+              <div className="flex justify-between text-base font-bold border-t border-gray-200 pt-2 mt-1">
+                <span>{t("serviceDetail.total")}</span>
+                <span className="text-green-700">${fmt(total)}</span>
+              </div>
+            </div>
+          );
+        })()}
 
         <div className="space-y-2">
           <Button
             className="w-full bg-green-700 text-white hover:bg-green-800 h-12 disabled:opacity-60"
-            onClick={serviceType === "offer" ? onBookingRequest : onContact}
-            disabled={
-              (serviceType === "looking" && contactLoading) ||
-              (serviceType === "offer" && existingBookingStatus !== null)
-            }
+            onClick={onBookingRequest}
+            disabled={existingBookingStatus !== null}
           >
-            {serviceType === "offer"
-              ? existingBookingStatus
-                ? existingBookingStatus === "pending"
-                  ? t("serviceDetail.requestAlreadySent")
-                  : t("serviceDetail.bookingStatus", { status: existingBookingStatus })
-                : t("serviceDetail.requestBooking")
-              : contactLoading
-              ? t("serviceDetail.openingChat")
-              : t("serviceDetail.makeAnOffer")}
+            {existingBookingStatus
+              ? existingBookingStatus === "pending"
+                ? t("serviceDetail.requestAlreadySent")
+                : t("serviceDetail.bookingStatus", { status: existingBookingStatus })
+              : serviceType === "looking"
+              ? t("serviceDetail.applyToJob")
+              : t("serviceDetail.requestBooking")}
           </Button>
           <Button
             variant="outline"

@@ -38,6 +38,7 @@ interface Listing {
   created_at: string;
   category: string;
   category_name?: string;
+  type?: "offer" | "looking";
 }
 
 function ListingCard({ listing, t }: { listing: Listing; t: (key: string, opts?: Record<string, unknown>) => string }) {
@@ -58,7 +59,14 @@ function ListingCard({ listing, t }: { listing: Listing; t: (key: string, opts?:
           )}
         </AspectRatio>
         <div className="p-3 flex flex-col gap-1">
-          <h3 className="font-semibold">{listing.title}</h3>
+          <div className="flex items-start gap-2">
+            <h3 className="font-semibold flex-1">{listing.title}</h3>
+            {listing.type === "looking" ? (
+              <span className="bg-blue-100 text-blue-700 text-xs font-semibold px-2 py-0.5 rounded-full shrink-0">{t("listings.looking")}</span>
+            ) : (
+              <span className="bg-green-100 text-green-700 text-xs font-semibold px-2 py-0.5 rounded-full shrink-0">{t("listings.offering")}</span>
+            )}
+          </div>
           <p className="text-green-700 font-semibold">${listing.price}</p>
           <div className="flex items-center justify-between text-xs text-gray-500 mt-auto">
             <div className="flex items-center gap-1 min-w-0">

@@ -76,24 +76,35 @@ export default function BookingDetailFooter({
 
   return (
     <div className="px-5 py-4 border-t border-gray-100 flex flex-col gap-2 flex-shrink-0">
-      {/* Worker: pending */}
-      {userRole === "worker" && booking.status === "pending" && (
-        <div className="flex gap-2">
-          <Button className="flex-1 bg-green-700 hover:bg-green-800 text-white h-11" onClick={() => onCallStatus("accepted")} disabled={updating}>
-            {updating ? "…" : "Accept"}
-          </Button>
-          <Button variant="outline" className="flex-1 text-red-600 border-red-200 hover:bg-red-50 h-11" onClick={() => onCallStatus("rejected")} disabled={updating}>
-            Reject
-          </Button>
-        </div>
-      )}
+      {/* Pending actions — depends on service_type */}
+      {booking.status === "pending" && (() => {
+        const isLooking = booking.service_type === "looking";
+        // Who decides: for "offer" → worker (poster); for "looking" → client (poster)
+        const deciderRole = isLooking ? "client" : "worker";
+        const applicantRole = isLooking ? "worker" : "client";
 
-      {/* Client: pending */}
-      {userRole === "client" && booking.status === "pending" && (
-        <Button variant="outline" className="w-full text-red-600 border-red-200 hover:bg-red-50 h-11" onClick={() => onCallStatus("cancelled")} disabled={updating}>
-          {updating ? "…" : "Cancel Request"}
-        </Button>
-      )}
+        if (userRole === deciderRole) {
+          // Poster: Accept or Reject
+          return (
+            <div className="flex gap-2">
+              <Button className="flex-1 bg-green-700 hover:bg-green-800 text-white h-11" onClick={() => onCallStatus("accepted")} disabled={updating}>
+                {updating ? "…" : "Accept"}
+              </Button>
+              <Button variant="outline" className="flex-1 text-red-600 border-red-200 hover:bg-red-50 h-11" onClick={() => onCallStatus("rejected")} disabled={updating}>
+                Reject
+              </Button>
+            </div>
+          );
+        } else if (userRole === applicantRole) {
+          // Applicant: can only cancel their request
+          return (
+            <Button variant="outline" className="w-full text-red-600 border-red-200 hover:bg-red-50 h-11" onClick={() => onCallStatus("cancelled")} disabled={updating}>
+              {updating ? "…" : "Cancel Request"}
+            </Button>
+          );
+        }
+        return null;
+      })()}
 
       {/* Worker: accepted */}
       {userRole === "worker" && booking.status === "accepted" && (
@@ -109,12 +120,12 @@ export default function BookingDetailFooter({
 
       {/* Active: mark done */}
       {booking.status === "active" && !hasMarkedDone && (
-        <Button className="w-full bg-indigo-600 hover:bg-indigo-700 text-white h-11" onClick={onMarkCompleted} disabled={updating}>
+        <Button className="w-full bg-green-700 hover:bg-green-800 text-white h-11" onClick={onMarkCompleted} disabled={updating}>
           {updating ? "…" : userRole === "worker" ? "Mark Work Done" : "Mark Job Done"}
         </Button>
       )}
       {booking.status === "active" && hasMarkedDone && (
-        <div className="flex items-center justify-center gap-2 text-sm text-indigo-600 font-medium py-1">
+        <div className="flex items-center justify-center gap-2 text-sm text-green-700 font-medium py-1">
           <CheckCircle className="h-4 w-4" />
           You marked done{!otherHasMarkedDone && ` — waiting for ${userRole === "worker" ? "client" : "provider"}`}
         </div>
@@ -124,10 +135,10 @@ export default function BookingDetailFooter({
       {booking.status === "active" && (
         <>
           {cancelRequestedByOther && (
-            <div className="border border-amber-200 bg-amber-50 rounded-xl px-4 py-3 space-y-2">
-              <p className="text-xs font-semibold text-amber-800">The other party wants to cancel</p>
-              {booking.cancel_reason && <p className="text-xs text-amber-700 italic">"{booking.cancel_reason}"</p>}
-              <p className="text-xs text-amber-700">Transaction fees will not be refunded.</p>
+            <div className="border border-red-200 bg-red-50 rounded-xl px-4 py-3 space-y-2">
+              <p className="text-xs font-semibold text-red-800">The other party wants to cancel</p>
+              {booking.cancel_reason && <p className="text-xs text-red-700 italic">"{booking.cancel_reason}"</p>}
+              <p className="text-xs text-red-700">Transaction fees will not be refunded.</p>
               <div className="flex gap-2">
                 <Button size="sm" variant="outline" className="flex-1 text-red-600 border-red-200 hover:bg-red-50" onClick={approveCancellation} disabled={updating}>
                   {updating ? "…" : "Approve"}
@@ -169,7 +180,7 @@ export default function BookingDetailFooter({
 
       {/* Dispute */}
       {(booking.status === "active" || booking.status === "completed") && !booking.has_dispute && (
-        <Button variant="outline" className="w-full text-amber-600 border-amber-200 hover:bg-amber-50 h-10 gap-2"
+        <Button variant="outline" className="w-full text-red-600 border-red-200 hover:bg-red-50 h-10 gap-2"
           onClick={() => { onOpenDispute(booking.id, booking.title); onClose(); }}>
           <AlertTriangle className="h-4 w-4" /> Open Dispute
         </Button>

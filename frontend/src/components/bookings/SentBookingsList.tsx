@@ -109,7 +109,7 @@ export default function SentBookingsList({
                         </Link>
                       </p>
 
-                      <p className="text-green-700 font-bold text-lg mb-1">${Number(b.price)}</p>
+                      <p className="text-green-700 font-bold text-lg mb-1">${(Number(b.price) * 1.22975).toFixed(2)}</p>
 
                       {b.service_location && (
                         <div className="flex items-center text-xs text-gray-500 mb-1">
@@ -132,26 +132,39 @@ export default function SentBookingsList({
                           <PayNowButton bookingId={b.id} accessToken={accessToken} />
                         )}
                         {b.status === "pending" && (
-                          <Button type="button" size="sm" variant="outline" className="text-red-600 border-red-200 hover:bg-red-50 flex-1"
-                            onClick={() => onUpdateStatus(b.id, "cancelled", "sent")} disabled={updating === b.id}>
-                            {updating === b.id ? "…" : t("bookings.cancelRequest")}
-                          </Button>
+                          b.service_type === "looking" ? (
+                            <>
+                              <Button type="button" size="sm" className="bg-green-700 hover:bg-green-800 text-white flex-1"
+                                onClick={() => onUpdateStatus(b.id, "accepted", "sent")} disabled={updating === b.id}>
+                                {updating === b.id ? "…" : t("bookings.accept")}
+                              </Button>
+                              <Button type="button" size="sm" variant="outline" className="text-red-600 border-red-200 hover:bg-red-50 flex-1"
+                                onClick={() => onUpdateStatus(b.id, "rejected", "sent")} disabled={updating === b.id}>
+                                {t("bookings.reject")}
+                              </Button>
+                            </>
+                          ) : (
+                            <Button type="button" size="sm" variant="outline" className="text-red-600 border-red-200 hover:bg-red-50 flex-1"
+                              onClick={() => onUpdateStatus(b.id, "cancelled", "sent")} disabled={updating === b.id}>
+                              {updating === b.id ? "…" : t("bookings.cancelRequest")}
+                            </Button>
+                          )
                         )}
                         {b.status === "active" && (
                           <>
                             {!b.completed_by_client ? (
-                              <Button type="button" size="sm" className="bg-indigo-600 hover:bg-indigo-700 text-white flex-1"
+                              <Button type="button" size="sm" className="bg-green-700 hover:bg-green-800 text-white flex-1"
                                 onClick={() => onMarkCompleted(b.id, "sent")} disabled={updating === b.id}>
                                 {updating === b.id ? "…" : t("bookings.markJobDone")}
                               </Button>
                             ) : (
-                              <span className="text-xs text-indigo-600 flex items-center gap-1 flex-1">
+                              <span className="text-xs text-green-700 flex items-center gap-1 flex-1">
                                 <CheckCircle className="h-3.5 w-3.5" /> {t("bookings.youMarkedDone")}
                                 {!b.completed_by_worker && ` — ${t("bookings.waitingForProvider")}`}
                               </span>
                             )}
                             {!b.has_dispute && (
-                              <Button type="button" size="sm" variant="outline" className="text-amber-600 border-amber-200 hover:bg-amber-50 gap-1.5"
+                              <Button type="button" size="sm" variant="outline" className="text-red-600 border-red-200 hover:bg-red-50 gap-1.5"
                                 onClick={() => onDispute(b.id, b.title)}>
                                 <AlertTriangle className="h-3.5 w-3.5" /> {t("bookings.dispute")}
                               </Button>
@@ -171,7 +184,7 @@ export default function SentBookingsList({
                               </span>
                             )}
                             {!b.has_dispute && (
-                              <Button type="button" size="sm" variant="outline" className="text-amber-600 border-amber-200 hover:bg-amber-50 gap-1.5"
+                              <Button type="button" size="sm" variant="outline" className="text-red-600 border-red-200 hover:bg-red-50 gap-1.5"
                                 onClick={() => onDispute(b.id, b.title)}>
                                 <AlertTriangle className="h-3.5 w-3.5" /> {t("bookings.dispute")}
                               </Button>
@@ -179,7 +192,7 @@ export default function SentBookingsList({
                           </>
                         )}
                         {b.has_dispute && (
-                          <span className="text-xs text-amber-600 italic flex items-center gap-1">
+                          <span className="text-xs text-red-600 italic flex items-center gap-1">
                             <AlertTriangle className="h-3.5 w-3.5" /> {t("bookings.disputeOpen")}
                           </span>
                         )}

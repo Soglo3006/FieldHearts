@@ -1,7 +1,12 @@
 import pool from "../config/db.js";
 import stripe from "../config/stripe.js";
+import { notifyPaymentReceipt } from "../services/emailService.js";
 
-const PLATFORM_FEE_PERCENT = 5; // 5% platform fee
+// Fee rates (applied to service price)
+const BUYER_COMMISSION_RATE  = 0.05;    // 5% buyer commission
+const TRANSACTION_FEE_RATE   = 0.03;    // 3% transaction fee
+const GST_RATE               = 0.05;    // 5% TPS (Federal)
+const QST_RATE               = 0.09975; // 9.975% TVQ (Québec)
 const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:3000";
 
 // ─── Stripe Connect: create onboarding link for worker ───────────────────────
@@ -139,24 +144,14 @@ export const createCheckoutSession = async (req, res) => {
       return res.status(400).json({ message: "This booking has already been paid" });
     }
 
-    // Check that worker has a Stripe Connect account with charges enabled
-    const stripeAccount = await pool.query(
-      "SELECT * FROM stripe_accounts WHERE user_id = $1",
-      [b.worker_id]
-    );
+    const servicePriceCents       = Math.round(Number(b.price) * 100);
+    const buyerCommissionCents    = Math.round(servicePriceCents * BUYER_COMMISSION_RATE);
+    const transactionFeeCents     = Math.round(servicePriceCents * TRANSACTION_FEE_RATE);
+    const gstCents                = Math.round(servicePriceCents * GST_RATE);
+    const qstCents                = Math.round(servicePriceCents * QST_RATE);
+    const totalCents = servicePriceCents + buyerCommissionCents + transactionFeeCents + gstCents + qstCents;
 
-    if (stripeAccount.rows.length === 0 || !stripeAccount.rows[0].charges_enabled) {
-      return res.status(400).json({
-        message: "The service provider has not set up their payment account yet.",
-      });
-    }
-
-    const workerStripeId = stripeAccount.rows[0].stripe_account_id;
-    const amountCents = Math.round(Number(b.price) * 100);
-    const platformFee = Math.round(amountCents * (PLATFORM_FEE_PERCENT / 100));
-    const transferGroup = `booking_${booking_id}`;
-
-    // Create Checkout Session (funds go to platform, NOT to worker yet — escrow)
+    // Create Checkout Session — funds go directly to platform account
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
       line_items: [
@@ -165,36 +160,63 @@ export const createCheckoutSession = async (req, res) => {
             currency: "cad",
             product_data: {
               name: b.title,
-              description: `FieldHearts service booking`,
-              ...(b.image_url && { images: [b.image_url] }),
+              description: "Service",
+              ...(b.image_url && b.image_url.length <= 2048 && { images: [b.image_url] }),
             },
-            unit_amount: amountCents,
+            unit_amount: servicePriceCents,
+          },
+          quantity: 1,
+        },
+        {
+          price_data: {
+            currency: "cad",
+            product_data: { name: "Commission acheteur (5%)" },
+            unit_amount: buyerCommissionCents,
+          },
+          quantity: 1,
+        },
+        {
+          price_data: {
+            currency: "cad",
+            product_data: { name: "Frais de transaction (3%)" },
+            unit_amount: transactionFeeCents,
+          },
+          quantity: 1,
+        },
+        {
+          price_data: {
+            currency: "cad",
+            product_data: { name: "TPS (5%)" },
+            unit_amount: gstCents,
+          },
+          quantity: 1,
+        },
+        {
+          price_data: {
+            currency: "cad",
+            product_data: { name: "TVQ (9.975%)" },
+            unit_amount: qstCents,
           },
           quantity: 1,
         },
       ],
       mode: "payment",
-      payment_intent_data: {
-        application_fee_amount: platformFee,
-        transfer_group: transferGroup,
-        on_behalf_of: workerStripeId,
-      },
-      success_url: `${FRONTEND_URL}/bookings?payment=success&booking_id=${booking_id}`,
-      cancel_url: `${FRONTEND_URL}/bookings?payment=cancelled`,
+      locale: "fr-CA",
+      success_url: `${FRONTEND_URL}/payment/success?booking_id=${booking_id}`,
+      cancel_url: `${FRONTEND_URL}/payment/${booking_id}?cancelled=true`,
       metadata: {
         booking_id,
-        worker_stripe_id: workerStripeId,
-        platform_fee: String(platformFee),
+        service_price_cents: String(servicePriceCents),
       },
     });
 
     // Record pending payment in DB
     await pool.query(
       `INSERT INTO payments
-         (booking_id, amount, status, stripe_checkout_session_id, platform_fee, currency, transfer_group)
-       VALUES ($1, $2, 'pending', $3, $4, 'cad', $5)
+         (booking_id, amount, status, stripe_checkout_session_id, platform_fee, currency)
+       VALUES ($1, $2, 'pending', $3, $4, 'cad')
        ON CONFLICT DO NOTHING`,
-      [booking_id, amountCents, session.id, platformFee, transferGroup]
+      [booking_id, totalCents, session.id, buyerCommissionCents]
     );
 
     res.json({ url: session.url, session_id: session.id });
@@ -240,6 +262,39 @@ export const stripeWebhook = async (req, res) => {
           "UPDATE bookings SET payment_status = 'paid', status = 'active' WHERE id = $1 AND status = 'accepted'",
           [bookingId]
         );
+
+        // Record transaction in wallet for the client (debit)
+        const booking = await pool.query(
+          `SELECT b.client_id, b.worker_id, p.amount, s.title, s.image_url,
+                  CASE WHEN uw.account_type = 'company' THEN uw.company_name ELSE uw.full_name END AS worker_name,
+                  CASE WHEN uc.account_type = 'company' THEN uc.company_name ELSE uc.full_name END AS client_name,
+                  uc.email AS client_email
+           FROM bookings b
+           JOIN services s ON b.service_id = s.id
+           JOIN users uw ON b.worker_id = uw.id
+           JOIN users uc ON b.client_id = uc.id
+           JOIN payments p ON p.booking_id = b.id AND p.status = 'paid'
+           WHERE b.id = $1`,
+          [bookingId]
+        );
+        if (booking.rows.length > 0) {
+          const { client_id, amount, title, image_url, worker_name, client_name, client_email } = booking.rows[0];
+          const amountDollars = (amount / 100).toFixed(2);
+          await pool.query(
+            `INSERT INTO transactions (user_id, booking_id, type, amount, description, other_user_name, listing_title)
+             VALUES ($1, $2, 'debit', $3, 'Payment for service', $4, $5)
+             ON CONFLICT DO NOTHING`,
+            [client_id, bookingId, amountDollars, worker_name, title]
+          );
+          await pool.query(
+            `INSERT INTO wallets (user_id, balance, total_spent)
+             VALUES ($1, 0, $2)
+             ON CONFLICT (user_id) DO UPDATE
+             SET total_spent = wallets.total_spent + $2`,
+            [client_id, amountDollars]
+          );
+          notifyPaymentReceipt(client_email, client_name, title, amountDollars, worker_name, bookingId, image_url);
+        }
 
         console.log(`Payment confirmed for booking ${bookingId} — now active`);
       } catch (err) {
@@ -300,14 +355,14 @@ export const releasePayment = async (req, res) => {
       return res.status(400).json({ message: "Worker has no Stripe account" });
     }
 
-    // Transfer to worker's Connect account (amount minus platform fee)
-    const transferAmount = p.amount - p.platform_fee;
+    // Transfer 80% of service price to worker (20% kept as platform commission)
+    const servicePriceCents = Math.round(Number(b.price) * 100);
+    const transferAmount = Math.round(servicePriceCents * 0.80);
 
     const transfer = await stripe.transfers.create({
       amount: transferAmount,
       currency: p.currency || "cad",
       destination: b.stripe_account_id,
-      transfer_group: p.transfer_group,
       source_transaction: p.stripe_payment_intent_id,
     });
 
@@ -401,5 +456,92 @@ export const getPaymentStatus = async (req, res) => {
   } catch (err) {
     console.error("Get payment status error:", err);
     res.status(500).json({ message: "Server error" });
+  }
+};
+
+// ─── Verify and confirm payment after Stripe redirect ─────────────────────────
+export const verifyPayment = async (req, res) => {
+  try {
+    const { booking_id } = req.body;
+    const userId = req.user.id;
+
+    // Get the pending payment for this booking
+    const payment = await pool.query(
+      "SELECT * FROM payments WHERE booking_id = $1 AND status = 'pending' ORDER BY created_at DESC LIMIT 1",
+      [booking_id]
+    );
+
+    if (payment.rows.length === 0) {
+      // Already paid or no payment found — return current status
+      const booking = await pool.query("SELECT payment_status, status FROM bookings WHERE id = $1", [booking_id]);
+      return res.json({ already_confirmed: true, booking: booking.rows[0] });
+    }
+
+    const p = payment.rows[0];
+
+    // Verify with Stripe that the session was actually paid
+    const session = await stripe.checkout.sessions.retrieve(p.stripe_checkout_session_id);
+
+    if (session.payment_status !== "paid") {
+      return res.json({ confirmed: false, stripe_status: session.payment_status });
+    }
+
+    const paymentIntentId = session.payment_intent;
+
+    // Update payment record
+    await pool.query(
+      `UPDATE payments SET status = 'paid', stripe_payment_intent_id = $1, updated_at = NOW()
+       WHERE stripe_checkout_session_id = $2`,
+      [paymentIntentId, session.id]
+    );
+
+    // Update booking to active
+    await pool.query(
+      "UPDATE bookings SET payment_status = 'paid', status = 'active' WHERE id = $1 AND status = 'accepted'",
+      [booking_id]
+    );
+
+    // Record transaction in wallet
+    const booking = await pool.query(
+      `SELECT b.client_id, b.worker_id, p.amount, s.title, s.image_url,
+              CASE WHEN uw.account_type = 'company' THEN uw.company_name ELSE uw.full_name END AS worker_name,
+              CASE WHEN uc.account_type = 'company' THEN uc.company_name ELSE uc.full_name END AS client_name,
+              uc.email AS client_email
+       FROM bookings b
+       JOIN services s ON b.service_id = s.id
+       JOIN users uw ON b.worker_id = uw.id
+       JOIN users uc ON b.client_id = uc.id
+       JOIN payments p ON p.booking_id = b.id AND p.status = 'paid'
+       WHERE b.id = $1`,
+      [booking_id]
+    );
+
+    if (booking.rows.length > 0) {
+      const { client_id, amount, title, image_url, worker_name, client_name, client_email } = booking.rows[0];
+      // amount is in cents — convert to dollars
+      const amountDollars = (amount / 100).toFixed(2);
+
+      await pool.query(
+        `INSERT INTO transactions (user_id, booking_id, type, amount, description, other_user_name, listing_title)
+         VALUES ($1, $2, 'debit', $3, 'Payment for service', $4, $5)
+         ON CONFLICT DO NOTHING`,
+        [client_id, booking_id, amountDollars, worker_name, title]
+      );
+      await pool.query(
+        `INSERT INTO wallets (user_id, balance, total_spent)
+         VALUES ($1, 0, $2)
+         ON CONFLICT (user_id) DO UPDATE
+         SET total_spent = wallets.total_spent + $2`,
+        [client_id, amountDollars]
+      );
+
+      // Send receipt email
+      notifyPaymentReceipt(client_email, client_name, title, amountDollars, worker_name, booking_id, image_url);
+    }
+
+    res.json({ confirmed: true });
+  } catch (err) {
+    console.error("Verify payment error:", err);
+    res.status(500).json({ message: "Failed to verify payment" });
   }
 };

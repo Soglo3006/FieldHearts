@@ -62,20 +62,42 @@ export default function BookingModal({
           <>
             <div className="bg-gray-50 rounded-lg p-4 mb-4">
               <p className="font-medium text-gray-900 text-sm mb-3 line-clamp-2">{serviceTitle}</p>
-              <div className="space-y-1.5">
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">{t("serviceDetail.servicePrice")}</span>
-                  <span className="font-semibold">${price}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">{t("serviceDetail.platformFee")}</span>
-                  <span className="font-semibold">$5</span>
-                </div>
-                <div className="flex justify-between text-sm font-bold border-t border-gray-200 pt-2">
-                  <span>{t("serviceDetail.total")}</span>
-                  <span className="text-green-700">${price + 5}</span>
-                </div>
-              </div>
+              {(() => {
+                const buyerCommission = price * 0.05;
+                const transactionFee  = price * 0.03;
+                const gst             = price * 0.05;
+                const qst             = price * 0.09975;
+                const total = price + buyerCommission + transactionFee + gst + qst;
+                const fmt = (n: number) => n.toFixed(2);
+                return (
+                  <div className="space-y-1.5 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">{t("serviceDetail.servicePrice")}</span>
+                      <span className="font-semibold">${fmt(price)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">{t("serviceDetail.buyerCommission")}</span>
+                      <span className="text-gray-700">${fmt(buyerCommission)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">{t("serviceDetail.transactionFee")}</span>
+                      <span className="text-gray-700">${fmt(transactionFee)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">{t("serviceDetail.gst")}</span>
+                      <span className="text-gray-700">${fmt(gst)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">{t("serviceDetail.qst")}</span>
+                      <span className="text-gray-700">${fmt(qst)}</span>
+                    </div>
+                    <div className="flex justify-between font-bold border-t border-gray-200 pt-2">
+                      <span>{t("serviceDetail.total")}</span>
+                      <span className="text-green-700">${fmt(total)}</span>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
 
             <div className="mb-4">

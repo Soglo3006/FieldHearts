@@ -29,14 +29,12 @@ export default function PayNowButton({ bookingId, accessToken, fullWidth }: Prop
       const data = await res.json();
       if (!res.ok) {
         setError(data.message || "Failed to start payment");
+        setLoading(false);
         return;
       }
-      if (data.url) {
-        window.location.href = data.url;
-      }
+      window.location.href = data.url;
     } catch {
       setError("Network error. Please try again.");
-    } finally {
       setLoading(false);
     }
   };
@@ -49,11 +47,7 @@ export default function PayNowButton({ bookingId, accessToken, fullWidth }: Prop
         onClick={handlePay}
         disabled={loading}
       >
-        {loading ? (
-          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-        ) : (
-          <CreditCard className="h-3.5 w-3.5" />
-        )}
+        {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CreditCard className="h-3.5 w-3.5" />}
         {loading ? "Redirecting…" : "Pay Now"}
       </Button>
       {error && <p className="text-xs text-red-600">{error}</p>}

@@ -129,7 +129,10 @@ export default function ServiceDetailPage() {
         }
 
         if (user && session?.access_token) {
-          fetch(`${process.env.NEXT_PUBLIC_API_URL}/bookings/my-bookings`, {
+          // For "looking" listings, the current user applies as worker → check received-bookings
+          // For "offer" listings, the current user books as client → check my-bookings
+          const endpoint = data.type === "looking" ? "received-bookings" : "my-bookings";
+          fetch(`${process.env.NEXT_PUBLIC_API_URL}/bookings/${endpoint}`, {
             headers: { Authorization: `Bearer ${session.access_token}` },
           })
             .then((r) => r.json())

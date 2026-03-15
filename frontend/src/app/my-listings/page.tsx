@@ -28,6 +28,97 @@ interface MyService {
   urgency: string | null;
   image_url: string | null;
   created_at: string;
+  is_active: boolean;
+}
+
+function ListingCard({
+  s, historical = false, confirmDeleteId, deletingId, onEdit, onConfirmDelete, onDelete, t,
+}: {
+  s: MyService;
+  historical?: boolean;
+  confirmDeleteId: string | null;
+  deletingId: string | null;
+  onEdit: (s: MyService) => void;
+  onConfirmDelete: (id: string | null) => void;
+  onDelete: (id: string) => void;
+  t: (key: string) => string;
+}) {
+  return (
+    <div className={`border rounded-xl shadow-sm bg-white flex flex-col overflow-hidden transition-all ${historical ? "opacity-60" : "hover:shadow-lg"}`}>
+      <Link href={`/serviceDetail/${s.id}`} className="block">
+        <AspectRatio ratio={16 / 9}>
+          {s.image_url ? (
+            <img src={s.image_url} alt={s.title} className="w-full h-full object-cover" />
+          ) : (
+            <div className="w-full h-full bg-gray-100 flex items-center justify-center">
+              <Grid3x3 className="h-12 w-12 text-gray-300" />
+            </div>
+          )}
+        </AspectRatio>
+      </Link>
+
+      <div className="p-4 flex flex-col flex-1">
+        <div className="flex items-start gap-2 mb-1">
+          <Link href={`/serviceDetail/${s.id}`} className="flex-1">
+            <h3 className="font-semibold text-gray-900 line-clamp-1 hover:text-green-700 transition-colors">
+              {s.title}
+            </h3>
+          </Link>
+          <div className="flex items-center gap-1.5 shrink-0">
+            {historical && (
+              <Badge className="bg-gray-100 text-gray-500 text-xs border-0">{t("myListings.completed")}</Badge>
+            )}
+            {s.type === "looking" && (
+              <Badge className="bg-blue-100 text-blue-700 text-xs border-0">{t("myListings.looking")}</Badge>
+            )}
+          </div>
+        </div>
+
+        <p className="text-green-700 font-bold text-lg mb-2">${Number(s.price)}</p>
+
+        <div className="flex items-center text-sm text-gray-500 mb-2">
+          <MapPin className="h-4 w-4 mr-1 flex-shrink-0" />
+          <span className="line-clamp-1">{s.location}</span>
+        </div>
+
+        {s.category && (
+          <p className="text-xs text-gray-500 line-clamp-1 mb-3">
+            {s.category}{s.subcategory && ` • ${s.subcategory}`}
+          </p>
+        )}
+
+        {!historical && (
+          <div className="mt-auto pt-3 border-t border-gray-100 flex flex-wrap gap-2">
+            <Button size="sm" variant="outline" className="gap-1.5 flex-1" onClick={() => onEdit(s)}>
+              {t("myListings.edit")}
+            </Button>
+            {confirmDeleteId === s.id ? (
+              <>
+                <Button
+                  size="sm"
+                  className="bg-red-600 hover:bg-red-700 text-white flex-1"
+                  onClick={() => onDelete(s.id)}
+                  disabled={deletingId === s.id}
+                >
+                  {deletingId === s.id ? "…" : t("common.confirm")}
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => onConfirmDelete(null)}>{t("common.cancel")}</Button>
+              </>
+            ) : (
+              <Button
+                size="sm"
+                variant="outline"
+                className="text-red-600 border-red-200 hover:bg-red-50 gap-1.5 flex-1"
+                onClick={() => onConfirmDelete(s.id)}
+              >
+                {t("myListings.delete")}
+              </Button>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }
 
 export default function MyListingsPage() {
@@ -115,76 +206,44 @@ export default function MyListingsPage() {
             </Link>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {listings.map((s) => (
-              <div key={s.id} className="border rounded-xl shadow-sm bg-white flex flex-col overflow-hidden hover:shadow-lg transition-all">
-                <Link href={`/serviceDetail/${s.id}`} className="block">
-                  <AspectRatio ratio={16 / 9}>
-                    {s.image_url ? (
-                      <img src={s.image_url} alt={s.title} className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="w-full h-full bg-gray-100 flex items-center justify-center">
-                        <Grid3x3 className="h-12 w-12 text-gray-300" />
-                      </div>
-                    )}
-                  </AspectRatio>
-                </Link>
-
-                <div className="p-4 flex flex-col flex-1">
-                  <div className="flex items-start gap-2 mb-1">
-                    <Link href={`/serviceDetail/${s.id}`} className="flex-1">
-                      <h3 className="font-semibold text-gray-900 line-clamp-1 hover:text-green-700 transition-colors">
-                        {s.title}
-                      </h3>
-                    </Link>
-                    {s.type === "looking" && (
-                      <Badge className="bg-blue-100 text-blue-700 text-xs flex-shrink-0 border-0">{t("myListings.looking")}</Badge>
-                    )}
-                  </div>
-
-                  <p className="text-green-700 font-bold text-lg mb-2">${Number(s.price)}</p>
-
-                  <div className="flex items-center text-sm text-gray-500 mb-2">
-                    <MapPin className="h-4 w-4 mr-1 flex-shrink-0" />
-                    <span className="line-clamp-1">{s.location}</span>
-                  </div>
-
-                  {s.category && (
-                    <p className="text-xs text-gray-500 line-clamp-1 mb-3">
-                      {s.category}{s.subcategory && ` • ${s.subcategory}`}
-                    </p>
-                  )}
-
-                  <div className="mt-auto pt-3 border-t border-gray-100 flex flex-wrap gap-2">
-                    <Button size="sm" variant="outline" className="gap-1.5 flex-1" onClick={() => setEditingService(s)}>
-                      {t("myListings.edit")}
-                    </Button>
-                    {confirmDeleteId === s.id ? (
-                      <>
-                        <Button
-                          size="sm"
-                          className="bg-red-600 hover:bg-red-700 text-white flex-1"
-                          onClick={() => handleDelete(s.id)}
-                          disabled={deletingId === s.id}
-                        >
-                          {deletingId === s.id ? "…" : t("common.confirm")}
-                        </Button>
-                        <Button size="sm" variant="outline" onClick={() => setConfirmDeleteId(null)}>{t("common.cancel")}</Button>
-                      </>
-                    ) : (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="text-red-600 border-red-200 hover:bg-red-50 gap-1.5 flex-1"
-                        onClick={() => setConfirmDeleteId(s.id)}
-                      >
-                        {t("myListings.delete")}
-                      </Button>
-                    )}
-                  </div>
+          <div className="space-y-10">
+            {/* Active listings */}
+            {listings.filter((s) => s.is_active).length > 0 && (
+              <div>
+                <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-4">
+                  {t("myListings.active")} ({listings.filter((s) => s.is_active).length})
+                </h2>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {listings.filter((s) => s.is_active).map((s) => (
+                    <ListingCard
+                      key={s.id} s={s}
+                      confirmDeleteId={confirmDeleteId} deletingId={deletingId}
+                      onEdit={setEditingService} onConfirmDelete={setConfirmDeleteId} onDelete={handleDelete}
+                      t={t}
+                    />
+                  ))}
                 </div>
               </div>
-            ))}
+            )}
+
+            {/* Historical listings */}
+            {listings.filter((s) => !s.is_active).length > 0 && (
+              <div>
+                <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-4">
+                  {t("myListings.history")} ({listings.filter((s) => !s.is_active).length})
+                </h2>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {listings.filter((s) => !s.is_active).map((s) => (
+                    <ListingCard
+                      key={s.id} s={s} historical
+                      confirmDeleteId={confirmDeleteId} deletingId={deletingId}
+                      onEdit={setEditingService} onConfirmDelete={setConfirmDeleteId} onDelete={handleDelete}
+                      t={t}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </main>

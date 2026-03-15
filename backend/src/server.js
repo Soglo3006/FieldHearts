@@ -16,6 +16,8 @@ import notificationRoutes from './routes/notificationRoutes.js';
 import metricsRoutes from './routes/metricsRoutes.js';
 import favoriteRoutes from './routes/favoriteRoutes.js';
 import { startMessageReminderJob } from './jobs/messageReminderJob.js';
+import cron from 'node-cron';
+import { processAllPayouts, isPayoutDay } from './services/payoutService.js';
 
 dotenv.config();
 
@@ -51,4 +53,14 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   startMessageReminderJob();
+
+  // Bi-weekly payout — runs every Friday at 12:00 EST (16:00 UTC)
+  // node-cron doesn't support bi-weekly natively, so we run every Friday
+  // and check if it's the correct payout week inside the handler
+  cron.schedule("0 16 * * 5", async () => {
+    if (isPayoutDay(new Date())) {
+      console.log("[Payout] Bi-weekly payout day — starting...");
+      await processAllPayouts();
+    }
+  });
 });

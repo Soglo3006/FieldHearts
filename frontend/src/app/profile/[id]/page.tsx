@@ -16,7 +16,6 @@ import ProfileHeader from "@/components/profile/ProfileHeader";
 import ProfileAbout from "@/components/profile/ProfileAbout";
 import ProfilePortfolio from "@/components/profile/ProfilePortfolio";
 import ProfileListings from "@/components/profile/ProfileListings";
-import ProfileReviews from "@/components/profile/ProfileReviews";
 import BlockedBanner from "@/components/profile/BlockedBanner";
 import { toast } from "sonner";
 import { type Service as Listing } from "@/components/listings/EditListingModal";
@@ -38,14 +37,6 @@ interface ProfileUser {
   stats?: { average_rating?: number; total_reviews?: number };
 }
 
-interface Review {
-  id?: string | number;
-  reviewer_name?: string;
-  created_at?: string;
-  rating?: number;
-  comment?: string;
-}
-
 export default function UserProfilePage() {
   const params = useParams();
   const profileId = params.id as string;
@@ -58,8 +49,6 @@ export default function UserProfilePage() {
 
   const [userListings, setUserListings] = useState<Listing[]>([]);
   const [listingsLoading, setListingsLoading] = useState(true);
-  const [reviews, setReviews] = useState<Review[]>([]);
-  const [reviewsLoading, setReviewsLoading] = useState(true);
 
   const [showSettings, setShowSettings] = useState(false);
   const [showEllipsis, setShowEllipsis] = useState(false);
@@ -115,16 +104,6 @@ export default function UserProfilePage() {
       })
       .catch(() => setUserListings([]))
       .finally(() => setListingsLoading(false));
-  }, [profileId]);
-
-  useEffect(() => {
-    if (!profileId) return;
-    setReviewsLoading(true);
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/reviews/${profileId}`)
-      .then((r) => r.json())
-      .then((data) => setReviews(Array.isArray(data) ? data : []))
-      .catch(() => setReviews([]))
-      .finally(() => setReviewsLoading(false));
   }, [profileId]);
 
   useEffect(() => {
@@ -200,7 +179,7 @@ export default function UserProfilePage() {
             <Link href="/"><span className="hover:text-green-700 cursor-pointer">{t("notFound.goHome")}</span></Link>
             <ChevronRight className="h-4 w-4 mx-1" />
             <span className="text-green-700 font-medium">
-              {isOwner ? (isPerson ? t("profile.yourProfile") : t("profile.yourCompanyProfile")) : `${displayName}${t("profile.sProfile")}`}
+              {isOwner ? (isPerson ? t("profile.yourProfile") : t("profile.yourCompanyProfile")) : t("profile.sProfile", { name: displayName })}
             </span>
           </div>
 
@@ -244,7 +223,6 @@ export default function UserProfilePage() {
                 profileId={profileId}
                 accessToken={session?.access_token}
               />
-              <ProfileReviews reviews={reviews} reviewsLoading={reviewsLoading} />
             </>
           )}
 

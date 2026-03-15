@@ -37,7 +37,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (session) {
+        const now = Math.floor(Date.now() / 1000);
+        const isExpired = session.expires_at !== undefined && session.expires_at < now;
+        if (isExpired) {
+          const { data } = await supabase.auth.refreshSession();
+          setSession(data.session);
+          setUser(data.session?.user ?? null);
+          setLoading(false);
+          setIsLoggingOut(false);
+          return;
+        }
+      }
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);

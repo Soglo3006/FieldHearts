@@ -1,5 +1,5 @@
 import pool from "../config/db.js";
-import { notifyBookingCreated, notifyBookingStatusUpdated } from "../services/emailService.js";
+import { notifyBookingCreated, notifyBookingStatusUpdated, sendEmail } from "../services/emailService.js";
 import { pushNewBooking, pushBookingStatus } from "../services/pushService.js";
 import stripe from "../config/stripe.js";
 import { createNotification, shouldSendEmail } from "../services/notificationService.js";
@@ -23,32 +23,39 @@ export const createBooking = async (req, res) => {
       return res.status(400).json({ message: "This listing is no longer available" });
     }
 
-    const worker_id = s.user_id;
-
-    if (worker_id === req.user.id) {
+    // Can't apply to your own listing
+    if (s.user_id === req.user.id) {
       return res.status(400).json({ message: "You can't request your own service" });
     }
 
-    // Prevent duplicate pending requests from the same client
+    // For "looking" listings: poster is the client (pays), requester is the worker (gets paid)
+    // For "offer" listings: poster is the worker (gets paid), requester is the client (pays)
+    const isLooking = s.type === "looking";
+    const worker_id = isLooking ? req.user.id : s.user_id;
+    const client_id = isLooking ? s.user_id : req.user.id;
+
+    // Prevent duplicate pending requests
     const duplicate = await pool.query(
-      "SELECT id FROM bookings WHERE service_id = $1 AND client_id = $2 AND status = 'pending'",
+      isLooking
+        ? "SELECT id FROM bookings WHERE service_id = $1 AND worker_id = $2 AND status = 'pending'"
+        : "SELECT id FROM bookings WHERE service_id = $1 AND client_id = $2 AND status = 'pending'",
       [service_id, req.user.id]
     );
     if (duplicate.rows.length > 0) {
       return res.status(400).json({ message: "You already have a pending request for this listing" });
     }
 
-    const client = await pool.query(
+    const applicant = await pool.query(
       "SELECT CASE WHEN account_type = 'company' THEN company_name ELSE full_name END AS display_name FROM users WHERE id = $1",
       [req.user.id]
     );
-    const clientName = client.rows[0].display_name;
+    const clientName = applicant.rows[0].display_name;
 
     const result = await pool.query(
       `INSERT INTO bookings (service_id, client_id, worker_id, status, client_description)
        VALUES ($1, $2, $3, 'pending', $4)
        RETURNING *`,
-      [service_id, req.user.id, worker_id, client_description || null]
+      [service_id, client_id, worker_id, client_description || null]
     );
 
     const booking = result.rows[0];
@@ -59,13 +66,14 @@ export const createBooking = async (req, res) => {
       [req.user.id]
     );
 
-    shouldSendEmail(worker_id, "listing").then((ok) => {
-      if (ok) notifyBookingCreated(s.worker_email, s.worker_name, clientName, s.title, booking.id)
+    // Always notify the listing poster (s.user_id), regardless of type
+    shouldSendEmail(s.user_id, "listing").then((ok) => {
+      if (ok) notifyBookingCreated(s.worker_email, s.worker_name, clientName, s.title, booking.id, s.image_url)
         .catch((err) => console.error("Booking email notification failed:", err.message));
     });
-    pushNewBooking(worker_id, clientName, s.title).catch(() => {});
+    pushNewBooking(s.user_id, clientName, s.title).catch(() => {});
     createNotification({
-      userId: worker_id,
+      userId: s.user_id,
       type: "booking_request",
       title: "New booking request",
       body: `${clientName} applied to your listing "${s.title}"`,
@@ -83,7 +91,7 @@ export const getMyBookings = async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT b.*, s.title, s.price, s.image_url, s.category, s.location AS service_location,
-              s.is_one_time,
+              s.is_one_time, s.type AS service_type,
               CASE WHEN u.account_type = 'company' THEN u.company_name ELSE u.full_name END AS worker_name,
               CASE WHEN w.account_type = 'company' THEN w.company_name ELSE w.full_name END AS client_name,
               EXISTS(SELECT 1 FROM reviews WHERE booking_id = b.id AND reviewer_id = $1) AS has_reviewed,
@@ -110,7 +118,7 @@ export const getReceivedBookings = async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT b.*, s.title, s.price, s.image_url, s.category, s.location AS service_location,
-              s.is_one_time,
+              s.is_one_time, s.type AS service_type,
               CASE WHEN u.account_type = 'company' THEN u.company_name ELSE u.full_name END AS client_name,
               EXISTS(SELECT 1 FROM reviews WHERE booking_id = b.id AND reviewer_id = $1) AS has_reviewed,
               EXISTS(SELECT 1 FROM disputes WHERE booking_id = b.id) AS has_dispute,
@@ -142,12 +150,15 @@ export const updateBookingStatus = async (req, res) => {
     }
 
     const booking = await pool.query(
-      `SELECT b.*, s.title, s.is_one_time,
+      `SELECT b.*, s.title, s.is_one_time, s.type AS service_type,
               u.email as client_email,
-              CASE WHEN u.account_type = 'company' THEN u.company_name ELSE u.full_name END AS client_name
+              CASE WHEN u.account_type = 'company' THEN u.company_name ELSE u.full_name END AS client_name,
+              wu.email as worker_email,
+              CASE WHEN wu.account_type = 'company' THEN wu.company_name ELSE wu.full_name END AS worker_name
        FROM bookings b
        JOIN services s ON b.service_id = s.id
        JOIN users u ON b.client_id = u.id
+       JOIN users wu ON b.worker_id = wu.id
        WHERE b.id = $1`,
       [id]
     );
@@ -159,8 +170,12 @@ export const updateBookingStatus = async (req, res) => {
     const b = booking.rows[0];
 
     if (status === "accepted" || status === "rejected") {
-      if (b.worker_id !== req.user.id) {
-        return res.status(403).json({ message: "Only the service provider can accept or reject requests" });
+      // For "offer" listings: worker (poster) accepts/rejects
+      // For "looking" listings: client (poster) accepts/rejects the applicant
+      const deciderIsWorker = b.service_type !== "looking";
+      const deciderId = deciderIsWorker ? b.worker_id : b.client_id;
+      if (deciderId !== req.user.id) {
+        return res.status(403).json({ message: "Only the listing poster can accept or reject requests" });
       }
     }
 
@@ -176,13 +191,17 @@ export const updateBookingStatus = async (req, res) => {
     );
 
     if (status === "accepted" || status === "rejected") {
-      shouldSendEmail(b.client_id, "listing").then((ok) => {
-        if (ok) notifyBookingStatusUpdated(b.client_email, b.client_name, b.title, status, b.id)
+      // Notify the party who did NOT make the decision
+      const notifyId = b.service_type === "looking" ? b.worker_id : b.client_id;
+      const notifyEmail = b.service_type === "looking" ? b.worker_email : b.client_email;
+      const notifyName = b.service_type === "looking" ? b.worker_name : b.client_name;
+      shouldSendEmail(notifyId, "listing").then((ok) => {
+        if (ok) notifyBookingStatusUpdated(notifyEmail, notifyName, b.title, status, b.id)
           .catch((err) => console.error("Status email notification failed:", err.message));
       });
-      pushBookingStatus(b.client_id, status, b.title).catch(() => {});
+      pushBookingStatus(notifyId, status, b.title).catch(() => {});
       createNotification({
-        userId: b.client_id,
+        userId: notifyId,
         type: status === "accepted" ? "booking_accepted" : "booking_rejected",
         title: status === "accepted" ? "Booking accepted" : "Booking rejected",
         body: status === "accepted"
@@ -216,7 +235,8 @@ export const markCompleted = async (req, res) => {
       `SELECT b.*, s.title, s.price,
               CASE WHEN cw.account_type = 'company' THEN cw.company_name ELSE cw.full_name END AS worker_name,
               CASE WHEN cc.account_type = 'company' THEN cc.company_name ELSE cc.full_name END AS client_name,
-              cw.id AS worker_user_id, cc.id AS client_user_id
+              cw.id AS worker_user_id, cc.id AS client_user_id,
+              cw.email AS worker_email, cc.email AS client_email
        FROM bookings b
        JOIN services s ON b.service_id = s.id
        JOIN users cw ON b.worker_id = cw.id
@@ -248,6 +268,15 @@ export const markCompleted = async (req, res) => {
       [id]
     );
 
+    // Notify the other party that this person marked the job done
+    if (isWorker) {
+      // Notify client: worker says job is done, waiting for client confirmation
+      sendEmail(b.client_email, "jobMarkedDone", [b.client_name, b.worker_name, b.title, id]);
+    } else {
+      // Notify worker: client says job is done, waiting for worker confirmation
+      sendEmail(b.worker_email, "jobMarkedDone", [b.worker_name, b.client_name, b.title, id]);
+    }
+
     // Re-fetch to check if BOTH have now completed
     const updated = await pool.query(
       "SELECT * FROM bookings WHERE id = $1",
@@ -261,18 +290,22 @@ export const markCompleted = async (req, res) => {
         "UPDATE bookings SET status = 'completed' WHERE id = $1",
         [id]
       );
+      // Hide the listing from public search now that the job is done
+      await pool.query(
+        "UPDATE services SET is_active = false WHERE id = $1",
+        [u.service_id]
+      );
 
-      // Update wallet balances + create transaction records
+      // Credit worker wallet automatically
       finalizeCompletion(b).catch((err) =>
         console.error("Finalize completion failed for booking", id, err.message)
       );
 
-      // Auto-release Stripe payment to worker
-      if (u.payment_status === "paid") {
-        autoReleasePayment(id, b.worker_id).catch((err) =>
-          console.error("Auto-release payment failed for booking", id, err.message)
-        );
-      }
+      // Both confirmed — send completion emails to both
+      const totalPaid = (Number(b.price) * 1.22975).toFixed(2);
+      const workerReceives = (Number(b.price) * 0.80).toFixed(2);
+      sendEmail(b.client_email, "jobCompleted", [b.client_name, b.title, b.worker_name, totalPaid, id, "client"]);
+      sendEmail(b.worker_email, "jobCompleted", [b.worker_name, b.title, b.client_name, workerReceives, id, "worker"]);
 
       return res.json({ ...u, status: "completed" });
     }
@@ -442,12 +475,34 @@ export const declineCancellation = async (req, res) => {
   }
 };
 
+export const getBookingById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await pool.query(
+      `SELECT b.*, s.title, s.price, s.image_url, s.location, s.city,
+              CASE WHEN u.account_type = 'company' THEN u.company_name ELSE u.full_name END AS worker_name
+       FROM bookings b
+       JOIN services s ON b.service_id = s.id
+       JOIN users u ON b.worker_id = u.id
+       WHERE b.id = $1 AND (b.client_id = $2 OR b.worker_id = $2)`,
+      [id, req.user.id]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: "Booking not found" });
+    }
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
 // ─── Internal helpers ─────────────────────────────────────────────────────────
 
 async function autoRejectOtherRequests(serviceId, acceptedBookingId) {
   // Get all other pending bookings for this service
   const others = await pool.query(
-    `SELECT b.id, b.client_id, s.title
+    `SELECT b.id, b.client_id, b.worker_id, s.title, s.type AS service_type
      FROM bookings b
      JOIN services s ON b.service_id = s.id
      WHERE b.service_id = $1 AND b.status = 'pending' AND b.id != $2`,
@@ -459,10 +514,11 @@ async function autoRejectOtherRequests(serviceId, acceptedBookingId) {
       "UPDATE bookings SET status = 'rejected' WHERE service_id = $1 AND status = 'pending' AND id != $2",
       [serviceId, acceptedBookingId]
     );
-    // Notify each rejected client
+    // Notify each rejected applicant (worker_id for "looking", client_id for "offer")
     for (const b of others.rows) {
+      const notifyId = b.service_type === "looking" ? b.worker_id : b.client_id;
       createNotification({
-        userId: b.client_id,
+        userId: notifyId,
         type: "booking_rejected",
         title: "Request no longer available",
         body: `Your request for "${b.title}" was closed — the listing has been filled.`,
@@ -479,22 +535,16 @@ async function autoRejectOtherRequests(serviceId, acceptedBookingId) {
 }
 
 async function finalizeCompletion(booking) {
-  const amount = Number(booking.price);
-  const platformFeeRate = 0.05;
-  const platformFee = Math.round(amount * platformFeeRate * 100) / 100;
-  const workerReceives = amount - platformFee;
+  // Worker receives the service price; the $5 platform fee was already added on top at checkout
+  const workerReceives = Number(booking.price);
 
-  // Ensure wallets exist
+  // Ensure worker wallet exists
   await pool.query(
     "INSERT INTO wallets (user_id) VALUES ($1) ON CONFLICT (user_id) DO NOTHING",
     [booking.worker_id]
   );
-  await pool.query(
-    "INSERT INTO wallets (user_id) VALUES ($1) ON CONFLICT (user_id) DO NOTHING",
-    [booking.client_id]
-  );
 
-  // Update worker's wallet
+  // Credit worker wallet (client debit was already recorded at payment time)
   await pool.query(
     `UPDATE wallets
      SET balance = balance + $1, total_earned = total_earned + $1, updated_at = NOW()
@@ -502,24 +552,12 @@ async function finalizeCompletion(booking) {
     [workerReceives, booking.worker_id]
   );
 
-  // Record worker's transaction (credit)
+  // Record worker's credit transaction
   await pool.query(
     `INSERT INTO transactions (user_id, booking_id, type, amount, description, other_user_name, listing_title)
-     VALUES ($1, $2, 'credit', $3, 'Payment received for completed job', $4, $5)`,
+     VALUES ($1, $2, 'credit', $3, 'Paiement reçu pour travail complété', $4, $5)
+     ON CONFLICT DO NOTHING`,
     [booking.worker_id, booking.id, workerReceives, booking.client_name, booking.title]
-  );
-
-  // Record client's transaction (debit — already paid, just record history)
-  await pool.query(
-    `INSERT INTO transactions (user_id, booking_id, type, amount, description, other_user_name, listing_title)
-     VALUES ($1, $2, 'debit', $3, 'Payment for completed job', $4, $5)`,
-    [booking.client_id, booking.id, amount, booking.worker_name, booking.title]
-  );
-
-  // Update client total_spent
-  await pool.query(
-    `UPDATE wallets SET total_spent = total_spent + $1, updated_at = NOW() WHERE user_id = $2`,
-    [amount, booking.client_id]
   );
 
   // Notify worker: payment received
@@ -548,37 +586,3 @@ async function finalizeCompletion(booking) {
   });
 }
 
-async function autoReleasePayment(bookingId, workerId) {
-  const payment = await pool.query(
-    "SELECT * FROM payments WHERE booking_id = $1 AND status = 'paid' LIMIT 1",
-    [bookingId]
-  );
-  if (payment.rows.length === 0) return;
-
-  const p = payment.rows[0];
-
-  const stripeAccount = await pool.query(
-    "SELECT stripe_account_id FROM stripe_accounts WHERE user_id = $1",
-    [workerId]
-  );
-  if (stripeAccount.rows.length === 0) return;
-
-  const transferAmount = p.amount - (p.platform_fee || 0);
-
-  const transfer = await stripe.transfers.create({
-    amount: transferAmount,
-    currency: p.currency || "cad",
-    destination: stripeAccount.rows[0].stripe_account_id,
-    transfer_group: p.transfer_group,
-  });
-
-  await pool.query(
-    "UPDATE payments SET status = 'transferred', stripe_transfer_id = $1, updated_at = NOW() WHERE id = $2",
-    [transfer.id, p.id]
-  );
-
-  await pool.query(
-    "UPDATE bookings SET payment_status = 'transferred' WHERE id = $1",
-    [bookingId]
-  );
-}

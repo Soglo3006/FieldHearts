@@ -6,10 +6,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useStartConversation } from "@/hooks/useStartConversation";
-import { CalendarDays, CheckCircle, XCircle } from "lucide-react";
+import { CalendarDays, CheckCircle, XCircle, Clock } from "lucide-react";
 import LeaveReviewModal from "@/components/bookings/LeaveReviewModal";
 import OpenDisputeModal from "@/components/bookings/OpenDisputeModal";
-import StripeConnectBanner from "@/components/bookings/StripeConnectBanner";
 import BookingDetailModal, { type BookingDetail } from "@/components/bookings/BookingDetailModal";
 import ReceivedBookingsList from "@/components/bookings/ReceivedBookingsList";
 import SentBookingsList from "@/components/bookings/SentBookingsList";
@@ -55,7 +54,7 @@ function BookingsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const [tab, setTab] = useState<"received" | "sent">("received");
+  const [tab, setTab] = useState<"received" | "sent" | "done">("received");
   const [received, setReceived] = useState<ReceivedBooking[]>([]);
   const [sent, setSent] = useState<SentBooking[]>([]);
   const [loadingReceived, setLoadingReceived] = useState(true);
@@ -140,6 +139,10 @@ function BookingsContent() {
 
   const pendingCount = received.filter((b) => b.status === "pending").length;
 
+  const completedReceived = received.filter((b) => b.status === "completed");
+  const completedSent = sent.filter((b) => b.status === "completed");
+  const doneCount = completedReceived.length + completedSent.length;
+
   if (authLoading) {
     return (
       <main className="max-w-5xl mx-auto px-4 py-8">
@@ -197,11 +200,24 @@ function BookingsContent() {
         >
           {t("bookings.sent")}
         </button>
+        <button
+          type="button"
+          onClick={() => setTab("done")}
+          className={`cursor-pointer flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+            tab === "done" ? "border-green-600 text-green-700" : "border-transparent text-gray-500 hover:text-gray-700"
+          }`}
+        >
+          Terminé
+          {doneCount > 0 && (
+            <span className="bg-green-600 text-white text-xs font-bold rounded-full px-1.5 py-0.5 leading-none">
+              {doneCount}
+            </span>
+          )}
+        </button>
       </div>
 
       {tab === "received" && (
         <>
-          {session?.access_token && <StripeConnectBanner accessToken={session.access_token} />}
           {loadingReceived ? <LoadingSkeleton /> : received.length === 0 ? (
             <EmptyState message={t("bookings.noReceived")} />
           ) : (
@@ -236,6 +252,83 @@ function BookingsContent() {
             onDispute={(id, title) => setDisputeBooking({ id, title })}
             onCardClick={(booking) => setDetailBooking({ booking, role: "client" })}
           />
+        )
+      )}
+
+      {tab === "done" && (
+        loadingReceived || loadingSent ? <LoadingSkeleton /> :
+        doneCount === 0 ? (
+          <div className="text-center py-16 text-gray-500">
+            <Clock className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+            <p className="font-medium text-gray-700">Aucune réservation terminée</p>
+            <p className="text-sm text-gray-400 mt-1">Vos réservations complétées apparaîtront ici.</p>
+          </div>
+        ) : (
+          <div className="space-y-6">
+            {completedReceived.length > 0 && (
+              <div>
+                <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Services rendus</h2>
+                <div className="space-y-3">
+                  {completedReceived.map((b) => (
+                    <div
+                      key={b.id}
+                      className="bg-white border border-gray-200 rounded-xl p-4 flex items-center gap-4 cursor-pointer hover:border-gray-300 transition-colors"
+                      onClick={() => setDetailBooking({ booking: b as BookingDetail, role: "worker" })}
+                    >
+                      {b.image_url && (
+                        <img src={b.image_url} alt={b.title} className="w-14 h-14 rounded-lg object-cover shrink-0" />
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-gray-900 truncate">{b.title}</p>
+                        <p className="text-sm text-gray-500">Client : {b.client_name}</p>
+                        <p className="text-xs text-gray-400">{new Date(b.created_at).toLocaleDateString("fr-CA", { year: "numeric", month: "long", day: "numeric" })}</p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className="font-semibold text-green-700">+${Number(b.price).toFixed(2)}</p>
+                        <span className="inline-block mt-1 text-xs bg-green-100 text-green-800 border border-green-200 rounded-full px-2 py-0.5">Terminé</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {completedSent.length > 0 && (
+              <div>
+                <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Services reçus</h2>
+                <div className="space-y-3">
+                  {completedSent.map((b) => (
+                    <div
+                      key={b.id}
+                      className="bg-white border border-gray-200 rounded-xl p-4 flex items-center gap-4 cursor-pointer hover:border-gray-300 transition-colors"
+                      onClick={() => setDetailBooking({ booking: b as BookingDetail, role: "client" })}
+                    >
+                      {b.image_url && (
+                        <img src={b.image_url} alt={b.title} className="w-14 h-14 rounded-lg object-cover shrink-0" />
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-gray-900 truncate">{b.title}</p>
+                        <p className="text-sm text-gray-500">Prestataire : {b.worker_name}</p>
+                        <p className="text-xs text-gray-400">{new Date(b.created_at).toLocaleDateString("fr-CA", { year: "numeric", month: "long", day: "numeric" })}</p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className="font-semibold text-gray-700">-${Number(b.price).toFixed(2)}</p>
+                        <span className="inline-block mt-1 text-xs bg-green-100 text-green-800 border border-green-200 rounded-full px-2 py-0.5">Terminé</span>
+                        {!b.has_reviewed && (
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); setReviewBooking({ id: b.id, targetName: b.worker_name }); }}
+                            className="block mt-1 text-xs text-green-700 hover:underline"
+                          >
+                            Laisser un avis
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         )
       )}
 

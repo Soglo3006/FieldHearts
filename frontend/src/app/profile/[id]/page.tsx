@@ -19,6 +19,7 @@ import ProfileListings from "@/components/profile/ProfileListings";
 import BlockedBanner from "@/components/profile/BlockedBanner";
 import { toast } from "sonner";
 import { type Service as Listing } from "@/components/listings/EditListingModal";
+import { Spinner } from "@/components/ui/Spinner";
 
 interface ProfileUser {
   account_type?: string;
@@ -127,7 +128,7 @@ export default function UserProfilePage() {
     return (
       <div className="min-h-screen bg-white">
         <div className="bg-gray-50 flex items-center justify-center min-h-[60vh]">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-700" />
+          <Spinner size="xl" />
         </div>
       </div>
     );

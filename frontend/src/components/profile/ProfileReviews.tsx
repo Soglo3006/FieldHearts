@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Star, UserStar } from "lucide-react";
+import { Spinner } from "@/components/ui/Spinner";
 
 interface Review {
   id?: string | number;
@@ -50,7 +51,7 @@ export default function ProfileReviews({ reviews, reviewsLoading }: Props) {
 
         {reviewsLoading ? (
           <div className="flex items-center justify-center py-8">
-            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-green-700" />
+            <Spinner size="lg" />
           </div>
         ) : reviews.length > 0 ? (
           <div className="space-y-4">

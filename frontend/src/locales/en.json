@@ -13,6 +13,7 @@
     "settings": "Settings",
     "logOut": "Log Out",
     "login": "Login",
+    "loginRegister": "Sign In / Register",
     "register": "Register",
     "post": "Post",
     "company": "Company",
@@ -23,7 +24,7 @@
     "contact": "Contact",
     "privacyPolicy": "Privacy Policy",
     "termsOfUse": "Terms of Use",
-    "rights": "© {{year}} FieldHearts. All rights reserved."
+    "rights": "© {{year}} Uneden. All rights reserved."
   },
   "home": {
     "heroTitle": "Find the help you need.\nOffer the skills you have.",
@@ -81,7 +82,15 @@
     "noAccount": "Don't have an account?",
     "signUp": "Sign up",
     "emailNotConfirmed": "Please verify your email before logging in. Check your inbox!",
-    "loginFailed": "Login failed"
+    "loginFailed": "Login failed",
+    "continue": "Continue",
+    "change": "Change",
+    "checking": "Checking...",
+    "noAccountFound": "Account not found",
+    "noAccountFoundSubtitle": "No account found with this email address.",
+    "wantToCreate": "Would you like to create an account with this address?",
+    "createAccount": "Create an account",
+    "tryAnotherEmail": "Try another email address"
   },
   "register": {
     "title": "Create your account",

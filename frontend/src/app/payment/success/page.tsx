@@ -90,26 +90,26 @@ export default function PaymentSuccessPage() {
                     <>
                       <div className="flex justify-between text-gray-500">
                         <span>Prix du service</span>
-                        <span className="text-gray-700">${fmt(price)}</span>
+                        <span className="text-gray-700">{fmt(price)} $</span>
                       </div>
                       <div className="flex justify-between text-gray-400">
                         <span>Commission acheteur (5%)</span>
-                        <span>${fmt(buyerCommission)}</span>
+                        <span>{fmt(buyerCommission)} $</span>
                       </div>
                       <div className="flex justify-between text-gray-400">
                         <div>
                           <div>Taxes (15%)</div>
                           <div className="text-xs text-gray-300">TPS (5%) + TVQ (9.975%)</div>
                         </div>
-                        <span>${fmt(taxes)}</span>
+                        <span>{fmt(taxes)} $</span>
                       </div>
                       <div className="flex justify-between font-bold text-base border-t border-gray-200 pt-2.5 mt-1">
                         <span>Montant payé</span>
-                        <span className="text-green-700">${fmt(total)} CAD</span>
+                        <span className="text-green-700">{fmt(total)} $ CAD</span>
                       </div>
                       <div className="flex justify-between text-xs text-gray-400 pt-1 border-t border-gray-100 mt-1">
                         <span>Versement au prestataire</span>
-                        <span>${fmt(price * 0.80)} CAD</span>
+                        <span>{fmt(price * 0.80)} $ CAD</span>
                       </div>
                     </>
                   );
@@ -127,7 +127,7 @@ export default function PaymentSuccessPage() {
           </Link>
           <Link href="/">
             <Button variant="outline" className="w-full h-12 rounded-xl">
-              Retour à l'accueil
+              Retour à l&apos;accueil
             </Button>
           </Link>
         </div>

@@ -18,6 +18,7 @@ import StepExperience from "@/components/onboarding/StepExperience";
 import StepPortfolio from "@/components/onboarding/StepPortfolio";
 import StepSummary from "@/components/onboarding/StepSummary";
 import { toast } from "sonner";
+import { Spinner } from "@/components/ui/Spinner";
 
 function OnboardingContent() {
   const [currentStep, setCurrentStep] = useState(1);
@@ -239,7 +240,7 @@ export default function OnboardingPage() {
   return (
     <Suspense fallback={
       <div className="flex items-center justify-center min-h-screen">
-        <div className="w-8 h-8 border-4 border-green-700 border-t-transparent rounded-full animate-spin" />
+        <Spinner size="md" />
       </div>
     }>
       <OnboardingContent />

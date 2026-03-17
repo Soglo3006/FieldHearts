@@ -10,6 +10,7 @@ import Link from "next/link";
 import { Plus, Grid3x3, MapPin } from "lucide-react";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import EditListingModal from "@/components/listings/EditListingModal";
+import { Spinner } from "@/components/ui/Spinner";
 
 interface MyService {
   id: string;
@@ -165,7 +166,7 @@ export default function MyListingsPage() {
   if (authLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-green-700 border-t-transparent rounded-full animate-spin" />
+        <Spinner size="md" />
       </div>
     );
   }

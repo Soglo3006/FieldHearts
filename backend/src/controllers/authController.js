@@ -2,6 +2,65 @@ import pool from "../config/db.js";
 import bcrypt from "bcryptjs";
 import { notifyPasswordChanged } from "../services/emailService.js";
 
+export const joinWaitlist = async (req, res) => {
+  try {
+    const { email, lang } = req.body;
+    if (!email || typeof email !== "string" || !email.includes("@")) {
+      return res.status(400).json({ message: "Adresse courriel invalide." });
+    }
+
+    // Create table if it doesn't exist (idempotent)
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS waitlist (
+        id SERIAL PRIMARY KEY,
+        email TEXT NOT NULL,
+        lang TEXT DEFAULT 'fr',
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        UNIQUE(email)
+      )
+    `);
+
+    await pool.query(
+      "INSERT INTO waitlist (email, lang) VALUES ($1, $2) ON CONFLICT (email) DO NOTHING",
+      [email.toLowerCase().trim(), lang || "fr"]
+    );
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error("joinWaitlist error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+export const exportWaitlist = async (req, res) => {
+  try {
+    const result = await pool.query(
+      "SELECT email, lang, created_at FROM waitlist ORDER BY created_at DESC"
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error("exportWaitlist error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+export const checkEmail = async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email || typeof email !== "string") {
+      return res.status(400).json({ message: "Email requis" });
+    }
+    const result = await pool.query(
+      "SELECT id FROM auth.users WHERE email = $1 LIMIT 1",
+      [email.toLowerCase().trim()]
+    );
+    res.json({ exists: result.rows.length > 0 });
+  } catch (err) {
+    console.error("checkEmail error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
 export const changePassword = async (req, res) => {
     try {
         const { oldPassword, newPassword } = req.body;

@@ -8,6 +8,7 @@ import { Slider } from "@/components/ui/slider";
 import { ChevronDown, ChevronRight, MapPin, X, SlidersHorizontal } from "lucide-react";
 import { categories } from "@/lib/categories";
 import ListingsGrid from "@/components/listings/ListingsGrid";
+import { Spinner } from "@/components/ui/Spinner";
 
 const toKey = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
 
@@ -335,7 +336,7 @@ export default function ListingsPage({ username }: { username?: string }) {
         <Suspense
           fallback={
             <div className="max-w-7xl mx-auto p-5 flex justify-center py-16">
-              <div className="w-8 h-8 border-4 border-green-700 border-t-transparent rounded-full animate-spin" />
+              <Spinner size="md" />
             </div>
           }
         >

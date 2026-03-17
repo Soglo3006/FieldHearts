@@ -58,11 +58,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange((event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
-      setIsLoggingOut(false);
+      // Don't reset isLoggingOut on SIGNED_OUT — let signOut() handle it via timeout
+      if (event !== "SIGNED_OUT") {
+        setIsLoggingOut(false);
+      }
     });
 
     return () => subscription.unsubscribe();
@@ -131,6 +134,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsLoggingOut(true);
     await supabase.auth.signOut();
     router.push("/");
+    // Reset after navigation has had time to complete
+    setTimeout(() => setIsLoggingOut(false), 1500);
   };
 
   return (

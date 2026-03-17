@@ -10,6 +10,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import EditBasicInfoCard from "@/components/profile/EditBasicInfoCard";
 import EditPortfolioCard from "@/components/profile/EditPortfolioCard";
 import { toast } from "sonner";
+import { Spinner } from "@/components/ui/Spinner";
 import { useTranslation } from "react-i18next";
 
 interface FormData {
@@ -139,7 +140,7 @@ export default function EditProfilePage() {
   if (authLoading || loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-green-700 border-t-transparent rounded-full animate-spin" />
+        <Spinner size="md" />
       </div>
     );
   }

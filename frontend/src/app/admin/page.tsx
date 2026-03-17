@@ -8,6 +8,7 @@ import { isAdminUser } from "@/lib/auth";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Scale, HeadphonesIcon, ArrowRight, Download } from "lucide-react";
+import { Spinner } from "@/components/ui/Spinner";
 
 export default function AdminDashboard() {
   const router = useRouter();
@@ -96,7 +97,7 @@ export default function AdminDashboard() {
   if (!allowed) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-green-700" />
+        <Spinner size="lg" />
       </div>
     );
   }
@@ -219,6 +220,46 @@ export default function AdminDashboard() {
               {exportLoading ? "Génération..." : "Télécharger CSV"}
             </Button>
           </div>
+        </Card>
+      </div>
+
+      {/* Waitlist export */}
+      <div className="mt-4">
+        <Card className="p-6 border">
+          <div className="flex items-start gap-3 mb-4">
+            <div className="p-2 rounded-lg bg-blue-50">
+              <Download className="h-5 w-5 text-blue-600" />
+            </div>
+            <div>
+              <h2 className="font-semibold text-gray-900">Liste d&apos;attente (Coming Soon)</h2>
+              <p className="text-sm text-gray-500 mt-0.5">
+                Téléchargez les adresses courriel collectées pendant la période &quot;Coming Soon&quot;.
+              </p>
+            </div>
+          </div>
+          <Button
+            onClick={async () => {
+              if (!session?.access_token) return;
+              const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/waitlist/export`, {
+                headers: { Authorization: `Bearer ${session.access_token}` },
+              });
+              if (!res.ok) return;
+              const data: { email: string; lang: string; created_at: string }[] = await res.json();
+              if (!Array.isArray(data) || data.length === 0) return;
+              const csv = ["email,lang,date", ...data.map((r) => `"${r.email}","${r.lang}","${r.created_at}"`)].join("\n");
+              const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+              const url = URL.createObjectURL(blob);
+              const link = document.createElement("a");
+              link.href = url;
+              link.download = `waitlist_${new Date().toISOString().slice(0, 10)}.csv`;
+              link.click();
+              URL.revokeObjectURL(url);
+            }}
+            className="bg-blue-600 hover:bg-blue-700 text-white gap-2"
+          >
+            <Download className="h-4 w-4" />
+            Télécharger la liste d&apos;attente
+          </Button>
         </Card>
       </div>
     </div>

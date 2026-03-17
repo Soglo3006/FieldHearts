@@ -13,6 +13,7 @@ import BookingDetailModal, { type BookingDetail } from "@/components/bookings/Bo
 import ReceivedBookingsList from "@/components/bookings/ReceivedBookingsList";
 import SentBookingsList from "@/components/bookings/SentBookingsList";
 import { ReceivedBooking, SentBooking, BookingStatus } from "@/components/bookings/bookingTypes";
+import { Spinner } from "@/components/ui/Spinner";
 
 function LoadingSkeleton() {
   return (
@@ -168,7 +169,7 @@ function BookingsContent() {
     return (
       <main className="max-w-5xl mx-auto px-4 py-8">
         <div className="flex justify-center py-24">
-          <div className="w-8 h-8 border-4 border-green-700 border-t-transparent rounded-full animate-spin" />
+          <Spinner size="md" />
         </div>
       </main>
     );
@@ -310,7 +311,7 @@ function BookingsContent() {
                         <p className="text-xs text-gray-400">{new Date(b.created_at).toLocaleDateString("fr-CA", { year: "numeric", month: "long", day: "numeric" })}</p>
                       </div>
                       <div className="text-right shrink-0">
-                        <p className="font-semibold text-green-700">+${(Number(b.price) * 0.80).toFixed(2)}</p>
+                        <p className="font-semibold text-green-700">+{(Number(b.price) * 0.80).toFixed(2)} $</p>
                         <span className="inline-block mt-1 text-xs bg-green-100 text-green-800 border border-green-200 rounded-full px-2 py-0.5">Terminé</span>
                       </div>
                     </div>
@@ -337,7 +338,7 @@ function BookingsContent() {
                         <p className="text-xs text-gray-400">{new Date(b.created_at).toLocaleDateString("fr-CA", { year: "numeric", month: "long", day: "numeric" })}</p>
                       </div>
                       <div className="text-right shrink-0">
-                        <p className="font-semibold text-red-600">-${(Number(b.price) * 1.19975).toFixed(2)}</p>
+                        <p className="font-semibold text-red-600">-{(Number(b.price) * 1.19975).toFixed(2)} $</p>
                         <span className="inline-block mt-1 text-xs bg-green-100 text-green-800 border border-green-200 rounded-full px-2 py-0.5">Terminé</span>
                         {!b.has_reviewed && (
                           <button

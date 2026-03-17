@@ -9,6 +9,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabaseClient";
 import { SubPageHeader } from "./SubPageHeader";
 import { useTranslation } from "react-i18next";
+import { Spinner } from "@/components/ui/Spinner";
 
 interface BlockedUser {
   id: string;
@@ -99,7 +100,7 @@ export default function BlockedUsersPage({ onBack, onClose }: Props) {
       <div className="px-3 sm:px-4 py-4 sm:py-8">
         {loading ? (
           <div className="flex justify-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-700" />
+            <Spinner size="xl" />
           </div>
         ) : blockedUsers.length === 0 ? (
           <Card className="p-8 sm:p-12 text-center">

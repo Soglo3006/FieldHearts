@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { RefreshCw, Scale, ExternalLink } from "lucide-react";
+import { Spinner } from "@/components/ui/Spinner";
 
 type Dispute = {
   id: string;
@@ -140,7 +141,7 @@ export default function AdminDisputesPage() {
   if (!allowed) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-green-700" />
+        <Spinner size="lg" />
       </div>
     );
   }
@@ -206,7 +207,7 @@ export default function AdminDisputesPage() {
         {/* Table */}
         {fetching ? (
           <div className="flex items-center justify-center py-20">
-            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-green-700" />
+            <Spinner size="lg" />
           </div>
         ) : paginated.length === 0 ? (
           <Card className="p-12 text-center">

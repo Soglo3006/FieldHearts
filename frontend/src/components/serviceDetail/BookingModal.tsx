@@ -73,22 +73,22 @@ export default function BookingModal({
                   <div className="space-y-1.5 text-sm">
                     <div className="flex justify-between">
                       <span className="text-gray-600">{t("serviceDetail.servicePrice")}</span>
-                      <span className="font-semibold">${fmt(price)}</span>
+                      <span className="font-semibold">{fmt(price)} $</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-500">{t("serviceDetail.buyerCommission")}</span>
-                      <span className="text-gray-700">${fmt(buyerCommission)}</span>
+                      <span className="text-gray-700">{fmt(buyerCommission)} $</span>
                     </div>
                     <div className="flex justify-between">
                       <div>
                         <div className="text-gray-500">{t("serviceDetail.taxes")}</div>
                         <div className="text-xs text-gray-400">TPS (5%) + TVQ (9.975%)</div>
                       </div>
-                      <span className="text-gray-700">${fmt(taxes)}</span>
+                      <span className="text-gray-700">{fmt(taxes)} $</span>
                     </div>
                     <div className="flex justify-between font-bold border-t border-gray-200 pt-2">
                       <span>{t("serviceDetail.total")}</span>
-                      <span className="text-green-700">${fmt(total)}</span>
+                      <span className="text-green-700">{fmt(total)} $</span>
                     </div>
                   </div>
                 );

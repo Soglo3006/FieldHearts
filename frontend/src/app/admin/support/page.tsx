@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { useAuth } from "@/contexts/AuthContext";
 import { isAdminUser } from "../../../lib/auth";
 import { RefreshCw } from "lucide-react";
+import { Spinner } from "@/components/ui/Spinner";
 
 type Ticket = {
   id: number;
@@ -188,7 +189,7 @@ export default function SupportAdminPage() {
 
         {ticketsLoading ? (
           <div className="flex items-center justify-center py-16">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-700" />
+            <Spinner size="xl" />
           </div>
         ) : filtered.length ? (
           <div className="space-y-4">

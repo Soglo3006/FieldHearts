@@ -55,7 +55,7 @@ export default function ListingCard({
                 </p>
             )}
             <p className="text-xl font-bold text-brand-green text-green-700 mt-1">
-                ${price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
+                {price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")} $
             </p>
             </div>
 

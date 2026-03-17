@@ -11,6 +11,7 @@ import { ConversationList } from '@/components/messages/ConversationList';
 import { MessageThread } from '@/components/messages/MessageThread';
 import { ProfileSidebar } from '@/components/messages/ProfileSidebar';
 import { WifiOff } from 'lucide-react';
+import { Spinner } from "@/components/ui/Spinner";
 import { useMessageReactions } from '@/hooks/useMessageReactions';
 import { useDeleteMessage } from '@/hooks/useDeleteMessage';
 import { useMarkAsRead } from '@/hooks/useMarkAsRead';
@@ -277,7 +278,7 @@ function MessagesContent() {
     return (
       <div className="min-h-screen flex flex-col bg-gray-50">
         <div className="flex-1 flex items-center justify-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-700" />
+          <Spinner size="xl" />
         </div>
       </div>
     );
@@ -443,7 +444,7 @@ export default function MessagesPage() {
   return (
     <Suspense fallback={
       <div className="flex items-center justify-center min-h-screen">
-        <div className="w-8 h-8 border-4 border-green-700 border-t-transparent rounded-full animate-spin" />
+        <Spinner size="md" />
       </div>
     }>
       <MessagesContent />

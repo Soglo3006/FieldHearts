@@ -211,26 +211,26 @@ export default function BookingDetailModal({
                           <div className="flex justify-between">
                             <span className="text-gray-600">{t("serviceDetail.servicePrice")}</span>
                             <span className="font-semibold">
-                              ${fmt(base)}
+                              {fmt(base)} $
                               {booking.custom_price && Number(booking.custom_price) !== origBase && (
-                                <span className="text-xs text-gray-400 line-through ml-2">${fmt(origBase)}</span>
+                                <span className="text-xs text-gray-400 line-through ml-2">{fmt(origBase)} $</span>
                               )}
                             </span>
                           </div>
                           <div className="flex justify-between text-gray-500">
                             <span>{t("serviceDetail.buyerCommission")}</span>
-                            <span>${fmt(buyerCommission)}</span>
+                            <span>{fmt(buyerCommission)} $</span>
                           </div>
                           <div className="flex justify-between text-gray-500">
                             <div>
                               <div>{t("serviceDetail.taxes")}</div>
                               <div className="text-xs text-gray-400">TPS (5%) + TVQ (9.975%)</div>
                             </div>
-                            <span>${fmt(taxes)}</span>
+                            <span>{fmt(taxes)} $</span>
                           </div>
                           <div className="flex justify-between font-bold border-t border-gray-200 pt-2 text-base">
                             <span>{t("serviceDetail.total")}</span>
-                            <span className="text-gray-900">${fmt(totalPaid)} CAD</span>
+                            <span className="text-gray-900">{fmt(totalPaid)} $ CAD</span>
                           </div>
                         </div>
                       </div>
@@ -247,11 +247,11 @@ export default function BookingDetailModal({
                           </div>
                           <div className="flex justify-between">
                             <span className="text-red-600 font-medium">{t("bookings.platformCommission20")}</span>
-                            <span className="text-red-600 font-medium">−${fmt(commission20)}</span>
+                            <span className="text-red-600 font-medium">−{fmt(commission20)} $</span>
                           </div>
                           <div className="flex justify-between font-bold border-t border-gray-200 pt-2 text-base">
                             <span className="text-gray-900">{t("bookings.youWillReceive")}</span>
-                            <span className="text-green-700">${fmt(workerReceives)} CAD</span>
+                            <span className="text-green-700">{fmt(workerReceives)} $ CAD</span>
                           </div>
                         </div>
                       </div>
@@ -278,11 +278,11 @@ export default function BookingDetailModal({
                         </div>
                         <div className="flex justify-between">
                           <span className="text-red-600 font-medium">{t("bookings.platformCommission20")}</span>
-                          <span className="text-red-600 font-medium">−${fmt(commission20)}</span>
+                          <span className="text-red-600 font-medium">−{fmt(commission20)} $</span>
                         </div>
                         <div className="flex justify-between font-bold border-t border-gray-200 pt-2 text-base">
                           <span className="text-gray-900">{t("bookings.youWillReceive")}</span>
-                          <span className="text-green-700">${fmt(workerReceives)}</span>
+                          <span className="text-green-700">{fmt(workerReceives)} $</span>
                         </div>
                         <p className="text-xs text-gray-400 pt-0.5">{t("bookings.payoutDelay")}</p>
                       </div>
@@ -319,7 +319,7 @@ export default function BookingDetailModal({
                       </div>
                       <div className="flex justify-between font-bold border-t border-gray-200 pt-2 text-base">
                         <span>{t("serviceDetail.total")}</span>
-                        <span className="text-green-700">${fmt(totalPaid)}</span>
+                        <span className="text-green-700">{fmt(totalPaid)} $</span>
                       </div>
                     </div>
                   </div>
@@ -378,7 +378,7 @@ export default function BookingDetailModal({
               <div className="bg-green-50 border border-green-100 rounded-xl px-4 py-3 space-y-1">
                 <p className="text-xs font-semibold text-green-700 uppercase tracking-wide">{t("bookings.providerNote")}</p>
                 {booking.custom_price && Number(booking.custom_price) !== Number(booking.price) && (
-                  <p className="text-sm text-gray-700">{t("bookings.adjustedPrice")} <span className="font-semibold text-green-700">${Number(booking.custom_price)}</span></p>
+                  <p className="text-sm text-gray-700">{t("bookings.adjustedPrice")} <span className="font-semibold text-green-700">{Number(booking.custom_price).toFixed(2)} $</span></p>
                 )}
                 {booking.worker_note && <p className="text-sm text-gray-600 whitespace-pre-line">{booking.worker_note}</p>}
               </div>

@@ -13,6 +13,7 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { useTranslation } from 'react-i18next';
+import { Spinner } from "@/components/ui/Spinner";
 
 export default function MessageNotifications() {
   const { t, i18n } = useTranslation();
@@ -86,7 +87,7 @@ export default function MessageNotifications() {
         <div className="max-h-[400px] overflow-y-auto overscroll-contain">
           {loading ? (
             <div className="flex items-center justify-center py-10">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-green-700" />
+              <Spinner size="sm" />
             </div>
           ) : unreadChats.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-10 px-4 text-center">

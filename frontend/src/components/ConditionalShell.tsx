@@ -9,6 +9,7 @@ import CategoryNav from "@/components/home/Category";
 import Footer from "@/components/home/Footer";
 import SupportButton from "@/components/support/SupportButton";
 import { useAuth } from "@/contexts/AuthContext";
+import { Spinner } from "@/components/ui/Spinner";
 
 const AUTH_ROUTES = [
   "/login",
@@ -28,7 +29,7 @@ const NO_CATEGORY_ROUTES = [
 
 export default function ConditionalShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { loading: authLoading } = useAuth();
+  const { loading: authLoading, isLoggingOut } = useAuth();
 
   useEffect(() => {
     const saved = localStorage.getItem("i18nextLng");
@@ -39,6 +40,14 @@ export default function ConditionalShell({ children }: { children: React.ReactNo
 
   const isAuthPage = AUTH_ROUTES.some((r) => pathname.startsWith(r));
   const isNoCategoryPage = NO_CATEGORY_ROUTES.some((r) => pathname.startsWith(r));
+
+  if (isLoggingOut) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-white">
+        <Spinner size="lg" />
+      </div>
+    );
+  }
 
   if (isAuthPage) {
     return <main className="flex-1">{children}</main>;

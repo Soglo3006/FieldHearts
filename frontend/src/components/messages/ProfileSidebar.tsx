@@ -11,6 +11,7 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ExternalLink, Grid3x3, Settings, X } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
+import { Spinner } from "@/components/ui/Spinner";
 
 interface ProfileSidebarProps {
   otherUser?: {
@@ -199,7 +200,7 @@ export function ProfileSidebar({ otherUser, onClose, onOpenSettings, isBlocked, 
 
                     {listingsLoading ? (
                       <div className="flex justify-center py-4">
-                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-green-700"></div>
+                        <Spinner size="sm" />
                       </div>
                     ) : (
                       <div className="space-y-3">

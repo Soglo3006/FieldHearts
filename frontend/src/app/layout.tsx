@@ -6,6 +6,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 
 import ConditionalShell from "@/components/ConditionalShell";
 import LogoutOverlay from "@/components/LogoutOverlay";
+import ComingSoonOverlay from "@/components/ComingSoonOverlay";
 import { Toaster } from "sonner";
 
 const geistSans = Geist({
@@ -35,6 +36,7 @@ export default function RootLayout({
       >
         <AuthProvider>
 
+          <ComingSoonOverlay />
           <ConditionalShell>{children}</ConditionalShell>
           <LogoutOverlay />
           <Toaster richColors position="top-right" />

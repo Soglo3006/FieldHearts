@@ -18,11 +18,11 @@ export function useProtectedRoute(options: UseProtectedRouteOptions = {}) {
     redirectTo = "/login",
   } = options;
 
-  const { user, loading } = useAuth();
+  const { user, loading, isLoggingOut } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    if (loading) return;
+    if (loading || isLoggingOut) return;
 
     if (requireAuth && !user) {
       router.push(redirectTo);
@@ -45,7 +45,7 @@ export function useProtectedRoute(options: UseProtectedRouteOptions = {}) {
         router.push(profileCompleted ? "/" : "/choose_type");
       }
     }
-  }, [user, loading, router, requireAuth, requireProfileCompleted, redirectTo]);
+  }, [user, loading, isLoggingOut, router, requireAuth, requireProfileCompleted, redirectTo]);
 
   return { user, loading };
 }

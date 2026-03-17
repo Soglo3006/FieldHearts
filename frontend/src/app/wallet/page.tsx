@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Wallet, ArrowDownCircle, ArrowUpCircle, Clock, ChevronRight, Calendar, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/Spinner";
 
 interface WalletData {
   balance: number;
@@ -131,7 +132,7 @@ export default function WalletPage() {
               <Wallet className="h-6 w-6 text-green-700" />
             </div>
             <p className="text-xs text-gray-500 mb-1">{t("wallet.availableBalance")}</p>
-            <p className="text-3xl font-extrabold text-green-700">${fmt(wallet?.balance ?? 0)}</p>
+            <p className="text-3xl font-extrabold text-green-700">{fmt(wallet?.balance ?? 0)} $</p>
           </div>
 
           <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 flex items-center gap-4">
@@ -140,7 +141,7 @@ export default function WalletPage() {
             </div>
             <div>
               <p className="text-xs text-gray-500">{t("wallet.totalEarned")}</p>
-              <p className="text-xl font-bold text-gray-900">${fmt(wallet?.total_earned ?? 0)}</p>
+              <p className="text-xl font-bold text-gray-900">{fmt(wallet?.total_earned ?? 0)} $</p>
             </div>
           </div>
 
@@ -150,7 +151,7 @@ export default function WalletPage() {
             </div>
             <div>
               <p className="text-xs text-gray-500">{t("wallet.totalSpent")}</p>
-              <p className="text-xl font-bold text-gray-900">${fmt(wallet?.total_spent ?? 0)}</p>
+              <p className="text-xl font-bold text-gray-900">{fmt(wallet?.total_spent ?? 0)} $</p>
             </div>
           </div>
         </div>
@@ -168,7 +169,7 @@ export default function WalletPage() {
               {(wallet?.available_for_payout ?? 0) > 0 && (
                 <div className="flex justify-between text-base font-bold">
                   <span className="text-gray-900">{t("wallet.youWillReceive")}</span>
-                  <span className="text-green-700">${fmt(wallet?.available_for_payout ?? 0)}</span>
+                  <span className="text-green-700">{fmt(wallet?.available_for_payout ?? 0)} $</span>
                 </div>
               )}
 
@@ -214,7 +215,7 @@ export default function WalletPage() {
 
           {txLoading ? (
             <div className="flex justify-center py-12">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-700" />
+              <Spinner size="md" />
             </div>
           ) : transactions.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-gray-400">
@@ -258,7 +259,7 @@ export default function WalletPage() {
                     <span className={`text-base font-bold ${
                       tx.type === "credit" ? "text-green-700" : "text-red-600"
                     }`}>
-                      {tx.type === "credit" ? "+" : "−"}${fmt(tx.amount)}
+                      {tx.type === "credit" ? "+" : "−"}{fmt(tx.amount)} $
                     </span>
                     {tx.booking_id && (
                       <Link href="/bookings">

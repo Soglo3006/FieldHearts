@@ -1,6 +1,7 @@
 "use client";
 
 import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { Spinner } from "@/components/ui/Spinner";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -76,7 +77,7 @@ export default function PaymentPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-green-700" />
+        <Spinner size="lg" />
       </div>
     );
   }
@@ -163,22 +164,22 @@ export default function PaymentPage() {
                   <>
                     <div className="flex justify-between text-gray-600">
                       <span>Prix du service</span>
-                      <span className="font-medium text-gray-900">${fmt(price)}</span>
+                      <span className="font-medium text-gray-900">{fmt(price)} $</span>
                     </div>
                     <div className="flex justify-between text-gray-500">
                       <span>Commission acheteur (5%)</span>
-                      <span>${fmt(buyerCommission)}</span>
+                      <span>{fmt(buyerCommission)} $</span>
                     </div>
                     <div className="flex justify-between text-gray-500">
                       <div>
                         <div>Taxes (15%)</div>
                         <div className="text-xs text-gray-400">TPS (5%) + TVQ (9.975%)</div>
                       </div>
-                      <span>${fmt(taxes)}</span>
+                      <span>{fmt(taxes)} $</span>
                     </div>
                     <div className="flex justify-between font-bold text-base border-t border-gray-100 pt-2 mt-1">
                       <span>Total</span>
-                      <span className="text-green-700">${fmt(total)} CAD</span>
+                      <span className="text-green-700">{fmt(total)} $ CAD</span>
                     </div>
                   </>
                 );
@@ -212,7 +213,7 @@ export default function PaymentPage() {
           ) : (
             <span className="flex items-center gap-2">
               <CreditCard className="h-5 w-5" />
-              Payer ${(Number(booking.price) * 1.19975).toFixed(2)} CAD
+              Payer {(Number(booking.price) * 1.19975).toFixed(2)} $ CAD
             </span>
           )}
         </Button>

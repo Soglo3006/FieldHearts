@@ -29,6 +29,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import Link from "next/link";
 import SettingsPage from "@/components/profile/Settings";
 import { useRef, useState, useEffect } from "react";
+import { Spinner } from "@/components/ui/Spinner";
 import { Heart } from "lucide-react";
 import MessageNotifications from "@/components/messages/MessageNotifications";
 import NotificationBell from "@/components/notifications/NotificationBell";
@@ -283,7 +284,7 @@ export default function Header() {
                   }}
                 />
                 {searchLoading && (
-                  <div className="w-3.5 h-3.5 border-2 border-green-700 border-t-transparent rounded-full animate-spin ml-2 shrink-0" />
+                  <Spinner size="xs" className="ml-2 shrink-0" />
                 )}
                 {headerSearch && !searchLoading && (
                   <button
@@ -394,14 +395,11 @@ export default function Header() {
               {user ? (
                 <UserDropdown />
               ) : (
-                <div className="flex gap-2">
-                  <Link href="/login">
-                    <Button variant="outline" size="sm" className="cursor-pointer">{t("header.login")}</Button>
-                  </Link>
-                  <Link href="/register">
-                    <Button variant="outline" size="sm" className="cursor-pointer hidden sm:flex">{t("header.register")}</Button>
-                  </Link>
-                </div>
+                <Link href="/login">
+                  <Button variant="outline" size="sm" className="cursor-pointer">
+                    {t("header.loginRegister") || "Se connecter / S'inscrire"}
+                  </Button>
+                </Link>
               )}
 
               <Link href="/post">

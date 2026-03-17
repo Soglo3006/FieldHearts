@@ -13,6 +13,7 @@
     "settings": "Paramètres",
     "logOut": "Déconnexion",
     "login": "Connexion",
+    "loginRegister": "Se connecter / S'inscrire",
     "register": "S'inscrire",
     "post": "Publier",
     "company": "Entreprise",
@@ -23,7 +24,7 @@
     "contact": "Contact",
     "privacyPolicy": "Politique de confidentialité",
     "termsOfUse": "Conditions d'utilisation",
-    "rights": "© {{year}} FieldHearts. Tous droits réservés."
+    "rights": "© {{year}} Uneden. Tous droits réservés."
   },
   "home": {
     "heroTitle": "Trouvez l'aide dont vous avez besoin.\nOffrez les compétences que vous avez.",
@@ -81,7 +82,15 @@
     "noAccount": "Vous n'avez pas de compte ?",
     "signUp": "S'inscrire",
     "emailNotConfirmed": "Veuillez vérifier votre courriel avant de vous connecter. Vérifiez votre boîte de réception !",
-    "loginFailed": "Échec de la connexion"
+    "loginFailed": "Échec de la connexion",
+    "continue": "Continuer",
+    "change": "Modifier",
+    "checking": "Vérification...",
+    "noAccountFound": "Compte introuvable",
+    "noAccountFoundSubtitle": "Aucun compte trouvé avec cette adresse courriel.",
+    "wantToCreate": "Voulez-vous créer un compte avec cette adresse ?",
+    "createAccount": "Créer un compte",
+    "tryAnotherEmail": "Essayer une autre adresse"
   },
   "register": {
     "title": "Créez votre compte",

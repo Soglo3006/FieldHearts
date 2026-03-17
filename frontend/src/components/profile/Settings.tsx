@@ -21,6 +21,7 @@ import BlockedUsersPage from "./settings/BlockedUsersPage";
 import LogoutPage from "./settings/LogoutPage";
 import DeleteAccountPage from "./settings/DeleteAccountPage";
 import { useTranslation } from "react-i18next";
+import { Spinner } from "@/components/ui/Spinner";
 
 type Screen = "default" | "changePassword" | "blockedUsers" | "paymentMethods" | "billingHistory" | "logout" | "deleteAccount";
 
@@ -189,7 +190,7 @@ export default function SettingsPage({ onClose, scrollRef }: { onClose: () => vo
   if (loading) {
     return (
       <div className="bg-gray-50 flex items-center justify-center min-h-[400px]">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-700" />
+        <Spinner size="xl" />
       </div>
     );
   }
@@ -443,7 +444,7 @@ export default function SettingsPage({ onClose, scrollRef }: { onClose: () => vo
                 <Select value={region} onValueChange={setRegion}>
                   <SelectTrigger className="cursor-pointer text-sm"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="CA" className="cursor-pointer">🇨🇦 Canada</SelectItem>
+                    <SelectItem value="CA" className="cursor-pointer">Canada</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

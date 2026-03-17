@@ -13,6 +13,7 @@ import { useUnreadBookings } from "@/hooks/useUnreadBookings";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
+import { Spinner } from "@/components/ui/Spinner";
 
 const STATUS_CONFIG: Record<string, { color: string; icon: React.ReactNode }> = {
   pending:   { color: "text-yellow-700 bg-yellow-50",  icon: <Clock className="h-3 w-3" /> },
@@ -166,7 +167,7 @@ export default function BookingNotifications() {
         <div className="max-h-[360px] overflow-y-auto overscroll-contain">
           {loading ? (
             <div className="flex items-center justify-center py-10">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-green-700" />
+              <Spinner size="sm" />
             </div>
           ) : current.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-10 px-4 text-center">

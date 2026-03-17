@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Star, ArrowLeft } from "lucide-react";
+import { Spinner } from "@/components/ui/Spinner";
 
 interface Review {
   id: string;
@@ -113,7 +114,7 @@ export default function RatingsPage({ onClose, profileId, displayName }: Ratings
         {/* Liste des reviews */}
         {loading ? (
           <div className="flex justify-center py-12">
-            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-green-700" />
+            <Spinner size="lg" />
           </div>
         ) : reviews.length === 0 ? (
           <Card className="p-12 text-center">

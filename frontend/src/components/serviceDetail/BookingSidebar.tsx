@@ -35,10 +35,10 @@ export default function BookingSidebar({
 
         {(() => {
           const buyerCommission  = price * 0.05;
-          const transactionFee   = price * 0.03;
           const gst              = price * 0.05;
           const qst              = price * 0.09975;
-          const total = price + buyerCommission + transactionFee + gst + qst;
+          const taxes            = gst + qst;
+          const total = price * 1.19975;
           const fmt = (n: number) => n.toFixed(2);
           return (
             <div className="bg-gray-50 rounded-lg p-3 space-y-1.5 mb-6 text-sm">
@@ -51,16 +51,11 @@ export default function BookingSidebar({
                 <span className="text-gray-700">${fmt(buyerCommission)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-500">{t("serviceDetail.transactionFee")}</span>
-                <span className="text-gray-700">${fmt(transactionFee)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-500">{t("serviceDetail.gst")}</span>
-                <span className="text-gray-700">${fmt(gst)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-500">{t("serviceDetail.qst")}</span>
-                <span className="text-gray-700">${fmt(qst)}</span>
+                <div>
+                  <div className="text-gray-500">{t("serviceDetail.taxes")}</div>
+                  <div className="text-xs text-gray-400">TPS (5%) + TVQ (9.975%)</div>
+                </div>
+                <span className="text-gray-700">${fmt(taxes)}</span>
               </div>
               <div className="flex justify-between text-base font-bold border-t border-gray-200 pt-2 mt-1">
                 <span>{t("serviceDetail.total")}</span>

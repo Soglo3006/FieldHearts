@@ -4,16 +4,16 @@ import { CreateDispute, GetDisputes, UpdateDispute, GetDisputeByBooking, PostDis
 
 const router = express.Router();
 
-router.post("/", protect, CreateDispute);
-router.get("/:id", protect, GetDisputes);
-router.put("/:id", protect, UpdateDispute);
+// Admin (must be before /:id to avoid route conflict)
+router.get("/", protect, adminOnly, AdminGetAllDisputes);
+router.put("/:id/admin", protect, adminOnly, AdminUpdateDispute);
 
-// Dispute thread
+// Dispute thread (must be before /:id)
 router.get("/booking/:bookingId", protect, GetDisputeByBooking);
 router.post("/:disputeId/messages", protect, PostDisputeMessage);
 
-// Admin
-router.get("/", protect, adminOnly, AdminGetAllDisputes);
-router.put("/:id/admin", protect, adminOnly, AdminUpdateDispute);
+router.post("/", protect, CreateDispute);
+router.get("/:id", protect, GetDisputes);
+router.put("/:id", protect, UpdateDispute);
 
 export default router;

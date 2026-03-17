@@ -166,20 +166,10 @@ export default function WalletPage() {
 
               {/* Available for payout */}
               {(wallet?.available_for_payout ?? 0) > 0 && (
-                <>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">{t("wallet.availableForPayout")}</span>
-                    <span className="font-semibold text-green-700">${fmt(wallet?.available_for_payout ?? 0)}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-red-600 font-medium">{t("wallet.platformCommission20")}</span>
-                    <span className="font-semibold text-red-600">−${fmt(wallet?.commission_amount ?? 0)}</span>
-                  </div>
-                  <div className="flex justify-between text-base font-bold border-t border-gray-200 pt-3">
-                    <span className="text-gray-900">{t("wallet.youWillReceive")}</span>
-                    <span className="text-green-700">${fmt(wallet?.net_payout ?? 0)}</span>
-                  </div>
-                </>
+                <div className="flex justify-between text-base font-bold">
+                  <span className="text-gray-900">{t("wallet.youWillReceive")}</span>
+                  <span className="text-green-700">${fmt(wallet?.available_for_payout ?? 0)}</span>
+                </div>
               )}
 
               {/* Pending */}
@@ -243,11 +233,11 @@ export default function WalletPage() {
               {transactions.map((tx) => (
                 <li key={tx.id} className="flex items-center gap-4 px-6 py-4 hover:bg-gray-50 transition-colors">
                   <div className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 ${
-                    tx.type === "credit" ? "bg-green-100" : "bg-orange-100"
+                    tx.type === "credit" ? "bg-green-100" : "bg-red-100"
                   }`}>
                     {tx.type === "credit"
                       ? <ArrowDownCircle className="h-5 w-5 text-green-600" />
-                      : <ArrowUpCircle className="h-5 w-5 text-orange-600" />
+                      : <ArrowUpCircle className="h-5 w-5 text-red-600" />
                     }
                   </div>
                   <div className="flex-1 min-w-0">
@@ -266,7 +256,7 @@ export default function WalletPage() {
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
                     <span className={`text-base font-bold ${
-                      tx.type === "credit" ? "text-green-700" : "text-orange-600"
+                      tx.type === "credit" ? "text-green-700" : "text-red-600"
                     }`}>
                       {tx.type === "credit" ? "+" : "−"}${fmt(tx.amount)}
                     </span>

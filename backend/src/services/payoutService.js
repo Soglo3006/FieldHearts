@@ -2,7 +2,6 @@ import pool from "../config/db.js";
 import stripe from "../config/stripe.js";
 import { notifyPayoutReceived } from "./emailService.js";
 
-const PLATFORM_COMMISSION_RATE = 0.20;   // 20% kept by platform at payout
 const MIN_BUSINESS_DAYS = 5;             // money must sit 5 business days before payout
 
 // Reference date: Friday, Jan 3 2025 — anchor for bi-weekly cycle
@@ -82,7 +81,7 @@ export async function processUserPayout(userId) {
   // Find all unpaid worker credit transactions older than MIN_BUSINESS_DAYS business days
   const creditsResult = await pool.query(
     `SELECT t.id AS tx_id, t.amount, t.booking_id, t.created_at,
-            p.stripe_payment_intent_id, b.price AS booking_price
+            p.stripe_payment_intent_id
      FROM transactions t
      JOIN bookings b ON b.id = t.booking_id
      JOIN payments p ON p.booking_id = t.booking_id AND p.status = 'paid'
@@ -97,13 +96,11 @@ export async function processUserPayout(userId) {
   if (creditsResult.rows.length === 0) return null;
 
   let totalTransferredCents = 0;
-  let totalCommissionCents = 0;
   const processedBookings = [];
 
   for (const row of creditsResult.rows) {
-    const serviceAmountCents = Math.round(Number(row.booking_price) * 100);
-    const commissionCents = Math.round(serviceAmountCents * PLATFORM_COMMISSION_RATE);
-    const transferCents = serviceAmountCents - commissionCents; // 80%
+    // Credit amount is already net (price * 0.80) — transfer it as-is
+    const transferCents = Math.round(Number(row.amount) * 100);
 
     try {
       await stripe.transfers.create({
@@ -125,7 +122,6 @@ export async function processUserPayout(userId) {
       );
 
       totalTransferredCents += transferCents;
-      totalCommissionCents += commissionCents;
       processedBookings.push(row.booking_id);
     } catch (err) {
       console.error(`[Payout] Transfer failed for booking ${row.booking_id}:`, err.message);
@@ -134,38 +130,36 @@ export async function processUserPayout(userId) {
 
   if (processedBookings.length === 0) return null;
 
-  const totalDeductedDollars = (totalTransferredCents + totalCommissionCents) / 100;
+  const totalTransferredDollars = (totalTransferredCents / 100);
 
   // Deduct payout amount from wallet balance
   await pool.query(
     `UPDATE wallets
      SET balance = GREATEST(0, balance - $1), updated_at = NOW()
      WHERE user_id = $2`,
-    [totalDeductedDollars, userId]
+    [totalTransferredDollars, userId]
   );
 
   // Record the payout debit transaction
   await pool.query(
     `INSERT INTO transactions (user_id, type, amount, description)
-     VALUES ($1, 'debit', $2, 'Versement bi-mensuel automatique (20% commission déduite)')`,
-    [userId, totalDeductedDollars]
+     VALUES ($1, 'debit', $2, 'Versement bi-mensuel automatique')`,
+    [userId, totalTransferredDollars]
   );
 
-  const transferredDollars  = (totalTransferredCents / 100).toFixed(2);
-  const commissionDollars   = (totalCommissionCents / 100).toFixed(2);
-  const grossDollars        = ((totalTransferredCents + totalCommissionCents) / 100).toFixed(2);
+  const transferredDollars = totalTransferredDollars.toFixed(2);
   const nextPayout = getNextPayoutDate(new Date()).toLocaleDateString("fr-CA", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
 
-  console.log(`[Payout] User ${userId}: transferred $${transferredDollars}, commission $${commissionDollars}`);
+  console.log(`[Payout] User ${userId}: transferred $${transferredDollars}`);
 
   if (workerEmail) {
-    notifyPayoutReceived(workerEmail, workerName, transferredDollars, commissionDollars, grossDollars, processedBookings.length, nextPayout)
+    notifyPayoutReceived(workerEmail, workerName, transferredDollars, "0.00", transferredDollars, processedBookings.length, nextPayout)
       .catch((err) => console.error("[Payout] Email failed:", err.message));
   }
 
   return {
     transferred_cents: totalTransferredCents,
-    commission_cents: totalCommissionCents,
+    commission_cents: 0,
     bookings_count: processedBookings.length,
   };
 }

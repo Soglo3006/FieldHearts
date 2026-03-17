@@ -55,6 +55,7 @@ function BookingsContent() {
   const searchParams = useSearchParams();
 
   const [tab, setTab] = useState<"received" | "sent" | "done">("received");
+  const [seenCounts, setSeenCounts] = useState<Record<string, number>>({ received: 0, sent: 0, done: 0 });
   const [received, setReceived] = useState<ReceivedBooking[]>([]);
   const [sent, setSent] = useState<SentBooking[]>([]);
   const [loadingReceived, setLoadingReceived] = useState(true);
@@ -137,11 +138,31 @@ function BookingsContent() {
     }
   };
 
-  const pendingCount = received.filter((b) => b.status === "pending").length;
+  const activeStatuses = ["pending", "accepted", "active"];
+  const activeReceived = received.filter((b) => activeStatuses.includes(b.status)).length;
+  const activeSent = sent.filter((b) => activeStatuses.includes(b.status)).length;
 
   const completedReceived = received.filter((b) => b.status === "completed");
   const completedSent = sent.filter((b) => b.status === "completed");
   const doneCount = completedReceived.length + completedSent.length;
+
+  const badgeReceived = Math.max(0, activeReceived - seenCounts.received);
+  const badgeSent = Math.max(0, activeSent - seenCounts.sent);
+  const badgeDone = Math.max(0, doneCount - seenCounts.done);
+
+  const switchTab = (newTab: "received" | "sent" | "done") => {
+    setTab(newTab);
+    const current = newTab === "received" ? activeReceived : newTab === "sent" ? activeSent : doneCount;
+    setSeenCounts((prev) => ({ ...prev, [newTab]: current }));
+  };
+
+  // Auto-mark initial tab as seen once data loads
+  useEffect(() => {
+    if (!loadingReceived) setSeenCounts((prev) => ({ ...prev, received: activeReceived }));
+  }, [loadingReceived]);
+  useEffect(() => {
+    if (!loadingSent) setSeenCounts((prev) => ({ ...prev, sent: activeSent }));
+  }, [loadingSent]);
 
   if (authLoading) {
     return (
@@ -179,38 +200,43 @@ function BookingsContent() {
       <div className="flex border-b border-gray-200 mb-6">
         <button
           type="button"
-          onClick={() => setTab("received")}
+          onClick={() => switchTab("received")}
           className={`cursor-pointer flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
             tab === "received" ? "border-green-600 text-green-700" : "border-transparent text-gray-500 hover:text-gray-700"
           }`}
         >
           {t("bookings.received")}
-          {pendingCount > 0 && (
-            <span className="bg-amber-500 text-white text-xs font-bold rounded-full px-1.5 py-0.5 leading-none">
-              {pendingCount}
+          {badgeReceived > 0 && (
+            <span className="bg-red-500 text-white text-xs font-bold rounded-full px-1.5 py-0.5 leading-none">
+              {badgeReceived}
             </span>
           )}
         </button>
         <button
           type="button"
-          onClick={() => setTab("sent")}
-          className={`cursor-pointer px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+          onClick={() => switchTab("sent")}
+          className={`cursor-pointer flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
             tab === "sent" ? "border-green-600 text-green-700" : "border-transparent text-gray-500 hover:text-gray-700"
           }`}
         >
           {t("bookings.sent")}
+          {badgeSent > 0 && (
+            <span className="bg-red-500 text-white text-xs font-bold rounded-full px-1.5 py-0.5 leading-none">
+              {badgeSent}
+            </span>
+          )}
         </button>
         <button
           type="button"
-          onClick={() => setTab("done")}
+          onClick={() => switchTab("done")}
           className={`cursor-pointer flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
             tab === "done" ? "border-green-600 text-green-700" : "border-transparent text-gray-500 hover:text-gray-700"
           }`}
         >
           Terminé
-          {doneCount > 0 && (
+          {badgeDone > 0 && (
             <span className="bg-green-600 text-white text-xs font-bold rounded-full px-1.5 py-0.5 leading-none">
-              {doneCount}
+              {badgeDone}
             </span>
           )}
         </button>
@@ -284,7 +310,7 @@ function BookingsContent() {
                         <p className="text-xs text-gray-400">{new Date(b.created_at).toLocaleDateString("fr-CA", { year: "numeric", month: "long", day: "numeric" })}</p>
                       </div>
                       <div className="text-right shrink-0">
-                        <p className="font-semibold text-green-700">+${Number(b.price).toFixed(2)}</p>
+                        <p className="font-semibold text-green-700">+${(Number(b.price) * 0.80).toFixed(2)}</p>
                         <span className="inline-block mt-1 text-xs bg-green-100 text-green-800 border border-green-200 rounded-full px-2 py-0.5">Terminé</span>
                       </div>
                     </div>
@@ -311,7 +337,7 @@ function BookingsContent() {
                         <p className="text-xs text-gray-400">{new Date(b.created_at).toLocaleDateString("fr-CA", { year: "numeric", month: "long", day: "numeric" })}</p>
                       </div>
                       <div className="text-right shrink-0">
-                        <p className="font-semibold text-gray-700">-${Number(b.price).toFixed(2)}</p>
+                        <p className="font-semibold text-red-600">-${(Number(b.price) * 1.19975).toFixed(2)}</p>
                         <span className="inline-block mt-1 text-xs bg-green-100 text-green-800 border border-green-200 rounded-full px-2 py-0.5">Terminé</span>
                         {!b.has_reviewed && (
                           <button

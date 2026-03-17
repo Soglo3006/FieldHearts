@@ -4,7 +4,6 @@ import { notifyPaymentReceipt } from "../services/emailService.js";
 
 // Fee rates (applied to service price)
 const BUYER_COMMISSION_RATE  = 0.05;    // 5% buyer commission
-const TRANSACTION_FEE_RATE   = 0.03;    // 3% transaction fee
 const GST_RATE               = 0.05;    // 5% TPS (Federal)
 const QST_RATE               = 0.09975; // 9.975% TVQ (Québec)
 const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:3000";
@@ -146,10 +145,10 @@ export const createCheckoutSession = async (req, res) => {
 
     const servicePriceCents       = Math.round(Number(b.price) * 100);
     const buyerCommissionCents    = Math.round(servicePriceCents * BUYER_COMMISSION_RATE);
-    const transactionFeeCents     = Math.round(servicePriceCents * TRANSACTION_FEE_RATE);
     const gstCents                = Math.round(servicePriceCents * GST_RATE);
     const qstCents                = Math.round(servicePriceCents * QST_RATE);
-    const totalCents = servicePriceCents + buyerCommissionCents + transactionFeeCents + gstCents + qstCents;
+    const taxesCents              = gstCents + qstCents;
+    const totalCents = servicePriceCents + buyerCommissionCents + taxesCents;
 
     // Create Checkout Session — funds go directly to platform account
     const session = await stripe.checkout.sessions.create({
@@ -178,24 +177,8 @@ export const createCheckoutSession = async (req, res) => {
         {
           price_data: {
             currency: "cad",
-            product_data: { name: "Frais de transaction (3%)" },
-            unit_amount: transactionFeeCents,
-          },
-          quantity: 1,
-        },
-        {
-          price_data: {
-            currency: "cad",
-            product_data: { name: "TPS (5%)" },
-            unit_amount: gstCents,
-          },
-          quantity: 1,
-        },
-        {
-          price_data: {
-            currency: "cad",
-            product_data: { name: "TVQ (9.975%)" },
-            unit_amount: qstCents,
+            product_data: { name: "Taxes (TPS 5% + TVQ 9.975%)" },
+            unit_amount: taxesCents,
           },
           quantity: 1,
         },

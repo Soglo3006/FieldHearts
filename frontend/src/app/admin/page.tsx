@@ -51,26 +51,12 @@ export default function AdminDashboard() {
         `${process.env.NEXT_PUBLIC_API_URL}/wallet/export?period=${exportPeriod}`,
         { headers: { Authorization: `Bearer ${session.access_token}` } }
       );
-      const data: Record<string, unknown>[] = await res.json();
-      if (!Array.isArray(data) || data.length === 0) return;
-
-      const headers = Object.keys(data[0]);
-      const csv = [
-        headers.join(","),
-        ...data.map((row) =>
-          headers.map((h) => {
-            const val = row[h] ?? "";
-            const str = String(val).replace(/"/g, '""');
-            return `"${str}"`;
-          }).join(",")
-        ),
-      ].join("\n");
-
-      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+      if (!res.ok) return;
+      const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `transactions_${exportPeriod}_${new Date().toISOString().slice(0, 10)}.csv`;
+      link.download = `transactions_${exportPeriod}_${new Date().toISOString().slice(0, 10)}.xlsx`;
       link.click();
       URL.revokeObjectURL(url);
     } catch {
@@ -216,6 +202,8 @@ export default function AdminDashboard() {
             <select
               value={exportPeriod}
               onChange={(e) => setExportPeriod(e.target.value)}
+              title="Période d'export"
+              aria-label="Période d'export"
               className="text-sm border border-gray-300 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-green-500"
             >
               {EXPORT_PERIODS.map((p) => (

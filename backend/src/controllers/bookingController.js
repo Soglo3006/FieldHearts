@@ -302,7 +302,7 @@ export const markCompleted = async (req, res) => {
       );
 
       // Both confirmed — send completion emails to both
-      const totalPaid = (Number(b.price) * 1.22975).toFixed(2);
+      const totalPaid = (Number(b.price) * 1.19975).toFixed(2);
       const workerReceives = (Number(b.price) * 0.80).toFixed(2);
       sendEmail(b.client_email, "jobCompleted", [b.client_name, b.title, b.worker_name, totalPaid, id, "client"]);
       sendEmail(b.worker_email, "jobCompleted", [b.worker_name, b.title, b.client_name, workerReceives, id, "worker"]);
@@ -535,8 +535,8 @@ async function autoRejectOtherRequests(serviceId, acceptedBookingId) {
 }
 
 async function finalizeCompletion(booking) {
-  // Worker receives the service price; the $5 platform fee was already added on top at checkout
-  const workerReceives = Number(booking.price);
+  // Worker receives 80% of the service price (platform keeps 20% commission)
+  const workerReceives = Number(booking.price) * 0.80;
 
   // Ensure worker wallet exists
   await pool.query(

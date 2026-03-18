@@ -46,13 +46,14 @@ export function middleware(request: NextRequest) {
 
   const csp = [
     "default-src 'self'",
-    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://js.stripe.com",
-    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-    "img-src 'self' data: https: blob: https://*.supabase.co https://images.unsplash.com",
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://js.stripe.com https://maps.googleapis.com",
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com",
+    "img-src 'self' data: https: blob: https://*.supabase.co https://images.unsplash.com https://maps.googleapis.com https://maps.gstatic.com",
     "font-src 'self' data: https://fonts.gstatic.com",
-    `connect-src 'self' https://*.supabase.co wss://*.supabase.co ${apiOrigin}`,
+    `connect-src 'self' https://*.supabase.co wss://*.supabase.co ${apiOrigin} https://maps.googleapis.com`,
     "frame-src 'none' https://js.stripe.com",
     "object-src 'none'",
+    "worker-src blob:",
   ].join("; ");
 
   response.headers.set("Content-Security-Policy", csp);

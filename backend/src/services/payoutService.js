@@ -87,6 +87,7 @@ export async function processUserPayout(userId) {
      JOIN payments p ON p.booking_id = t.booking_id AND p.status = 'paid'
      WHERE t.user_id = $1
        AND t.type = 'credit'
+       AND b.status = 'completed'
        AND b.payment_status = 'paid'
        AND t.created_at <= $2
      ORDER BY t.created_at ASC`,
@@ -177,6 +178,7 @@ export async function processAllPayouts() {
      JOIN bookings b ON b.id = t.booking_id
      JOIN payments p ON p.booking_id = t.booking_id AND p.status = 'paid'
      WHERE t.type = 'credit'
+       AND b.status = 'completed'
        AND b.payment_status = 'paid'
        AND t.created_at <= $1`,
     [eligibilityCutoff.toISOString()]

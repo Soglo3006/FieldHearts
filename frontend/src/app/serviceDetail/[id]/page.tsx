@@ -43,6 +43,8 @@ interface Service {
   created_at: string;
   owner_name: string;
   owner_id: string;
+  owner_avatar: string | null;
+  owner_account_type: string | null;
   category_name: string | null;
   faq?: Array<{ question: string; answer: string }> | string | null;
   favorites_count?: number;

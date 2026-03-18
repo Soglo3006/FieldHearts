@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { MapPin, Calendar, Globe, Truck, Zap, Tag } from "lucide-react";
 import SaveShareActions from "@/components/serviceDetail/SaveShareActions";
 import { useTranslation } from "react-i18next";
@@ -23,6 +23,7 @@ interface Service {
   is_one_time?: boolean;
   owner_name: string;
   owner_id: string;
+  owner_avatar: string | null;
   created_at: string;
 }
 
@@ -107,11 +108,14 @@ export default function ServiceTitleCard({
           <Link href={`/profile/${service.owner_id}`}>
             <div className="text-center p-4 bg-gray-50 rounded-xl border border-gray-100 hover:border-green-200 transition-colors cursor-pointer">
               <Avatar className="w-16 h-16 mx-auto mb-3">
-                <AvatarFallback className="text-xl">
-                  {service.owner_name?.charAt(0) ?? "?"}
+                {service.owner_avatar && (
+                  <AvatarImage src={service.owner_avatar} alt={service.owner_name} />
+                )}
+                <AvatarFallback className="text-xl bg-green-100 text-green-800 font-semibold">
+                  {service.owner_name?.charAt(0)?.toUpperCase() ?? "?"}
                 </AvatarFallback>
               </Avatar>
-              <div className="font-semibold text-gray-900">{service.owner_name}</div>
+              <div className="font-semibold text-gray-900 text-sm leading-tight">{service.owner_name}</div>
               <div className="mt-2">
                 <span className="underline text-green-700 hover:text-green-800 text-sm">
                   {t("profile.viewAllListingsCount", { count: providerListingCount })}

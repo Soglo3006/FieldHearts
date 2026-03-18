@@ -1,10 +1,9 @@
 "use client";
+import { useTranslation } from "react-i18next";
 import { Check, User, Users, Building2, UserPen, FileText, Languages, Briefcase, FileUser, ImageIcon } from "lucide-react";
 
 const personIcons = [User, UserPen, FileText, Languages, Briefcase, FileUser];
 const companyIcons = [Users, Building2, FileText, FileUser];
-const personTitles = ["Basic Info", "About You", "Skills", "Experience", "Portfolio", "Summary"];
-const companyTitles = ["Company Info", "About the Company", "Services", "Summary"];
 
 interface Props {
   accountType: string;
@@ -13,14 +12,31 @@ interface Props {
 }
 
 export default function OnboardingStepBar({ accountType, currentStep, totalSteps }: Props) {
+  const { t } = useTranslation();
+
+  const personTitles = [
+    t("onboarding.step1"),
+    t("onboarding.step2"),
+    t("onboarding.step3"),
+    t("onboarding.step4"),
+    t("onboarding.step5"),
+    t("onboarding.step6"),
+  ];
+  const companyTitles = [
+    t("onboarding.step1"),
+    t("onboarding.step2"),
+    t("onboarding.step3"),
+    t("onboarding.step6"),
+  ];
+
   const titles = accountType === "company" ? companyTitles : personTitles;
   const icons = accountType === "company" ? companyIcons : personIcons;
 
   return (
     <div className="bg-white border-b border-gray-200 top-0 z-10">
       <div className="max-w-3xl mx-auto px-4 py-4 sm:py-6">
-        <h1 className="text-lg sm:text-2xl font-bold text-gray-900 mb-1">Complete Your Profile</h1>
-        <p className="text-gray-600 text-sm">Step {currentStep} of {totalSteps}</p>
+        <h1 className="text-lg sm:text-2xl font-bold text-gray-900 mb-1">{t("onboarding.basicInfoTitle")}</h1>
+        <p className="text-gray-600 text-sm">{t("onboarding.step1")} {currentStep} / {totalSteps}</p>
         <div className="flex justify-between mt-4">
           {titles.map((title, index) => {
             const StepIcon = icons[index];

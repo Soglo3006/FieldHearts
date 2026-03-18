@@ -338,6 +338,12 @@ export const releasePayment = async (req, res) => {
       return res.status(400).json({ message: "Worker has no Stripe account" });
     }
 
+    // Verify Stripe account is fully enabled before transferring
+    const stripeAccount = await stripe.accounts.retrieve(b.stripe_account_id);
+    if (!stripeAccount.charges_enabled) {
+      return res.status(400).json({ message: "Worker's Stripe account is not fully set up yet" });
+    }
+
     // Transfer 80% of service price to worker (20% kept as platform commission)
     const servicePriceCents = Math.round(Number(b.price) * 100);
     const transferAmount = Math.round(servicePriceCents * 0.80);
@@ -446,7 +452,6 @@ export const getPaymentStatus = async (req, res) => {
 export const verifyPayment = async (req, res) => {
   try {
     const { booking_id } = req.body;
-    const userId = req.user.id;
 
     // Get the pending payment for this booking
     const payment = await pool.query(

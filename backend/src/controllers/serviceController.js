@@ -223,6 +223,8 @@ export const getServiceById = async (req, res) => {
           s.*,
           CASE WHEN u.account_type = 'company' THEN u.company_name ELSE u.full_name END AS owner_name,
           u.id AS owner_id,
+          u.avatar AS owner_avatar,
+          u.account_type AS owner_account_type,
           c.name AS category_name,
           c.image_url AS category_image_url
        FROM services s

@@ -7,6 +7,7 @@ import { useState, useEffect, Suspense } from "react";
 import { Button } from "@/components/ui/button";
 import { useSearchParams } from "next/navigation";
 import { useTranslation } from "react-i18next";
+import i18n from "@/lib/i18n";
 import { ChevronRight, ChevronLeft } from "lucide-react";
 import { OnboardingData, Experience, PortfolioItem, Language } from "@/components/onboarding/onboardingTypes";
 import OnboardingStepBar from "@/components/onboarding/OnboardingStepBar";
@@ -19,6 +20,44 @@ import StepPortfolio from "@/components/onboarding/StepPortfolio";
 import StepSummary from "@/components/onboarding/StepSummary";
 import { toast } from "sonner";
 import { Spinner } from "@/components/ui/Spinner";
+
+function LanguageToggle() {
+  const { i18n: i18nInstance } = useTranslation();
+  const activeLng = i18nInstance.language?.startsWith("fr") ? "fr" : "en";
+
+  const handleChange = (lng: string) => {
+    i18n.changeLanguage(lng);
+    localStorage.setItem("i18nextLng", lng);
+  };
+
+  return (
+    <div className="flex items-center gap-1 text-sm font-medium">
+      <button
+        type="button"
+        onClick={() => handleChange("fr")}
+        className={`px-2 py-1 rounded transition-colors cursor-pointer ${
+          activeLng === "fr"
+            ? "font-bold underline text-green-700"
+            : "text-gray-500 hover:text-gray-800"
+        }`}
+      >
+        FR
+      </button>
+      <span className="text-gray-300">|</span>
+      <button
+        type="button"
+        onClick={() => handleChange("en")}
+        className={`px-2 py-1 rounded transition-colors cursor-pointer ${
+          activeLng === "en"
+            ? "font-bold underline text-green-700"
+            : "text-gray-500 hover:text-gray-800"
+        }`}
+      >
+        EN
+      </button>
+    </div>
+  );
+}
 
 function OnboardingContent() {
   const [currentStep, setCurrentStep] = useState(1);
@@ -171,6 +210,10 @@ function OnboardingContent() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
+      <div className="flex justify-end px-4 pt-3">
+        <LanguageToggle />
+      </div>
+
       <OnboardingStepBar accountType={accountType} currentStep={currentStep} totalSteps={totalSteps} />
 
       <main className="flex-1 py-4 sm:py-8 px-3 sm:px-4">

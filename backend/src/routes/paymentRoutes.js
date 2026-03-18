@@ -1,5 +1,5 @@
 import express from "express";
-import { protect } from "../middleware/authMiddleware.js";
+import { protect, adminOnly } from "../middleware/authMiddleware.js";
 import {
   createConnectAccount,
   getConnectStatus,
@@ -22,7 +22,7 @@ router.get("/connect/status", protect, getConnectStatus);
 router.post("/checkout", protect, createCheckoutSession);
 router.post("/verify", protect, verifyPayment);
 router.post("/release", protect, releasePayment);
-router.post("/refund", protect, refundPayment);
+router.post("/refund", protect, adminOnly, refundPayment);
 router.get("/status/:bookingId", protect, getPaymentStatus);
 
 export default router;

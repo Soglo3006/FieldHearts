@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import ProfilePictureUploader from "@/components/profile/ProfilePicture";
 import { OnboardingData } from "./onboardingTypes";
+import AddressAutocomplete from "@/components/ui/AddressAutocomplete";
 
 interface Props {
   data: OnboardingData;
@@ -90,25 +91,55 @@ export default function StepBasicInfo({ data, accountType, onChange }: Props) {
           <Input id="phone" type="tel" placeholder="123-456-7890" value={data.phone} onChange={handlePhone} maxLength={12} className="h-12" />
         </div>
 
+        {/* Address autocomplete */}
         <div className="space-y-2">
           <Label htmlFor="adresse" className="text-base font-medium text-gray-900">
-            {t("serviceDetail.location")} <span className="text-red-500">*</span>
+            Adresse <span className="text-red-500">*</span>
           </Label>
-          <Input id="adresse" type="text" placeholder="123 Main St, Apt 4B" value={data.adresse} onChange={(e) => onChange({ adresse: e.target.value })} className="h-12" />
+          <AddressAutocomplete
+            id="adresse"
+            value={data.adresse}
+            onChange={(raw) => onChange({ adresse: raw })}
+            onSelect={(result) =>
+              onChange({
+                adresse: result.adresse,
+                ville: result.ville,
+                province: result.province,
+              })
+            }
+            placeholder="123 Rue Principale"
+          />
+          <p className="text-xs text-gray-400">{t("onboarding.addressHint", "Commence à taper pour voir les suggestions")}</p>
         </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="ville" className="text-base font-medium text-gray-900">
-            {t("listings.location")} <span className="text-red-500">*</span>
-          </Label>
-          <Input id="ville" type="text" placeholder="Montreal" value={data.ville} onChange={(e) => onChange({ ville: e.target.value })} className="h-12" />
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="province" className="text-base font-medium text-gray-900">
-            Province <span className="text-red-500">*</span>
-          </Label>
-          <Input id="province" type="text" placeholder="Quebec" value={data.province} onChange={(e) => onChange({ province: e.target.value })} className="h-12" />
+        {/* City + Province auto-filled, still editable */}
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="ville" className="text-base font-medium text-gray-900">
+              Ville <span className="text-red-500">*</span>
+            </Label>
+            <Input
+              id="ville"
+              type="text"
+              placeholder="Montréal"
+              value={data.ville}
+              onChange={(e) => onChange({ ville: e.target.value })}
+              className="h-12"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="province" className="text-base font-medium text-gray-900">
+              Province <span className="text-red-500">*</span>
+            </Label>
+            <Input
+              id="province"
+              type="text"
+              placeholder="Québec"
+              value={data.province}
+              onChange={(e) => onChange({ province: e.target.value })}
+              className="h-12"
+            />
+          </div>
         </div>
       </div>
     </Card>

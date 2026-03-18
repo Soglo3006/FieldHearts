@@ -166,11 +166,6 @@ export default function EditProfilePage() {
               <h1 className="text-3xl lg:text-4xl font-bold text-gray-900">
                 {isPerson ? t("profile.editProfile") : t("profileEdit.editCompanyProfile")}
               </h1>
-              {isCompany && (
-                <Badge className="bg-blue-100 text-blue-700 border-blue-300">
-                  <Building2 className="h-3 w-3 mr-1" /> Company
-                </Badge>
-              )}
             </div>
             <p className="text-gray-600 text-lg">
               {isPerson ? t("profileEdit.updatePersonalInfo") : t("profileEdit.updateCompanyInfo")}

@@ -79,7 +79,17 @@ function MessagesContent() {
   }, []);
 
   const { messages, loading: messagesLoading, sending, sendMessage, retryMessage, loadedChatId, hasMore, loadingMore, loadMore } = useMessages(activeChatId);
-  const isMessagesLoading = messagesLoading || loadedChatId !== activeChatId;
+  const [isSwitching, setIsSwitching] = useState(false);
+  const prevChatIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (activeChatId && activeChatId !== prevChatIdRef.current) {
+      prevChatIdRef.current = activeChatId;
+      setIsSwitching(true);
+      const t = setTimeout(() => setIsSwitching(false), 350);
+      return () => clearTimeout(t);
+    }
+  }, [activeChatId]);
+  const isMessagesLoading = messagesLoading || loadedChatId !== activeChatId || isSwitching;
   const { toggleReaction } = useMessageReactions();
   const { deleteMessage } = useDeleteMessage();
   const { markChatAsRead } = useMarkAsRead();

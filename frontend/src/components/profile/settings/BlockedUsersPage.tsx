@@ -125,11 +125,6 @@ export default function BlockedUsersPage({ onBack, onClose }: Props) {
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <p className="font-semibold text-gray-900 text-sm">{blockedUser.name}</p>
-                        {blockedUser.account_type === "company" && (
-                          <Badge className="bg-blue-100 text-blue-700 border-blue-300 text-xs">
-                            <Building2 className="h-2.5 w-2.5 mr-1" />{t("settings.companyAccount")}
-                          </Badge>
-                        )}
                       </div>
                       <p className="text-xs text-gray-500">
                         {t("settings.blockedOn")} {new Date(blockedUser.blocked_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}

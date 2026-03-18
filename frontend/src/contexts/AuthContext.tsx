@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { isAdminUser } from "@/lib/auth";
 import type { User, Session } from "@supabase/supabase-js";
@@ -35,6 +35,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const router = useRouter();
+  const pathname = usePathname();
+
+  // Reset isLoggingOut only when navigation to "/" has actually completed
+  useEffect(() => {
+    if (isLoggingOut && !user && pathname === "/") {
+      const t = setTimeout(() => setIsLoggingOut(false), 300);
+      return () => clearTimeout(t);
+    }
+  }, [pathname, isLoggingOut, user]);
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
@@ -134,8 +143,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsLoggingOut(true);
     await supabase.auth.signOut();
     router.push("/");
-    // Reset after navigation has had time to complete
-    setTimeout(() => setIsLoggingOut(false), 1500);
   };
 
   return (

@@ -56,7 +56,7 @@ interface Props {
 
 const STATUS_BADGE: Record<BookingStatus, string> = {
   pending:   "bg-yellow-100 text-yellow-800 border-yellow-200",
-  accepted:  "bg-blue-100 text-blue-800 border-blue-200",
+  accepted:  "bg-green-100 text-green-800 border-green-200",
   active:    "bg-green-100 text-green-800 border-green-200",
   completed: "bg-green-100 text-green-800 border-green-200",
   cancelled: "bg-red-100 text-red-700 border-red-200",

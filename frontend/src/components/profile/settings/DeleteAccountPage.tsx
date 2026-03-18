@@ -1,17 +1,17 @@
 "use client";
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { X, TriangleAlert } from "lucide-react";
+import { ArrowLeft, X, ShieldAlert } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTranslation } from "react-i18next";
+import { Spinner } from "@/components/ui/Spinner";
 
 interface Props {
   onBack: () => void;
   onClose: () => void;
 }
+
+const CONFIRM_WORD = "SUPPRIMER";
 
 export default function DeleteAccountPage({ onBack, onClose }: Props) {
   const { t } = useTranslation();
@@ -20,10 +20,13 @@ export default function DeleteAccountPage({ onBack, onClose }: Props) {
   const [error, setError] = useState("");
   const [confirmText, setConfirmText] = useState("");
 
+  const isConfirmed = confirmText === CONFIRM_WORD;
+
   const handleDelete = async () => {
-    if (confirmText !== "DELETE") { setError(t("settings.pleaseTypeDelete")); return; }
+    if (!isConfirmed) return;
     try {
-      setLoading(true); setError("");
+      setLoading(true);
+      setError("");
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/delete-account`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${session?.access_token}` },
@@ -32,87 +35,131 @@ export default function DeleteAccountPage({ onBack, onClose }: Props) {
       if (!response.ok) throw new Error(data.message || t("settings.deleteWarning"));
       await signOut();
     } catch (err: unknown) {
-      console.error("Delete account error:", err);
       setError(err instanceof Error ? err.message : t("settings.deleteWarning"));
     } finally {
       setLoading(false);
     }
   };
 
+  const items = [
+    t("settings.deleteItemProfile"),
+    t("settings.deleteItemMessages"),
+    t("settings.deleteItemServices"),
+    t("settings.deleteItemBookings"),
+    t("settings.deleteItemReviews"),
+  ];
+
   return (
-    <div className="bg-gray-50">
-      <div className="bg-white border-b relative">
-        <button onClick={onClose} className="absolute top-3 right-3 sm:top-4 sm:right-4 text-gray-500 hover:text-gray-900 text-xl cursor-pointer">✕</button>
-        <button onClick={onBack} className="absolute top-3 left-3 sm:top-4 sm:left-4 text-gray-600 hover:text-gray-900 cursor-pointer text-sm">← Back</button>
-        <div className="px-3 sm:px-4 py-4 sm:py-6 text-center">
-          <h1 className="text-lg sm:text-3xl font-bold text-red-600 mt-6 sm:mt-0">{t("settings.deleteAccountTitle")}</h1>
-        </div>
+    <div className="flex flex-col h-full bg-white">
+      {/* Header */}
+      <div className="flex items-center justify-between px-5 py-4 border-b shrink-0">
+        <button
+          type="button"
+          onClick={onBack}
+          className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 transition-colors cursor-pointer"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          {t("settings.back", "Retour")}
+        </button>
+        <button
+          type="button"
+          onClick={onClose}
+          className="text-gray-400 hover:text-gray-700 transition-colors cursor-pointer"
+        >
+          <X className="h-5 w-5" />
+        </button>
       </div>
-      <div className="px-3 sm:px-4 py-4 sm:py-8">
-        <Card className="p-4 sm:p-8 border-2 border-red-200 shadow-lg">
-          <div className="flex justify-center mb-4">
-            <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-red-100 flex items-center justify-center">
-              <TriangleAlert className="w-8 h-8 sm:w-10 sm:h-10 text-red-600" />
+
+      {/* Scrollable content */}
+      <div className="flex-1 overflow-y-auto">
+        <div className="max-w-md mx-auto px-6 py-10 space-y-8">
+
+          {/* Icon + Title */}
+          <div className="text-center space-y-3">
+            <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-red-50">
+              <ShieldAlert className="h-7 w-7 text-red-500" />
+            </div>
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900">{t("settings.permanentDeletion")}</h2>
+              <p className="text-sm text-gray-500 mt-1 leading-relaxed">{t("settings.permanentWarning")}</p>
             </div>
           </div>
-          <h2 className="text-lg sm:text-2xl font-bold text-center text-gray-900 mb-2">{t("settings.permanentDeletion")}</h2>
-          <div className="bg-red-50 border border-red-200 rounded-lg p-3 sm:p-4 mb-4">
-            <p className="text-gray-800 text-center text-sm leading-relaxed">
-              {t("settings.permanentWarning")}
+
+          {/* Divider */}
+          <div className="h-px bg-gray-100" />
+
+          {/* What gets deleted */}
+          <div className="space-y-2">
+            <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-3">
+              {t("settings.dataToBeDeleted", "Ce qui sera supprimé")}
             </p>
-          </div>
-          <div className="space-y-2 mb-6">
-            {[
-              t("settings.deleteItemProfile"),
-              t("settings.deleteItemMessages"),
-              t("settings.deleteItemServices"),
-              t("settings.deleteItemBookings"),
-              t("settings.deleteItemReviews"),
-            ].map((item) => (
-              <div key={item} className="flex items-start gap-3 text-gray-700">
-                <span className="text-red-500 shrink-0"><X className="h-4 w-4 mt-0.5" /></span>
-                <span className="text-sm">{item}</span>
+            {items.map((item) => (
+              <div key={item} className="flex items-center gap-3 py-2 border-b border-gray-50">
+                <span className="h-1.5 w-1.5 rounded-full bg-red-300 shrink-0" />
+                <span className="text-sm text-gray-600">{item}</span>
               </div>
             ))}
           </div>
-          {error && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-300 rounded-lg">
-              <p className="text-red-800 text-sm text-center font-medium">{error}</p>
-            </div>
-          )}
-          <div className="mb-4">
-            <Label htmlFor="confirmText" className="block text-center mb-3 text-gray-700 font-medium text-sm">
-              {t("settings.typeDeleteToConfirm")}
-            </Label>
+
+          {/* Divider */}
+          <div className="h-px bg-gray-100" />
+
+          {/* Confirm input */}
+          <div className="space-y-3">
+            <p className="text-sm text-gray-600 text-center leading-relaxed">
+              {t("settings.typeToConfirm", "Tapez")}{" "}
+              <span className="font-mono font-semibold text-gray-900 bg-gray-100 px-1.5 py-0.5 rounded text-xs">
+                {CONFIRM_WORD}
+              </span>{" "}
+              {t("settings.toConfirmAction", "pour confirmer la suppression")}
+            </p>
             <Input
-              id="confirmText" type="text" value={confirmText}
-              onChange={(e) => { setConfirmText(e.target.value); setError(""); }}
-              disabled={loading} autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false}
-              className={`text-center font-mono text-base uppercase tracking-wider ${confirmText && confirmText !== "DELETE" ? "border-red-300" : ""}`}
+              type="text"
+              value={confirmText}
+              onChange={(e) => { setConfirmText(e.target.value.toUpperCase()); setError(""); }}
+              placeholder={CONFIRM_WORD}
+              disabled={loading}
+              autoComplete="off"
+              spellCheck={false}
+              className="text-center font-mono tracking-widest text-sm h-11 placeholder:text-gray-300 placeholder:tracking-widest"
             />
-            {confirmText && confirmText !== "DELETE" && (
-              <p className="text-xs text-red-500 text-center mt-1">{t("settings.typeExactly")}</p>
+            {error && (
+              <p className="text-xs text-red-500 text-center">{error}</p>
             )}
           </div>
-          <div className="flex flex-col sm:flex-row gap-3">
-            <Button variant="outline" className="flex-1 cursor-pointer text-sm" onClick={onBack} disabled={loading}>{t("settings.cancel")}</Button>
-            <Button
-              className={`flex-1 cursor-pointer text-sm transition-all ${confirmText === "DELETE" && !loading ? "bg-red-600 hover:bg-red-700 text-white" : "bg-gray-300 text-gray-500 cursor-not-allowed"}`}
-              onClick={handleDelete} disabled={loading || confirmText !== "DELETE"}
+
+          {/* Actions */}
+          <div className="space-y-2.5 pb-6">
+            <button
+              type="button"
+              onClick={handleDelete}
+              disabled={!isConfirmed || loading}
+              className={`w-full h-11 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2 ${
+                isConfirmed && !loading
+                  ? "bg-red-600 hover:bg-red-700 text-white cursor-pointer shadow-sm"
+                  : "bg-gray-100 text-gray-400 cursor-not-allowed"
+              }`}
             >
               {loading ? (
-                <span className="flex items-center justify-center gap-2">
-                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
-                  </svg>
+                <>
+                  <Spinner size="xs" />
                   {t("settings.deleting")}
-                </span>
-              ) : t("settings.deleteConfirm")}
-            </Button>
+                </>
+              ) : (
+                t("settings.deleteConfirm")
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={onBack}
+              disabled={loading}
+              className="w-full h-11 rounded-lg border border-gray-200 text-sm text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer"
+            >
+              {t("settings.cancel")}
+            </button>
+            <p className="text-xs text-gray-400 text-center pt-1">{t("settings.cannotBeUndone")}</p>
           </div>
-          <p className="text-xs text-gray-500 text-center mt-3">{t("settings.cannotBeUndone")}</p>
-        </Card>
+        </div>
       </div>
     </div>
   );

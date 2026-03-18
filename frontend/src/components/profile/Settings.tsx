@@ -203,11 +203,6 @@ export default function SettingsPage({ onClose, scrollRef }: { onClose: () => vo
         <div className="max-w-5xl mx-auto px-3 sm:px-4 py-4 sm:py-6 pr-10">
           <div className="flex items-center gap-3 flex-wrap">
             <h1 className="text-xl sm:text-3xl font-bold text-gray-900">{t("settings.title")}</h1>
-            {isCompany && (
-              <Badge className="bg-blue-100 text-blue-700 border-blue-300 text-xs">
-                <Building2 className="h-3 w-3 mr-1" />{t("settings.companyAccount")}
-              </Badge>
-            )}
           </div>
           <p className="text-gray-600 mt-1 text-sm sm:text-base">
             {isPerson ? t("settings.manageAccount") : t("settings.manageCompany")}

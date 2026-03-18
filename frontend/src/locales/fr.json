@@ -886,7 +886,12 @@
     "success": "Message envoyé ! Nous vous répondrons sous peu.",
     "error": "Échec de l'envoi du message. Veuillez réessayer.",
     "helpCenter": "Centre d'aide",
-    "contactUs": "Nous contacter"
+    "contactUs": "Nous contacter",
+    "button": "Support client",
+    "subjectPlaceholder": "Sujet (optionnel)",
+    "categoryPlaceholder": "Catégorie (optionnelle)",
+    "notSignedIn": "Veuillez vous connecter pour contacter le support.",
+    "describeIssue": "Veuillez décrire votre problème."
   },
   "report": {
     "reportUser": "Signaler l'utilisateur",

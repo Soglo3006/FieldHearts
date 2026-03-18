@@ -30,7 +30,7 @@ export default function LoginPage() {
   const [loggingIn, setLoggingIn] = useState(false);
 
   const { signInWithEmail, signInWithGoogle, signInWithFacebook } = useAuth();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { loading } = useProtectedRoute({ requireAuth: false });
 
   if (loading) return (
@@ -89,6 +89,22 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
+      <div className="absolute top-4 right-4 flex items-center gap-1 bg-white border border-gray-200 rounded-full px-1 py-1 shadow-sm">
+        <button
+          type="button"
+          onClick={() => i18n.changeLanguage("fr")}
+          className={`px-2.5 py-1 rounded-full text-xs font-semibold transition-colors cursor-pointer ${i18n.language === "fr" ? "bg-green-700 text-white" : "text-gray-500 hover:text-gray-800"}`}
+        >
+          FR
+        </button>
+        <button
+          type="button"
+          onClick={() => i18n.changeLanguage("en")}
+          className={`px-2.5 py-1 rounded-full text-xs font-semibold transition-colors cursor-pointer ${i18n.language === "en" ? "bg-green-700 text-white" : "text-gray-500 hover:text-gray-800"}`}
+        >
+          EN
+        </button>
+      </div>
       <div className="flex-1 flex flex-col items-center justify-center p-4">
 
         {/* Logo */}

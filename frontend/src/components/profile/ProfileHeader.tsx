@@ -59,9 +59,6 @@ export default function ProfileHeader({
         <div className="flex-1">
           <div className="flex items-center gap-3 mb-2">
             <h1 className="text-3xl font-bold text-gray-900">{displayName}</h1>
-            {isCompany && (
-              <Badge className="bg-blue-100 text-blue-700 border-blue-300">{t("header.company")}</Badge>
-            )}
           </div>
 
           <p className="text-lg text-gray-600 mb-3">{displayTitle || t("profile.serviceProvider")}</p>

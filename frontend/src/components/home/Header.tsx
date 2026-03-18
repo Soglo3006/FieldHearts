@@ -177,23 +177,12 @@ export default function Header() {
               {unseenCount > 9 ? "9+" : unseenCount}
             </span>
           )}
-          {isCompany && (
-            <div className="absolute -bottom-1 -right-1 bg-blue-600 rounded-full p-0.5">
-              <Building2 className="h-3 w-3 text-white" />
-            </div>
-          )}
         </div>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-64">
         <div className="px-2 py-2">
           <div className="flex items-center gap-2 mb-1">
             <p className="text-sm font-medium">{displayName || user?.email}</p>
-            {isCompany && (
-              <Badge className="bg-blue-100 text-blue-700 border-blue-300 text-xs">
-                <Building2 className="h-2.5 w-2.5 mr-1" />
-                {t("header.company")}
-              </Badge>
-            )}
           </div>
           <p className="text-xs text-gray-500">{user?.email}</p>
           {profileData && (

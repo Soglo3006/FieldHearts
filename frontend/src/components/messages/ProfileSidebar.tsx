@@ -10,7 +10,6 @@ import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ExternalLink, Grid3x3, MapPin, Settings, X } from 'lucide-react';
-import { supabase } from '@/lib/supabaseClient';
 import { Spinner } from "@/components/ui/Spinner";
 import RatingsPage from '@/components/profile/RatingsPage';
 
@@ -84,19 +83,21 @@ export function ProfileSidebar({ otherUser, onClose, onOpenSettings, isBlocked, 
     const fetchReviews = async () => {
       if (!otherUser?.id) return;
       setReviewsLoading(true);
-      const { data } = await supabase
-        .from('reviews')
-        .select('rating')
-        .eq('target_id', otherUser.id);
-      setReviewsLoading(false);
-
-      if (!data || data.length === 0) {
+      try {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/reviews/${otherUser.id}`);
+        if (!res.ok) throw new Error();
+        const data: { rating: number }[] = await res.json();
+        if (!data || data.length === 0) {
+          setReviewStats(null);
+        } else {
+          const avg = data.reduce((sum, r) => sum + r.rating, 0) / data.length;
+          setReviewStats({ avg: Math.round(avg * 10) / 10, count: data.length });
+        }
+      } catch {
         setReviewStats(null);
-        return;
+      } finally {
+        setReviewsLoading(false);
       }
-
-      const avg = data.reduce((sum, r) => sum + r.rating, 0) / data.length;
-      setReviewStats({ avg: Math.round(avg * 10) / 10, count: data.length });
     };
     fetchReviews();
   }, [otherUser?.id]);

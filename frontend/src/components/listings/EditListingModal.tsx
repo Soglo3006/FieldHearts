@@ -369,7 +369,7 @@ export default function EditListingModal({ service, accessToken, onClose, onSave
           </div>
 
           {/* One-time listing */}
-          <div className="flex items-start gap-3 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+          <div className="flex items-start gap-3 p-4 bg-green-50 border border-green-200 rounded-lg">
             <input
               type="checkbox"
               id="editIsOneTime"
@@ -378,8 +378,8 @@ export default function EditListingModal({ service, accessToken, onClose, onSave
               className="mt-0.5 h-4 w-4 rounded border-gray-300 text-green-600 cursor-pointer"
             />
             <label htmlFor="editIsOneTime" className="cursor-pointer">
-              <span className="text-sm font-medium text-amber-800">One-time listing</span>
-              <p className="text-xs text-amber-700 mt-0.5">
+              <span className="text-sm font-medium text-green-800">One-time listing</span>
+              <p className="text-xs text-green-700 mt-0.5">
                 Once a request is accepted, this listing will be hidden and all other pending requests will be automatically declined.
               </p>
             </label>

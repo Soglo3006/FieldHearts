@@ -890,7 +890,12 @@
     "success": "Message sent! We'll get back to you shortly.",
     "error": "Failed to send message. Please try again.",
     "helpCenter": "Help Center",
-    "contactUs": "Contact Us"
+    "contactUs": "Contact Us",
+    "button": "Customer Support",
+    "subjectPlaceholder": "Subject (optional)",
+    "categoryPlaceholder": "Category (optional)",
+    "notSignedIn": "Please sign in to contact support.",
+    "describeIssue": "Please describe your issue."
   },
   "report": {
     "reportUser": "Report User",

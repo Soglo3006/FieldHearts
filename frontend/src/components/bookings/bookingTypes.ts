@@ -38,7 +38,7 @@ export interface SentBooking extends BookingBase {
 
 export const STATUS_CONFIG: Record<BookingStatus, { label: string; bar: string; badge: string }> = {
   pending:   { label: "En attente", bar: "bg-yellow-400",  badge: "bg-yellow-100 text-yellow-800 border-yellow-200" },
-  accepted:  { label: "Acceptée",   bar: "bg-blue-500",   badge: "bg-blue-100 text-blue-800 border-blue-200" },
+  accepted:  { label: "Acceptée",   bar: "bg-green-500",  badge: "bg-green-100 text-green-800 border-green-200" },
   active:    { label: "Active",     bar: "bg-green-500",  badge: "bg-green-100 text-green-800 border-green-200" },
   completed: { label: "Terminée",   bar: "bg-green-500",  badge: "bg-green-100 text-green-800 border-green-200" },
   cancelled: { label: "Annulée",    bar: "bg-red-400",    badge: "bg-red-100 text-red-700 border-red-200" },

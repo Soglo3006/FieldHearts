@@ -59,7 +59,7 @@ export default function ServiceTitleCard({
               </span>
             )}
             {service.is_one_time && (
-              <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-800">
+              <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800">
                 <Tag className="h-3 w-3" />
                 {t("post.oneTimeListing")}
               </span>

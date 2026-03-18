@@ -134,17 +134,16 @@ export default function ServiceDetailPage() {
           // For "looking" listings, the current user applies as worker → check received-bookings
           // For "offer" listings, the current user books as client → check my-bookings
           const endpoint = data.type === "looking" ? "received-bookings" : "my-bookings";
-          fetch(`${process.env.NEXT_PUBLIC_API_URL}/bookings/${endpoint}`, {
-            headers: { Authorization: `Bearer ${session.access_token}` },
-          })
-            .then((r) => r.json())
-            .then((bookings: Array<{ service_id: string; status: string }>) => {
-              const active = bookings.find(
-                (b) => b.service_id === data.id && b.status !== "cancelled" && b.status !== "rejected"
-              );
-              if (active) setExistingBookingStatus(active.status);
-            })
-            .catch(() => {});
+          try {
+            const br = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/bookings/${endpoint}`, {
+              headers: { Authorization: `Bearer ${session.access_token}` },
+            });
+            const bookings: Array<{ service_id: string; status: string }> = await br.json();
+            const active = bookings.find(
+              (b) => b.service_id === data.id && b.status !== "cancelled" && b.status !== "rejected"
+            );
+            if (active) setExistingBookingStatus(active.status);
+          } catch {}
         }
 
         const similarUrl = data.category_id

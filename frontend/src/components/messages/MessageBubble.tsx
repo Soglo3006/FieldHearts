@@ -171,7 +171,7 @@ export function MessageBubble({
         {otherUser?.avatar_url ? (
           <AvatarImage src={otherUser.avatar_url} />
         ) : null}
-        <AvatarFallback className="text-xs">
+        <AvatarFallback className="text-xs bg-green-100 text-green-800 font-semibold">
           {(() => {
             if (!otherUser) return 'U';
             const name = otherUser.account_type === 'company'

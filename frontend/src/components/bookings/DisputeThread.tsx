@@ -163,7 +163,7 @@ export default function DisputeThread({ bookingId, currentUserId, accessToken }:
           return (
             <div key={msg.id} className={`flex gap-2 ${isOwn ? "flex-row-reverse" : "flex-row"}`}>
               <Avatar className="h-7 w-7 shrink-0 mt-0.5">
-                <AvatarFallback className="text-xs bg-gray-200">
+                <AvatarFallback className="text-xs bg-green-100 text-green-800 font-semibold">
                   {(msg.sender_name || "U").charAt(0).toUpperCase()}
                 </AvatarFallback>
               </Avatar>

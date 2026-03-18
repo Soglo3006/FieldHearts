@@ -276,26 +276,24 @@ function MessagesContent() {
 
   if (chatsLoading) {
     return (
-      <div className="min-h-screen flex flex-col bg-gray-50">
-        <div className="flex-1 flex items-center justify-center">
-          <Spinner size="xl" />
-        </div>
+      <div className="flex-1 flex items-center justify-center bg-gray-50">
+        <Spinner size="xl" />
       </div>
     );
   }
 
   return (
     <TooltipProvider>
-      <div className="min-h-screen flex flex-col bg-gray-50">
+      <div className="flex-1 flex flex-col bg-gray-50 min-h-0">
         {!isOnline && (
-          <div className="flex items-center justify-center gap-2 bg-amber-50 border-b border-amber-200 px-4 py-2">
+          <div className="flex items-center justify-center gap-2 bg-amber-50 border-b border-amber-200 px-4 py-2 shrink-0">
             <WifiOff className="h-4 w-4 text-amber-600 shrink-0" />
             <p className="text-sm text-amber-700 font-medium">{t("messages.offlineBanner")}</p>
           </div>
         )}
 
-        <div className="flex-1 max-w-[1600px] w-full mx-auto p-2 sm:p-5 min-h-0">
-          <div className="bg-white rounded-xl shadow-sm overflow-hidden h-[calc(100vh-180px)] min-h-[500px] min-h-0">
+        <div className="flex-1 max-w-[1600px] w-full mx-auto p-2 sm:p-5 min-h-0 flex flex-col">
+          <div className="bg-white rounded-xl shadow-sm overflow-hidden flex-1 min-h-125">
             <div className="flex h-full min-h-0">
 
               {/* Colonne 1 : Liste des conversations */}
@@ -307,6 +305,7 @@ function MessagesContent() {
                   onSearchChange={setSearchQuery}
                   onChatSelect={handleChatSelect}
                   currentUserId={user?.id || null}
+                  loading={chatsLoading}
                 />
               </div>
 
@@ -428,6 +427,7 @@ function MessagesContent() {
                     onOpenSettings={!isLargeScreen ? () => setShowSettings(true) : undefined}
                     isBlocked={isBlocked}
                     isBlockedByOther={isBlockedByOther}
+                    blockCheckLoading={blockCheckLoading}
                   />
                 )}
               </div>

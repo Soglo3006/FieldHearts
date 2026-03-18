@@ -27,6 +27,10 @@ const NO_CATEGORY_ROUTES = [
   "/listings",
 ];
 
+const NO_FOOTER_ROUTES = [
+  "/messages",
+];
+
 export default function ConditionalShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { loading: authLoading, isLoggingOut } = useAuth();
@@ -40,6 +44,7 @@ export default function ConditionalShell({ children }: { children: React.ReactNo
 
   const isAuthPage = AUTH_ROUTES.some((r) => pathname.startsWith(r));
   const isNoCategoryPage = NO_CATEGORY_ROUTES.some((r) => pathname.startsWith(r));
+  const isNoFooterPage = NO_FOOTER_ROUTES.some((r) => pathname.startsWith(r));
 
   if (isLoggingOut) {
     return (
@@ -80,6 +85,17 @@ export default function ConditionalShell({ children }: { children: React.ReactNo
         <Footer />
         <SupportButton floating />
       </>
+    );
+  }
+
+  if (isNoFooterPage) {
+    return (
+      <div className="h-screen flex flex-col overflow-hidden">
+        <Suspense><Header /></Suspense>
+        <CategoryNav />
+        <main className="flex-1 flex flex-col min-h-0">{children}</main>
+        <SupportButton floating />
+      </div>
     );
   }
 

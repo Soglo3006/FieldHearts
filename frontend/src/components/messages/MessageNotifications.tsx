@@ -112,7 +112,7 @@ export default function MessageNotifications() {
                     {chat.sender_avatar ? (
                       <AvatarImage src={chat.sender_avatar} alt={chat.sender_name} />
                     ) : null}
-                    <AvatarFallback className="bg-gray-200 text-gray-600 text-sm font-medium">
+                    <AvatarFallback className="bg-green-100 text-green-800 text-sm font-semibold">
                       {chat.sender_name.charAt(0).toUpperCase()}
                     </AvatarFallback>
                   </Avatar>

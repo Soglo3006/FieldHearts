@@ -42,7 +42,7 @@ export function ChatHeader({
           <div className="relative">
             <Avatar className="h-10 w-10 shrink-0">
               {otherUser?.avatar_url ? <AvatarImage src={otherUser.avatar_url} /> : null}
-              <AvatarFallback>
+              <AvatarFallback className="bg-green-100 text-green-800 font-semibold">
                 {(displayName || "U").charAt(0).toUpperCase()}
               </AvatarFallback>
             </Avatar>

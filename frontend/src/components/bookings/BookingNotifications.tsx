@@ -69,7 +69,7 @@ export default function BookingNotifications() {
       >
         <Avatar className="h-10 w-10 shrink-0">
           {notif.other_avatar && <AvatarImage src={notif.other_avatar} />}
-          <AvatarFallback className="bg-gray-200 text-gray-600 text-sm font-medium">
+          <AvatarFallback className="bg-green-100 text-green-800 text-sm font-semibold">
             {notif.other_name.charAt(0).toUpperCase()}
           </AvatarFallback>
         </Avatar>

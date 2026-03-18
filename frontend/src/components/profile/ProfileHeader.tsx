@@ -53,7 +53,7 @@ export default function ProfileHeader({
       <div className="flex flex-col md:flex-row gap-6 items-start md:items-center">
         <Avatar className="w-32 h-32 border-4 border-white shadow-lg">
           <AvatarImage src={profileUser.avatar} alt={displayName} />
-          <AvatarFallback className="text-2xl">{displayName.charAt(0)}</AvatarFallback>
+          <AvatarFallback className="text-2xl bg-green-100 text-green-800 font-semibold">{displayName.charAt(0)}</AvatarFallback>
         </Avatar>
 
         <div className="flex-1">

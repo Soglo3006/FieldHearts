@@ -128,7 +128,7 @@ export default function RatingsPage({ onClose, profileId, displayName }: Ratings
               <Card key={review.id} className="p-6">
                 <div className="flex items-start gap-4">
                   <Avatar className="h-10 w-10 shrink-0">
-                    <AvatarFallback>
+                    <AvatarFallback className="bg-green-100 text-green-800 font-semibold">
                       {(review.reviewer_name || 'U').charAt(0).toUpperCase()}
                     </AvatarFallback>
                   </Avatar>

@@ -120,7 +120,7 @@ export default function BlockedUsersPage({ onBack, onClose }: Props) {
                   <div className="flex items-center gap-3 min-w-0">
                     <Avatar className="h-10 w-10 sm:h-12 sm:w-12 border-2 border-gray-200 shrink-0">
                       <AvatarImage src={blockedUser.avatar} alt={blockedUser.name} />
-                      <AvatarFallback className="bg-gray-100 text-gray-600 text-sm">{blockedUser.name?.charAt(0) || "U"}</AvatarFallback>
+                      <AvatarFallback className="bg-green-100 text-green-800 text-sm font-semibold">{blockedUser.name?.charAt(0) || "U"}</AvatarFallback>
                     </Avatar>
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">

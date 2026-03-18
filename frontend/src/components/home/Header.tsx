@@ -170,7 +170,7 @@ export default function Header() {
         <div className="relative cursor-pointer">
           <Avatar className="h-9 w-9 lg:h-10 lg:w-10 border-4 border-white shadow-lg">
             <AvatarImage src={avatarUrl} alt={displayName || "User"} />
-            <AvatarFallback className="text-sm">{fallbackInitial}</AvatarFallback>
+            <AvatarFallback className="text-sm bg-green-100 text-green-800 font-semibold">{fallbackInitial}</AvatarFallback>
           </Avatar>
           {unseenCount > 0 && (
             <span className="absolute -top-1 -right-1 h-4 w-4 bg-red-500 rounded-full flex items-center justify-center text-[10px] font-bold text-white ring-2 ring-white">

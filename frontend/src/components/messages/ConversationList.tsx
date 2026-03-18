@@ -41,6 +41,7 @@ interface ConversationListProps {
   onSearchChange: (query: string) => void;
   onChatSelect: (chatId: string) => void;
   currentUserId: string | null;
+  loading?: boolean;
 }
 
 function ConversationItem({
@@ -132,7 +133,7 @@ function ConversationItem({
             {chat.other_user?.avatar_url ? (
               <AvatarImage src={chat.other_user.avatar_url} alt={displayName} />
             ) : null}
-            <AvatarFallback className="text-lg">
+            <AvatarFallback className="text-lg bg-green-100 text-green-800 font-semibold">
               {displayName.charAt(0).toUpperCase()}
             </AvatarFallback>
           </Avatar>
@@ -174,6 +175,7 @@ export function ConversationList({
   onSearchChange,
   onChatSelect,
   currentUserId,
+  loading,
 }: ConversationListProps) {
   const { t } = useTranslation();
   const [filter, setFilter] = useState<string>('all');
@@ -247,7 +249,20 @@ export function ConversationList({
 
       {/* Conversations list */}
       <ScrollArea className="flex-1 min-h-0">
-        {filteredChats.length === 0 ? (
+        {loading ? (
+          <div className="divide-y">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="flex items-start gap-3 p-4">
+                <div className="h-12 w-12 rounded-full bg-gray-200 animate-pulse shrink-0" />
+                <div className="flex-1 space-y-2 pt-1">
+                  <div className="h-3.5 bg-gray-200 animate-pulse rounded w-3/4" />
+                  <div className="h-3 bg-gray-100 animate-pulse rounded w-1/2" />
+                </div>
+                <div className="h-3 w-8 bg-gray-100 animate-pulse rounded mt-1" />
+              </div>
+            ))}
+          </div>
+        ) : filteredChats.length === 0 ? (
           <div className="p-8 text-center text-gray-500">
             <p>
               {filter === 'unread'

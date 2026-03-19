@@ -240,7 +240,7 @@ export default function AdminDashboard() {
           <Button
             onClick={async () => {
               if (!session?.access_token) return;
-              const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/waitlist/export`, {
+              const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/waitlist/export`, {
                 headers: { Authorization: `Bearer ${session.access_token}` },
               });
               if (!res.ok) return;

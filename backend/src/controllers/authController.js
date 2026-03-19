@@ -1,6 +1,6 @@
 import pool from "../config/db.js";
 import bcrypt from "bcryptjs";
-import { notifyPasswordChanged } from "../services/emailService.js";
+import { notifyPasswordChanged, notifyWaitlistConfirmation } from "../services/emailService.js";
 
 export const joinWaitlist = async (req, res) => {
   try {
@@ -20,10 +20,15 @@ export const joinWaitlist = async (req, res) => {
       )
     `);
 
-    await pool.query(
-      "INSERT INTO waitlist (email, lang) VALUES ($1, $2) ON CONFLICT (email) DO NOTHING",
+    const result = await pool.query(
+      "INSERT INTO waitlist (email, lang) VALUES ($1, $2) ON CONFLICT (email) DO NOTHING RETURNING id",
       [email.toLowerCase().trim(), lang || "fr"]
     );
+
+    // Send confirmation email only for new signups (not duplicates)
+    if (result.rowCount > 0) {
+      notifyWaitlistConfirmation(email.toLowerCase().trim(), lang || "fr").catch(() => {});
+    }
 
     res.json({ success: true });
   } catch (err) {

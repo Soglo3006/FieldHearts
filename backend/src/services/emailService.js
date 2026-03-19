@@ -42,6 +42,20 @@ const btn = (href, label, color = "#15803d") =>
   `<a href="${href}" style="display:inline-block;background:${color};color:#ffffff;padding:12px 24px;text-decoration:none;border-radius:8px;font-weight:600;font-size:14px;margin-top:16px;">${label}</a>`;
 
 const emailTemplates = {
+  waitlistConfirmation: (lang) => ({
+    subject: lang === "fr" ? "Vous êtes sur la liste Uneden !" : "You're on the Uneden waitlist!",
+    html: base(lang === "fr" ? `
+      <h2 style="margin:0 0 8px;color:#111827;">Vous êtes sur la liste !</h2>
+      <p style="color:#374151;">Merci de votre intérêt pour <strong>Uneden</strong>.</p>
+      <p style="color:#374151;">Vous serez parmi les premiers à être notifiés lors de notre lancement dans votre communauté.</p>
+      <p style="color:#6b7280;font-size:13px;margin-top:24px;">Aucun spam, promis. On vous contacte seulement au lancement.</p>
+    ` : `
+      <h2 style="margin:0 0 8px;color:#111827;">You're on the list!</h2>
+      <p style="color:#374151;">Thank you for your interest in <strong>Uneden</strong>.</p>
+      <p style="color:#374151;">You'll be among the first to know when Uneden launches in your community.</p>
+      <p style="color:#6b7280;font-size:13px;margin-top:24px;">No spam, ever. We'll only reach out at launch.</p>
+    `),
+  }),
   bookingCreated: (workerName, clientName, serviceTitle, bookingId, imageUrl) => ({
     subject: "Nouvelle réservation reçue",
     html: base(`
@@ -324,6 +338,9 @@ export const notifyPasswordChanged = (userEmail, userName) =>
 
 export const notifyWelcome = (userEmail, userName) =>
   sendEmail(userEmail, "welcome", [userName]);
+
+export const notifyWaitlistConfirmation = (email, lang) =>
+  sendEmail(email, "waitlistConfirmation", [lang]);
 
 export default {
   sendEmail,

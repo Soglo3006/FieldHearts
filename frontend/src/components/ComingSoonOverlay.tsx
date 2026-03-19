@@ -68,7 +68,7 @@ export default function ComingSoonOverlay() {
     setLoading(true);
     try {
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/auth/waitlist`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/auth/waitlist`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },

@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Card } from "@/components/ui/card";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
-import { Star, ArrowLeft } from "lucide-react";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Star, X } from "lucide-react";
+import { Spinner } from "@/components/ui/Spinner";
+import { useTranslation } from "react-i18next";
 
 interface Review {
   id: string;
@@ -21,19 +21,33 @@ interface RatingsPageProps {
   displayName: string;
 }
 
+const REVIEWS_PER_PAGE = 5;
+
+function StarRow({ rating }: { rating: number; size?: string }) {
+  return (
+    <div className="flex items-center gap-0.5">
+      {Array.from({ length: 5 }, (_, i) => (
+        <Star key={i} className={`h-4 w-4 ${i < rating ? "fill-yellow-400 text-yellow-400" : "text-gray-200 fill-gray-200"}`} />
+      ))}
+    </div>
+  );
+}
+
 export default function RatingsPage({ onClose, profileId, displayName }: RatingsPageProps) {
+  const { t, i18n } = useTranslation();
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
     const fetchReviews = async () => {
       try {
         const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/reviews/${profileId}`);
-        if (!response.ok) throw new Error('Failed to fetch reviews');
+        if (!response.ok) throw new Error();
         const data = await response.json();
         setReviews(data);
-      } catch (err) {
-        console.error('Error fetching reviews:', err);
+      } catch {
+        // silent
       } finally {
         setLoading(false);
       }
@@ -41,112 +55,150 @@ export default function RatingsPage({ onClose, profileId, displayName }: Ratings
     fetchReviews();
   }, [profileId]);
 
-  const averageRating = reviews.length > 0
-    ? (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1)
-    : null;
+  const avg = reviews.length > 0
+    ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
+    : 0;
+  const avgDisplay = avg.toFixed(1);
 
-  const renderStars = (rating: number) => {
-    return Array.from({ length: 5 }, (_, i) => (
-      <Star
-        key={i}
-        className={`h-4 w-4 ${i < rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`}
-      />
-    ));
-  };
+  const totalPages = Math.ceil(reviews.length / REVIEWS_PER_PAGE);
+  const paginatedReviews = reviews.slice((currentPage - 1) * REVIEWS_PER_PAGE, currentPage * REVIEWS_PER_PAGE);
 
   return (
-    <div className="w-full bg-gray-50">
+    <div className="flex flex-col bg-white rounded-xl overflow-hidden max-h-[90vh]">
+
       {/* Header */}
-      <div className="bg-white border-b relative">
-        <button
-          onClick={onClose}
-          className="text-gray-500 hover:text-gray-900 text-xl absolute top-4 right-4 cursor-pointer"
-        >
-          ✕
-        </button>
-        <div className="max-w-5xl mx-auto px-4 py-6">
-          <h1 className="text-3xl font-bold text-gray-900">Ratings & Reviews</h1>
-          <p className="text-gray-500 mt-1">{displayName}</p>
+      <div className="flex items-start justify-between px-6 py-5 border-b shrink-0">
+        <div>
+          <h2 className="text-xl font-bold text-gray-900">{t("profile.ratingsAndReviews", "Ratings & Reviews")}</h2>
+          <p className="text-sm text-gray-500 mt-0.5">{displayName}</p>
         </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="text-gray-400 hover:text-gray-700 transition-colors cursor-pointer mt-0.5"
+        >
+          <X className="h-5 w-5" />
+        </button>
       </div>
 
-      <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
+      {/* Body */}
+      {loading ? (
+        <div className="flex items-center justify-center py-16">
+          <Spinner size="lg" />
+        </div>
+      ) : reviews.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
+          <Star className="h-12 w-12 text-gray-200 mb-3" />
+          <p className="font-semibold text-gray-800">{t("profile.noReviewsYet", "Aucun avis pour l'instant")}</p>
+          <p className="text-sm text-gray-400 mt-1">{displayName} {t("profile.noReviewsDesc", "n'a pas encore reçu d'avis.")}</p>
+        </div>
+      ) : (
+        <div className="flex flex-col md:flex-row flex-1 min-h-0 overflow-hidden">
 
-        {/* Résumé */}
-        {!loading && reviews.length > 0 && (
-          <Card className="p-6 flex items-center gap-6">
+          {/* Left — Summary */}
+          <div className="md:w-56 lg:w-64 shrink-0 border-b md:border-b-0 md:border-r bg-gray-50 px-6 py-6 flex flex-col items-center gap-4">
+            {/* Big number */}
             <div className="text-center">
-              <p className="text-5xl font-bold text-gray-900">{averageRating}</p>
+              <p className="text-6xl font-bold text-gray-900 leading-none">{avgDisplay}</p>
               <div className="flex justify-center mt-2">
-                {renderStars(Math.round(Number(averageRating)))}
+                {Array.from({ length: 5 }, (_, i) => (
+                  <Star key={i} className={`h-5 w-5 ${i < Math.round(avg) ? "fill-yellow-400 text-yellow-400" : "text-gray-200 fill-gray-200"}`} />
+                ))}
               </div>
-              <p className="text-sm text-gray-500 mt-1">{reviews.length} review{reviews.length > 1 ? 's' : ''}</p>
+              <p className="text-xs text-gray-400 mt-1.5">
+                {reviews.length} {t("profile.reviewsCount", "avis")}
+              </p>
             </div>
-            <div className="flex-1 space-y-2">
+
+            {/* Bar breakdown */}
+            <div className="w-full space-y-2 mt-1">
               {[5, 4, 3, 2, 1].map((star) => {
                 const count = reviews.filter(r => r.rating === star).length;
                 const percent = reviews.length > 0 ? (count / reviews.length) * 100 : 0;
                 return (
                   <div key={star} className="flex items-center gap-2">
-                    <span className="text-xs text-gray-500 w-4">{star}</span>
-                    <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                    <div className="flex-1 bg-gray-200 rounded-full h-2">
+                    <span className="text-xs text-gray-500 w-3 shrink-0">{star}</span>
+                    <Star className="h-3 w-3 fill-yellow-400 text-yellow-400 shrink-0" />
+                    <div className="flex-1 bg-gray-200 rounded-full h-1.5">
                       <div
-                        className="bg-yellow-400 h-2 rounded-full transition-all"
+                        className="bg-yellow-400 h-1.5 rounded-full transition-all"
                         style={{ width: `${percent}%` }}
                       />
                     </div>
-                    <span className="text-xs text-gray-500 w-4">{count}</span>
+                    <span className="text-xs text-gray-400 w-3 text-right shrink-0">{count}</span>
                   </div>
                 );
               })}
             </div>
-          </Card>
-        )}
-
-        {/* Liste des reviews */}
-        {loading ? (
-          <div className="flex justify-center py-12">
-            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-green-700" />
           </div>
-        ) : reviews.length === 0 ? (
-          <Card className="p-12 text-center">
-            <Star className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">No reviews yet</h3>
-            <p className="text-gray-500">{displayName} hasn't received any reviews yet.</p>
-          </Card>
-        ) : (
-          <div className="space-y-4">
-            {reviews.map((review) => (
-              <Card key={review.id} className="p-6">
-                <div className="flex items-start gap-4">
-                  <Avatar className="h-10 w-10 shrink-0">
-                    <AvatarFallback>
-                      {(review.reviewer_name || 'U').charAt(0).toUpperCase()}
+
+          {/* Right — Reviews list */}
+          <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+              {paginatedReviews.map((review) => (
+                <div key={review.id} className="flex gap-3 py-4 border-b border-gray-50 last:border-0">
+                  <Avatar className="h-9 w-9 shrink-0">
+                    <AvatarFallback className="bg-green-100 text-green-800 font-semibold text-sm">
+                      {(review.reviewer_name || "U").charAt(0).toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between mb-1">
-                      <p className="font-semibold text-gray-900">{review.reviewer_name}</p>
-                      <p className="text-xs text-gray-400">
-                        {new Date(review.created_at).toLocaleDateString("en-US", {
-                          month: "long", day: "numeric", year: "numeric"
+                    <div className="flex items-center justify-between gap-2 mb-1">
+                      <p className="font-semibold text-gray-900 text-sm truncate">{review.reviewer_name}</p>
+                      <p className="text-xs text-gray-400 shrink-0">
+                        {new Date(review.created_at).toLocaleDateString(i18n.language, {
+                          month: "long", day: "numeric", year: "numeric",
                         })}
                       </p>
                     </div>
-                    <div className="flex mb-2">
-                      {renderStars(review.rating)}
-                    </div>
+                    <StarRow rating={review.rating} />
                     {review.comment && (
-                      <p className="text-gray-700 text-sm leading-relaxed">{review.comment}</p>
+                      <p className="text-sm text-gray-600 leading-relaxed mt-2">{review.comment}</p>
                     )}
                   </div>
                 </div>
-              </Card>
-            ))}
+              ))}
+            </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="shrink-0 flex items-center justify-center gap-1.5 px-6 py-3 border-t bg-white">
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="px-3 py-1.5 rounded-lg text-xs font-medium text-gray-600 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
+                >
+                  ←
+                </button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                  <button
+                    key={page}
+                    type="button"
+                    onClick={() => setCurrentPage(page)}
+                    className={`w-8 h-8 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
+                      currentPage === page
+                        ? "bg-green-700 text-white"
+                        : "text-gray-600 hover:bg-gray-100"
+                    }`}
+                  >
+                    {page}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className="px-3 py-1.5 rounded-lg text-xs font-medium text-gray-600 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
+                >
+                  →
+                </button>
+              </div>
+            )}
           </div>
-        )}
-      </div>
+
+        </div>
+      )}
     </div>
   );
 }

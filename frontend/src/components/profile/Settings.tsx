@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import ProfilePictureUploader from "@/components/profile/ProfilePicture";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabaseClient";
 import {
@@ -20,6 +21,7 @@ import BlockedUsersPage from "./settings/BlockedUsersPage";
 import LogoutPage from "./settings/LogoutPage";
 import DeleteAccountPage from "./settings/DeleteAccountPage";
 import { useTranslation } from "react-i18next";
+import { Spinner } from "@/components/ui/Spinner";
 
 type Screen = "default" | "changePassword" | "blockedUsers" | "paymentMethods" | "billingHistory" | "logout" | "deleteAccount";
 
@@ -41,22 +43,13 @@ function PaymentMethodsPage({ onBack, onClose }: { onBack: () => void; onClose: 
   );
 }
 
-function BillingHistoryPage({ onBack, onClose }: { onBack: () => void; onClose: () => void }) {
-  const { t } = useTranslation();
-  return (
-    <div className="bg-gray-50">
-      <div className="bg-white border-b relative">
-        <button onClick={onClose} className="absolute top-3 right-3 sm:top-4 sm:right-4 text-gray-500 hover:text-gray-900 text-xl cursor-pointer">✕</button>
-        <button onClick={onBack} className="absolute top-3 left-3 sm:top-4 sm:left-4 text-gray-600 hover:text-gray-900 cursor-pointer text-sm sm:text-base">← Back</button>
-        <div className="px-3 sm:px-4 py-4 sm:py-6 text-center">
-          <h1 className="text-lg sm:text-3xl font-bold text-gray-900 mt-6 sm:mt-0">{t("settings.billingHistory")}</h1>
-        </div>
-      </div>
-      <div className="px-3 sm:px-4 py-4 sm:py-8">
-        <Card className="p-4 sm:p-6">{t("settings.comingSoon")}</Card>
-      </div>
-    </div>
-  );
+function BillingHistoryPage({ onClose }: { onBack: () => void; onClose: () => void }) {
+  const router = useRouter();
+  useEffect(() => {
+    onClose();
+    router.push("/wallet");
+  }, []);
+  return null;
 }
 
 export default function SettingsPage({ onClose, scrollRef }: { onClose: () => void; scrollRef?: React.RefObject<HTMLDivElement | null> }) {
@@ -168,6 +161,8 @@ export default function SettingsPage({ onClose, scrollRef }: { onClose: () => vo
         }),
       ]);
       if (response.ok) {
+        i18n.changeLanguage(language);
+        localStorage.setItem("i18nextLng", language);
         setSettingsSaved(true);
         setTimeout(() => setSettingsSaved(false), 2500);
       }
@@ -195,7 +190,7 @@ export default function SettingsPage({ onClose, scrollRef }: { onClose: () => vo
   if (loading) {
     return (
       <div className="bg-gray-50 flex items-center justify-center min-h-[400px]">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-700" />
+        <Spinner size="xl" />
       </div>
     );
   }
@@ -208,11 +203,6 @@ export default function SettingsPage({ onClose, scrollRef }: { onClose: () => vo
         <div className="max-w-5xl mx-auto px-3 sm:px-4 py-4 sm:py-6 pr-10">
           <div className="flex items-center gap-3 flex-wrap">
             <h1 className="text-xl sm:text-3xl font-bold text-gray-900">{t("settings.title")}</h1>
-            {isCompany && (
-              <Badge className="bg-blue-100 text-blue-700 border-blue-300 text-xs">
-                <Building2 className="h-3 w-3 mr-1" />{t("settings.companyAccount")}
-              </Badge>
-            )}
           </div>
           <p className="text-gray-600 mt-1 text-sm sm:text-base">
             {isPerson ? t("settings.manageAccount") : t("settings.manageCompany")}
@@ -436,7 +426,7 @@ export default function SettingsPage({ onClose, scrollRef }: { onClose: () => vo
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <Label className="mb-2 block text-sm">{t("settings.language")}</Label>
-                <Select value={language} onValueChange={(val) => { setLanguage(val); i18n.changeLanguage(val); localStorage.setItem("i18nextLng", val); }}>
+                <Select value={language} onValueChange={setLanguage}>
                   <SelectTrigger className="cursor-pointer text-sm"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="en" className="cursor-pointer">English</SelectItem>
@@ -449,7 +439,7 @@ export default function SettingsPage({ onClose, scrollRef }: { onClose: () => vo
                 <Select value={region} onValueChange={setRegion}>
                   <SelectTrigger className="cursor-pointer text-sm"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="CA" className="cursor-pointer">🇨🇦 Canada</SelectItem>
+                    <SelectItem value="CA" className="cursor-pointer">Canada</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

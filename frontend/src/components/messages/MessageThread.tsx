@@ -37,6 +37,11 @@ const SKELETON_BUBBLES = [
   { isOwn: false, w: "w-40" },
   { isOwn: true,  w: "w-44" },
   { isOwn: false, w: "w-56" },
+  { isOwn: true,  w: "w-32" },
+  { isOwn: false, w: "w-60" },
+  { isOwn: true,  w: "w-48" },
+  { isOwn: false, w: "w-44" },
+  { isOwn: true,  w: "w-56" },
 ] as const;
 
 interface MessageReaction { emoji: string; user_ids: string[]; }
@@ -212,11 +217,11 @@ export function MessageThread({
             </div>
           )}
           {loading ? (
-            <div className="space-y-5 min-h-[400px] py-2">
+            <div className="flex flex-col justify-end space-y-4 h-full py-4 px-2">
               {SKELETON_BUBBLES.map((s, i) => (
                 <div key={i} className={`flex items-end gap-2 ${s.isOwn ? "justify-end" : "justify-start"}`}>
                   {!s.isOwn && <Skeleton className="h-8 w-8 rounded-full bg-gray-200 shrink-0" />}
-                  <Skeleton className={`h-10 rounded-2xl bg-gray-200 ${s.w}`} style={{ animationDelay: `${i * 80}ms` }} />
+                  <Skeleton className={`h-10 rounded-2xl bg-gray-200 ${s.w}`} style={{ animationDelay: `${i * 60}ms` }} />
                 </div>
               ))}
             </div>

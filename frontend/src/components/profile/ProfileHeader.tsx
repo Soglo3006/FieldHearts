@@ -53,28 +53,29 @@ export default function ProfileHeader({
       <div className="flex flex-col md:flex-row gap-6 items-start md:items-center">
         <Avatar className="w-32 h-32 border-4 border-white shadow-lg">
           <AvatarImage src={profileUser.avatar} alt={displayName} />
-          <AvatarFallback className="text-2xl">{displayName.charAt(0)}</AvatarFallback>
+          <AvatarFallback className="text-2xl bg-green-100 text-green-800 font-semibold">{displayName.charAt(0)}</AvatarFallback>
         </Avatar>
 
         <div className="flex-1">
           <div className="flex items-center gap-3 mb-2">
             <h1 className="text-3xl font-bold text-gray-900">{displayName}</h1>
-            {isCompany && (
-              <Badge className="bg-blue-100 text-blue-700 border-blue-300">{t("header.company")}</Badge>
-            )}
           </div>
 
           <p className="text-lg text-gray-600 mb-3">{displayTitle || t("profile.serviceProvider")}</p>
 
           <div className="flex flex-wrap items-center gap-4 mb-4">
             {profileUser.stats && (
-              <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={onRatings}
+                className="flex items-center gap-1 hover:opacity-75 transition-opacity cursor-pointer"
+              >
                 <Star className="h-5 w-5 fill-yellow-400 text-yellow-400" />
                 <span className="font-semibold text-lg">
                   {profileUser.stats.average_rating?.toFixed(1) || "N/A"}
                 </span>
-                <span className="text-gray-500">({profileUser.stats.total_reviews || 0} {t("profile.reviewsCount")})</span>
-              </div>
+                <span className="text-gray-500 underline underline-offset-2">({profileUser.stats.total_reviews || 0} {t("profile.reviewsCount")})</span>
+              </button>
             )}
             {profileUser.city && profileUser.province && (
               <div className="flex items-center gap-1 text-gray-600">
@@ -99,6 +100,10 @@ export default function ProfileHeader({
                     {t("profile.viewMessages")}
                   </Button>
                 </Link>
+                <Button variant="outline" className="gap-2 cursor-pointer" onClick={onRatings}>
+                  <UserStar className="h-4 w-4" />
+                  {t("profile.viewRatings")}
+                </Button>
                 <Button variant="outline" className="gap-2 cursor-pointer" onClick={onSettings}>
                   <Settings className="h-4 w-4" />
                   {t("header.settings")}

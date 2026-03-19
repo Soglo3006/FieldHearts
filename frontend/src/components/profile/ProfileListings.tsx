@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/carousel";
 import { Grid3x3, MapPin } from "lucide-react";
 import EditListingModal, { type Service as Listing } from "@/components/listings/EditListingModal";
+import { Spinner } from "@/components/ui/Spinner";
 
 interface Props {
   userListings: Listing[];
@@ -65,7 +66,7 @@ export default function ProfileListings({
 
         {listingsLoading ? (
           <div className="flex items-center justify-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-700" />
+            <Spinner size="xl" />
           </div>
         ) : userListings.length > 0 ? (
           <>

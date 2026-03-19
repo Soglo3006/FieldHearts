@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { KeyRound, CheckCircle } from "lucide-react";
+import { Spinner } from "@/components/ui/Spinner";
 
 export default function ResetPasswordPage() {
   const router = useRouter();
@@ -73,7 +74,7 @@ export default function ResetPasswordPage() {
       <div className="min-h-screen flex items-center justify-center p-4 bg-gray-50">
         <Card className="w-full max-w-sm text-center">
           <CardContent className="pt-8 pb-6">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-700 mx-auto mb-4" />
+            <Spinner size="md" className="mx-auto mb-4" />
             <p className="text-gray-500 text-sm">Verifying your reset link…</p>
           </CardContent>
         </Card>

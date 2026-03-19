@@ -28,11 +28,11 @@ export default function SupportModal({ open, onClose }: SupportModalProps) {
     setError(null);
     setSuccess(null);
     if (!user) {
-      setError("Please sign in to contact support.");
+      setError(t("support.notSignedIn"));
       return;
     }
     if (!description.trim()) {
-      setError("Please describe your issue.");
+      setError(t("support.describeIssue"));
       return;
     }
     setLoading(true);
@@ -76,8 +76,8 @@ export default function SupportModal({ open, onClose }: SupportModalProps) {
         </p>
 
         <div className="space-y-3">
-          <Input placeholder="Subject (optional)" value={subject} onChange={(e) => setSubject(e.target.value)} />
-          <Input placeholder="Category (optional)" value={category} onChange={(e) => setCategory(e.target.value)} />
+          <Input placeholder={t("support.subjectPlaceholder")} value={subject} onChange={(e) => setSubject(e.target.value)} />
+          <Input placeholder={t("support.categoryPlaceholder")} value={category} onChange={(e) => setCategory(e.target.value)} />
           <Textarea placeholder={t("support.messagePlaceholder")} value={description} onChange={(e) => setDescription(e.target.value)} rows={5} />
         </div>
 

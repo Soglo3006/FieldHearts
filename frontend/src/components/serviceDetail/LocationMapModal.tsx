@@ -4,12 +4,21 @@ import { useTranslation } from "react-i18next";
 
 interface Props {
   location: string;
+  lat?: number | null;
+  lng?: number | null;
   onClose: () => void;
 }
 
-export default function LocationMapModal({ location, onClose }: Props) {
+export default function LocationMapModal({ location, lat, lng, onClose }: Props) {
   const { t } = useTranslation();
-  const mapQuery = encodeURIComponent(location);
+
+  const hasCoords = lat != null && lng != null;
+  const mapSrc = hasCoords
+    ? `https://www.google.com/maps?q=${lat},${lng}&output=embed&z=14`
+    : `https://www.google.com/maps?q=${encodeURIComponent(location)}&output=embed&z=12`;
+  const mapsHref = hasCoords
+    ? `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`
+    : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -25,22 +34,35 @@ export default function LocationMapModal({ location, onClose }: Props) {
             ✕
           </button>
         </div>
-        <div className="relative w-full" style={{ aspectRatio: "16/9" }}>
+        <div className="relative w-full overflow-hidden" style={{ aspectRatio: "16 / 9" }}>
           <iframe
             title="Location Map"
-            className="w-full h-full"
+            className="absolute inset-0 w-full h-full"
             loading="lazy"
             referrerPolicy="no-referrer-when-downgrade"
-            src={`https://www.google.com/maps?q=${mapQuery}&output=embed&z=12`}
+            src={mapSrc}
           />
-          <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-            <div className="w-56 h-56 md:w-64 md:h-64 rounded-full border-2 border-green-600 bg-green-500/10 shadow-lg" />
-          </div>
+          {/* Bloque toute interaction avec la carte pour que le cercle reste fixe */}
+          <div className="absolute inset-0" style={{ zIndex: 1 }} />
+          {/* Cercle de zone approximative — centré via margin auto */}
+          <div
+            className="pointer-events-none absolute rounded-full border-2 border-green-600 bg-green-500/10"
+            style={{
+              width: 220,
+              height: 220,
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              margin: "auto",
+              zIndex: 2,
+            }}
+          />
         </div>
         <div className="px-4 py-3 text-xs text-gray-600 flex items-center justify-between border-t">
           <span>{t("serviceDetail.approximateLocationDesc")}</span>
           <a
-            href={`https://www.google.com/maps/search/?api=1&query=${mapQuery}`}
+            href={mapsHref}
             target="_blank"
             rel="noopener noreferrer"
             className="underline text-green-700 hover:text-green-800"

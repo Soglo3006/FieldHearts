@@ -13,9 +13,10 @@ import { useUnreadBookings } from "@/hooks/useUnreadBookings";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
+import { Spinner } from "@/components/ui/Spinner";
 
 const STATUS_CONFIG: Record<string, { color: string; icon: React.ReactNode }> = {
-  pending:   { color: "text-orange-600 bg-orange-50",  icon: <Clock className="h-3 w-3" /> },
+  pending:   { color: "text-yellow-700 bg-yellow-50",  icon: <Clock className="h-3 w-3" /> },
   accepted:  { color: "text-green-700 bg-green-50",    icon: <CheckCircle className="h-3 w-3" /> },
   refused:   { color: "text-red-600 bg-red-50",        icon: <XCircle className="h-3 w-3" /> },
   completed: { color: "text-blue-600 bg-blue-50",      icon: <Star className="h-3 w-3" /> },
@@ -63,12 +64,12 @@ export default function BookingNotifications() {
         onClick={() => handleClick(notif.id)}
         className={cn(
           "flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors border-b border-gray-100 last:border-b-0",
-          !notif.seen ? "bg-orange-50/60 hover:bg-orange-100/60" : "hover:bg-gray-50"
+          !notif.seen ? "bg-green-50/60 hover:bg-green-100/60" : "hover:bg-gray-50"
         )}
       >
         <Avatar className="h-10 w-10 shrink-0">
           {notif.other_avatar && <AvatarImage src={notif.other_avatar} />}
-          <AvatarFallback className="bg-gray-200 text-gray-600 text-sm font-medium">
+          <AvatarFallback className="bg-green-100 text-green-800 text-sm font-semibold">
             {notif.other_name.charAt(0).toUpperCase()}
           </AvatarFallback>
         </Avatar>
@@ -92,11 +93,11 @@ export default function BookingNotifications() {
           <button
             type="button"
             onClick={(e) => { e.stopPropagation(); markSeen(notif.id); }}
-            className="cursor-pointer shrink-0 group flex items-center justify-center h-8 w-8 rounded-full hover:bg-orange-100 transition-colors"
+            className="cursor-pointer shrink-0 group flex items-center justify-center h-8 w-8 rounded-full hover:bg-green-100 transition-colors"
             title={t("messages.markAsRead")}
           >
-            <span className="block group-hover:hidden h-2.5 w-2.5 rounded-full bg-orange-400" />
-            <Check className="hidden group-hover:block h-4 w-4 text-orange-600" />
+            <span className="block group-hover:hidden h-2.5 w-2.5 rounded-full bg-green-500" />
+            <Check className="hidden group-hover:block h-4 w-4 text-green-700" />
           </button>
         ) : (
           <div className="shrink-0 w-8" />
@@ -166,7 +167,7 @@ export default function BookingNotifications() {
         <div className="max-h-[360px] overflow-y-auto overscroll-contain">
           {loading ? (
             <div className="flex items-center justify-center py-10">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-green-700" />
+              <Spinner size="sm" />
             </div>
           ) : current.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-10 px-4 text-center">

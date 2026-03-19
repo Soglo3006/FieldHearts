@@ -138,7 +138,7 @@ export default function EditBasicInfoCard({ formData, accountType, onChange }: P
         {isPerson ? (
           <div className="space-y-2">
             <Label htmlFor="profession" className="text-base font-medium text-gray-900 flex items-center gap-2">
-              <Briefcase className="h-4 w-4 text-gray-500" /> {t("profileEdit.profession")}
+                {t("profileEdit.profession")}
             </Label>
             <Input id="profession" type="text" value={formData.profession}
               placeholder="Software Developer, Plumber, Electrician..."

@@ -42,15 +42,18 @@ const btn = (href, label, color = "#15803d") =>
   `<a href="${href}" style="display:inline-block;background:${color};color:#ffffff;padding:12px 24px;text-decoration:none;border-radius:8px;font-weight:600;font-size:14px;margin-top:16px;">${label}</a>`;
 
 const emailTemplates = {
-  bookingCreated: (workerName, clientName, serviceTitle, bookingId) => ({
+  bookingCreated: (workerName, clientName, serviceTitle, bookingId, imageUrl) => ({
     subject: "Nouvelle réservation reçue",
     html: base(`
       <h2 style="margin:0 0 8px;color:#111827;">Nouvelle réservation !</h2>
       <p style="color:#374151;">Bonjour <strong>${workerName}</strong>,</p>
       <p style="color:#374151;"><strong>${clientName}</strong> a fait une demande pour votre service :</p>
-      <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:16px;margin:20px 0;">
-        <p style="margin:0;font-weight:600;color:#166534;">${serviceTitle}</p>
-        <p style="margin:4px 0 0;font-size:12px;color:#6b7280;">Réservation #${bookingId.slice(0, 8)}</p>
+      <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;overflow:hidden;margin:20px 0;">
+        ${imageUrl ? `<img src="${imageUrl}" alt="${serviceTitle}" style="width:100%;height:180px;object-fit:cover;display:block;" />` : ""}
+        <div style="padding:16px;">
+          <p style="margin:0;font-weight:600;color:#166534;">${serviceTitle}</p>
+          <p style="margin:4px 0 0;font-size:12px;color:#6b7280;">Réservation #${bookingId.slice(0, 8)}</p>
+        </div>
       </div>
       <p style="color:#374151;">Connectez-vous pour accepter ou refuser cette demande.</p>
       ${btn(`${FRONTEND}/bookings`, "Voir la réservation")}
@@ -140,6 +143,123 @@ const emailTemplates = {
     `),
   }),
 
+  paymentReceipt: (clientName, serviceTitle, amount, workerName, bookingId, date, imageUrl) => ({
+    subject: `Reçu de paiement — ${serviceTitle}`,
+    html: base(`
+      <h2 style="margin:0 0 8px;color:#111827;">Reçu de paiement</h2>
+      <p style="color:#374151;">Bonjour <strong>${clientName}</strong>,</p>
+      <p style="color:#374151;">Votre paiement a été confirmé avec succès. Voici votre reçu :</p>
+      <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;overflow:hidden;margin:20px 0;">
+        ${imageUrl ? `<img src="${imageUrl}" alt="${serviceTitle}" style="width:100%;height:180px;object-fit:cover;display:block;" />` : ""}
+      <div style="padding:20px;">
+        <table width="100%" cellpadding="0" cellspacing="0">
+          <tr>
+            <td style="color:#6b7280;font-size:13px;padding-bottom:8px;">Service</td>
+            <td style="color:#111827;font-weight:600;text-align:right;padding-bottom:8px;">${serviceTitle}</td>
+          </tr>
+          <tr>
+            <td style="color:#6b7280;font-size:13px;padding-bottom:8px;">Prestataire</td>
+            <td style="color:#111827;text-align:right;padding-bottom:8px;">${workerName}</td>
+          </tr>
+          <tr>
+            <td style="color:#6b7280;font-size:13px;padding-bottom:8px;">Date</td>
+            <td style="color:#111827;text-align:right;padding-bottom:8px;">${date}</td>
+          </tr>
+          <tr>
+            <td style="color:#6b7280;font-size:13px;padding-bottom:8px;">Réservation</td>
+            <td style="color:#111827;text-align:right;padding-bottom:8px;">#${bookingId.slice(0, 8).toUpperCase()}</td>
+          </tr>
+          <tr style="border-top:1px solid #bbf7d0;">
+            <td style="color:#166534;font-weight:700;font-size:16px;padding-top:12px;">Total payé</td>
+            <td style="color:#166534;font-weight:700;font-size:20px;text-align:right;padding-top:12px;">$${amount} CAD</td>
+          </tr>
+        </table>
+      </div></div>
+      <p style="color:#374151;font-size:13px;">Votre réservation est maintenant <strong style="color:#15803d;">active</strong>. Vous pouvez contacter le prestataire directement depuis la messagerie.</p>
+      ${btn(`${FRONTEND}/bookings`, "Voir ma réservation")}
+    `),
+  }),
+
+  jobMarkedDone: (recipientName, markerName, serviceTitle, bookingId) => ({
+    subject: `${markerName} a marqué le travail comme terminé`,
+    html: base(`
+      <h2 style="margin:0 0 8px;color:#111827;">Travail marqué comme terminé</h2>
+      <p style="color:#374151;">Bonjour <strong>${recipientName}</strong>,</p>
+      <p style="color:#374151;"><strong>${markerName}</strong> a indiqué que le travail pour <strong>"${serviceTitle}"</strong> est terminé.</p>
+      <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:16px;margin:20px 0;">
+        <p style="margin:0;color:#92400e;font-weight:600;">Action requise</p>
+        <p style="margin:8px 0 0;color:#374151;font-size:14px;">Veuillez confirmer que le travail a bien été effectué en marquant également la réservation comme terminée de votre côté.</p>
+      </div>
+      <p style="color:#374151;font-size:13px;">Réservation #${bookingId.slice(0, 8).toUpperCase()}</p>
+      ${btn(`${FRONTEND}/bookings`, "Confirmer la fin du travail", "#d97706")}
+    `),
+  }),
+
+  jobCompleted: (recipientName, serviceTitle, otherPartyName, amount, bookingId, role) => ({
+    subject: `Réservation complétée — ${serviceTitle}`,
+    html: base(`
+      <h2 style="margin:0 0 8px;color:#15803d;">Réservation complétée !</h2>
+      <p style="color:#374151;">Bonjour <strong>${recipientName}</strong>,</p>
+      <p style="color:#374151;">Les deux parties ont confirmé la fin du travail pour <strong>"${serviceTitle}"</strong>. La réservation est maintenant clôturée.</p>
+      <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:20px;margin:20px 0;">
+        <table width="100%" cellpadding="0" cellspacing="0">
+          <tr>
+            <td style="color:#6b7280;font-size:13px;padding-bottom:8px;">Service</td>
+            <td style="color:#111827;font-weight:600;text-align:right;padding-bottom:8px;">${serviceTitle}</td>
+          </tr>
+          <tr>
+            <td style="color:#6b7280;font-size:13px;padding-bottom:8px;">${role === "worker" ? "Client" : "Prestataire"}</td>
+            <td style="color:#111827;text-align:right;padding-bottom:8px;">${otherPartyName}</td>
+          </tr>
+          <tr>
+            <td style="color:#6b7280;font-size:13px;padding-bottom:8px;">Réservation</td>
+            <td style="color:#111827;text-align:right;padding-bottom:8px;">#${bookingId.slice(0, 8).toUpperCase()}</td>
+          </tr>
+          <tr style="border-top:1px solid #bbf7d0;">
+            <td style="color:#166534;font-weight:700;font-size:15px;padding-top:12px;">${role === "worker" ? "À recevoir (versement)" : "Montant payé"}</td>
+            <td style="color:#166534;font-weight:700;font-size:18px;text-align:right;padding-top:12px;">$${amount} CAD</td>
+          </tr>
+        </table>
+      </div>
+      ${role === "worker"
+        ? `<p style="color:#6b7280;font-size:12px;">Le versement sera traité lors du prochain cycle bi-mensuel (délai de 5 jours ouvrables).</p>`
+        : `<p style="color:#374151;font-size:13px;">Merci d'avoir utilisé Uneden !</p>`
+      }
+      ${btn(`${FRONTEND}/bookings`, "Voir mes réservations")}
+    `),
+  }),
+
+  payoutReceived: (workerName, transferredAmount, commissionAmount, grossAmount, bookingsCount, nextPayoutDate) => ({
+    subject: `Versement reçu — $${transferredAmount} CAD transféré`,
+    html: base(`
+      <h2 style="margin:0 0 8px;color:#15803d;">Versement traité !</h2>
+      <p style="color:#374151;">Bonjour <strong>${workerName}</strong>,</p>
+      <p style="color:#374151;">Votre versement bi-mensuel a été traité avec succès. Le montant a été transféré vers votre compte Stripe.</p>
+      <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:20px;margin:20px 0;">
+        <table width="100%" cellpadding="0" cellspacing="0">
+          <tr>
+            <td style="color:#6b7280;font-size:13px;padding-bottom:8px;">Réservations traitées</td>
+            <td style="color:#111827;font-weight:600;text-align:right;padding-bottom:8px;">${bookingsCount}</td>
+          </tr>
+          <tr>
+            <td style="color:#6b7280;font-size:13px;padding-bottom:8px;">Montant brut</td>
+            <td style="color:#111827;text-align:right;padding-bottom:8px;">$${grossAmount} CAD</td>
+          </tr>
+          <tr>
+            <td style="color:#6b7280;font-size:13px;padding-bottom:8px;">Commission plateforme (20%)</td>
+            <td style="color:#dc2626;text-align:right;padding-bottom:8px;">−$${commissionAmount} CAD</td>
+          </tr>
+          <tr style="border-top:1px solid #bbf7d0;">
+            <td style="color:#166534;font-weight:700;font-size:15px;padding-top:12px;">Montant transféré</td>
+            <td style="color:#166534;font-weight:700;font-size:20px;text-align:right;padding-top:12px;">$${transferredAmount} CAD</td>
+          </tr>
+        </table>
+      </div>
+      <p style="color:#6b7280;font-size:12px;">Prochain versement prévu : <strong>${nextPayoutDate}</strong>. Les fonds arrivent sous 2–3 jours ouvrables selon votre banque.</p>
+      ${btn(`${FRONTEND}/wallet`, "Voir mon portefeuille")}
+    `),
+  }),
+
   disputeCreated: (userName, bookingId, description) => ({
     subject: "Un litige a été ouvert",
     html: base(`
@@ -175,8 +295,8 @@ export const sendEmail = async (to, templateName, templateData) => {
 
 // ── Named helpers (same API as before — no changes needed in controllers) ──────
 
-export const notifyBookingCreated = (workerEmail, workerName, clientName, serviceTitle, bookingId) =>
-  sendEmail(workerEmail, "bookingCreated", [workerName, clientName, serviceTitle, bookingId]);
+export const notifyBookingCreated = (workerEmail, workerName, clientName, serviceTitle, bookingId, imageUrl) =>
+  sendEmail(workerEmail, "bookingCreated", [workerName, clientName, serviceTitle, bookingId, imageUrl]);
 
 export const notifyBookingStatusUpdated = (clientEmail, clientName, serviceTitle, status, bookingId) =>
   sendEmail(clientEmail, "bookingStatusUpdated", [clientName, serviceTitle, status, bookingId]);
@@ -192,6 +312,12 @@ export const notifyNewReview = (targetEmail, targetName, reviewerName, rating, c
 
 export const notifyDisputeCreated = (userEmail, userName, bookingId, description) =>
   sendEmail(userEmail, "disputeCreated", [userName, bookingId, description]);
+
+export const notifyPaymentReceipt = (clientEmail, clientName, serviceTitle, amount, workerName, bookingId, imageUrl) =>
+  sendEmail(clientEmail, "paymentReceipt", [clientName, serviceTitle, amount, workerName, bookingId, new Date().toLocaleDateString("fr-CA", { year: "numeric", month: "long", day: "numeric" }), imageUrl]);
+
+export const notifyPayoutReceived = (workerEmail, workerName, transferredAmount, commissionAmount, grossAmount, bookingsCount, nextPayoutDate) =>
+  sendEmail(workerEmail, "payoutReceived", [workerName, transferredAmount, commissionAmount, grossAmount, bookingsCount, nextPayoutDate]);
 
 export const notifyPasswordChanged = (userEmail, userName) =>
   sendEmail(userEmail, "passwordChanged", [userName]);

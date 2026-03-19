@@ -141,13 +141,13 @@ export default function DisputeThread({ bookingId, currentUserId, accessToken }:
   const isClosed = dispute.status !== "open";
 
   return (
-    <div className="border border-amber-200 rounded-xl overflow-hidden bg-amber-50/30">
+    <div className="border border-red-200 rounded-xl overflow-hidden bg-red-50/30">
       {/* Header */}
-      <div className="flex items-center gap-2 px-4 py-3 bg-amber-50 border-b border-amber-200">
-        <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
-        <span className="text-sm font-semibold text-amber-800">Complaint</span>
+      <div className="flex items-center gap-2 px-4 py-3 bg-red-50 border-b border-red-200">
+        <AlertTriangle className="h-4 w-4 text-red-600 shrink-0" />
+        <span className="text-sm font-semibold text-red-800">Complaint</span>
         <span className={`ml-auto text-xs font-medium px-2 py-0.5 rounded-full ${
-          isClosed ? "bg-gray-100 text-gray-500" : "bg-amber-100 text-amber-700"
+          isClosed ? "bg-gray-100 text-gray-500" : "bg-red-100 text-red-700"
         }`}>
           {isClosed ? "Closed" : "Open"}
         </span>
@@ -163,7 +163,7 @@ export default function DisputeThread({ bookingId, currentUserId, accessToken }:
           return (
             <div key={msg.id} className={`flex gap-2 ${isOwn ? "flex-row-reverse" : "flex-row"}`}>
               <Avatar className="h-7 w-7 shrink-0 mt-0.5">
-                <AvatarFallback className="text-xs bg-gray-200">
+                <AvatarFallback className="text-xs bg-green-100 text-green-800 font-semibold">
                   {(msg.sender_name || "U").charAt(0).toUpperCase()}
                 </AvatarFallback>
               </Avatar>
@@ -176,7 +176,7 @@ export default function DisputeThread({ bookingId, currentUserId, accessToken }:
                 {msg.content && (
                   <div className={`text-sm px-3 py-2 rounded-2xl leading-relaxed whitespace-pre-wrap ${
                     isOwn
-                      ? "bg-amber-600 text-white rounded-tr-sm"
+                      ? "bg-red-600 text-white rounded-tr-sm"
                       : "bg-white border border-gray-200 text-gray-800 rounded-tl-sm"
                   }`}>
                     {msg.content}
@@ -211,12 +211,12 @@ export default function DisputeThread({ bookingId, currentUserId, accessToken }:
 
       {/* Input or closed notice */}
       {isClosed ? (
-        <div className="flex items-center justify-center gap-2 py-3 border-t border-amber-200 text-xs text-gray-400">
+        <div className="flex items-center justify-center gap-2 py-3 border-t border-red-200 text-xs text-gray-400">
           <Lock className="h-3.5 w-3.5" />
           This complaint is closed. No more messages can be sent.
         </div>
       ) : (
-        <div className="border-t border-amber-200 px-3 py-3 space-y-2 bg-white">
+        <div className="border-t border-red-200 px-3 py-3 space-y-2 bg-white">
           {/* Photo previews */}
           {previews.length > 0 && (
             <div className="flex gap-2 flex-wrap">
@@ -264,7 +264,7 @@ export default function DisputeThread({ bookingId, currentUserId, accessToken }:
               </Button>
               <Button
                 size="icon"
-                className="h-8 w-8 bg-amber-600 hover:bg-amber-700 text-white"
+                className="h-8 w-8 bg-red-600 hover:bg-red-700 text-white"
                 onClick={handleSend}
                 disabled={sending || (!content.trim() && photos.length === 0)}
               >

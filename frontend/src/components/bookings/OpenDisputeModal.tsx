@@ -110,8 +110,8 @@ export default function OpenDisputeModal({
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
-              <AlertTriangle className="h-5 w-5 text-amber-600" />
+            <div className="w-9 h-9 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+              <AlertTriangle className="h-5 w-5 text-red-600" />
             </div>
             <div>
               <h2 className="text-lg font-semibold text-gray-900">Open a Complaint</h2>
@@ -125,7 +125,7 @@ export default function OpenDisputeModal({
 
         {/* Body */}
         <div className="px-6 py-5 space-y-4">
-          <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-sm text-amber-800">
+          <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-800">
             Describe the issue clearly. Both parties will be able to respond. Our team will review and close the complaint.
           </div>
 
@@ -199,7 +199,7 @@ export default function OpenDisputeModal({
         <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-3">
           <Button variant="outline" onClick={onClose} disabled={submitting}>Cancel</Button>
           <Button
-            className="bg-amber-600 hover:bg-amber-700 text-white min-w-36"
+            className="bg-red-600 hover:bg-red-700 text-white min-w-36"
             onClick={handleSubmit}
             disabled={submitting || !isValid}
           >

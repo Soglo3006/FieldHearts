@@ -9,6 +9,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabaseClient";
 import { SubPageHeader } from "./SubPageHeader";
 import { useTranslation } from "react-i18next";
+import { Spinner } from "@/components/ui/Spinner";
 
 interface BlockedUser {
   id: string;
@@ -99,7 +100,7 @@ export default function BlockedUsersPage({ onBack, onClose }: Props) {
       <div className="px-3 sm:px-4 py-4 sm:py-8">
         {loading ? (
           <div className="flex justify-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-700" />
+            <Spinner size="xl" />
           </div>
         ) : blockedUsers.length === 0 ? (
           <Card className="p-8 sm:p-12 text-center">
@@ -119,16 +120,11 @@ export default function BlockedUsersPage({ onBack, onClose }: Props) {
                   <div className="flex items-center gap-3 min-w-0">
                     <Avatar className="h-10 w-10 sm:h-12 sm:w-12 border-2 border-gray-200 shrink-0">
                       <AvatarImage src={blockedUser.avatar} alt={blockedUser.name} />
-                      <AvatarFallback className="bg-gray-100 text-gray-600 text-sm">{blockedUser.name?.charAt(0) || "U"}</AvatarFallback>
+                      <AvatarFallback className="bg-green-100 text-green-800 text-sm font-semibold">{blockedUser.name?.charAt(0) || "U"}</AvatarFallback>
                     </Avatar>
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <p className="font-semibold text-gray-900 text-sm">{blockedUser.name}</p>
-                        {blockedUser.account_type === "company" && (
-                          <Badge className="bg-blue-100 text-blue-700 border-blue-300 text-xs">
-                            <Building2 className="h-2.5 w-2.5 mr-1" />{t("settings.companyAccount")}
-                          </Badge>
-                        )}
                       </div>
                       <p className="text-xs text-gray-500">
                         {t("settings.blockedOn")} {new Date(blockedUser.blocked_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}

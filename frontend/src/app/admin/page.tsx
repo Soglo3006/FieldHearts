@@ -7,7 +7,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { isAdminUser } from "@/lib/auth";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Scale, HeadphonesIcon, ArrowRight } from "lucide-react";
+import { Scale, HeadphonesIcon, ArrowRight, Download } from "lucide-react";
+import { Spinner } from "@/components/ui/Spinner";
 
 export default function AdminDashboard() {
   const router = useRouter();
@@ -15,6 +16,10 @@ export default function AdminDashboard() {
   const [allowed, setAllowed] = useState(false);
   const [openDisputes, setOpenDisputes] = useState<number | null>(null);
   const [openTickets, setOpenTickets] = useState<number | null>(null);
+  const [exportPeriod, setExportPeriod] = useState("all");
+  const [exportLoading, setExportLoading] = useState(false);
+  const [payoutLoading, setPayoutLoading] = useState(false);
+  const [payoutMessage, setPayoutMessage] = useState("");
 
   useEffect(() => {
     if (loading) return;
@@ -39,10 +44,60 @@ export default function AdminDashboard() {
       .catch(() => setOpenTickets(0));
   }, [allowed, session]);
 
+  const handleExport = async () => {
+    if (!session?.access_token) return;
+    setExportLoading(true);
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/wallet/export?period=${exportPeriod}`,
+        { headers: { Authorization: `Bearer ${session.access_token}` } }
+      );
+      if (!res.ok) return;
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `transactions_${exportPeriod}_${new Date().toISOString().slice(0, 10)}.xlsx`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      // silent fail
+    } finally {
+      setExportLoading(false);
+    }
+  };
+
+  const handleTriggerPayout = async () => {
+    if (!session?.access_token) return;
+    if (!window.confirm("Déclencher le versement bi-mensuel pour tous les utilisateurs éligibles ?")) return;
+    setPayoutLoading(true);
+    setPayoutMessage("");
+    try {
+      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/wallet/payout/trigger`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      setPayoutMessage("Versements traités avec succès.");
+    } catch {
+      setPayoutMessage("Erreur lors du traitement des versements.");
+    } finally {
+      setPayoutLoading(false);
+    }
+  };
+
+  const EXPORT_PERIODS = [
+    { value: "2weeks",  label: "2 dernières semaines" },
+    { value: "1month",  label: "Dernier mois" },
+    { value: "3months", label: "3 derniers mois" },
+    { value: "6months", label: "6 derniers mois" },
+    { value: "1year",   label: "Dernière année" },
+    { value: "all",     label: "Toutes" },
+  ];
+
   if (!allowed) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-green-700" />
+        <Spinner size="lg" />
       </div>
     );
   }
@@ -99,6 +154,113 @@ export default function AdminDashboard() {
             </Card>
           </Link>
         ))}
+      </div>
+
+      {/* Manual Payout Trigger */}
+      <div className="mt-4">
+        <Card className="p-6 border">
+          <div className="flex items-start gap-3 mb-4">
+            <div className="p-2 rounded-lg bg-amber-50">
+              <Download className="h-5 w-5 text-amber-600" />
+            </div>
+            <div>
+              <h2 className="font-semibold text-gray-900">Versements bi-mensuels</h2>
+              <p className="text-sm text-gray-500 mt-0.5">
+                Déclencher manuellement le versement pour tous les utilisateurs éligibles (5+ jours ouvrables).
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3 flex-wrap">
+            <Button
+              onClick={handleTriggerPayout}
+              disabled={payoutLoading}
+              className="bg-amber-600 hover:bg-amber-700 text-white gap-2"
+            >
+              {payoutLoading ? "Traitement..." : "Déclencher les versements"}
+            </Button>
+            {payoutMessage && (
+              <span className="text-sm font-medium text-gray-700">{payoutMessage}</span>
+            )}
+          </div>
+        </Card>
+      </div>
+
+      {/* Transaction Export */}
+      <div className="mt-6">
+        <Card className="p-6 border">
+          <div className="flex items-start gap-3 mb-4">
+            <div className="p-2 rounded-lg bg-green-50">
+              <Download className="h-5 w-5 text-green-600" />
+            </div>
+            <div>
+              <h2 className="font-semibold text-gray-900">Export des transactions</h2>
+              <p className="text-sm text-gray-500 mt-0.5">
+                Téléchargez l'historique de toutes les transactions en CSV (pour les taxes et la comptabilité).
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3 flex-wrap">
+            <select
+              value={exportPeriod}
+              onChange={(e) => setExportPeriod(e.target.value)}
+              title="Période d'export"
+              aria-label="Période d'export"
+              className="text-sm border border-gray-300 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-green-500"
+            >
+              {EXPORT_PERIODS.map((p) => (
+                <option key={p.value} value={p.value}>{p.label}</option>
+              ))}
+            </select>
+            <Button
+              onClick={handleExport}
+              disabled={exportLoading}
+              className="bg-green-600 hover:bg-green-700 text-white gap-2"
+            >
+              <Download className="h-4 w-4" />
+              {exportLoading ? "Génération..." : "Télécharger CSV"}
+            </Button>
+          </div>
+        </Card>
+      </div>
+
+      {/* Waitlist export */}
+      <div className="mt-4">
+        <Card className="p-6 border">
+          <div className="flex items-start gap-3 mb-4">
+            <div className="p-2 rounded-lg bg-blue-50">
+              <Download className="h-5 w-5 text-blue-600" />
+            </div>
+            <div>
+              <h2 className="font-semibold text-gray-900">Liste d&apos;attente (Coming Soon)</h2>
+              <p className="text-sm text-gray-500 mt-0.5">
+                Téléchargez les adresses courriel collectées pendant la période &quot;Coming Soon&quot;.
+              </p>
+            </div>
+          </div>
+          <Button
+            onClick={async () => {
+              if (!session?.access_token) return;
+              const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/waitlist/export`, {
+                headers: { Authorization: `Bearer ${session.access_token}` },
+              });
+              if (!res.ok) return;
+              const data: { email: string; lang: string; created_at: string }[] = await res.json();
+              if (!Array.isArray(data) || data.length === 0) return;
+              const csv = ["email,lang,date", ...data.map((r) => `"${r.email}","${r.lang}","${r.created_at}"`)].join("\n");
+              const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+              const url = URL.createObjectURL(blob);
+              const link = document.createElement("a");
+              link.href = url;
+              link.download = `waitlist_${new Date().toISOString().slice(0, 10)}.csv`;
+              link.click();
+              URL.revokeObjectURL(url);
+            }}
+            className="bg-blue-600 hover:bg-blue-700 text-white gap-2"
+          >
+            <Download className="h-4 w-4" />
+            Télécharger la liste d&apos;attente
+          </Button>
+        </Card>
       </div>
     </div>
   );

@@ -117,7 +117,7 @@ export function MessageItem({
               {!isOwn && (
                 <Avatar className="h-8 w-8 shrink-0">
                   {otherUser?.avatar_url ? <AvatarImage src={otherUser.avatar_url} /> : null}
-                  <AvatarFallback className="text-xs">
+                  <AvatarFallback className="text-xs bg-green-100 text-green-800 font-semibold">
                     {(otherUser?.account_type === "company" ? otherUser?.company_name : otherUser?.full_name || "U")?.charAt(0).toUpperCase()}
                   </AvatarFallback>
                 </Avatar>

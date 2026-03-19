@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { isAdminUser } from "@/lib/auth";
 import type { User, Session } from "@supabase/supabase-js";
@@ -35,9 +35,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const router = useRouter();
+  const pathname = usePathname();
+
+  // Reset isLoggingOut only when navigation to "/" has actually completed
+  useEffect(() => {
+    if (isLoggingOut && !user && pathname === "/") {
+      const t = setTimeout(() => setIsLoggingOut(false), 300);
+      return () => clearTimeout(t);
+    }
+  }, [pathname, isLoggingOut, user]);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (session) {
+        const now = Math.floor(Date.now() / 1000);
+        const isExpired = session.expires_at !== undefined && session.expires_at < now;
+        if (isExpired) {
+          const { data } = await supabase.auth.refreshSession();
+          setSession(data.session);
+          setUser(data.session?.user ?? null);
+          setLoading(false);
+          setIsLoggingOut(false);
+          return;
+        }
+      }
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
@@ -46,11 +67,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange((event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
-      setIsLoggingOut(false);
+      // Don't reset isLoggingOut on SIGNED_OUT — let signOut() handle it via timeout
+      if (event !== "SIGNED_OUT") {
+        setIsLoggingOut(false);
+      }
     });
 
     return () => subscription.unsubscribe();

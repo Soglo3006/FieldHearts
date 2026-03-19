@@ -14,6 +14,7 @@ interface ApiService {
   title: string;
   price: number;
   location: string;
+  city?: string | null;
   created_at: string;
   image_url: string | null;
   category_name: string | null;
@@ -59,10 +60,10 @@ export default function ListingsGrid({ filters }: { filters?: ListingsFilters })
 
   useEffect(() => {
     setCurrentPage(1);
+    setLoading(true);
     const controller = new AbortController();
 
     const fetchListings = async () => {
-      setLoading(true);
       try {
         const params = new URLSearchParams();
         if (filters?.search)                               params.set("search", filters.search);
@@ -77,13 +78,14 @@ export default function ListingsGrid({ filters }: { filters?: ListingsFilters })
         const query = params.toString();
         const url = `${process.env.NEXT_PUBLIC_API_URL}/services${query ? `?${query}` : ""}`;
         const res = await fetch(url, { signal: controller.signal });
-        if (!res.ok) return;
-        const data = await res.json();
+        const data = res.ok ? await res.json() : [];
         setListings(Array.isArray(data) ? data : []);
-      } catch (e) {
-        if ((e as Error).name !== "AbortError") setListings([]);
-      } finally {
         setLoading(false);
+      } catch (e) {
+        if ((e as Error).name !== "AbortError") {
+          setListings([]);
+          setLoading(false);
+        }
       }
     };
 
@@ -178,8 +180,10 @@ export default function ListingsGrid({ filters }: { filters?: ListingsFilters })
                     <h3 className="font-semibold text-gray-900 line-clamp-1 flex-1 group-hover:text-green-700 transition-colors text-sm">
                       {s.title}
                     </h3>
-                    {s.type === "looking" && (
+                    {s.type === "looking" ? (
                       <Badge className="bg-blue-100 text-blue-700 text-xs flex-shrink-0 border-0">{t("listings.looking")}</Badge>
+                    ) : (
+                      <Badge className="bg-green-100 text-green-700 text-xs flex-shrink-0 border-0">{t("listings.offering")}</Badge>
                     )}
                   </div>
 
@@ -197,7 +201,7 @@ export default function ListingsGrid({ filters }: { filters?: ListingsFilters })
                   <div className="flex items-center justify-between text-xs text-gray-500 mt-auto">
                     <div className="flex items-center gap-1 min-w-0">
                       <MapPin className="h-3 w-3 flex-shrink-0" />
-                      <span className="line-clamp-1">{s.location}</span>
+                      <span className="line-clamp-1">{s.city ?? s.location}</span>
                     </div>
                     <div className="flex items-center gap-1 flex-shrink-0 ml-2">
                       <Clock className="h-3 w-3" />

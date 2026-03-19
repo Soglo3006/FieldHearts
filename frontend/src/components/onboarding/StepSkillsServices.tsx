@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,6 +24,7 @@ export default function StepSkillsServices({
   data, accountType, onAddSkill, onRemoveSkill,
   onAddLanguage, onRemoveLanguage, onUpdateLanguage,
 }: Props) {
+  const { t } = useTranslation();
   const [newSkill, setNewSkill] = useState("");
   const suggestions = accountType === "company" ? serviceSuggestions : skillSuggestions;
 
@@ -36,19 +38,17 @@ export default function StepSkillsServices({
   return (
     <Card className="p-6 sm:p-8 animate-in fade-in duration-300">
       <h2 className="text-xl font-bold text-gray-900">
-        {accountType === "company" ? "Services Your Company Provides" : "Skills & Languages"}
+        {accountType === "company" ? t("onboarding.yourServices") : t("onboarding.skillsAndServices")}
       </h2>
       <p className="text-gray-600">
-        {accountType === "company"
-          ? "Help customers understand what services your company offers."
-          : "Help customers find you based on your expertise"}
+        {t("onboarding.skillsSubtitle")}
       </p>
 
       <div className="space-y-8">
         {/* Skills / Services */}
         <div>
           <Label className="text-base font-medium text-gray-900 mb-3 block">
-            {accountType === "company" ? "Services Offered" : "Skills"} <span className="text-red-500">*</span>
+            {accountType === "company" ? t("onboarding.yourServices") : t("onboarding.yourSkills")} <span className="text-red-500">*</span>
             <span className="text-gray-500 font-normal text-sm ml-2">({data.skills?.length ?? 0}/10)</span>
           </Label>
 
@@ -57,7 +57,7 @@ export default function StepSkillsServices({
               <Input
                 id="skill-input"
                 type="text"
-                placeholder={accountType === "company" ? "e.g., Residential Cleaning, Electrical Repair" : "Type your skill and press Enter"}
+                placeholder={accountType === "company" ? t("onboarding.servicePlaceholder") : t("onboarding.skillPlaceholder")}
                 value={newSkill}
                 onChange={(e) => setNewSkill(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleAdd()}
@@ -89,7 +89,7 @@ export default function StepSkillsServices({
               className="h-12 px-4 bg-green-600 text-white hover:bg-green-700"
               disabled={!newSkill.trim() || (data.skills?.length ?? 0) >= 10}
             >
-              Add
+              {accountType === "company" ? t("onboarding.addService") : t("onboarding.addSkill")}
             </Button>
           </div>
 
@@ -110,7 +110,7 @@ export default function StepSkillsServices({
         {/* Languages */}
         <div>
           <Label className="text-base font-medium text-gray-900 mb-3 block">
-            {accountType === "company" ? "Languages Spoken (Optional)" : "Languages"}
+            {t("onboarding.yourLanguages")}
           </Label>
           <div className="space-y-3">
             {(data.languages ?? []).map((lang: Language) => (
@@ -118,7 +118,7 @@ export default function StepSkillsServices({
                 <div className="flex gap-2 w-full sm:flex-1">
                   <Select value={lang.language} onValueChange={(v) => onUpdateLanguage(lang.id, "language", v)}>
                     <SelectTrigger className="h-12 flex-1">
-                      <SelectValue placeholder="Select language" />
+                      <SelectValue placeholder={t("onboarding.language")} />
                     </SelectTrigger>
                     <SelectContent position="popper" side="bottom" sideOffset={0} avoidCollisions={false} className="max-h-60">
                       {languageOptions.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
@@ -128,7 +128,7 @@ export default function StepSkillsServices({
                   {accountType === "person" && (
                     <Select value={lang.proficiency} onValueChange={(v) => onUpdateLanguage(lang.id, "proficiency", v)}>
                       <SelectTrigger className="h-12 flex-1">
-                        <SelectValue placeholder="Proficiency" />
+                        <SelectValue placeholder={t("onboarding.proficiency")} />
                       </SelectTrigger>
                       <SelectContent>
                         {proficiencyOptions.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
@@ -149,7 +149,7 @@ export default function StepSkillsServices({
             ))}
           </div>
           <Button variant="outline" onClick={onAddLanguage} className="mt-4 gap-2">
-            <Plus className="h-4 w-4" /> Add Language
+            <Plus className="h-4 w-4" /> {t("onboarding.addLanguage")}
           </Button>
         </div>
       </div>

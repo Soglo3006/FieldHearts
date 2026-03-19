@@ -8,6 +8,8 @@ import Header from "@/components/home/Header";
 import CategoryNav from "@/components/home/Category";
 import Footer from "@/components/home/Footer";
 import SupportButton from "@/components/support/SupportButton";
+import { useAuth } from "@/contexts/AuthContext";
+import { Spinner } from "@/components/ui/Spinner";
 
 const AUTH_ROUTES = [
   "/login",
@@ -25,8 +27,13 @@ const NO_CATEGORY_ROUTES = [
   "/listings",
 ];
 
+const NO_FOOTER_ROUTES = [
+  "/messages",
+];
+
 export default function ConditionalShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const { loading: authLoading, isLoggingOut } = useAuth();
 
   useEffect(() => {
     const saved = localStorage.getItem("i18nextLng");
@@ -34,11 +41,40 @@ export default function ConditionalShell({ children }: { children: React.ReactNo
     const lng = saved ?? browserLng;
     if (lng !== i18n.language) i18n.changeLanguage(lng);
   }, []);
+
   const isAuthPage = AUTH_ROUTES.some((r) => pathname.startsWith(r));
   const isNoCategoryPage = NO_CATEGORY_ROUTES.some((r) => pathname.startsWith(r));
+  const isNoFooterPage = NO_FOOTER_ROUTES.some((r) => pathname.startsWith(r));
+
+  if (isLoggingOut) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-white">
+        <Spinner size="lg" />
+      </div>
+    );
+  }
 
   if (isAuthPage) {
     return <main className="flex-1">{children}</main>;
+  }
+
+  if (authLoading) {
+    return (
+      <>
+        {/* Header skeleton */}
+        <div className="w-full border-b border-gray-200 shadow-sm bg-white">
+          <div className="max-w-7xl mx-auto px-4 flex items-center justify-between py-3 gap-3">
+            <div className="h-7 w-24 bg-gray-200 rounded animate-pulse" />
+            <div className="flex-1 max-w-md h-9 bg-gray-100 rounded-lg animate-pulse" />
+            <div className="h-9 w-9 rounded-full bg-gray-200 animate-pulse" />
+          </div>
+        </div>
+        {!isNoCategoryPage && (
+          <div className="w-full border-b border-gray-200 bg-white h-14 animate-pulse" />
+        )}
+        <main className="flex-1">{children}</main>
+      </>
+    );
   }
 
   if (isNoCategoryPage) {
@@ -49,6 +85,17 @@ export default function ConditionalShell({ children }: { children: React.ReactNo
         <Footer />
         <SupportButton floating />
       </>
+    );
+  }
+
+  if (isNoFooterPage) {
+    return (
+      <div className="h-screen flex flex-col overflow-hidden">
+        <Suspense><Header /></Suspense>
+        <CategoryNav />
+        <main className="flex-1 flex flex-col min-h-0">{children}</main>
+        <SupportButton floating />
+      </div>
     );
   }
 

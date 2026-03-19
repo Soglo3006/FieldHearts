@@ -6,14 +6,14 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useStartConversation } from "@/hooks/useStartConversation";
-import { CalendarDays, CheckCircle, XCircle } from "lucide-react";
+import { CalendarDays, CheckCircle, XCircle, Clock } from "lucide-react";
 import LeaveReviewModal from "@/components/bookings/LeaveReviewModal";
 import OpenDisputeModal from "@/components/bookings/OpenDisputeModal";
-import StripeConnectBanner from "@/components/bookings/StripeConnectBanner";
 import BookingDetailModal, { type BookingDetail } from "@/components/bookings/BookingDetailModal";
 import ReceivedBookingsList from "@/components/bookings/ReceivedBookingsList";
 import SentBookingsList from "@/components/bookings/SentBookingsList";
 import { ReceivedBooking, SentBooking, BookingStatus } from "@/components/bookings/bookingTypes";
+import { Spinner } from "@/components/ui/Spinner";
 
 function LoadingSkeleton() {
   return (
@@ -55,7 +55,8 @@ function BookingsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const [tab, setTab] = useState<"received" | "sent">("received");
+  const [tab, setTab] = useState<"received" | "sent" | "done">("received");
+  const [seenCounts, setSeenCounts] = useState<Record<string, number>>({ received: 0, sent: 0, done: 0 });
   const [received, setReceived] = useState<ReceivedBooking[]>([]);
   const [sent, setSent] = useState<SentBooking[]>([]);
   const [loadingReceived, setLoadingReceived] = useState(true);
@@ -138,13 +139,37 @@ function BookingsContent() {
     }
   };
 
-  const pendingCount = received.filter((b) => b.status === "pending").length;
+  const activeStatuses = ["pending", "accepted", "active"];
+  const activeReceived = received.filter((b) => activeStatuses.includes(b.status)).length;
+  const activeSent = sent.filter((b) => activeStatuses.includes(b.status)).length;
+
+  const completedReceived = received.filter((b) => b.status === "completed");
+  const completedSent = sent.filter((b) => b.status === "completed");
+  const doneCount = completedReceived.length + completedSent.length;
+
+  const badgeReceived = Math.max(0, activeReceived - seenCounts.received);
+  const badgeSent = Math.max(0, activeSent - seenCounts.sent);
+  const badgeDone = Math.max(0, doneCount - seenCounts.done);
+
+  const switchTab = (newTab: "received" | "sent" | "done") => {
+    setTab(newTab);
+    const current = newTab === "received" ? activeReceived : newTab === "sent" ? activeSent : doneCount;
+    setSeenCounts((prev) => ({ ...prev, [newTab]: current }));
+  };
+
+  // Auto-mark initial tab as seen once data loads
+  useEffect(() => {
+    if (!loadingReceived) setSeenCounts((prev) => ({ ...prev, received: activeReceived }));
+  }, [loadingReceived]);
+  useEffect(() => {
+    if (!loadingSent) setSeenCounts((prev) => ({ ...prev, sent: activeSent }));
+  }, [loadingSent]);
 
   if (authLoading) {
     return (
       <main className="max-w-5xl mx-auto px-4 py-8">
         <div className="flex justify-center py-24">
-          <div className="w-8 h-8 border-4 border-green-700 border-t-transparent rounded-full animate-spin" />
+          <Spinner size="md" />
         </div>
       </main>
     );
@@ -176,32 +201,50 @@ function BookingsContent() {
       <div className="flex border-b border-gray-200 mb-6">
         <button
           type="button"
-          onClick={() => setTab("received")}
+          onClick={() => switchTab("received")}
           className={`cursor-pointer flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
             tab === "received" ? "border-green-600 text-green-700" : "border-transparent text-gray-500 hover:text-gray-700"
           }`}
         >
           {t("bookings.received")}
-          {pendingCount > 0 && (
-            <span className="bg-amber-500 text-white text-xs font-bold rounded-full px-1.5 py-0.5 leading-none">
-              {pendingCount}
+          {badgeReceived > 0 && (
+            <span className="bg-red-500 text-white text-xs font-bold rounded-full px-1.5 py-0.5 leading-none">
+              {badgeReceived}
             </span>
           )}
         </button>
         <button
           type="button"
-          onClick={() => setTab("sent")}
-          className={`cursor-pointer px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+          onClick={() => switchTab("sent")}
+          className={`cursor-pointer flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
             tab === "sent" ? "border-green-600 text-green-700" : "border-transparent text-gray-500 hover:text-gray-700"
           }`}
         >
           {t("bookings.sent")}
+          {badgeSent > 0 && (
+            <span className="bg-red-500 text-white text-xs font-bold rounded-full px-1.5 py-0.5 leading-none">
+              {badgeSent}
+            </span>
+          )}
+        </button>
+        <button
+          type="button"
+          onClick={() => switchTab("done")}
+          className={`cursor-pointer flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+            tab === "done" ? "border-green-600 text-green-700" : "border-transparent text-gray-500 hover:text-gray-700"
+          }`}
+        >
+          Terminé
+          {badgeDone > 0 && (
+            <span className="bg-green-600 text-white text-xs font-bold rounded-full px-1.5 py-0.5 leading-none">
+              {badgeDone}
+            </span>
+          )}
         </button>
       </div>
 
       {tab === "received" && (
         <>
-          {session?.access_token && <StripeConnectBanner accessToken={session.access_token} />}
           {loadingReceived ? <LoadingSkeleton /> : received.length === 0 ? (
             <EmptyState message={t("bookings.noReceived")} />
           ) : (
@@ -236,6 +279,83 @@ function BookingsContent() {
             onDispute={(id, title) => setDisputeBooking({ id, title })}
             onCardClick={(booking) => setDetailBooking({ booking, role: "client" })}
           />
+        )
+      )}
+
+      {tab === "done" && (
+        loadingReceived || loadingSent ? <LoadingSkeleton /> :
+        doneCount === 0 ? (
+          <div className="text-center py-16 text-gray-500">
+            <Clock className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+            <p className="font-medium text-gray-700">Aucune réservation terminée</p>
+            <p className="text-sm text-gray-400 mt-1">Vos réservations complétées apparaîtront ici.</p>
+          </div>
+        ) : (
+          <div className="space-y-6">
+            {completedReceived.length > 0 && (
+              <div>
+                <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Services rendus</h2>
+                <div className="space-y-3">
+                  {completedReceived.map((b) => (
+                    <div
+                      key={b.id}
+                      className="bg-white border border-gray-200 rounded-xl p-4 flex items-center gap-4 cursor-pointer hover:border-gray-300 transition-colors"
+                      onClick={() => setDetailBooking({ booking: b as BookingDetail, role: "worker" })}
+                    >
+                      {b.image_url && (
+                        <img src={b.image_url} alt={b.title} className="w-14 h-14 rounded-lg object-cover shrink-0" />
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-gray-900 truncate">{b.title}</p>
+                        <p className="text-sm text-gray-500">Client : {b.client_name}</p>
+                        <p className="text-xs text-gray-400">{new Date(b.created_at).toLocaleDateString("fr-CA", { year: "numeric", month: "long", day: "numeric" })}</p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className="font-semibold text-green-700">+{(Number(b.price) * 0.80).toFixed(2)} $</p>
+                        <span className="inline-block mt-1 text-xs bg-green-100 text-green-800 border border-green-200 rounded-full px-2 py-0.5">Terminé</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {completedSent.length > 0 && (
+              <div>
+                <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Services reçus</h2>
+                <div className="space-y-3">
+                  {completedSent.map((b) => (
+                    <div
+                      key={b.id}
+                      className="bg-white border border-gray-200 rounded-xl p-4 flex items-center gap-4 cursor-pointer hover:border-gray-300 transition-colors"
+                      onClick={() => setDetailBooking({ booking: b as BookingDetail, role: "client" })}
+                    >
+                      {b.image_url && (
+                        <img src={b.image_url} alt={b.title} className="w-14 h-14 rounded-lg object-cover shrink-0" />
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-gray-900 truncate">{b.title}</p>
+                        <p className="text-sm text-gray-500">Prestataire : {b.worker_name}</p>
+                        <p className="text-xs text-gray-400">{new Date(b.created_at).toLocaleDateString("fr-CA", { year: "numeric", month: "long", day: "numeric" })}</p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className="font-semibold text-red-600">-{(Number(b.price) * 1.19975).toFixed(2)} $</p>
+                        <span className="inline-block mt-1 text-xs bg-green-100 text-green-800 border border-green-200 rounded-full px-2 py-0.5">Terminé</span>
+                        {!b.has_reviewed && (
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); setReviewBooking({ id: b.id, targetName: b.worker_name }); }}
+                            className="block mt-1 text-xs text-green-700 hover:underline"
+                          >
+                            Laisser un avis
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         )
       )}
 

@@ -5,6 +5,7 @@ import { useProtectedRoute } from "@/hooks/useProtectedRoute";
 import OfferServiceForm from "@/components/post/OfferServiceForm";
 import LookingForWorkerForm from "@/components/post/LookingForWorkerForm";
 import SuccessPopup from "@/components/post/SuccessPopup";
+import { Spinner } from "@/components/ui/Spinner";
 
 type PostMode = "offer" | "looking";
 
@@ -17,7 +18,7 @@ export default function PostServicePage() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-700" />
+        <Spinner size="xl" />
       </div>
     );
   }

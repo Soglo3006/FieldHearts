@@ -9,8 +9,9 @@ import { Star } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { ExternalLink, Grid3x3, Settings, X } from 'lucide-react';
-import { supabase } from '@/lib/supabaseClient';
+import { ExternalLink, Grid3x3, MapPin, Settings, X } from 'lucide-react';
+import { Spinner } from "@/components/ui/Spinner";
+import RatingsPage from '@/components/profile/RatingsPage';
 
 interface ProfileSidebarProps {
   otherUser?: {
@@ -26,13 +27,24 @@ interface ProfileSidebarProps {
   onOpenSettings?: () => void;
   isBlocked?: boolean;
   isBlockedByOther?: boolean;
+  blockCheckLoading?: boolean;
 }
 
-export function ProfileSidebar({ otherUser, onClose, onOpenSettings, isBlocked, isBlockedByOther }: ProfileSidebarProps) {
+export function ProfileSidebar({ otherUser, onClose, onOpenSettings, isBlocked, isBlockedByOther, blockCheckLoading }: ProfileSidebarProps) {
   const { t, i18n } = useTranslation();
   const [userListings, setUserListings] = useState<any[]>([]);
-  const [listingsLoading, setListingsLoading] = useState(false)
+  const [listingsLoading, setListingsLoading] = useState(false);
   const [reviewStats, setReviewStats] = useState<{ avg: number; count: number } | null>(null);
+  const [reviewsLoading, setReviewsLoading] = useState(false);
+  const [showRatings, setShowRatings] = useState(false);
+
+  const sidebarLoading = listingsLoading || reviewsLoading || blockCheckLoading;
+
+  // Reset quand on change de conversation
+  useEffect(() => {
+    setUserListings([]);
+    setReviewStats(null);
+  }, [otherUser?.id]);
 
   // Charger les listings de l'autre utilisateur
   useEffect(() => {
@@ -70,18 +82,22 @@ export function ProfileSidebar({ otherUser, onClose, onOpenSettings, isBlocked, 
   useEffect(() => {
     const fetchReviews = async () => {
       if (!otherUser?.id) return;
-      const { data } = await supabase
-        .from('reviews')
-        .select('rating')
-        .eq('target_id', otherUser.id);
-
-      if (!data || data.length === 0) {
+      setReviewsLoading(true);
+      try {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/reviews/${otherUser.id}`);
+        if (!res.ok) throw new Error();
+        const data: { rating: number }[] = await res.json();
+        if (!data || data.length === 0) {
+          setReviewStats(null);
+        } else {
+          const avg = data.reduce((sum, r) => sum + r.rating, 0) / data.length;
+          setReviewStats({ avg: Math.round(avg * 10) / 10, count: data.length });
+        }
+      } catch {
         setReviewStats(null);
-        return;
+      } finally {
+        setReviewsLoading(false);
       }
-
-      const avg = data.reduce((sum, r) => sum + r.rating, 0) / data.length;
-      setReviewStats({ avg: Math.round(avg * 10) / 10, count: data.length });
     };
     fetchReviews();
   }, [otherUser?.id]);
@@ -129,33 +145,65 @@ export function ProfileSidebar({ otherUser, onClose, onOpenSettings, isBlocked, 
 
       {/* Contenu scrollable */}
       <div className="flex-1 min-h-0 overflow-y-auto px-6">
+        {sidebarLoading ? (
+          <div className="py-4 space-y-4">
+            {/* Avatar skeleton */}
+            <div className="flex flex-col items-center gap-2">
+              <div className="h-24 w-24 rounded-full bg-gray-200 animate-pulse" />
+              <div className="h-3 w-20 bg-gray-200 animate-pulse rounded" />
+              <div className="h-3 w-28 bg-gray-100 animate-pulse rounded" />
+            </div>
+            <div className="h-px bg-gray-100" />
+            {/* Info skeleton */}
+            <div className="space-y-2">
+              <div className="h-3 bg-gray-200 animate-pulse rounded w-full" />
+              <div className="h-3 bg-gray-100 animate-pulse rounded w-4/5" />
+              <div className="h-3 bg-gray-100 animate-pulse rounded w-3/5" />
+            </div>
+            <div className="h-px bg-gray-100" />
+            {/* Listings skeleton */}
+            {Array.from({ length: 2 }).map((_, i) => (
+              <div key={i} className="rounded-xl border overflow-hidden">
+                <div className="aspect-video bg-gray-200 animate-pulse" />
+                <div className="p-2.5 space-y-1.5">
+                  <div className="h-3 bg-gray-200 animate-pulse rounded w-4/5" />
+                  <div className="h-3 bg-gray-100 animate-pulse rounded w-1/3" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
         <div className="py-4 w-full">
           {/* Avatar + Nom — toujours visible */}
           <div className="text-center mb-6">
-            <Avatar className="h-24 w-24 mx-auto mb-4 border-4 border-white shadow-lg">
+            <Avatar className="h-24 w-24 mx-auto mb-3 border-4 border-white shadow-lg">
               {otherUser.avatar_url ? (
                 <AvatarImage src={otherUser.avatar_url} alt={displayName} />
               ) : null}
-              <AvatarFallback className="text-2xl">
+              <AvatarFallback className="text-2xl bg-green-100 text-green-800 font-semibold">
                 {(displayName).charAt(0).toUpperCase()}
               </AvatarFallback>
             </Avatar>
 
             <Link href={`/profile/${otherUser.id}`} className="hover:underline">
-              <h4 className="text-lg font-semibold mb-2">{displayName}</h4>
+              <h4 className="text-lg font-semibold">{displayName}</h4>
             </Link>
 
-            {/* Rating — masqué si bloqué */}
+            {/* Rating — en dessous du nom, masqué si bloqué */}
             {!blocked && (
-              <div className="flex items-center justify-center gap-1 mt-2">
-                <Star className="h-4 w-4 text-yellow-400 fill-yellow-400" />
+              <button
+                type="button"
+                onClick={() => setShowRatings(true)}
+                className="flex items-center justify-center gap-1 mt-1 mx-auto cursor-pointer hover:opacity-80 transition-opacity"
+              >
+                <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
                 <span className="text-sm font-medium">
-                  {reviewStats ? reviewStats.avg : 'N/A'}
+                  {reviewStats ? reviewStats.avg.toFixed(1) : 'N/A'}
                 </span>
-                <span className="text-sm text-gray-500">
-                  ({t("messages.reviewsCount", { count: reviewStats ? reviewStats.count : 0 })})
+                <span className="text-sm text-gray-500 underline underline-offset-2">
+                  ({reviewStats ? reviewStats.count : 0} {t("profile.reviewsCount")})
                 </span>
-              </div>
+              </button>
             )}
           </div>
 
@@ -189,7 +237,7 @@ export function ProfileSidebar({ otherUser, onClose, onOpenSettings, isBlocked, 
                   <div>
                     <div className="flex items-center justify-between mb-3">
                       <h4 className="font-medium text-gray-900">{t("messages.otherServices")}</h4>
-                      <Link href={`/profile/${otherUser.id}`}>
+                      <Link href={`/profile/${otherUser.id}/listings`}>
                         <Button variant="ghost" size="sm" className="h-7 text-xs gap-1 cursor-pointer">
                           {t("common.viewAll")}
                           <ExternalLink className="h-3 w-3" />
@@ -199,7 +247,7 @@ export function ProfileSidebar({ otherUser, onClose, onOpenSettings, isBlocked, 
 
                     {listingsLoading ? (
                       <div className="flex justify-center py-4">
-                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-green-700"></div>
+                        <Spinner size="sm" />
                       </div>
                     ) : (
                       <div className="space-y-3">
@@ -209,34 +257,46 @@ export function ProfileSidebar({ otherUser, onClose, onOpenSettings, isBlocked, 
                             href={`/serviceDetail/${listing.id}`}
                             className="block"
                           >
-                            <Card className="p-3 hover:shadow-md transition-shadow cursor-pointer">
-                              <div className="flex gap-3">
+                            <div className="border rounded-xl shadow-sm bg-white overflow-hidden hover:shadow-md transition-all cursor-pointer">
+                              <div className="aspect-video w-full overflow-hidden bg-gray-100">
                                 {listing.image_url ? (
                                   <img
                                     src={listing.image_url}
                                     alt={listing.title}
-                                    className="w-16 h-16 object-cover rounded-lg flex-shrink-0"
+                                    className="w-full h-full object-cover"
                                   />
                                 ) : (
-                                  <div className="w-16 h-16 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                                  <div className="w-full h-full flex items-center justify-center">
                                     <Grid3x3 className="h-6 w-6 text-gray-300" />
                                   </div>
                                 )}
-                                <div className="flex-1 min-w-0">
-                                  <h5 className="font-medium text-sm text-gray-900 line-clamp-1 mb-1">
+                              </div>
+                              <div className="p-2.5">
+                                <div className="flex items-center gap-1.5 mb-1">
+                                  <h5 className="font-semibold text-sm text-gray-900 line-clamp-1 flex-1">
                                     {listing.title}
                                   </h5>
-                                  <p className="text-green-700 font-semibold text-sm mb-1">
-                                    ${listing.price}
-                                  </p>
-                                  {listing.type === 'looking' && (
-                                    <Badge className="bg-blue-100 text-blue-700 text-xs">
+                                  {listing.type === 'looking' ? (
+                                    <Badge className="bg-gray-100 text-gray-600 text-[10px] border-0 shrink-0">
                                       {t("listings.looking")}
+                                    </Badge>
+                                  ) : (
+                                    <Badge className="bg-green-100 text-green-700 text-[10px] border-0 shrink-0">
+                                      {t("listings.offering")}
                                     </Badge>
                                   )}
                                 </div>
+                                <p className="text-green-700 font-bold text-sm mb-1">
+                                  ${listing.price}
+                                </p>
+                                {(listing.location || listing.city) && (
+                                  <div className="flex items-center text-xs text-gray-500">
+                                    <MapPin className="h-3 w-3 mr-1 shrink-0" />
+                                    <span className="line-clamp-1">{listing.location || listing.city}</span>
+                                  </div>
+                                )}
                               </div>
-                            </Card>
+                            </div>
                           </Link>
                         ))}
                       </div>
@@ -247,6 +307,7 @@ export function ProfileSidebar({ otherUser, onClose, onOpenSettings, isBlocked, 
             </>
           )}
         </div>
+        )}
       </div>
 
       {/* Bouton fixe en bas */}
@@ -257,6 +318,19 @@ export function ProfileSidebar({ otherUser, onClose, onOpenSettings, isBlocked, 
           </Button>
         </Link>
       </div>
+
+      {/* Ratings modal */}
+      {showRatings && otherUser.id && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex justify-center items-center z-50">
+          <div className="w-full max-w-3xl max-h-[90vh] bg-white rounded-xl shadow-xl overflow-y-auto">
+            <RatingsPage
+              onClose={() => setShowRatings(false)}
+              profileId={otherUser.id}
+              displayName={displayName}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

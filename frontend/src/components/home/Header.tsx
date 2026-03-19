@@ -29,6 +29,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import Link from "next/link";
 import SettingsPage from "@/components/profile/Settings";
 import { useRef, useState, useEffect } from "react";
+import { Spinner } from "@/components/ui/Spinner";
 import { Heart } from "lucide-react";
 import MessageNotifications from "@/components/messages/MessageNotifications";
 import NotificationBell from "@/components/notifications/NotificationBell";
@@ -169,17 +170,12 @@ export default function Header() {
         <div className="relative cursor-pointer">
           <Avatar className="h-9 w-9 lg:h-10 lg:w-10 border-4 border-white shadow-lg">
             <AvatarImage src={avatarUrl} alt={displayName || "User"} />
-            <AvatarFallback className="text-sm">{fallbackInitial}</AvatarFallback>
+            <AvatarFallback className="text-sm bg-green-100 text-green-800 font-semibold">{fallbackInitial}</AvatarFallback>
           </Avatar>
           {unseenCount > 0 && (
             <span className="absolute -top-1 -right-1 h-4 w-4 bg-red-500 rounded-full flex items-center justify-center text-[10px] font-bold text-white ring-2 ring-white">
               {unseenCount > 9 ? "9+" : unseenCount}
             </span>
-          )}
-          {isCompany && (
-            <div className="absolute -bottom-1 -right-1 bg-blue-600 rounded-full p-0.5">
-              <Building2 className="h-3 w-3 text-white" />
-            </div>
           )}
         </div>
       </DropdownMenuTrigger>
@@ -187,12 +183,6 @@ export default function Header() {
         <div className="px-2 py-2">
           <div className="flex items-center gap-2 mb-1">
             <p className="text-sm font-medium">{displayName || user?.email}</p>
-            {isCompany && (
-              <Badge className="bg-blue-100 text-blue-700 border-blue-300 text-xs">
-                <Building2 className="h-2.5 w-2.5 mr-1" />
-                {t("header.company")}
-              </Badge>
-            )}
           </div>
           <p className="text-xs text-gray-500">{user?.email}</p>
           {profileData && (
@@ -283,7 +273,7 @@ export default function Header() {
                   }}
                 />
                 {searchLoading && (
-                  <div className="w-3.5 h-3.5 border-2 border-green-700 border-t-transparent rounded-full animate-spin ml-2 shrink-0" />
+                  <Spinner size="xs" className="ml-2 shrink-0" />
                 )}
                 {headerSearch && !searchLoading && (
                   <button
@@ -394,14 +384,11 @@ export default function Header() {
               {user ? (
                 <UserDropdown />
               ) : (
-                <div className="flex gap-2">
-                  <Link href="/login">
-                    <Button variant="outline" size="sm" className="cursor-pointer">{t("header.login")}</Button>
-                  </Link>
-                  <Link href="/register">
-                    <Button variant="outline" size="sm" className="cursor-pointer hidden sm:flex">{t("header.register")}</Button>
-                  </Link>
-                </div>
+                <Link href="/login">
+                  <Button variant="outline" size="sm" className="cursor-pointer">
+                    {t("header.loginRegister") || "Se connecter / S'inscrire"}
+                  </Button>
+                </Link>
               )}
 
               <Link href="/post">

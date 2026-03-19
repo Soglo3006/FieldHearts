@@ -1,12 +1,11 @@
 "use client";
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
+import { ArrowLeft, X, KeyRound, CheckCircle2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/AuthContext";
-import { SubPageHeader } from "./SubPageHeader";
 import { useTranslation } from "react-i18next";
+import { Spinner } from "@/components/ui/Spinner";
 
 interface Props {
   onBack: () => void;
@@ -29,7 +28,7 @@ export default function ChangePasswordPage({ onBack, onClose }: Props) {
     else if (formData.newPassword.length < 8) newErrors.newPassword = t("settings.newPasswordMinLength");
     if (!formData.confirmPassword) newErrors.confirmPassword = t("settings.confirmPasswordRequired");
     else if (formData.newPassword !== formData.confirmPassword) newErrors.confirmPassword = t("settings.passwordsMismatch");
-    if (formData.oldPassword === formData.newPassword) newErrors.newPassword = t("settings.passwordSameAsCurrent");
+    if (formData.oldPassword && formData.oldPassword === formData.newPassword) newErrors.newPassword = t("settings.passwordSameAsCurrent");
     setErrors(newErrors);
     return !Object.values(newErrors).some(e => e !== "");
   };
@@ -58,40 +57,128 @@ export default function ChangePasswordPage({ onBack, onClose }: Props) {
   };
 
   return (
-    <div className="bg-gray-50">
-      <SubPageHeader title={t("settings.changePassword")} subtitle={t("settings.updatePassword")} onBack={onBack} onClose={onClose} />
-      <div className="px-3 sm:px-4 py-4 sm:py-8">
-        <Card className="p-4 sm:p-6">
-          {success && <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg"><p className="text-green-800 text-sm">{t("settings.passwordUpdated")}</p></div>}
-          {error && <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg"><p className="text-red-800 text-sm">{error}</p></div>}
-          <form onSubmit={handleSubmit} className="space-y-4">
+    <div className="flex flex-col h-full bg-white">
+      {/* Header */}
+      <div className="flex items-center justify-between px-5 py-4 border-b shrink-0">
+        <button
+          type="button"
+          onClick={onBack}
+          className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 transition-colors cursor-pointer"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          {t("settings.back", "Retour")}
+        </button>
+        <button
+          type="button"
+          onClick={onClose}
+          className="text-gray-400 hover:text-gray-700 transition-colors cursor-pointer"
+        >
+          <X className="h-5 w-5" />
+        </button>
+      </div>
+
+      {/* Content */}
+      <div className="flex-1 overflow-y-auto">
+        <div className="max-w-md mx-auto px-6 py-10 space-y-8">
+
+          {/* Icon + Title */}
+          <div className="text-center space-y-3">
+            <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-green-50">
+              <KeyRound className="h-6 w-6 text-green-600" />
+            </div>
             <div>
-              <Label htmlFor="oldPassword" className="pb-2 text-sm">{t("settings.currentPassword")}</Label>
-              <Input id="oldPassword" type="password" value={formData.oldPassword}
+              <h2 className="text-xl font-semibold text-gray-900">{t("settings.changePassword")}</h2>
+              <p className="text-sm text-gray-500 mt-1 leading-relaxed">{t("settings.updatePassword")}</p>
+            </div>
+          </div>
+
+          {/* Success state */}
+          {success && (
+            <div className="flex items-center gap-3 p-4 bg-green-50 border border-green-100 rounded-xl">
+              <CheckCircle2 className="h-5 w-5 text-green-600 shrink-0" />
+              <p className="text-sm text-green-800">{t("settings.passwordUpdated")}</p>
+            </div>
+          )}
+
+          {/* Error */}
+          {error && (
+            <div className="p-4 bg-red-50 border border-red-100 rounded-xl">
+              <p className="text-sm text-red-700">{error}</p>
+            </div>
+          )}
+
+          {/* Form */}
+          <form onSubmit={handleSubmit} className="space-y-5 pb-6">
+            <div className="space-y-1.5">
+              <Label htmlFor="oldPassword" className="text-sm font-medium text-gray-700">
+                {t("settings.currentPassword")}
+              </Label>
+              <Input
+                id="oldPassword"
+                type="password"
+                value={formData.oldPassword}
                 onChange={(e) => { setFormData({ ...formData, oldPassword: e.target.value }); setErrors({ ...errors, oldPassword: "" }); }}
-                className={errors.oldPassword ? "border-red-500" : ""} disabled={loading} />
-              {errors.oldPassword && <p className="text-xs text-red-500 mt-1">{errors.oldPassword}</p>}
+                className={`h-11 ${errors.oldPassword ? "border-red-400 focus-visible:ring-red-300" : ""}`}
+                disabled={loading}
+                autoComplete="current-password"
+              />
+              {errors.oldPassword && <p className="text-xs text-red-500">{errors.oldPassword}</p>}
             </div>
-            <div>
-              <Label htmlFor="newPassword" className="pb-2 text-sm">{t("settings.newPassword")}</Label>
-              <Input id="newPassword" type="password" value={formData.newPassword}
+
+            <div className="h-px bg-gray-100" />
+
+            <div className="space-y-1.5">
+              <Label htmlFor="newPassword" className="text-sm font-medium text-gray-700">
+                {t("settings.newPassword")}
+              </Label>
+              <Input
+                id="newPassword"
+                type="password"
+                value={formData.newPassword}
                 onChange={(e) => { setFormData({ ...formData, newPassword: e.target.value }); setErrors({ ...errors, newPassword: "" }); }}
-                className={errors.newPassword ? "border-red-500" : ""} disabled={loading} />
-              {errors.newPassword && <p className="text-xs text-red-500 mt-1">{errors.newPassword}</p>}
-              <p className="text-xs text-gray-500 mt-1">{t("settings.passwordMinLength")}</p>
+                className={`h-11 ${errors.newPassword ? "border-red-400 focus-visible:ring-red-300" : ""}`}
+                disabled={loading}
+                autoComplete="new-password"
+              />
+              {errors.newPassword
+                ? <p className="text-xs text-red-500">{errors.newPassword}</p>
+                : <p className="text-xs text-gray-400">{t("settings.passwordMinLength")}</p>
+              }
             </div>
-            <div>
-              <Label htmlFor="confirmPassword" className="pb-2 text-sm">{t("settings.confirmPassword")}</Label>
-              <Input id="confirmPassword" type="password" value={formData.confirmPassword}
+
+            <div className="space-y-1.5">
+              <Label htmlFor="confirmPassword" className="text-sm font-medium text-gray-700">
+                {t("settings.confirmPassword")}
+              </Label>
+              <Input
+                id="confirmPassword"
+                type="password"
+                value={formData.confirmPassword}
                 onChange={(e) => { setFormData({ ...formData, confirmPassword: e.target.value }); setErrors({ ...errors, confirmPassword: "" }); }}
-                className={errors.confirmPassword ? "border-red-500" : ""} disabled={loading} />
-              {errors.confirmPassword && <p className="text-xs text-red-500 mt-1">{errors.confirmPassword}</p>}
+                className={`h-11 ${errors.confirmPassword ? "border-red-400 focus-visible:ring-red-300" : ""}`}
+                disabled={loading}
+                autoComplete="new-password"
+              />
+              {errors.confirmPassword && <p className="text-xs text-red-500">{errors.confirmPassword}</p>}
             </div>
-            <Button type="submit" className="w-full bg-green-700 text-white hover:bg-green-800 cursor-pointer text-sm" disabled={loading}>
-              {loading ? t("settings.updating") : t("settings.updatePassword")}
-            </Button>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full h-11 rounded-lg text-sm font-medium bg-green-700 hover:bg-green-800 text-white transition-colors cursor-pointer flex items-center justify-center gap-2 disabled:opacity-60 mt-2"
+            >
+              {loading ? (
+                <>
+                  <Spinner size="xs" />
+                  {t("settings.updating")}
+                </>
+              ) : (
+                t("settings.updatePassword")
+              )}
+            </button>
           </form>
-        </Card>
+
+        </div>
       </div>
     </div>
   );

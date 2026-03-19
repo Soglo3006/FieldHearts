@@ -30,38 +30,38 @@ const TYPE_CONFIG: Record<
 > = {
   message: {
     icon: <MessageCircle className="h-4 w-4" />,
-    color: "text-blue-600",
-    bg: "bg-blue-100",
+    color: "text-green-700",
+    bg: "bg-green-100",
   },
   booking_request: {
     icon: <CalendarDays className="h-4 w-4" />,
-    color: "text-orange-600",
-    bg: "bg-orange-100",
+    color: "text-green-700",
+    bg: "bg-green-100",
   },
   booking_accepted: {
     icon: <CheckCircle className="h-4 w-4" />,
-    color: "text-green-600",
+    color: "text-green-700",
     bg: "bg-green-100",
   },
   booking_rejected: {
     icon: <XCircle className="h-4 w-4" />,
-    color: "text-red-500",
-    bg: "bg-red-100",
+    color: "text-gray-500",
+    bg: "bg-gray-100",
   },
   booking_completed: {
     icon: <CheckCircle className="h-4 w-4" />,
-    color: "text-blue-600",
-    bg: "bg-blue-100",
+    color: "text-green-700",
+    bg: "bg-green-100",
   },
   dispute: {
     icon: <AlertTriangle className="h-4 w-4" />,
-    color: "text-amber-600",
-    bg: "bg-amber-100",
+    color: "text-gray-500",
+    bg: "bg-gray-100",
   },
   payment: {
     icon: <Wallet className="h-4 w-4" />,
-    color: "text-emerald-600",
-    bg: "bg-emerald-100",
+    color: "text-green-700",
+    bg: "bg-green-100",
   },
 };
 

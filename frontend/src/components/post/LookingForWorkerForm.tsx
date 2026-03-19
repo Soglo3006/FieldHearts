@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import ImageUploader from "@/components/ui/ImageUploader";
-import LocationAutocomplete from "@/components/post/LocationAutocomplete";
+import LocationAutocomplete, { type LocationDetails } from "@/components/post/LocationAutocomplete";
 import CategorySubcategoryFields from "@/components/post/CategorySubcategoryFields";
 import AvailabilityLanguageMobilityFields from "@/components/post/AvailabilityLanguageMobilityFields";
 import OneTimeCheckbox from "@/components/post/OneTimeCheckbox";
@@ -39,6 +39,7 @@ export default function LookingForWorkerForm({ onSuccess }: Props) {
   const [subcategory, setSubcategory] = useState("");
   const [budget, setBudget] = useState("");
   const [location, setLocation] = useState("");
+  const [locationDetails, setLocationDetails] = useState<LocationDetails | null>(null);
   const [urgency, setUrgency] = useState("");
   const [posterType, setPosterType] = useState("");
   const [availability, setAvailability] = useState("");
@@ -81,6 +82,10 @@ export default function LookingForWorkerForm({ onSuccess }: Props) {
           subcategory,
           price: parseFloat(budget),
           location,
+          address: locationDetails?.address ?? location,
+          latitude: locationDetails?.lat ?? null,
+          longitude: locationDetails?.lng ?? null,
+          city: locationDetails?.city ?? location,
           poster_type: posterType,
           availability,
           language,
@@ -165,7 +170,7 @@ export default function LookingForWorkerForm({ onSuccess }: Props) {
         <LocationAutocomplete
           id="jobLocation"
           value={location}
-          onChange={setLocation}
+          onChange={(val, details) => { setLocation(val); setLocationDetails(details ?? null); }}
           placeholder={t("post.locationPlaceholder")}
           required
         />

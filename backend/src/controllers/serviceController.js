@@ -11,6 +11,10 @@ export const createService = async (req, res) => {
       subcategory,
       price,
       location,
+      address,
+      latitude,
+      longitude,
+      city,
       poster_type,
       availability,
       language,
@@ -37,9 +41,10 @@ export const createService = async (req, res) => {
     const result = await pool.query(
       `INSERT INTO services (
         user_id, type, title, description, category, category_id, subcategory,
-        price, location, poster_type, availability,
+        price, location, address, latitude, longitude, city,
+        poster_type, availability,
         language, mobility, duration, urgency, image_url, is_one_time
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
       RETURNING *`,
       [
         req.user.id,
@@ -51,6 +56,10 @@ export const createService = async (req, res) => {
         subcategory || null,
         price,
         location,
+        address || location,
+        latitude || null,
+        longitude || null,
+        city || location,
         poster_type || null,
         availability || null,
         language || null,
@@ -71,7 +80,7 @@ export const createService = async (req, res) => {
 
 export const getAllServices = async (req, res) => {
   try {
-    const { category, location, minPrice, maxPrice, search, categoryName, subcategory, type } = req.query;
+    const { category, location, minPrice, maxPrice, search, categoryName, subcategory, type, userLat, userLng, radius } = req.query;
 
     let query = `
       SELECT
@@ -111,7 +120,7 @@ export const getAllServices = async (req, res) => {
     }
 
     if (location) {
-      query += ` AND s.location ILIKE $${paramCount}`;
+      query += ` AND (s.location ILIKE $${paramCount} OR s.city ILIKE $${paramCount})`;
       params.push(`%${location}%`);
       paramCount++;
     }
@@ -134,7 +143,29 @@ export const getAllServices = async (req, res) => {
       paramCount++;
     }
 
-    query += ` ORDER BY s.created_at DESC`;
+    const lat = parseFloat(userLat);
+    const lng = parseFloat(userLng);
+    const km  = parseFloat(radius) || 50;
+
+    if (!isNaN(lat) && !isNaN(lng)) {
+      // Filter to listings within `km` radius that have coordinates, then sort by distance
+      query += `
+        AND s.latitude IS NOT NULL AND s.longitude IS NOT NULL
+        AND (6371 * acos(
+          cos(radians($${paramCount})) * cos(radians(s.latitude)) *
+          cos(radians(s.longitude) - radians($${paramCount + 1})) +
+          sin(radians($${paramCount})) * sin(radians(s.latitude))
+        )) <= $${paramCount + 2}
+        ORDER BY (6371 * acos(
+          cos(radians($${paramCount})) * cos(radians(s.latitude)) *
+          cos(radians(s.longitude) - radians($${paramCount + 1})) +
+          sin(radians($${paramCount})) * sin(radians(s.latitude))
+        )) ASC
+      `;
+      params.push(lat, lng, km);
+    } else {
+      query += ` ORDER BY s.created_at DESC`;
+    }
 
     const result = await pool.query(query, params);
     res.json(result.rows);
@@ -192,6 +223,8 @@ export const getServiceById = async (req, res) => {
           s.*,
           CASE WHEN u.account_type = 'company' THEN u.company_name ELSE u.full_name END AS owner_name,
           u.id AS owner_id,
+          u.avatar AS owner_avatar,
+          u.account_type AS owner_account_type,
           c.name AS category_name,
           c.image_url AS category_image_url
        FROM services s
@@ -217,7 +250,8 @@ export const updateService = async (req, res) => {
     const { id } = req.params;
     const {
       title, description, category, category_id, subcategory,
-      price, location, poster_type, availability, language,
+      price, location, address, latitude, longitude, city,
+      poster_type, availability, language,
       mobility, duration, urgency, image_url, is_one_time,
     } = req.body;
 
@@ -241,15 +275,19 @@ export const updateService = async (req, res) => {
            subcategory  = $5,
            price        = $6,
            location     = $7,
-           poster_type  = $8,
-           availability = $9,
-           language     = $10,
-           mobility     = $11,
-           duration     = $12,
-           urgency      = $13,
-           image_url    = $14,
-           is_one_time  = $15
-       WHERE id = $16
+           address      = $8,
+           latitude     = $9,
+           longitude    = $10,
+           city         = $11,
+           poster_type  = $12,
+           availability = $13,
+           language     = $14,
+           mobility     = $15,
+           duration     = $16,
+           urgency      = $17,
+           image_url    = $18,
+           is_one_time  = $19
+       WHERE id = $20
        RETURNING *`,
       [
         title        !== undefined ? title        : existing.title,
@@ -259,6 +297,10 @@ export const updateService = async (req, res) => {
         subcategory  !== undefined ? subcategory  : existing.subcategory,
         price        !== undefined ? price        : existing.price,
         location     !== undefined ? location     : existing.location,
+        address      !== undefined ? (address || location || existing.location) : existing.address,
+        latitude     !== undefined ? latitude     : existing.latitude,
+        longitude    !== undefined ? longitude    : existing.longitude,
+        city         !== undefined ? (city || location || existing.location) : existing.city,
         poster_type  !== undefined ? poster_type  : existing.poster_type,
         availability !== undefined ? availability : existing.availability,
         language     !== undefined ? language     : existing.language,

@@ -76,7 +76,7 @@ export default function ProfilePictureUploader({
         <div className="flex flex-col items-center gap-3">
             <Avatar className={`${sizeClasses[size]} border-4 border-gray-100`}>
             <AvatarImage src={currentProfilePicture} alt={userName} />
-            <AvatarFallback className="text-2xl">{userName.charAt(0)}</AvatarFallback>
+            <AvatarFallback className="text-2xl bg-green-100 text-green-800 font-semibold">{userName.charAt(0)}</AvatarFallback>
             </Avatar>
             {!readOnly && (
                 <div className="flex flex-col items-center gap-2">

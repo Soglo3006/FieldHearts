@@ -29,6 +29,10 @@ interface Service {
   subcategory: string | null;
   price: number;
   location: string;
+  address?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  city?: string | null;
   poster_type: string | null;
   availability: string | null;
   language: string | null;
@@ -39,6 +43,8 @@ interface Service {
   created_at: string;
   owner_name: string;
   owner_id: string;
+  owner_avatar: string | null;
+  owner_account_type: string | null;
   category_name: string | null;
   faq?: Array<{ question: string; answer: string }> | string | null;
   favorites_count?: number;
@@ -125,17 +131,19 @@ export default function ServiceDetailPage() {
         }
 
         if (user && session?.access_token) {
-          fetch(`${process.env.NEXT_PUBLIC_API_URL}/bookings/my-bookings`, {
-            headers: { Authorization: `Bearer ${session.access_token}` },
-          })
-            .then((r) => r.json())
-            .then((bookings: Array<{ service_id: string; status: string }>) => {
-              const active = bookings.find(
-                (b) => b.service_id === data.id && b.status !== "cancelled" && b.status !== "rejected"
-              );
-              if (active) setExistingBookingStatus(active.status);
-            })
-            .catch(() => {});
+          // For "looking" listings, the current user applies as worker → check received-bookings
+          // For "offer" listings, the current user books as client → check my-bookings
+          const endpoint = data.type === "looking" ? "received-bookings" : "my-bookings";
+          try {
+            const br = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/bookings/${endpoint}`, {
+              headers: { Authorization: `Bearer ${session.access_token}` },
+            });
+            const bookings: Array<{ service_id: string; status: string }> = await br.json();
+            const active = bookings.find(
+              (b) => b.service_id === data.id && b.status !== "cancelled" && b.status !== "rejected"
+            );
+            if (active) setExistingBookingStatus(active.status);
+          } catch {}
         }
 
         const similarUrl = data.category_id
@@ -342,7 +350,7 @@ export default function ServiceDetailPage() {
       )}
 
       {isMapOpen && (
-        <LocationMapModal location={service.location} onClose={() => setIsMapOpen(false)} />
+        <LocationMapModal location={service.city ?? service.location} lat={service.latitude} lng={service.longitude} onClose={() => setIsMapOpen(false)} />
       )}
     </div>
   );

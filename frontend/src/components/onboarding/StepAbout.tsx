@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -13,18 +14,19 @@ interface Props {
 }
 
 export default function StepAbout({ data, accountType, onChange }: Props) {
+  const { t } = useTranslation();
   const [professionInput, setProfessionInput] = useState(data.profession || "");
   const [showSuggestions, setShowSuggestions] = useState(false);
 
   return (
     <Card className="p-6 sm:p-8 animate-in fade-in duration-300">
       <h2 className="text-xl font-bold text-gray-900">
-        {accountType === "company" ? "Tell us about your company" : "Tell us about yourself"}
+        {accountType === "company" ? t("onboarding.aboutYourself") : t("onboarding.aboutYourself")}
       </h2>
       <p className="text-gray-600">
         {accountType === "company"
-          ? "Your company profile helps clients understand what you offer."
-          : "Your bio helps customers understand who you are."}
+          ? t("onboarding.aboutSubtitle")
+          : t("onboarding.aboutSubtitle")}
       </p>
 
       <div className="space-y-6">
@@ -32,12 +34,12 @@ export default function StepAbout({ data, accountType, onChange }: Props) {
           <>
             <div className="space-y-2 relative">
               <Label className="text-base font-medium text-gray-900">
-                Profession / Title <span className="text-red-500">*</span>
+                {t("onboarding.profession")} <span className="text-red-500">*</span>
               </Label>
               <Input
                 id="profession"
                 type="text"
-                placeholder="e.g., Electrician, Math Tutor, House Cleaner"
+                placeholder={t("onboarding.professionPlaceholder")}
                 value={professionInput}
                 onChange={(e) => {
                   const v = e.target.value;
@@ -51,6 +53,7 @@ export default function StepAbout({ data, accountType, onChange }: Props) {
               />
               {showSuggestions && professionInput.length > 0 && (
                 <div className="absolute left-0 right-0 top-full mt-1 bg-white border rounded-md shadow-lg z-20 max-h-38 overflow-y-auto">
+                  <div className="px-3 py-1 text-xs text-gray-400 font-medium border-b">{t("onboarding.suggestions")}</div>
                   {professionSuggestions
                     .filter((p) => p.toLowerCase().includes(professionInput.toLowerCase()))
                     .slice(0, 6)
@@ -73,11 +76,11 @@ export default function StepAbout({ data, accountType, onChange }: Props) {
 
             <div className="space-y-2">
               <Label htmlFor="bio" className="text-base font-medium text-gray-900">
-                Bio <span className="text-red-500">*</span>
+                {t("onboarding.bio")} <span className="text-red-500">*</span>
               </Label>
               <Textarea
                 id="bio"
-                placeholder="Tell potential customers about your experience, skills, and what makes you unique..."
+                placeholder={t("onboarding.bioPlaceholder")}
                 value={data.bio || ""}
                 onChange={(e) => onChange({ bio: e.target.value })}
                 className="min-h-40 resize-none"
@@ -94,11 +97,11 @@ export default function StepAbout({ data, accountType, onChange }: Props) {
           <>
             <div className="space-y-2">
               <Label htmlFor="companyBio" className="text-base font-medium text-gray-900">
-                Company Description <span className="text-red-500">*</span>
+                {t("onboarding.companyBio")} <span className="text-red-500">*</span>
               </Label>
               <Textarea
                 id="companyBio"
-                placeholder="Describe your company, mission, experience, and what makes your services unique..."
+                placeholder={t("onboarding.companyBioPlaceholder")}
                 value={data.companyBio || ""}
                 onChange={(e) => onChange({ companyBio: e.target.value })}
                 className="min-h-40 resize-none"
@@ -111,12 +114,12 @@ export default function StepAbout({ data, accountType, onChange }: Props) {
 
             <div className="space-y-2">
               <Label htmlFor="industry" className="text-base font-medium text-gray-900">
-                Industry / Sector <span className="text-red-500">*</span>
+                {t("onboarding.companyIndustry")} <span className="text-red-500">*</span>
               </Label>
               <Input
                 id="industry"
                 type="text"
-                placeholder="e.g., Construction, Cleaning Services, Marketing"
+                placeholder={t("onboarding.industryPlaceholder")}
                 value={data.industry || ""}
                 onChange={(e) => onChange({ industry: e.target.value })}
                 className="h-12"
@@ -124,11 +127,11 @@ export default function StepAbout({ data, accountType, onChange }: Props) {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="teamSize" className="text-base font-medium text-gray-900">Team Size (Optional)</Label>
+              <Label htmlFor="teamSize" className="text-base font-medium text-gray-900">{t("onboarding.teamSize")}</Label>
               <Input
                 id="teamSize"
                 type="text"
-                placeholder="e.g., 1-5 employees"
+                placeholder={t("onboarding.teamSizePlaceholder")}
                 value={data.teamSize || ""}
                 onChange={(e) => onChange({ teamSize: e.target.value })}
                 className="h-12"

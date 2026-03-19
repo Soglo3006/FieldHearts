@@ -9,7 +9,21 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import SupportButton from "@/components/support/SupportButton";
 import { Grid3x3, MapPin, Clock } from "lucide-react";
+import { Spinner } from "@/components/ui/Spinner";
 import { useTranslation } from "react-i18next";
+
+const COMING_SOON = process.env.NEXT_PUBLIC_COMING_SOON === "true";
+
+const MOCK_LISTINGS: Listing[] = [
+  { id: "m1", title: "Nettoyage résidentiel complet", price: 80,  location: "Montréal, QC", city: "Montréal", created_at: new Date(Date.now() - 2 * 86400000).toISOString(), category: "cleaning",   type: "offer",   image_url: "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&q=80" },
+  { id: "m2", title: "Jardinage & entretien extérieur", price: 55,  location: "Laval, QC",     city: "Laval",    created_at: new Date(Date.now() - 1 * 86400000).toISOString(), category: "gardening", type: "offer",   image_url: "https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=600&q=80" },
+  { id: "m3", title: "Aide au déménagement",           price: 120, location: "Longueuil, QC",  city: "Longueuil",created_at: new Date(Date.now() - 3 * 86400000).toISOString(), category: "moving",    type: "offer",   image_url: "https://images.unsplash.com/photo-1600880292203-757bb62b4baf?w=600&q=80" },
+  { id: "m4", title: "Cours de français particuliers", price: 40,  location: "Montréal, QC",   city: "Montréal", created_at: new Date(Date.now() - 5 * 86400000).toISOString(), category: "tutoring",  type: "offer",   image_url: "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?w=600&q=80" },
+  { id: "m5", title: "Recherche peintre intérieur",    price: 200, location: "Brossard, QC",   city: "Brossard", created_at: new Date(Date.now() - 1 * 86400000).toISOString(), category: "painting",  type: "looking", image_url: "https://images.unsplash.com/photo-1562259949-e8e7689d7828?w=600&q=80" },
+  { id: "m6", title: "Cours de guitare débutant",      price: 35,  location: "Québec, QC",     city: "Québec",   created_at: new Date(Date.now() - 4 * 86400000).toISOString(), category: "music",     type: "offer",   image_url: "https://images.unsplash.com/photo-1510915361894-db8b60106cb1?w=600&q=80" },
+  { id: "m7", title: "Garde d'animaux à domicile",     price: 30,  location: "Montréal, QC",   city: "Montréal", created_at: new Date(Date.now() - 6 * 86400000).toISOString(), category: "pet_care",  type: "offer",   image_url: "https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=600&q=80" },
+  { id: "m8", title: "Réparation d'électroménagers",   price: 75,  location: "Laval, QC",      city: "Laval",    created_at: new Date(Date.now() - 2 * 86400000).toISOString(), category: "repair",    type: "offer",   image_url: "https://images.unsplash.com/photo-1581094794329-c8112a89af12?w=600&q=80" },
+];
 
 const toKey = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
 
@@ -33,10 +47,12 @@ interface Listing {
   title: string;
   price: number;
   location: string;
+  city?: string | null;
   image_url?: string;
   created_at: string;
   category: string;
   category_name?: string;
+  type?: "offer" | "looking";
 }
 
 function ListingCard({ listing, t }: { listing: Listing; t: (key: string, opts?: Record<string, unknown>) => string }) {
@@ -57,12 +73,19 @@ function ListingCard({ listing, t }: { listing: Listing; t: (key: string, opts?:
           )}
         </AspectRatio>
         <div className="p-3 flex flex-col gap-1">
-          <h3 className="font-semibold">{listing.title}</h3>
-          <p className="text-green-700 font-semibold">${listing.price}</p>
+          <div className="flex items-start gap-2">
+            <h3 className="font-semibold flex-1">{listing.title}</h3>
+            {listing.type === "looking" ? (
+              <span className="bg-blue-100 text-blue-700 text-xs font-semibold px-2 py-0.5 rounded-full shrink-0">{t("listings.looking")}</span>
+            ) : (
+              <span className="bg-green-100 text-green-700 text-xs font-semibold px-2 py-0.5 rounded-full shrink-0">{t("listings.offering")}</span>
+            )}
+          </div>
+          <p className="text-green-700 font-semibold">{listing.price} $</p>
           <div className="flex items-center justify-between text-xs text-gray-500 mt-auto">
             <div className="flex items-center gap-1 min-w-0">
               <MapPin className="h-3 w-3 shrink-0" />
-              <span className="line-clamp-1">{listing.location}</span>
+              <span className="line-clamp-1">{listing.city ?? listing.location}</span>
             </div>
             <div className="flex items-center gap-1 shrink-0 ml-2">
               <Clock className="h-3 w-3" />
@@ -126,42 +149,25 @@ export default function HomePage() {
         );
         setSortedCategories(sorted);
 
-        // Listings near you via geolocation
-        const resolveNearby = (city: string) => {
-          if (city) {
-            const nearby = data.filter((l) =>
-              l.location.toLowerCase().includes(city.toLowerCase())
-            );
-            setNearbyListings(nearby.length > 0 ? nearby.slice(0, 3) : data.slice(0, 3));
-          } else {
-            setNearbyListings(data.slice(0, 3));
-          }
-        };
-
+        // Listings near you via geolocation — uses real coordinates
         if (navigator.geolocation) {
           navigator.geolocation.getCurrentPosition(
             async (pos) => {
               try {
                 const { latitude, longitude } = pos.coords;
-                const geoRes = await fetch(
-                  `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`,
-                  { headers: { "Accept-Language": "en" } }
+                const nearbyRes = await fetch(
+                  `${API_URL}/services?userLat=${latitude}&userLng=${longitude}&radius=50`
                 );
-                const geoData = await geoRes.json();
-                const city =
-                  geoData.address?.city ||
-                  geoData.address?.town ||
-                  geoData.address?.village ||
-                  "";
-                resolveNearby(city);
+                const nearbyData: Listing[] = await nearbyRes.json();
+                setNearbyListings(nearbyData.length > 0 ? nearbyData.slice(0, 3) : data.slice(0, 3));
               } catch {
                 setNearbyListings(data.slice(0, 3));
               }
             },
-            () => resolveNearby("")
+            () => setNearbyListings(data.slice(0, 3))
           );
         } else {
-          resolveNearby("");
+          setNearbyListings(data.slice(0, 3));
         }
       } catch {
         // API unreachable
@@ -176,7 +182,7 @@ export default function HomePage() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-700" />
+        <Spinner size="xl" />
       </div>
     );
   }
@@ -212,14 +218,17 @@ export default function HomePage() {
             <div className="grid lg:col-span-3 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
 
               {/* Recently added listings */}
-              {dataLoading ? (
+              {dataLoading && !COMING_SOON ? (
                 Array.from({ length: 9 }).map((_, i) => <ListingSkeleton key={i} />)
-              ) : listings.length === 0 ? (
-                <p className="text-gray-500 col-span-full">{t("home.noListings")}</p>
               ) : (
-                listings.slice(0, 9).map((listing) => (
-                  <ListingCard key={listing.id} listing={listing} t={t} />
-                ))
+                (COMING_SOON && listings.length === 0 ? MOCK_LISTINGS : listings.length === 0 ? [] : listings)
+                  .slice(0, 9)
+                  .map((listing) => (
+                    <ListingCard key={listing.id} listing={listing} t={t} />
+                  ))
+              )}
+              {!COMING_SOON && !dataLoading && listings.length === 0 && (
+                <p className="text-gray-500 col-span-full">{t("home.noListings")}</p>
               )}
 
               {/* Popular categories */}

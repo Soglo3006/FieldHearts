@@ -16,10 +16,10 @@ import ProfileHeader from "@/components/profile/ProfileHeader";
 import ProfileAbout from "@/components/profile/ProfileAbout";
 import ProfilePortfolio from "@/components/profile/ProfilePortfolio";
 import ProfileListings from "@/components/profile/ProfileListings";
-import ProfileReviews from "@/components/profile/ProfileReviews";
 import BlockedBanner from "@/components/profile/BlockedBanner";
 import { toast } from "sonner";
 import { type Service as Listing } from "@/components/listings/EditListingModal";
+import { Spinner } from "@/components/ui/Spinner";
 
 interface ProfileUser {
   account_type?: string;
@@ -38,14 +38,6 @@ interface ProfileUser {
   stats?: { average_rating?: number; total_reviews?: number };
 }
 
-interface Review {
-  id?: string | number;
-  reviewer_name?: string;
-  created_at?: string;
-  rating?: number;
-  comment?: string;
-}
-
 export default function UserProfilePage() {
   const params = useParams();
   const profileId = params.id as string;
@@ -58,8 +50,6 @@ export default function UserProfilePage() {
 
   const [userListings, setUserListings] = useState<Listing[]>([]);
   const [listingsLoading, setListingsLoading] = useState(true);
-  const [reviews, setReviews] = useState<Review[]>([]);
-  const [reviewsLoading, setReviewsLoading] = useState(true);
 
   const [showSettings, setShowSettings] = useState(false);
   const [showEllipsis, setShowEllipsis] = useState(false);
@@ -118,16 +108,6 @@ export default function UserProfilePage() {
   }, [profileId]);
 
   useEffect(() => {
-    if (!profileId) return;
-    setReviewsLoading(true);
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/reviews/${profileId}`)
-      .then((r) => r.json())
-      .then((data) => setReviews(Array.isArray(data) ? data : []))
-      .catch(() => setReviews([]))
-      .finally(() => setReviewsLoading(false));
-  }, [profileId]);
-
-  useEffect(() => {
     if (!user || isOwner || !profileId) return;
     (async () => {
       const [{ data: iBlockedThem }, { data: theyBlockedMe }] = await Promise.all([
@@ -148,7 +128,7 @@ export default function UserProfilePage() {
     return (
       <div className="min-h-screen bg-white">
         <div className="bg-gray-50 flex items-center justify-center min-h-[60vh]">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-700" />
+          <Spinner size="xl" />
         </div>
       </div>
     );
@@ -200,7 +180,7 @@ export default function UserProfilePage() {
             <Link href="/"><span className="hover:text-green-700 cursor-pointer">{t("notFound.goHome")}</span></Link>
             <ChevronRight className="h-4 w-4 mx-1" />
             <span className="text-green-700 font-medium">
-              {isOwner ? (isPerson ? t("profile.yourProfile") : t("profile.yourCompanyProfile")) : `${displayName}${t("profile.sProfile")}`}
+              {isOwner ? (isPerson ? t("profile.yourProfile") : t("profile.yourCompanyProfile")) : t("profile.sProfile", { name: displayName })}
             </span>
           </div>
 
@@ -244,7 +224,6 @@ export default function UserProfilePage() {
                 profileId={profileId}
                 accessToken={session?.access_token}
               />
-              <ProfileReviews reviews={reviews} reviewsLoading={reviewsLoading} />
             </>
           )}
 

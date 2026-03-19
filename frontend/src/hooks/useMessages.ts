@@ -437,6 +437,14 @@ export function useMessages(chatRoomId: string | null) {
       });
       if (error) throw error;
 
+      // Restore conversation for any member who had deleted it on their side
+      await supabase
+        .from('chat_room_member')
+        .update({ is_deleted: false })
+        .eq('chat_room_id', chatRoomId)
+        .neq('user_id', user.id)
+        .eq('is_deleted', true);
+
       fetch(`${process.env.NEXT_PUBLIC_API_URL}/messages/notify`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

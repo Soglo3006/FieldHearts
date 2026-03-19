@@ -11,15 +11,17 @@ import {
 } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import React, { useState } from "react"
+import React, { useState, useEffect } from "react"
 import { useAuth } from "@/contexts/AuthContext"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { FcGoogle } from "react-icons/fc";
 import { FaFacebookF } from "react-icons/fa";
 import { useTranslation } from "react-i18next";
+import { Spinner } from "@/components/ui/Spinner";
 
 export default function RegisterPage() {
+  const searchParams = useSearchParams();
   const [fullName, setFullName] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -30,7 +32,12 @@ export default function RegisterPage() {
 
   const { signUpWithEmail, signInWithGoogle, signInWithFacebook } = useAuth();
   const router = useRouter();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+
+  useEffect(() => {
+    const emailParam = searchParams.get("email");
+    if (emailParam) setEmail(decodeURIComponent(emailParam));
+  }, [searchParams]);
 
   const { loading } = useProtectedRoute({
     requireAuth: false,
@@ -39,7 +46,7 @@ export default function RegisterPage() {
   if (loading) return (
     <div className="min-h-screen flex flex-col bg-gray-50">
         <div className="flex-1 flex items-center justify-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-700" />
+          <Spinner size="xl" />
         </div>
       </div>
   );
@@ -71,7 +78,24 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-4">
+    <div className="min-h-screen flex flex-col bg-gray-50">
+      <div className="absolute top-4 right-4 flex items-center gap-1 bg-white border border-gray-200 rounded-full px-1 py-1 shadow-sm">
+        <button
+          type="button"
+          onClick={() => i18n.changeLanguage("fr")}
+          className={`px-2.5 py-1 rounded-full text-xs font-semibold transition-colors cursor-pointer ${i18n.language === "fr" ? "bg-green-700 text-white" : "text-gray-500 hover:text-gray-800"}`}
+        >
+          FR
+        </button>
+        <button
+          type="button"
+          onClick={() => i18n.changeLanguage("en")}
+          className={`px-2.5 py-1 rounded-full text-xs font-semibold transition-colors cursor-pointer ${i18n.language === "en" ? "bg-green-700 text-white" : "text-gray-500 hover:text-gray-800"}`}
+        >
+          EN
+        </button>
+      </div>
+    <div className="flex-1 flex flex-col items-center justify-center p-4">
       {showSuccess && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="bg-white rounded-2xl shadow-xl p-8 max-w-sm w-full mx-4 text-center">
@@ -89,6 +113,11 @@ export default function RegisterPage() {
           </div>
         </div>
       )}
+      {/* Logo above card */}
+      <Link href="/" className="mb-6 text-3xl font-bold text-green-700 hover:text-green-800 transition-colors">
+        Uneden
+      </Link>
+
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-bold">{t("register.title")}</CardTitle>
@@ -182,12 +211,23 @@ export default function RegisterPage() {
           </CardDescription>
         </CardFooter>
       </Card>
-      <p className="mt-4">
+      <p className="mt-4 text-sm text-gray-600">
         {t("register.alreadyHaveAccount")}{" "}
         <Link href="/login" className="text-green-600 hover:underline">
           {t("register.signIn")}
         </Link>
       </p>
+
+      {/* Footer links */}
+      <div className="mt-8 flex flex-wrap items-center justify-center gap-4 text-xs text-gray-400">
+        <Link href="/privacy" className="hover:text-gray-600 hover:underline">{t("footer.privacyPolicy")}</Link>
+        <span>·</span>
+        <Link href="/terms" className="hover:text-gray-600 hover:underline">{t("footer.termsOfUse")}</Link>
+        <span>·</span>
+        <span className="text-gray-300 cursor-default">Aide</span>
+      </div>
+      <p className="mt-3 text-xs text-gray-400">{t("footer.rights", { year: new Date().getFullYear() })}</p>
+    </div>
     </div>
   )
 }

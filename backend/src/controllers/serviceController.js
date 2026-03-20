@@ -335,6 +335,7 @@ export const getUserServices = async (req, res) => {
       JOIN users u ON s.user_id = u.id
       LEFT JOIN categories c ON c.id = s.category_id
       WHERE s.user_id = $1
+        AND s.is_active = true
       ORDER BY s.created_at DESC`,
       [userId]
     );

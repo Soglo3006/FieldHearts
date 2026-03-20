@@ -17,7 +17,10 @@
     "register": "S'inscrire",
     "post": "Publier",
     "company": "Entreprise",
-    "seeAllResults": "Voir tous les résultats pour « {{query}} » →"
+    "seeAllResults": "Voir tous les résultats pour « {{query}} » →",
+    "favorites": "Favoris",
+    "messages": "Messages",
+    "notifications": "Notifications"
   },
   "footer": {
     "about": "À propos",

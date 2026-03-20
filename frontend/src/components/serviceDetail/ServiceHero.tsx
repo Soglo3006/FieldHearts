@@ -1,5 +1,6 @@
 "use client";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
+import { Grid3x3 } from "lucide-react";
 
 interface Props {
   imageUrl: string | null;
@@ -13,8 +14,8 @@ export default function ServiceHero({ imageUrl, title }: Props) {
         {imageUrl ? (
           <img src={imageUrl} alt={title} className="w-full h-full object-cover" />
         ) : (
-          <div className="w-full h-full bg-gradient-to-br from-green-50 to-green-100 flex items-center justify-center">
-            <span className="text-6xl">🛠️</span>
+          <div className="w-full h-full bg-gray-100 flex items-center justify-center">
+            <Grid3x3 className="w-16 h-16 text-gray-300" />
           </div>
         )}
       </AspectRatio>

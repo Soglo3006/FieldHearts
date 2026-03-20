@@ -17,7 +17,10 @@
     "register": "Register",
     "post": "Post",
     "company": "Company",
-    "seeAllResults": "See all results for \"{{query}}\" →"
+    "seeAllResults": "See all results for \"{{query}}\" →",
+    "favorites": "Favorites",
+    "messages": "Messages",
+    "notifications": "Notifications"
   },
   "footer": {
     "about": "About",

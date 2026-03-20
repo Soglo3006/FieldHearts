@@ -50,9 +50,9 @@ export default function ProfileListings({
 
   return (
     <>
-      <Card className="p-6">
+      <Card className="p-4 sm:p-6">
         <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-bold text-gray-900">
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
             {isPerson ? t("profile.listings") : t("profile.ourServices")}
           </h2>
           {isOwner && (
@@ -95,7 +95,7 @@ export default function ProfileListings({
                             </h3>
                           </Link>
                           {listing.type === "looking" && (
-                            <Badge className="bg-blue-100 text-blue-700 text-xs flex-shrink-0 border-0">
+                            <Badge className="bg-blue-100 text-blue-700 text-xs shrink-0 border-0">
                               {t("listings.looking")}
                             </Badge>
                           )}
@@ -104,7 +104,7 @@ export default function ProfileListings({
                         <p className="text-green-700 font-bold text-lg mb-2">${listing.price}</p>
 
                         <div className="flex items-center text-sm text-gray-500 mb-2">
-                          <MapPin className="h-4 w-4 mr-1 flex-shrink-0" />
+                          <MapPin className="h-4 w-4 mr-1 shrink-0" />
                           <span className="line-clamp-1">{listing.location}</span>
                         </div>
 

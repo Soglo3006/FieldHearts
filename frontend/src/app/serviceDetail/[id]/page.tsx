@@ -262,8 +262,8 @@ export default function ServiceDetailPage() {
 
   return (
     <div className="min-h-screen bg-white text-black">
-      <main className="max-w-7xl mx-auto p-5">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:items-start">
+      <main className="max-w-7xl mx-auto p-3 sm:p-5">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-8 lg:items-start">
           {/* Main content */}
           <section className="lg:col-span-2 space-y-6 order-1">
             <ServiceHero imageUrl={service.image_url} title={service.title} />

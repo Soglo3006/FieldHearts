@@ -260,8 +260,8 @@ export default function HomePage() {
 
               {/* CTA for non-logged-in users */}
               {!user && (
-                <div className="col-span-full mt-10 bg-green-800 rounded-2xl p-10 text-center text-white">
-                  <h1 className="text-3xl font-bold mb-2">
+                <div className="col-span-full mt-10 bg-green-800 rounded-2xl p-5 sm:p-10 text-center text-white">
+                  <h1 className="text-xl sm:text-3xl font-bold mb-2">
                     {t("home.ctaTitle")}
                   </h1>
                   <p>{t("home.ctaSubtitle")}</p>

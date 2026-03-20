@@ -4,7 +4,7 @@ import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabaseClient";
-import { Scale, HeadphonesIcon, LogOut, ShieldCheck } from "lucide-react";
+import { LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -18,8 +18,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   };
 
   const navLinks = [
-    { href: "/admin/disputes", label: "Disputes", icon: Scale },
-    { href: "/admin/support", label: "Support", icon: HeadphonesIcon },
+    { href: "/admin/disputes", label: "Disputes"},
+    { href: "/admin/support", label: "Support" },
   ];
 
   return (
@@ -30,11 +30,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           {/* Logo + nav */}
           <div className="flex items-center gap-6">
             <Link href="/admin" className="flex items-center gap-2 text-green-700 font-bold text-base shrink-0">
-              <ShieldCheck className="h-5 w-5" />
               Admin
             </Link>
             <nav className="flex items-center gap-1">
-              {navLinks.map(({ href, label, icon: Icon }) => {
+              {navLinks.map(({ href, label }) => {
                 const active = pathname.startsWith(href);
                 return (
                   <Link key={href} href={href}>
@@ -43,7 +42,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                       size="sm"
                       className={`gap-2 text-sm ${active ? "bg-green-50 text-green-700 font-semibold" : "text-gray-600"}`}
                     >
-                      <Icon className="h-4 w-4" />
                       {label}
                     </Button>
                   </Link>

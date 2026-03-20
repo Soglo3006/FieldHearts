@@ -167,9 +167,9 @@ function MessagesContent() {
 
   const handleUnblock = async () => {
     if (!user?.id || !activeChat?.other_user?.id) return;
-    await supabase.from('blocked_users').delete()
+    const { error } = await supabase.from('blocked_users').delete()
       .eq('blocker_id', user.id).eq('blocked_user_id', activeChat.other_user.id);
-    setIsBlocked(false);
+    if (!error) setIsBlocked(false);
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {

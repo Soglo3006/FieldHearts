@@ -41,7 +41,8 @@ export function middleware(request: NextRequest) {
   // Build connect-src: include the backend API URL so fetch() is allowed
   const apiOrigin =
     (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000/api")
-      .replace(/\/api$/, "")
+      .trim()
+      .replace(/\/api\/?$/, "")
       .replace(/\/$/, "") || "http://localhost:5000";
 
   const csp = [
@@ -51,12 +52,16 @@ export function middleware(request: NextRequest) {
     "img-src 'self' data: https: blob: https://*.supabase.co https://images.unsplash.com https://maps.googleapis.com https://maps.gstatic.com",
     "font-src 'self' data: https://fonts.gstatic.com",
     `connect-src 'self' https://*.supabase.co wss://*.supabase.co ${apiOrigin} https://maps.googleapis.com`,
-    "frame-src 'none' https://js.stripe.com",
+    "frame-src https://js.stripe.com",
     "object-src 'none'",
     "worker-src blob:",
   ].join("; ");
 
-  response.headers.set("Content-Security-Policy", csp);
+  try {
+    response.headers.set("Content-Security-Policy", csp);
+  } catch {
+    // skip if CSP value is malformed (e.g. env var contains newline)
+  }
 
   return response;
 }

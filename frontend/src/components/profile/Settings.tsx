@@ -84,6 +84,11 @@ export default function SettingsPage({ onClose, scrollRef }: { onClose: () => vo
   });
   const [language, setLanguage] = useState(i18n.language === "fr" ? "fr" : "en");
   const [region, setRegion] = useState("CA");
+
+  // Keep language select in sync if header toggle changes i18n language
+  useEffect(() => {
+    setLanguage(i18n.language === "fr" ? "fr" : "en");
+  }, [i18n.language]);
   const [connectedAccounts, setConnectedAccounts] = useState<{ provider: string }[]>([]);
 
   const goToScreen = (screenName: Screen) => {
@@ -117,10 +122,6 @@ export default function SettingsPage({ onClose, scrollRef }: { onClose: () => vo
         }
         if (settingsRes.ok) {
           const data = await settingsRes.json();
-          if (data.language) {
-            setLanguage(data.language);
-            i18n.changeLanguage(data.language);
-          }
           if (data.region) setRegion(data.region);
         }
         fetch(`${process.env.NEXT_PUBLIC_API_URL}/notifications/preferences`, {
@@ -164,7 +165,7 @@ export default function SettingsPage({ onClose, scrollRef }: { onClose: () => vo
         i18n.changeLanguage(language);
         localStorage.setItem("i18nextLng", language);
         setSettingsSaved(true);
-        setTimeout(() => setSettingsSaved(false), 2500);
+        setTimeout(() => window.location.reload(), 800);
       }
     } catch (error) {
       console.error("Error saving settings:", error);

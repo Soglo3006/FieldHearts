@@ -1,7 +1,8 @@
 // frontend/src/components/home/Header.tsx
 "use client";
 import { useTranslation } from "react-i18next";
-import { Search, User, Settings, LogOut, Building2, List, Wallet, X, CalendarDays } from "lucide-react";
+import { Search, User, Settings, LogOut, Building2, List, Wallet, X, CalendarDays, Menu, Heart, MessageCircle, Bell } from "lucide-react";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -30,10 +31,11 @@ import Link from "next/link";
 import SettingsPage from "@/components/profile/Settings";
 import { useRef, useState, useEffect } from "react";
 import { Spinner } from "@/components/ui/Spinner";
-import { Heart } from "lucide-react";
 import MessageNotifications from "@/components/messages/MessageNotifications";
 import NotificationBell from "@/components/notifications/NotificationBell";
 import { useUnreadBookings } from "@/hooks/useUnreadBookings";
+import { useUnreadMessages } from "@/hooks/useUnreadMessages";
+import { useNotifications } from "@/hooks/useNotifications";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { useScrollLock } from "@/hooks/useScrollLock";
 
@@ -61,6 +63,7 @@ export default function Header() {
 
   const [showSettings, setShowSettings] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [profileData, setProfileData] = useState<{
     account_type?: string;
     full_name?: string;
@@ -144,7 +147,10 @@ export default function Header() {
   useScrollLock(showSettings);
 
   const { unseenCount } = useUnreadBookings();
+  const { unreadCount: unreadMessages } = useUnreadMessages();
+  const { unreadCount: unreadNotifs } = useNotifications();
   const { permission, subscribe } = usePushNotifications();
+  const hasAnyUnread = unseenCount > 0 || unreadMessages > 0 || unreadNotifs > 0;
 
   // Ask for push permission once, after user logs in, if not yet decided
   useEffect(() => {
@@ -253,7 +259,7 @@ export default function Header() {
             </Link>
 
             {/* Search — live dropdown */}
-            <div ref={searchRef} className="relative flex-1 max-w-xs sm:max-w-sm lg:max-w-md">
+            <div ref={searchRef} className="relative flex-1 min-w-0">
               <div className="flex items-center border border-gray-300 rounded-lg px-3 py-1.5">
                 <Search className="shrink-0 text-gray-400 mr-2" size={16} />
                 <input
@@ -330,14 +336,14 @@ export default function Header() {
               )}
             </div>
 
-            {/* Selects + Toggle — desktop seulement */}
-            <div className="hidden lg:flex items-center gap-3">
+            {/* Selects + Toggle — lg+ seulement */}
+            <div className="hidden lg:flex items-center gap-2 shrink-0">
               <Select value={postTypeValue} onValueChange={(val) => {
                 if (val === "all") router.push("/listings");
                 else if (val === "find") router.push("/listings?type=offer");
                 else if (val === "hire") router.push("/listings?type=looking");
               }}>
-                <SelectTrigger className="w-[130px] xl:w-[140px] border-gray-300 rounded-lg cursor-pointer">
+                <SelectTrigger className="w-[110px] lg:w-[130px] xl:w-[140px] border-gray-300 rounded-lg cursor-pointer text-xs lg:text-sm">
                   <SelectValue placeholder={t("header.postType")} />
                 </SelectTrigger>
                 <SelectContent>
@@ -348,7 +354,7 @@ export default function Header() {
               </Select>
 
               <Select defaultValue="canada">
-                <SelectTrigger className="w-[130px] xl:w-[140px] border-gray-300 rounded-lg cursor-pointer">
+                <SelectTrigger className="w-[100px] lg:w-[130px] xl:w-[140px] border-gray-300 rounded-lg cursor-pointer text-xs lg:text-sm">
                   <SelectValue placeholder={t("header.location")} />
                 </SelectTrigger>
                 <SelectContent>
@@ -360,17 +366,19 @@ export default function Header() {
               </Select>
 
               <ToggleGroup type="single" variant="outline" value={i18n.language === "fr" ? "FR" : "EN"} onValueChange={(val) => { if (val) { const lng = val.toLowerCase(); i18n.changeLanguage(lng); localStorage.setItem("i18nextLng", lng); } }}>
-                <ToggleGroupItem value="EN" className="cursor-pointer text-sm px-3 h-8">EN</ToggleGroupItem>
-                <ToggleGroupItem value="FR" className="cursor-pointer text-sm px-3 h-8">FR</ToggleGroupItem>
+                <ToggleGroupItem value="EN" className="cursor-pointer text-xs px-2 lg:px-3 h-8">EN</ToggleGroupItem>
+                <ToggleGroupItem value="FR" className="cursor-pointer text-xs px-2 lg:px-3 h-8">FR</ToggleGroupItem>
               </ToggleGroup>
 
 
             </div>
 
-            {/* Actions droite — toujours visibles */}
+            {/* Actions droite */}
             <div className="flex items-center gap-2 shrink-0">
+
+              {/* md+: icônes individuelles */}
               {user && (
-                <>
+                <div className="hidden md:flex items-center gap-2">
                   <Link href="/favorites">
                     <Button variant="ghost" size="icon" className="cursor-pointer hover:bg-gray-100">
                       <Heart className="h-5 w-5 text-gray-700" />
@@ -378,38 +386,61 @@ export default function Header() {
                   </Link>
                   <MessageNotifications />
                   <NotificationBell />
-                </>
+                </div>
               )}
 
-              {user ? (
-                <UserDropdown />
-              ) : (
-                <Link href="/login">
-                  <Button variant="outline" size="sm" className="cursor-pointer">
-                    {t("header.loginRegister") || "Se connecter / S'inscrire"}
-                  </Button>
-                </Link>
-              )}
+              {/* md+: avatar dropdown */}
+              <div className="hidden md:flex items-center gap-2">
+                {user ? (
+                  <UserDropdown />
+                ) : (
+                  <Link href="/login">
+                    <Button variant="outline" size="sm" className="cursor-pointer">
+                      {t("header.loginRegister") || "Se connecter / S'inscrire"}
+                    </Button>
+                  </Link>
+                )}
+              </div>
 
-              <Link href="/post">
-                <Button className="hidden lg:flex bg-green-700 text-white hover:bg-green-800 cursor-pointer">
+              {/* md+: bouton + */}
+              <Link href="/post" className="hidden md:block">
+                <Button className="bg-green-700 text-white hover:bg-green-800 cursor-pointer">
                   {t("header.post")}
                 </Button>
-                <Button size="icon" className="lg:hidden bg-green-700 text-white hover:bg-green-800 cursor-pointer font-bold text-lg">
+              </Link>
+
+              {/* Mobile only: bouton + */}
+              <Link href="/post" className="md:hidden">
+                <Button size="icon" className="bg-green-700 text-white hover:bg-green-800 cursor-pointer font-bold text-lg">
                   +
                 </Button>
               </Link>
+
+              {/* Mobile only: hamburger */}
+              <div className="relative md:hidden">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="cursor-pointer hover:bg-gray-100"
+                  onClick={() => setMobileMenuOpen(true)}
+                >
+                  <Menu className="h-5 w-5 text-gray-700" />
+                </Button>
+                {user && hasAnyUnread && (
+                  <span className="absolute top-1 right-1 h-2.5 w-2.5 bg-red-500 rounded-full ring-2 ring-white pointer-events-none" />
+                )}
+              </div>
             </div>
           </div>
 
-          {/* ── RANGÉE 2 : Filtres centrés — mobile/tablette seulement ── */}
+          {/* ── RANGÉE 2 : Filtres — < lg (mobile + iPad Mini) ── */}
           <div className="flex lg:hidden items-center justify-center gap-2 pb-3">
             <Select value={postTypeValue} onValueChange={(val) => {
               if (val === "all") router.push("/listings");
               else if (val === "find") router.push("/listings?type=offer");
               else if (val === "hire") router.push("/listings?type=looking");
             }}>
-              <SelectTrigger className="w-[110px] shrink-0 border-gray-300 rounded-lg cursor-pointer text-xs">
+              <SelectTrigger className="w-[130px] shrink-0 border-gray-300 rounded-lg cursor-pointer text-xs">
                 <SelectValue placeholder={t("header.postType")} />
               </SelectTrigger>
               <SelectContent>
@@ -420,26 +451,114 @@ export default function Header() {
             </Select>
 
             <Select defaultValue="canada">
-              <SelectTrigger className="w-[100px] shrink-0 border-gray-300 rounded-lg cursor-pointer text-xs">
+              <SelectTrigger className="w-[120px] shrink-0 border-gray-300 rounded-lg cursor-pointer text-xs">
                 <SelectValue placeholder={t("header.location")} />
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
                   <SelectLabel>{t("header.location")}</SelectLabel>
                   <SelectItem value="canada" className="cursor-pointer">Canada</SelectItem>
-                  <SelectItem value="USA" className="cursor-pointer">USA</SelectItem>
-                  <SelectItem value="UK" className="cursor-pointer">UK</SelectItem>
                 </SelectGroup>
               </SelectContent>
             </Select>
 
-            <ToggleGroup type="single" variant="outline" className="shrink-0" value={i18n.language === "fr" ? "FR" : "EN"} onValueChange={(val) => { if (val) { const lng = val.toLowerCase(); i18n.changeLanguage(lng); localStorage.setItem("i18nextLng", lng); } }}>
+            <ToggleGroup type="single" variant="outline" value={i18n.language === "fr" ? "FR" : "EN"} onValueChange={(val) => { if (val) { const lng = val.toLowerCase(); i18n.changeLanguage(lng); localStorage.setItem("i18nextLng", lng); } }}>
               <ToggleGroupItem value="EN" className="cursor-pointer text-xs px-2 h-8">EN</ToggleGroupItem>
               <ToggleGroupItem value="FR" className="cursor-pointer text-xs px-2 h-8">FR</ToggleGroupItem>
             </ToggleGroup>
           </div>
 
         </div>
+
+        {/* Mobile menu — Sheet shadcn (< md seulement) */}
+        <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+          <SheetContent side="right" className="w-72 p-0 flex flex-col" aria-describedby={undefined}>
+            <SheetHeader className="px-4 py-4 border-b border-gray-100">
+              <SheetTitle asChild>
+                {user ? (
+                  <div className="flex items-center gap-3">
+                    <Avatar className="h-10 w-10 border-2 border-white shadow">
+                      <AvatarImage src={avatarUrl} alt={displayName || "User"} />
+                      <AvatarFallback className="text-sm bg-green-100 text-green-800 font-semibold">{fallbackInitial}</AvatarFallback>
+                    </Avatar>
+                    <div className="text-left">
+                      <p className="text-sm font-semibold text-gray-900 truncate max-w-[160px]">{displayName || user?.email}</p>
+                      <p className="text-xs text-gray-400 truncate max-w-[160px]">{user?.email}</p>
+                    </div>
+                  </div>
+                ) : (
+                  <span className="text-sm font-semibold text-gray-900">Menu</span>
+                )}
+              </SheetTitle>
+            </SheetHeader>
+
+            <nav className="flex-1 overflow-y-auto py-2">
+              {user ? (
+                <>
+                  <Link href="/favorites" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                    <Heart className="h-5 w-5 text-gray-400" /> {t("header.favorites")}
+                  </Link>
+                  <Link href="/messages" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                    <MessageCircle className="h-5 w-5 text-gray-400" />
+                    <span className="flex-1">{t("header.messages")}</span>
+                    {unreadMessages > 0 && (
+                      <span className="h-5 min-w-5 px-1 bg-red-500 rounded-full flex items-center justify-center text-[10px] font-bold text-white">
+                        {unreadMessages > 9 ? "9+" : unreadMessages}
+                      </span>
+                    )}
+                  </Link>
+                  <Link href="/notifications" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                    <Bell className="h-5 w-5 text-gray-400" />
+                    <span className="flex-1">{t("header.notifications")}</span>
+                    {unreadNotifs > 0 && (
+                      <span className="h-5 min-w-5 px-1 bg-red-500 rounded-full flex items-center justify-center text-[10px] font-bold text-white">
+                        {unreadNotifs > 9 ? "9+" : unreadNotifs}
+                      </span>
+                    )}
+                  </Link>
+                  <Link href="/bookings" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                    <CalendarDays className="h-5 w-5 text-gray-400" />
+                    <span>{t("header.bookings")}</span>
+                    {unseenCount > 0 && (
+                      <span className="ml-auto h-5 min-w-5 px-1 bg-red-500 rounded-full flex items-center justify-center text-[10px] font-bold text-white">
+                        {unseenCount > 9 ? "9+" : unseenCount}
+                      </span>
+                    )}
+                  </Link>
+                  <Link href={`/profile/${user?.id}`} onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                    {isPerson ? <User className="h-5 w-5 text-gray-400" /> : <Building2 className="h-5 w-5 text-gray-400" />}
+                    {t("header.profile")}
+                  </Link>
+                  <Link href="/my-listings" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                    <List className="h-5 w-5 text-gray-400" /> {t("header.listings")}
+                  </Link>
+                  <Link href="/wallet" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                    <Wallet className="h-5 w-5 text-gray-400" /> {t("header.wallet")}
+                  </Link>
+                  <button onClick={() => { setMobileMenuOpen(false); setShowSettings(true); }} className="cursor-pointer w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                    <Settings className="h-5 w-5 text-gray-400" /> {t("header.settings")}
+                  </button>
+                  <div className="border-t border-gray-100 mt-1 pt-1">
+                    <button onClick={() => { setMobileMenuOpen(false); handleSignOut(); }} className="cursor-pointer w-full flex items-center gap-3 px-4 py-3 text-sm text-red-600 hover:bg-red-50 transition-colors">
+                      <LogOut className="h-5 w-5" /> {t("header.logOut")}
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <Link href="/login" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                  <User className="h-5 w-5 text-gray-400" /> {t("header.loginRegister")}
+                </Link>
+              )}
+            </nav>
+
+            <div className="border-t border-gray-100 px-4 py-3">
+              <ToggleGroup type="single" variant="outline" value={i18n.language === "fr" ? "FR" : "EN"} onValueChange={(val) => { if (val) { const lng = val.toLowerCase(); i18n.changeLanguage(lng); localStorage.setItem("i18nextLng", lng); } }}>
+                <ToggleGroupItem value="EN" className="cursor-pointer text-sm px-4 h-9 flex-1">EN</ToggleGroupItem>
+                <ToggleGroupItem value="FR" className="cursor-pointer text-sm px-4 h-9 flex-1">FR</ToggleGroupItem>
+              </ToggleGroup>
+            </div>
+          </SheetContent>
+        </Sheet>
 
         {/* Settings modal */}
         {showSettings && (

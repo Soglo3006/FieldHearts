@@ -194,8 +194,8 @@ export default function HomePage() {
           className="relative py-16 sm:py-32 md:py-40 px-4 overflow-hidden"
           style={{
             backgroundImage: `url('https://images.unsplash.com/photo-1621905251189-08b45d6a269e?w=1600&q=80')`,
-            backgroundPosition: "center 20%",
-            backgroundSize: "100%",
+            backgroundPosition: "center center",
+            backgroundSize: "cover",
           }}
         >
           <div className="absolute inset-0 bg-green-800/60" />
@@ -273,7 +273,7 @@ export default function HomePage() {
 
               {/* Ad banner */}
               <div className="border-2 border-dashed border-gray-300 rounded-xl h-[200px] col-span-full flex items-center justify-center text-gray-500">
-                {t("home.advertisement")}<br />728×90
+                {t("home.advertisement")}
               </div>
 
               {/* Listings near you */}
@@ -302,10 +302,10 @@ export default function HomePage() {
             {/* Sidebar ads */}
             <div className="lg:col-span-1 space-y-6">
               <div className="border-2 border-dashed border-gray-300 rounded-xl h-[300px] flex items-center justify-center text-gray-500">
-                {t("home.advertisement")}<br />300×600
+                {t("home.advertisement")}
               </div>
               <div className="border-2 border-dashed border-gray-300 rounded-xl h-[250px] flex items-center justify-center text-gray-500">
-                {t("home.advertisement")}<br />300×250
+                {t("home.advertisement")}
               </div>
             </div>
           </div>

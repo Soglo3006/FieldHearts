@@ -526,8 +526,8 @@
     "profileActions": "Profile Actions",
     "copyLinkToShare": "Copy the link below to share this profile",
     "shareViaDevice": "Share via Device",
-    "shareTitle": "{{name}}'s Profile - FieldHearts",
-    "shareText": "Check out {{name}} on FieldHearts"
+    "shareTitle": "{{name}}'s Profile - Uneden",
+    "shareText": "Check out {{name}} on Uneden"
   },
   "profileEdit": {
     "title": "Edit Profile",

@@ -173,9 +173,9 @@ export default function MyListingsPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <main className="max-w-5xl mx-auto px-4 py-8">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">{t("myListings.title")}</h1>
+      <main className="max-w-5xl mx-auto px-3 sm:px-4 py-4 sm:py-8">
+        <div className="flex items-center justify-between mb-4 sm:mb-6">
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">{t("myListings.title")}</h1>
           <Link href="/post">
             <Button className="bg-green-700 hover:bg-green-800 text-white gap-2">
               <Plus className="h-4 w-4" />

@@ -7,7 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { isAdminUser } from "@/lib/auth";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Scale, HeadphonesIcon, ArrowRight, Download } from "lucide-react";
+import { ArrowRight, Download } from "lucide-react";
 import { Spinner } from "@/components/ui/Spinner";
 
 export default function AdminDashboard() {
@@ -107,19 +107,17 @@ export default function AdminDashboard() {
       href: "/admin/disputes",
       label: "Disputes",
       description: "Manage booking disputes between clients and workers.",
-      icon: Scale,
       count: openDisputes,
       countLabel: "open",
-      color: "amber",
+      color: "green",
     },
     {
       href: "/admin/support",
       label: "Support",
       description: "View and respond to user support tickets.",
-      icon: HeadphonesIcon,
       count: openTickets,
       countLabel: "open",
-      color: "blue",
+      color: "green",
     },
   ];
 
@@ -131,17 +129,12 @@ export default function AdminDashboard() {
       </div>
 
       <div className="grid sm:grid-cols-2 gap-4">
-        {sections.map(({ href, label, description, icon: Icon, count, countLabel, color }) => (
+        {sections.map(({ href, label, description, count, countLabel }) => (
           <Link key={href} href={href}>
             <Card className="p-6 hover:shadow-md transition-shadow cursor-pointer border hover:border-green-200 group">
               <div className="flex items-start justify-between mb-4">
-                <div className={`p-2 rounded-lg ${color === "amber" ? "bg-amber-50" : "bg-blue-50"}`}>
-                  <Icon className={`h-5 w-5 ${color === "amber" ? "text-amber-600" : "text-blue-600"}`} />
-                </div>
                 {count !== null && count > 0 && (
-                  <span className={`text-xs font-semibold px-2 py-1 rounded-full ${
-                    color === "amber" ? "bg-amber-100 text-amber-700" : "bg-blue-100 text-blue-700"
-                  }`}>
+                  <span className="text-xs font-semibold px-2 py-1 rounded-full bg-green-100 text-green-700">
                     {count} {countLabel}
                   </span>
                 )}
@@ -160,9 +153,6 @@ export default function AdminDashboard() {
       <div className="mt-4">
         <Card className="p-6 border">
           <div className="flex items-start gap-3 mb-4">
-            <div className="p-2 rounded-lg bg-amber-50">
-              <Download className="h-5 w-5 text-amber-600" />
-            </div>
             <div>
               <h2 className="font-semibold text-gray-900">Versements bi-mensuels</h2>
               <p className="text-sm text-gray-500 mt-0.5">
@@ -174,7 +164,7 @@ export default function AdminDashboard() {
             <Button
               onClick={handleTriggerPayout}
               disabled={payoutLoading}
-              className="bg-amber-600 hover:bg-amber-700 text-white gap-2"
+              className="bg-green-700 hover:bg-green-800 text-white gap-2"
             >
               {payoutLoading ? "Traitement..." : "Déclencher les versements"}
             </Button>
@@ -189,9 +179,6 @@ export default function AdminDashboard() {
       <div className="mt-6">
         <Card className="p-6 border">
           <div className="flex items-start gap-3 mb-4">
-            <div className="p-2 rounded-lg bg-green-50">
-              <Download className="h-5 w-5 text-green-600" />
-            </div>
             <div>
               <h2 className="font-semibold text-gray-900">Export des transactions</h2>
               <p className="text-sm text-gray-500 mt-0.5">
@@ -227,9 +214,6 @@ export default function AdminDashboard() {
       <div className="mt-4">
         <Card className="p-6 border">
           <div className="flex items-start gap-3 mb-4">
-            <div className="p-2 rounded-lg bg-blue-50">
-              <Download className="h-5 w-5 text-blue-600" />
-            </div>
             <div>
               <h2 className="font-semibold text-gray-900">Liste d&apos;attente (Coming Soon)</h2>
               <p className="text-sm text-gray-500 mt-0.5">
@@ -240,7 +224,7 @@ export default function AdminDashboard() {
           <Button
             onClick={async () => {
               if (!session?.access_token) return;
-              const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/waitlist/export`, {
+              const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/waitlist/export`, {
                 headers: { Authorization: `Bearer ${session.access_token}` },
               });
               if (!res.ok) return;
@@ -255,7 +239,7 @@ export default function AdminDashboard() {
               link.click();
               URL.revokeObjectURL(url);
             }}
-            className="bg-blue-600 hover:bg-blue-700 text-white gap-2"
+            className="bg-green-700 hover:bg-green-800 text-white gap-2"
           >
             <Download className="h-4 w-4" />
             Télécharger la liste d&apos;attente

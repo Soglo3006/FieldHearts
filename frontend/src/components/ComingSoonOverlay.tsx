@@ -13,7 +13,7 @@ const CONTENT = {
     slogan: "Skills live in every neighborhood.\nUneden connects them.",
     logo: "Uneden",
     heading: "We're almost ready.",
-    subheading: "Something exciting is coming. Be the first to know when Uneden launches in your community.",
+    subheading: "Something exciting is coming. Be the first to know when Uneden will launch in your community.",
     placeholder: "Your email address",
     cta: "Notify me",
     success: "You're on the list! We'll let you know as soon as we launch.",
@@ -24,7 +24,7 @@ const CONTENT = {
     slogan: "Les talents vivent partout.\nUneden les connecte.",
     logo: "Uneden",
     heading: "On arrive bientôt.",
-    subheading: "Quelque chose d'excitant se prépare. Soyez le premier à savoir quand Uneden lance dans votre communauté.",
+    subheading: "Quelque chose d'excitant se prépare. Soyez le premier à savoir quand Uneden sera lancé dans votre communauté.",
     placeholder: "Votre adresse courriel",
     cta: "Me notifier",
     success: "Vous êtes sur la liste ! On vous avertit dès le lancement.",
@@ -68,7 +68,7 @@ export default function ComingSoonOverlay() {
     setLoading(true);
     try {
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/auth/waitlist`,
+        `${process.env.NEXT_PUBLIC_API_URL}/auth/waitlist`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -90,29 +90,47 @@ export default function ComingSoonOverlay() {
 
   return (
     <div
-      className="fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-6"
+      className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-6"
       style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)" }}
     >
-      <div className="bg-white rounded-2xl shadow-2xl w-full overflow-hidden flex"
-           style={{ maxWidth: 860, minHeight: 500 }}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full overflow-hidden flex flex-col md:flex-row"
+           style={{ maxWidth: 860, maxHeight: "calc(100vh - 24px)" }}>
 
-        {/* ── LEFT: image + slogan ── */}
+        {/* ── TOP banner on mobile / LEFT panel on desktop ── */}
         <div
-          className="hidden md:flex flex-col justify-end w-[44%] relative overflow-hidden"
+          className="flex md:hidden flex-col justify-end relative overflow-hidden"
+          style={{
+            backgroundImage: `url('https://images.unsplash.com/photo-1521791136064-7986c2920216?w=800&q=80')`,
+            backgroundSize: "cover",
+            backgroundPosition: "center top",
+            minHeight: 140,
+          }}
+        >
+          <div className="absolute inset-0"
+               style={{ background: "linear-gradient(to top, rgba(1,31,13,0.92) 0%, rgba(2,60,25,0.60) 55%, rgba(0,0,0,0.15) 100%)" }} />
+          <div className="relative z-10 px-5 py-4">
+            <p className="text-green-400 text-[10px] font-semibold uppercase tracking-widest mb-1">
+              {lang === "fr" ? "Bientôt disponible" : "Coming soon"}
+            </p>
+            <p className="text-white text-base font-bold leading-snug whitespace-pre-line">
+              {c.slogan}
+            </p>
+          </div>
+        </div>
+
+        {/* ── LEFT panel on desktop ── */}
+        <div
+          className="hidden md:flex flex-col justify-end w-[44%] relative overflow-hidden shrink-0"
           style={{
             backgroundImage: `url('https://images.unsplash.com/photo-1521791136064-7986c2920216?w=800&q=80')`,
             backgroundSize: "cover",
             backgroundPosition: "center",
           }}
         >
-          {/* Dark gradient overlay */}
           <div className="absolute inset-0"
                style={{ background: "linear-gradient(to top, rgba(1,31,13,0.92) 0%, rgba(2,60,25,0.60) 55%, rgba(0,0,0,0.15) 100%)" }} />
-
-          {/* Decorative circles */}
           <div className="absolute top-6 right-6 w-24 h-24 rounded-full border border-white/10" />
           <div className="absolute top-10 right-10 w-12 h-12 rounded-full border border-white/10" />
-
           <div className="relative z-10 p-8 pb-10">
             <p className="text-green-400 text-xs font-semibold uppercase tracking-widest mb-4">
               {lang === "fr" ? "Bientôt disponible" : "Coming soon"}
@@ -128,20 +146,20 @@ export default function ComingSoonOverlay() {
         </div>
 
         {/* ── RIGHT: content ── */}
-        <div className="flex-1 flex flex-col justify-center px-8 py-12">
-          <div className="max-w-[320px] mx-auto w-full">
+        <div className="flex-1 flex flex-col justify-center px-5 py-7 sm:px-8 sm:py-12 overflow-y-auto">
+          <div className="max-w-sm mx-auto w-full">
 
             {/* Logo */}
-            <p className="text-4xl font-black text-green-700 mb-1 tracking-tight"
+            <p className="text-3xl sm:text-4xl font-black text-green-700 mb-1 tracking-tight"
                style={{ fontFamily: "var(--font-geist-sans)" }}>
               {c.logo}
             </p>
 
             {/* Heading */}
-            <h1 className="text-2xl font-bold text-gray-900 mt-5 mb-2 leading-tight">
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900 mt-4 sm:mt-5 mb-2 leading-tight">
               {c.heading}
             </h1>
-            <p className="text-sm text-gray-500 leading-relaxed mb-8">
+            <p className="text-sm text-gray-500 leading-relaxed mb-6 sm:mb-8">
               {c.subheading}
             </p>
 
@@ -176,10 +194,10 @@ export default function ComingSoonOverlay() {
               </form>
             )}
 
-            <p className="text-xs text-gray-400 mt-5 text-center">{c.privacy}</p>
+            <p className="text-xs text-gray-400 mt-4 sm:mt-5 text-center">{c.privacy}</p>
 
             {/* Language switcher */}
-            <div className="flex items-center justify-center gap-3 mt-6 text-xs text-gray-400">
+            <div className="flex items-center justify-center gap-3 mt-5 sm:mt-6 text-xs text-gray-400">
               <a href="/" className={`hover:text-green-700 transition-colors ${lang === "en" ? "font-semibold text-green-700" : ""}`}>English</a>
               <span>·</span>
               <a href="/fr" className={`hover:text-green-700 transition-colors ${lang === "fr" ? "font-semibold text-green-700" : ""}`}>Français</a>

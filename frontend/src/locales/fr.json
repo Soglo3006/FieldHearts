@@ -522,8 +522,8 @@
     "profileActions": "Actions du profil",
     "copyLinkToShare": "Copiez le lien ci-dessous pour partager ce profil",
     "shareViaDevice": "Partager via l'appareil",
-    "shareTitle": "Profil de {{name}} - FieldHearts",
-    "shareText": "Découvrez {{name}} sur FieldHearts"
+    "shareTitle": "Profil de {{name}} - Uneden",
+    "shareText": "Découvrez {{name}} sur Uneden"
   },
   "profileEdit": {
     "title": "Modifier le profil",

@@ -176,8 +176,8 @@ function BookingsContent() {
   }
 
   return (
-    <main className="max-w-5xl mx-auto px-4 py-8">
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">{t("bookings.title")}</h1>
+    <main className="max-w-5xl mx-auto px-3 sm:px-4 py-4 sm:py-8">
+      <h1 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6">{t("bookings.title")}</h1>
 
       {paymentBanner === "success" && (
         <div className="flex items-center gap-3 bg-green-50 border border-green-200 rounded-lg px-4 py-3 mb-4 text-green-800">

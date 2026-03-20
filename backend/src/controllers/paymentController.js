@@ -24,24 +24,57 @@ export const createConnectAccount = async (req, res) => {
     if (existing.rows.length > 0) {
       stripeAccountId = existing.rows[0].stripe_account_id;
     } else {
-      // Get user email
+      // Get user email, account type and profile data
       const user = await pool.query(
-        "SELECT email, CASE WHEN account_type = 'company' THEN company_name ELSE full_name END AS full_name FROM users WHERE id = $1",
+        `SELECT email, account_type, full_name, company_name, phone, address, city, province, postal_code
+         FROM users WHERE id = $1`,
         [userId]
       );
       if (user.rows.length === 0) {
         return res.status(404).json({ message: "User not found" });
       }
 
+      const u = user.rows[0];
+      const isCompany = u.account_type === "company";
+
+      // Build address object if available
+      const addressObj = u.city ? {
+        line1: u.address || "",
+        city: u.city || "",
+        state: u.province || "",
+        postal_code: u.postal_code || "",
+        country: "CA",
+      } : undefined;
+
+      // Build individual prefill
+      const individualData = !isCompany ? {
+        email: u.email,
+        ...(u.full_name && {
+          first_name: u.full_name.split(" ")[0],
+          last_name: u.full_name.split(" ").slice(1).join(" ") || u.full_name.split(" ")[0],
+        }),
+        ...(u.phone && { phone: u.phone }),
+        ...(addressObj && { address: addressObj }),
+      } : undefined;
+
       // Create Express Connect account
       const account = await stripe.accounts.create({
         type: "express",
-        email: user.rows[0].email,
+        email: u.email,
         capabilities: {
           card_payments: { requested: true },
           transfers: { requested: true },
         },
-        business_type: "individual",
+        business_type: isCompany ? "company" : "individual",
+        ...(individualData && { individual: individualData }),
+        business_profile: {
+          url: "https://www.uneden.ca",
+          mcc: "7299",
+          product_description: "Je fournis des services via la plateforme Uneden. Les clients me trouvent sur uneden.ca et les paiements sont traités par Uneden.",
+        },
+        settings: {
+          payouts: { schedule: { interval: "manual" } },
+        },
       });
 
       stripeAccountId = account.id;
@@ -57,8 +90,8 @@ export const createConnectAccount = async (req, res) => {
     // Create account link (onboarding URL)
     const accountLink = await stripe.accountLinks.create({
       account: stripeAccountId,
-      refresh_url: `${FRONTEND_URL}/bookings?stripe=refresh`,
-      return_url: `${FRONTEND_URL}/bookings?stripe=success`,
+      refresh_url: `${FRONTEND_URL}/wallet?stripe=refresh`,
+      return_url: `${FRONTEND_URL}/wallet?stripe=success`,
       type: "account_onboarding",
     });
 

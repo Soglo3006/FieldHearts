@@ -33,7 +33,7 @@ type Dispute = {
 };
 
 const STATUS_STYLES: Record<string, string> = {
-  open: "bg-amber-100 text-amber-700",
+  open: "bg-green-100 text-green-700",
   resolved: "bg-green-100 text-green-700",
   rejected: "bg-red-100 text-red-700",
 };
@@ -153,10 +153,9 @@ export default function AdminDisputesPage() {
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-6">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <Scale className="h-6 w-6 text-green-700" />
               <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Dispute Management</h1>
               {openCount > 0 && (
-                <Badge className="bg-amber-500 text-white">{openCount} open</Badge>
+                <Badge className="bg-green-600 text-white">{openCount} open</Badge>
               )}
             </div>
           </div>
@@ -194,7 +193,7 @@ export default function AdminDisputesPage() {
         <div className="grid grid-cols-3 gap-3 mb-6">
           {[
             { label: "Total", count: disputes.length, style: "bg-white border" },
-            { label: "Open", count: disputes.filter((d) => d.status === "open").length, style: "bg-amber-50 border border-amber-200" },
+            { label: "Open", count: disputes.filter((d) => d.status === "open").length, style: "bg-green-50 border border-green-200" },
             { label: "Resolved", count: disputes.filter((d) => d.status === "resolved").length, style: "bg-green-50 border border-green-200" },
           ].map(({ label, count, style }) => (
             <Card key={label} className={`p-4 text-center ${style}`}>

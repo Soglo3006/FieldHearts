@@ -49,19 +49,19 @@ export default function ProfileHeader({
 }: Props) {
   const { t } = useTranslation();
   return (
-    <Card className="p-8 mb-8">
-      <div className="flex flex-col md:flex-row gap-6 items-start md:items-center">
-        <Avatar className="w-32 h-32 border-4 border-white shadow-lg">
+    <Card className="p-4 sm:p-8 mb-4 sm:mb-8">
+      <div className="flex flex-col md:flex-row gap-4 sm:gap-6 items-start md:items-center">
+        <Avatar className="w-24 h-24 sm:w-32 sm:h-32 border-4 border-white shadow-lg">
           <AvatarImage src={profileUser.avatar} alt={displayName} />
           <AvatarFallback className="text-2xl bg-green-100 text-green-800 font-semibold">{displayName.charAt(0)}</AvatarFallback>
         </Avatar>
 
         <div className="flex-1">
           <div className="flex items-center gap-3 mb-2">
-            <h1 className="text-3xl font-bold text-gray-900">{displayName}</h1>
+            <h1 className="text-xl sm:text-3xl font-bold text-gray-900">{displayName}</h1>
           </div>
 
-          <p className="text-lg text-gray-600 mb-3">{displayTitle || t("profile.serviceProvider")}</p>
+          <p className="text-base sm:text-lg text-gray-600 mb-3">{displayTitle || t("profile.serviceProvider")}</p>
 
           <div className="flex flex-wrap items-center gap-4 mb-4">
             {profileUser.stats && (

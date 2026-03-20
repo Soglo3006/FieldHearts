@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Wallet, ArrowDownCircle, ArrowUpCircle, Clock, ChevronRight, Calendar, AlertCircle } from "lucide-react";
+import { Wallet, ArrowDownCircle, ArrowUpCircle, Clock, ChevronRight, Calendar, AlertCircle, Building2, CheckCircle2, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/Spinner";
 
@@ -73,6 +73,8 @@ export default function WalletPage() {
   const [loading, setLoading] = useState(true);
   const [txLoading, setTxLoading] = useState(false);
   const [period, setPeriod] = useState<Period>("2weeks");
+  const [connectStatus, setConnectStatus] = useState<{ connected: boolean; charges_enabled: boolean; details_submitted: boolean } | null>(null);
+  const [connectLoading, setConnectLoading] = useState(false);
 
   useEffect(() => {
     if (authLoading) return;
@@ -84,10 +86,12 @@ export default function WalletPage() {
     Promise.all([
       fetch(`${process.env.NEXT_PUBLIC_API_URL}/wallet`, { headers }).then((r) => r.json()),
       fetch(`${process.env.NEXT_PUBLIC_API_URL}/wallet/transactions?period=${period}`, { headers }).then((r) => r.json()),
+      fetch(`${process.env.NEXT_PUBLIC_API_URL}/payments/connect/status`, { headers }).then((r) => r.json()),
     ])
-      .then(([walletData, txData]) => {
+      .then(([walletData, txData, statusData]) => {
         setWallet(walletData);
         setTransactions(Array.isArray(txData) ? txData : []);
+        setConnectStatus(statusData);
       })
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -106,6 +110,22 @@ export default function WalletPage() {
 
   const currentPeriodLabel = t(PERIODS.find((p) => p.key === period)?.labelKey ?? "wallet.last2weeks");
 
+  const handleConnectStripe = async () => {
+    if (!session?.access_token) return;
+    setConnectLoading(true);
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/payments/connect/create`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      const data = await res.json();
+      if (data.url) window.location.href = data.url;
+    } catch {
+    } finally {
+      setConnectLoading(false);
+    }
+  };
+
   if (authLoading || loading) {
     return (
       <div className="min-h-screen bg-gray-50">
@@ -122,8 +142,58 @@ export default function WalletPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <main className="max-w-3xl mx-auto px-4 py-10 space-y-6">
+      <main className="max-w-3xl mx-auto px-3 sm:px-4 py-6 sm:py-10 space-y-4 sm:space-y-6">
         <h1 className="text-2xl font-bold text-gray-900">{t("wallet.title")}</h1>
+
+        {/* Stripe Connect section */}
+        {connectStatus && !connectStatus.charges_enabled && (
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+            <div className="px-4 sm:px-6 pt-4 sm:pt-6 pb-4 sm:pb-5">
+              <div className="flex items-start gap-4">
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-gray-900">
+                    {connectStatus.details_submitted ? "Vérification en cours" : "Recevez vos paiements"}
+                  </p>
+                  <p className="text-sm text-gray-500 mt-1 leading-relaxed">
+                    {connectStatus.details_submitted
+                      ? "Stripe examine vos informations. Vous recevrez une confirmation sous 1 à 2 jours ouvrables."
+                      : "Connectez votre compte bancaire pour recevoir vos versements directement, de façon sécurisée via Stripe."}
+                  </p>
+                </div>
+              </div>
+              <div className="mt-5 flex items-center gap-3">
+                <Button
+                  onClick={handleConnectStripe}
+                  disabled={connectLoading}
+                  className="bg-green-700 hover:bg-green-800 text-white text-sm px-5 h-10 rounded-xl"
+                >
+                  {connectLoading ? <Spinner size="sm" /> : connectStatus.details_submitted ? "Compléter mon dossier" : "Connecter mon compte"}
+                </Button>
+                <p className="text-xs text-gray-400 flex items-center gap-1">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-gray-300" />
+                  Sécurisé par Stripe
+                </p>
+              </div>
+            </div>
+            {connectStatus.details_submitted && (
+              <div className="px-6 py-3 bg-amber-50 border-t border-amber-100">
+                <p className="text-xs text-amber-700 flex items-center gap-1.5">
+                  <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                  Vos versements seront activés dès la validation de votre compte.
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {connectStatus?.charges_enabled && (
+          <div className="flex items-center gap-2 px-1">
+            <CheckCircle2 className="h-4 w-4 text-green-600" />
+            <p className="text-sm text-gray-500">Compte bancaire connecté —
+              <button onClick={handleConnectStripe} className="text-green-700 hover:underline ml-1 cursor-pointer">Gérer sur Stripe</button>
+            </p>
+          </div>
+        )}
 
         {/* Top summary cards */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -159,11 +229,11 @@ export default function WalletPage() {
         {/* Payout breakdown */}
         {(wallet?.available_for_payout ?? 0) > 0 || (wallet?.pending_amount ?? 0) > 0 ? (
           <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-100 flex items-center gap-2">
+            <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-100 flex items-center gap-2">
               <Calendar className="h-4 w-4 text-green-700" />
               <h2 className="text-base font-semibold text-gray-900">{t("wallet.nextPayout")}</h2>
             </div>
-            <div className="px-6 py-4 space-y-3">
+            <div className="px-4 sm:px-6 py-3 sm:py-4 space-y-3">
 
               {/* Available for payout */}
               {(wallet?.available_for_payout ?? 0) > 0 && (
@@ -198,7 +268,7 @@ export default function WalletPage() {
         <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-100">
             <h2 className="text-base font-semibold text-gray-900 mb-3">{t("wallet.transactionHistory")}</h2>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-1.5 sm:gap-2">
               {PERIODS.map((p) => (
                 <Button
                   key={p.key}
@@ -232,7 +302,7 @@ export default function WalletPage() {
           ) : (
             <ul className="divide-y divide-gray-100">
               {transactions.map((tx) => (
-                <li key={tx.id} className="flex items-center gap-4 px-6 py-4 hover:bg-gray-50 transition-colors">
+                <li key={tx.id} className="flex items-center gap-3 px-3 sm:px-6 py-3 sm:py-4 hover:bg-gray-50 transition-colors">
                   <div className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 ${
                     tx.type === "credit" ? "bg-green-100" : "bg-red-100"
                   }`}>

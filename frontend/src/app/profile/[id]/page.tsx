@@ -174,7 +174,7 @@ export default function UserProfilePage() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      <main className="flex-1 py-8 px-4 sm:px-6 lg:px-8">
+      <main className="flex-1 py-4 sm:py-8 px-3 sm:px-6 lg:px-8">
         <div className="max-w-6xl mx-auto">
           <div className="flex items-center text-sm text-gray-500 mb-4">
             <Link href="/"><span className="hover:text-green-700 cursor-pointer">{t("notFound.goHome")}</span></Link>

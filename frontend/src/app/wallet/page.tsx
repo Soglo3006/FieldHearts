@@ -121,6 +121,7 @@ export default function WalletPage() {
       const data = await res.json();
       if (data.url) window.location.href = data.url;
     } catch {
+      alert("Une erreur est survenue. Veuillez réessayer.");
     } finally {
       setConnectLoading(false);
     }

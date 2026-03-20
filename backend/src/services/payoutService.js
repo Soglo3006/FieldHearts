@@ -149,12 +149,14 @@ export async function processUserPayout(userId) {
   );
 
   const transferredDollars = totalTransferredDollars.toFixed(2);
+  const grossDollars = (totalTransferredDollars / 0.80).toFixed(2);
+  const commissionDollars = (Number(grossDollars) - totalTransferredDollars).toFixed(2);
   const nextPayout = getNextPayoutDate(new Date()).toLocaleDateString("fr-CA", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
 
   console.log(`[Payout] User ${userId}: transferred $${transferredDollars}`);
 
   if (workerEmail) {
-    notifyPayoutReceived(workerEmail, workerName, transferredDollars, "0.00", transferredDollars, processedBookings.length, nextPayout)
+    notifyPayoutReceived(workerEmail, workerName, transferredDollars, commissionDollars, grossDollars, processedBookings.length, nextPayout)
       .catch((err) => console.error("[Payout] Email failed:", err.message));
   }
 

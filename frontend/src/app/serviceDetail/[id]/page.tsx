@@ -306,10 +306,7 @@ export default function ServiceDetailPage() {
 
             {/* Ad placeholder */}
             <div className="border border-dashed border-gray-300 rounded-2xl p-6 bg-gray-50 flex items-center justify-center text-gray-500 h-64">
-              <div className="text-center">
-                <div className="text-sm font-medium">Advertisement</div>
-                <div className="text-xs text-gray-400 mt-1">300×600</div>
-              </div>
+              <div className="text-sm font-medium text-gray-500">Advertisement</div>
             </div>
           </aside>
 

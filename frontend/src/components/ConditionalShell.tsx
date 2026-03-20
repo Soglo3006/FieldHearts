@@ -60,20 +60,9 @@ export default function ConditionalShell({ children }: { children: React.ReactNo
 
   if (authLoading) {
     return (
-      <>
-        {/* Header skeleton */}
-        <div className="w-full border-b border-gray-200 shadow-sm bg-white">
-          <div className="max-w-7xl mx-auto px-4 flex items-center justify-between py-3 gap-3">
-            <div className="h-7 w-24 bg-gray-200 rounded animate-pulse" />
-            <div className="flex-1 max-w-md h-9 bg-gray-100 rounded-lg animate-pulse" />
-            <div className="h-9 w-9 rounded-full bg-gray-200 animate-pulse" />
-          </div>
-        </div>
-        {!isNoCategoryPage && (
-          <div className="w-full border-b border-gray-200 bg-white h-14 animate-pulse" />
-        )}
-        <main className="flex-1">{children}</main>
-      </>
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-white">
+        <Spinner size="lg" />
+      </div>
     );
   }
 

@@ -194,8 +194,12 @@ export function useUnreadMessages() {
       )
       .subscribe();
 
+    // Fallback polling every 15s in case realtime misses events
+    const pollInterval = setInterval(() => fetchMessages(false), 15000);
+
     return () => {
       supabase.removeChannel(channel);
+      clearInterval(pollInterval);
     };
   }, [user]);
 

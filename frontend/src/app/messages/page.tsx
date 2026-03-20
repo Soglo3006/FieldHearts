@@ -239,7 +239,7 @@ function MessagesContent() {
   };
 
   const handleChatSelect = (chatId: string) => {
-    if (chatId === activeChatId) return;
+    if (chatId === activeChatId) { setShowMobileChat(true); return; }
     setIsBlocked(false); setIsBlockedByOther(false); setIsMuted(false);
     setBlockCheckLoading(true);
     setActiveChatId(chatId);
@@ -264,7 +264,7 @@ function MessagesContent() {
     }
   };
 
-  const handleBackToList = () => { setShowMobileChat(false); setShowMobileSidebar(false); setShowSettings(false); };
+  const handleBackToList = () => { setShowMobileChat(false); setShowMobileSidebar(false); setShowSettings(false); router.replace('/messages'); };
 
   const scrollToMessage = (messageId: string) => {
     const element = document.getElementById(`message-${messageId}`);

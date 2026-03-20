@@ -135,6 +135,10 @@ export function MessageThread({
     prevFirstMsgIdRef.current = "";
   }, [otherUser?.id]);
 
+  useEffect(() => {
+    if (isTyping) scrollToBottom("smooth");
+  }, [isTyping]);
+
   useLayoutEffect(() => {
     if (!prevScrollHeightRef.current) return;
     const firstId = messages[0]?.id ?? "";

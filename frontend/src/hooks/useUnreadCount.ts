@@ -22,7 +22,6 @@ export function useUnreadCount(chatRoomId: string | null, currentUserId: string 
         if (error) throw error;
         setUnreadCount(count || 0);
       } catch (error) {
-        console.error('Error fetching unread count:', error);
       }
     };
 

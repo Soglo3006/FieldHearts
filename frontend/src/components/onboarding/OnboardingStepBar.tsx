@@ -1,9 +1,9 @@
 "use client";
 import { useTranslation } from "react-i18next";
-import { Check, User, Users, Building2, UserPen, FileText, Languages, Briefcase, FileUser, ImageIcon } from "lucide-react";
+import { Check, User, Users, Building2, UserPen, FileText, Languages, Briefcase, FileUser, CreditCard } from "lucide-react";
 
-const personIcons = [User, UserPen, FileText, Languages, Briefcase, FileUser];
-const companyIcons = [Users, Building2, FileText, FileUser];
+const personIcons  = [User, UserPen, FileText, Languages, Briefcase, CreditCard, FileUser];
+const companyIcons = [Users, Building2, FileText, CreditCard, FileUser];
 
 interface Props {
   accountType: string;
@@ -21,12 +21,14 @@ export default function OnboardingStepBar({ accountType, currentStep, totalSteps
     t("onboarding.step4"),
     t("onboarding.step5"),
     t("onboarding.step6"),
+    t("onboarding.step7"),
   ];
   const companyTitles = [
     t("onboarding.step1"),
     t("onboarding.step2"),
     t("onboarding.step3"),
     t("onboarding.step6"),
+    t("onboarding.step7"),
   ];
 
   const titles = accountType === "company" ? companyTitles : personTitles;

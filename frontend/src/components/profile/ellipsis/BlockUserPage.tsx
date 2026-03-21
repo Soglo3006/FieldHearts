@@ -28,7 +28,6 @@ export default function BlockUserPage({ profileId, displayName, onBack, onClose 
       if (error) throw error;
       setSuccess(true);
     } catch (err) {
-      console.error("Error blocking user:", err);
     } finally {
       setLoading(false);
     }

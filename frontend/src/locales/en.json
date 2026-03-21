@@ -273,7 +273,17 @@
     "stripeResumeSetup": "Resume Setup",
     "stripeGetPaid": "Get paid for your services",
     "stripeConnectDesc": "Connect your Stripe account so clients can pay you securely.",
-    "stripeAccountConnected": "Stripe account connected — clients can pay you for accepted bookings."
+    "stripeAccountConnected": "Stripe account connected — clients can pay you for accepted bookings.",
+    "receivePayments": "Receive your payments",
+    "verificationInProgress": "Verification in progress",
+    "stripeVerifyingDesc": "Stripe is reviewing your information. You will receive confirmation within 1–2 business days.",
+    "connectBankDesc": "Connect your bank account to receive your payouts directly, securely via Stripe.",
+    "completeFile": "Complete my file",
+    "connectAccount": "Connect my account",
+    "securedByStripe": "Secured by Stripe",
+    "payoutsWillActivate": "Your payouts will be activated once your account is validated.",
+    "bankAccountConnected": "Bank account connected",
+    "manageOnStripe": "Manage on Stripe"
   },
   "post": {
     "title": "Post a Listing",
@@ -544,6 +554,8 @@
     "location": "Location",
     "locationPlaceholder": "City, Province...",
     "phone": "Phone",
+    "dateOfBirth": "Date of Birth",
+    "dateOfBirthHint": "Required for identity verification via Stripe.",
     "phonePlaceholder": "+1 (000) 000-0000",
     "website": "Website",
     "websitePlaceholder": "https://yourwebsite.com",
@@ -691,7 +703,8 @@
     "step3": "Skills & Services",
     "step4": "Experience",
     "step5": "Portfolio",
-    "step6": "Summary",
+    "step6": "Payment",
+    "step7": "Summary",
     "next": "Next",
     "back": "Back",
     "finish": "Finish",
@@ -699,6 +712,7 @@
     "welcome": "Welcome to Uneden!",
     "welcomeSubtitle": "Let's set up your profile so others can find you.",
     "profileReady": "Your profile is ready!",
+    "profileReadyDesc": "You're all set to start posting listings and connecting with customers.",
     "startExploring": "Start Exploring",
     "basicInfoTitle": "Basic Information",
     "aboutTitle": "About You",
@@ -879,7 +893,11 @@
     "bookingDeclined": "Booking declined",
     "newMessage": "New message",
     "newReview": "New review",
-    "paymentReceived": "Payment received"
+    "paymentReceived": "Payment received",
+    "justNow": "Just now",
+    "minutesAgo": "{{count}}m",
+    "hoursAgo": "{{count}}h",
+    "daysAgo": "{{count}}d"
   },
   "support": {
     "title": "Support",

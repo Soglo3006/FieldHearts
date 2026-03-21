@@ -26,7 +26,7 @@ export const createConnectAccount = async (req, res) => {
     } else {
       // Get user email, account type and profile data
       const user = await pool.query(
-        `SELECT email, account_type, full_name, company_name, phone, address, city, province, postal_code
+        `SELECT email, account_type, full_name, company_name, phone, address, city, province
          FROM users WHERE id = $1`,
         [userId]
       );
@@ -42,7 +42,6 @@ export const createConnectAccount = async (req, res) => {
         line1: u.address || "",
         city: u.city || "",
         state: u.province || "",
-        postal_code: u.postal_code || "",
         country: "CA",
       } : undefined;
 
@@ -65,6 +64,7 @@ export const createConnectAccount = async (req, res) => {
           card_payments: { requested: true },
           transfers: { requested: true },
         },
+        tos_acceptance: { service_agreement: "recipient" },
         business_type: isCompany ? "company" : "individual",
         ...(individualData && { individual: individualData }),
         business_profile: {
@@ -87,11 +87,17 @@ export const createConnectAccount = async (req, res) => {
       );
     }
 
+    // Allow callers to specify a custom return URL (e.g. onboarding flow)
+    const customReturnUrl = req.body?.return_url;
+    const returnUrl = customReturnUrl
+      ? `${FRONTEND_URL}${customReturnUrl}`
+      : `${FRONTEND_URL}/wallet?stripe=success`;
+
     // Create account link (onboarding URL)
     const accountLink = await stripe.accountLinks.create({
       account: stripeAccountId,
       refresh_url: `${FRONTEND_URL}/wallet?stripe=refresh`,
-      return_url: `${FRONTEND_URL}/wallet?stripe=success`,
+      return_url: returnUrl,
       type: "account_onboarding",
     });
 

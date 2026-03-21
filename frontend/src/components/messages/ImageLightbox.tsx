@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from 'react';
+import { useScrollLock } from "@/hooks/useScrollLock";
 import { X, Download } from 'lucide-react';
 
 interface ImageLightboxProps {
@@ -9,6 +10,7 @@ interface ImageLightboxProps {
 }
 
 export function ImageLightbox({ imageUrl, onClose }: ImageLightboxProps) {
+  useScrollLock(true);
   // Fermer avec Escape
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {

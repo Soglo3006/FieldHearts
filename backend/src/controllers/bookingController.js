@@ -89,11 +89,17 @@ export const createBooking = async (req, res) => {
 
 export const getMyBookings = async (req, res) => {
   try {
+    // "Envoyées" = bookings YOU initiated:
+    //   offer listing  → you are the client (you booked someone's offer)
+    //   looking listing → you are the worker (you applied to someone's search)
     const result = await pool.query(
       `SELECT b.*, s.title, s.price, s.image_url, s.category, s.location AS service_location,
               s.is_one_time, s.type AS service_type,
-              CASE WHEN u.account_type = 'company' THEN u.company_name ELSE u.full_name END AS worker_name,
-              CASE WHEN w.account_type = 'company' THEN w.company_name ELSE w.full_name END AS client_name,
+              -- worker_name = the OTHER person you're dealing with
+              CASE
+                WHEN s.type = 'offer' THEN CASE WHEN u.account_type = 'company' THEN u.company_name ELSE u.full_name END
+                ELSE CASE WHEN w.account_type = 'company' THEN w.company_name ELSE w.full_name END
+              END AS worker_name,
               EXISTS(SELECT 1 FROM reviews WHERE booking_id = b.id AND reviewer_id = $1) AS has_reviewed,
               EXISTS(SELECT 1 FROM disputes WHERE booking_id = b.id) AS has_dispute,
               b.payment_status, b.completed_by_worker, b.completed_by_client,
@@ -103,7 +109,8 @@ export const getMyBookings = async (req, res) => {
        JOIN services s ON b.service_id = s.id
        JOIN users u ON b.worker_id = u.id
        JOIN users w ON b.client_id = w.id
-       WHERE b.client_id = $1
+       WHERE (b.client_id = $1 AND s.type = 'offer')
+          OR (b.worker_id = $1 AND s.type = 'looking')
        ORDER BY b.created_at DESC`,
       [req.user.id]
     );
@@ -116,10 +123,17 @@ export const getMyBookings = async (req, res) => {
 
 export const getReceivedBookings = async (req, res) => {
   try {
+    // "Reçues" = bookings someone sent TO you:
+    //   offer listing  → you are the worker (someone booked your offer)
+    //   looking listing → you are the client (someone applied to your search)
     const result = await pool.query(
       `SELECT b.*, s.title, s.price, s.image_url, s.category, s.location AS service_location,
               s.is_one_time, s.type AS service_type,
-              CASE WHEN u.account_type = 'company' THEN u.company_name ELSE u.full_name END AS client_name,
+              -- client_name = the OTHER person who initiated the booking
+              CASE
+                WHEN s.type = 'offer' THEN CASE WHEN uc.account_type = 'company' THEN uc.company_name ELSE uc.full_name END
+                ELSE CASE WHEN uw.account_type = 'company' THEN uw.company_name ELSE uw.full_name END
+              END AS client_name,
               EXISTS(SELECT 1 FROM reviews WHERE booking_id = b.id AND reviewer_id = $1) AS has_reviewed,
               EXISTS(SELECT 1 FROM disputes WHERE booking_id = b.id) AS has_dispute,
               b.payment_status, b.completed_by_worker, b.completed_by_client,
@@ -127,8 +141,10 @@ export const getReceivedBookings = async (req, res) => {
               b.cancel_requested_by, b.cancel_reason
        FROM bookings b
        JOIN services s ON b.service_id = s.id
-       JOIN users u ON b.client_id = u.id
-       WHERE b.worker_id = $1
+       JOIN users uc ON b.client_id = uc.id
+       JOIN users uw ON b.worker_id = uw.id
+       WHERE (b.worker_id = $1 AND s.type = 'offer')
+          OR (b.client_id = $1 AND s.type = 'looking')
        ORDER BY b.created_at DESC`,
       [req.user.id]
     );
@@ -232,7 +248,7 @@ export const markCompleted = async (req, res) => {
     const userId = req.user.id;
 
     const booking = await pool.query(
-      `SELECT b.*, s.title, s.price,
+      `SELECT b.*, s.title, s.price, s.is_one_time,
               CASE WHEN cw.account_type = 'company' THEN cw.company_name ELSE cw.full_name END AS worker_name,
               CASE WHEN cc.account_type = 'company' THEN cc.company_name ELSE cc.full_name END AS client_name,
               cw.id AS worker_user_id, cc.id AS client_user_id,
@@ -290,11 +306,13 @@ export const markCompleted = async (req, res) => {
         "UPDATE bookings SET status = 'completed' WHERE id = $1",
         [id]
       );
-      // Hide the listing from public search now that the job is done
-      await pool.query(
-        "UPDATE services SET is_active = false WHERE id = $1",
-        [u.service_id]
-      );
+      // Only deactivate one-time listings — recurring listings stay active
+      if (b.is_one_time) {
+        await pool.query(
+          "UPDATE services SET is_active = false WHERE id = $1",
+          [u.service_id]
+        );
+      }
 
       // Credit worker wallet automatically
       finalizeCompletion(b).catch((err) =>

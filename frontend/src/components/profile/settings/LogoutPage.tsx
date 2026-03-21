@@ -20,7 +20,6 @@ export default function LogoutPage({ onBack, onClose }: Props) {
       setLoading(true);
       await signOut();
     } catch (error) {
-      console.error("Logout error:", error);
     } finally {
       setLoading(false);
     }

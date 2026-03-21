@@ -60,7 +60,6 @@ export default function BlockedUsersPage({ onBack, onClose }: Props) {
           setBlockedUsers(users.filter((u): u is BlockedUser => u !== null));
         }
       } catch (err) {
-        console.error("Error fetching blocked users:", err);
       } finally {
         setLoading(false);
       }
@@ -79,7 +78,6 @@ export default function BlockedUsersPage({ onBack, onClose }: Props) {
       if (error) throw error;
       setBlockedUsers(blockedUsers.filter(u => u.id !== userId));
     } catch (err) {
-      console.error("Error unblocking user:", err);
     } finally {
       setUnblocking(null);
     }

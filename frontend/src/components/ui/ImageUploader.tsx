@@ -59,7 +59,6 @@ export default function ImageUploader({
       setCrop({ x: 0, y: 0 });
       setZoom(1);
     } catch (err) {
-      console.error(err);
       toast.error("Failed to crop image. Please try again.");
     }
   };

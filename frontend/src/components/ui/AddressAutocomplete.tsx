@@ -2,8 +2,11 @@
 
 import { useEffect } from "react";
 import usePlacesAutocomplete, { getGeocode } from "use-places-autocomplete";
+import { useJsApiLoader, type Libraries } from "@react-google-maps/api";
 import { MapPin } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+const LIBRARIES: Libraries = ["places"];
 
 export interface AddressResult {
   adresse: string;
@@ -31,14 +34,7 @@ function extractComponent(
   return c ? (useShort ? c.short_name : c.long_name) : "";
 }
 
-export default function AddressAutocomplete({
-  value,
-  onChange,
-  onSelect,
-  placeholder = "123 Rue Principale",
-  className,
-  id,
-}: Props) {
+function AddressInput({ value, onChange, onSelect, placeholder, className, id }: Props) {
   const {
     ready,
     value: inputValue,
@@ -102,10 +98,9 @@ export default function AddressAutocomplete({
                     extractComponent(components, "locality") ||
                     extractComponent(components, "sublocality_level_1") ||
                     extractComponent(components, "administrative_area_level_3");
-                  const province = extractComponent(components, "administrative_area_level_1"); // long_name = "Québec"
+                  const province = extractComponent(components, "administrative_area_level_1");
                   const postalCode = extractComponent(components, "postal_code");
                   const country = extractComponent(components, "country", true);
-
                   const adresse = [streetNumber, route].filter(Boolean).join(" ");
 
                   onSelect({ adresse, ville: city, province, postalCode, country });
@@ -122,4 +117,33 @@ export default function AddressAutocomplete({
       )}
     </div>
   );
+}
+
+export default function AddressAutocomplete(props: Props) {
+  const { isLoaded } = useJsApiLoader({
+    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "",
+    libraries: LIBRARIES,
+  });
+
+  if (!isLoaded) {
+    return (
+      <div className={cn("relative", props.className)}>
+        <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none z-10" />
+        <input
+          id={props.id}
+          type="text"
+          value={props.value}
+          onChange={(e) => props.onChange(e.target.value)}
+          placeholder="Chargement…"
+          disabled
+          className={cn(
+            "flex h-12 w-full rounded-md border border-input bg-background pl-9 pr-3 py-2 text-sm",
+            "placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
+          )}
+        />
+      </div>
+    );
+  }
+
+  return <AddressInput {...props} />;
 }

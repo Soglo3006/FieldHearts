@@ -29,12 +29,12 @@ export const completeProfile = async (req, res) => {
             skills,
             languages,
             experiences,
-            
+
             // Company data
             company_name,
             industry,
             team_size,
-            
+
             portfolio
         } = req.body;
 

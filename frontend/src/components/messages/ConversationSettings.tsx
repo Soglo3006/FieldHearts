@@ -93,7 +93,6 @@ export function ConversationSettings({
       setConfirmAction(null);
       onClose();
     } catch (err) {
-      console.error(err);
     } finally {
       setLoading(false);
     }
@@ -109,7 +108,6 @@ export function ConversationSettings({
       setReportDetails('');
       setShowSuccessModal(true);
     } catch (err) {
-      console.error(err);
     } finally {
       setLoading(false);
     }

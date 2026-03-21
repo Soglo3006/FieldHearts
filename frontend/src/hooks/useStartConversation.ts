@@ -35,7 +35,6 @@ export function useStartConversation() {
         toast.error('Failed to create conversation. Please try again.');
       }
     } catch (error) {
-      console.error('Error starting conversation:', error);
       toast.error('An error occurred. Please try again.');
     } finally {
       setLoading(false);

@@ -1,6 +1,7 @@
 "use client";
 
 import { useTranslation } from "react-i18next";
+import { useScrollLock } from "@/hooks/useScrollLock";
 
 interface Props {
   location: string;
@@ -11,6 +12,7 @@ interface Props {
 
 export default function LocationMapModal({ location, lat, lng, onClose }: Props) {
   const { t } = useTranslation();
+  useScrollLock(true);
 
   const hasCoords = lat != null && lng != null;
   const mapSrc = hasCoords

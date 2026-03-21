@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState, Suspense } from "react";
+import { useEffect, useState, Suspense, useCallback, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter, useSearchParams } from "next/navigation";
+import { supabase } from "@/lib/supabaseClient";
 import Link from "next/link";
 import { useStartConversation } from "@/hooks/useStartConversation";
 import { CalendarDays, CheckCircle, XCircle, Clock } from "lucide-react";
@@ -74,11 +75,12 @@ function BookingsContent() {
 
   const { startConversation, loading: chatLoading } = useStartConversation();
 
-  useEffect(() => {
-    if (authLoading) return;
-    if (!user) { router.push("/login"); return; }
-    if (!session?.access_token) return;
-    const headers = { Authorization: `Bearer ${session.access_token}` };
+  const sessionRef = useRef(session);
+  useEffect(() => { sessionRef.current = session; }, [session]);
+
+  const fetchBookings = useCallback(async () => {
+    if (!sessionRef.current?.access_token) return;
+    const headers = { Authorization: `Bearer ${sessionRef.current.access_token}` };
 
     fetch(`${process.env.NEXT_PUBLIC_API_URL}/bookings/received-bookings`, { headers })
       .then((r) => r.json())
@@ -91,15 +93,54 @@ function BookingsContent() {
       .then((data) => setSent(Array.isArray(data) ? data : []))
       .catch(() => setSent([]))
       .finally(() => setLoadingSent(false));
-  }, [user, session, router, authLoading]);
+  }, []);
+
+  useEffect(() => {
+    if (authLoading) return;
+    if (!user) { router.push("/login"); return; }
+    if (!session?.access_token) return;
+    fetchBookings();
+  }, [user, session, router, authLoading, fetchBookings]);
+
+  // Realtime: re-fetch when a booking is created/updated for this user.
+  // Two channels to cover both roles:
+  //   ch1 — bookings where I am the worker (offer listings: I receive the request)
+  //   ch2 — bookings where I am the client (looking listings: I receive the application)
+  useEffect(() => {
+    if (!user) return;
+    const ch1 = supabase
+      .channel('bookings-as-worker')
+      .on('postgres_changes', {
+        event: '*', schema: 'public', table: 'bookings',
+        filter: `worker_id=eq.${user.id}`,
+      }, () => { fetchBookings(); })
+      .subscribe();
+    const ch2 = supabase
+      .channel('bookings-as-client')
+      .on('postgres_changes', {
+        event: '*', schema: 'public', table: 'bookings',
+        filter: `client_id=eq.${user.id}`,
+      }, () => { fetchBookings(); })
+      .subscribe();
+    return () => {
+      supabase.removeChannel(ch1);
+      supabase.removeChannel(ch2);
+    };
+  }, [user, fetchBookings]);
 
   useEffect(() => {
     if (paymentResult === "success" || paymentResult === "cancelled") {
       setTab("sent");
       const timer = setTimeout(() => setPaymentBanner(null), 5000);
+      if (paymentResult === "success") {
+        // Refetch immediately + after a delay in case the Stripe webhook takes a moment to update the DB
+        fetchBookings();
+        const refetchTimer = setTimeout(() => fetchBookings(), 3000);
+        return () => { clearTimeout(timer); clearTimeout(refetchTimer); };
+      }
       return () => clearTimeout(timer);
     }
-  }, [paymentResult]);
+  }, [paymentResult, fetchBookings]);
 
   const updateStatus = async (bookingId: string, status: BookingStatus, side: "received" | "sent") => {
     setUpdating(bookingId);
@@ -110,10 +151,11 @@ function BookingsContent() {
         body: JSON.stringify({ status }),
       });
       if (!res.ok) return;
+      const updated = await res.json();
       if (side === "received") {
-        setReceived((prev) => prev.map((b) => (b.id === bookingId ? { ...b, status } : b)));
+        setReceived((prev) => prev.map((b) => (b.id === bookingId ? { ...b, ...updated } : b)));
       } else {
-        setSent((prev) => prev.map((b) => (b.id === bookingId ? { ...b, status } : b)));
+        setSent((prev) => prev.map((b) => (b.id === bookingId ? { ...b, ...updated } : b)));
       }
     } catch { /* silent */ } finally {
       setUpdating(null);
@@ -252,9 +294,10 @@ function BookingsContent() {
               bookings={received}
               updating={updating}
               chatLoading={chatLoading}
+              accessToken={session?.access_token ?? ""}
               onUpdateStatus={updateStatus}
               onMarkCompleted={markCompleted}
-              onMessage={(clientId) => startConversation(clientId)}
+              onMessage={(userId) => startConversation(userId)}
               onReview={(id, targetName) => setReviewBooking({ id, targetName })}
               onDispute={(id, title) => setDisputeBooking({ id, title })}
               onCardClick={(booking) => setDetailBooking({ booking, role: "worker" })}
@@ -307,7 +350,7 @@ function BookingsContent() {
                       )}
                       <div className="flex-1 min-w-0">
                         <p className="font-medium text-gray-900 truncate">{b.title}</p>
-                        <p className="text-sm text-gray-500">Client : {b.client_name}</p>
+                        <p className="text-sm text-gray-500">{b.service_type === "looking" ? "Prestataire" : "Client"} : {b.client_name}</p>
                         <p className="text-xs text-gray-400">{new Date(b.created_at).toLocaleDateString("fr-CA", { year: "numeric", month: "long", day: "numeric" })}</p>
                       </div>
                       <div className="text-right shrink-0">

@@ -24,9 +24,12 @@ export default function StepSkillsServices({
   data, accountType, onAddSkill, onRemoveSkill,
   onAddLanguage, onRemoveLanguage, onUpdateLanguage,
 }: Props) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const lang = i18n.language?.startsWith("fr") ? "fr" : "en";
   const [newSkill, setNewSkill] = useState("");
-  const suggestions = accountType === "company" ? serviceSuggestions : skillSuggestions;
+  const suggestionList = accountType === "company"
+    ? (serviceSuggestions[lang] ?? serviceSuggestions.fr)
+    : (skillSuggestions[lang] ?? skillSuggestions.fr);
 
   const handleAdd = () => {
     const s = newSkill.trim();
@@ -47,10 +50,32 @@ export default function StepSkillsServices({
       <div className="space-y-8">
         {/* Skills / Services */}
         <div>
-          <Label className="text-base font-medium text-gray-900 mb-3 block">
+          <Label className="text-base font-medium text-gray-900 mb-1 block">
             {accountType === "company" ? t("onboarding.yourServices") : t("onboarding.yourSkills")} <span className="text-red-500">*</span>
             <span className="text-gray-500 font-normal text-sm ml-2">({data.skills?.length ?? 0}/10)</span>
           </Label>
+          <p className="text-xs text-gray-400 mb-3">
+            {lang === "fr"
+              ? "Vous pouvez écrire votre propre compétence"
+              : "You can write your own skill"}
+          </p>
+
+          <div className="flex flex-wrap gap-2 mb-3">
+            {suggestionList
+              .filter((s) => !(data.skills ?? []).includes(s))
+              .slice(0, 8)
+              .map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  disabled={(data.skills?.length ?? 0) >= 10}
+                  onClick={() => onAddSkill(s)}
+                  className="cursor-pointer text-xs px-3 py-1.5 rounded-full border border-gray-200 text-gray-600 hover:border-green-500 hover:text-green-700 hover:bg-green-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  + {s}
+                </button>
+              ))}
+          </div>
 
           <div className="flex gap-2">
             <div className="relative flex-1">
@@ -66,7 +91,7 @@ export default function StepSkillsServices({
               />
               {newSkill.length > 0 && (
                 <div className="absolute left-0 right-0 top-full mt-1 bg-white border rounded-md shadow-lg z-20 max-h-38 overflow-y-auto">
-                  {suggestions
+                  {suggestionList
                     .filter((s) => s.toLowerCase().includes(newSkill.toLowerCase()))
                     .slice(0, 6)
                     .map((s) => (

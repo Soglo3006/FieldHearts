@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { useScrollLock } from "@/hooks/useScrollLock";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -22,6 +23,7 @@ export default function OpenDisputeModal({
   onClose,
   onOpened,
 }: Props) {
+  useScrollLock(true);
   const [description, setDescription] = useState("");
   const [photos, setPhotos] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);

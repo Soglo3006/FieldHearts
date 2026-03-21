@@ -137,7 +137,6 @@ export function useUnreadMessages() {
         setUnreadChats(validChats);
         setUnreadCount(newUnreadCount);
       } catch (error) {
-        console.error('Error fetching messages:', error);
       } finally {
         setLoading(false);
       }
@@ -215,7 +214,6 @@ export function useUnreadMessages() {
       .is('read_at', null);
 
     if (error) {
-      console.error('Error marking messages as read:', error);
       return;
     }
 

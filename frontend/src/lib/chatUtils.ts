@@ -16,7 +16,6 @@ export async function getOrCreateDirectChat(otherUserId: string): Promise<string
       });
 
     if (error) {
-      console.error('Error getting/creating chat:', error);
       return null;
     }
 
@@ -30,7 +29,6 @@ export async function getOrCreateDirectChat(otherUserId: string): Promise<string
 
     return data;
   } catch (err) {
-    console.error('Unexpected error:', err);
     return null;
   }
 }
@@ -85,7 +83,6 @@ export async function findExistingChat(
 
     return null;
   } catch (err) {
-    console.error('Error finding existing chat:', err);
     return null;
   }
 }

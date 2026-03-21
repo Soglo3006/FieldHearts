@@ -1,5 +1,6 @@
 "use client";
 import { useTranslation } from "react-i18next";
+import { useScrollLock } from "@/hooks/useScrollLock";
 import { Button } from "@/components/ui/button";
 import { CheckCircle, X } from "lucide-react";
 
@@ -21,6 +22,7 @@ export default function BookingModal({
   onNoteChange, onSubmit, onClose, onMessageProvider,
 }: Props) {
   const { t } = useTranslation();
+  useScrollLock(true);
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div

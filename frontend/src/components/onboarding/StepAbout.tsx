@@ -14,7 +14,8 @@ interface Props {
 }
 
 export default function StepAbout({ data, accountType, onChange }: Props) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const lang = i18n.language?.startsWith("fr") ? "fr" : "en";
   const [professionInput, setProfessionInput] = useState(data.profession || "");
   const [showSuggestions, setShowSuggestions] = useState(false);
 
@@ -54,7 +55,7 @@ export default function StepAbout({ data, accountType, onChange }: Props) {
               {showSuggestions && professionInput.length > 0 && (
                 <div className="absolute left-0 right-0 top-full mt-1 bg-white border rounded-md shadow-lg z-20 max-h-38 overflow-y-auto">
                   <div className="px-3 py-1 text-xs text-gray-400 font-medium border-b">{t("onboarding.suggestions")}</div>
-                  {professionSuggestions
+                  {(professionSuggestions[lang] ?? professionSuggestions.fr)
                     .filter((p) => p.toLowerCase().includes(professionInput.toLowerCase()))
                     .slice(0, 6)
                     .map((s) => (
@@ -76,8 +77,7 @@ export default function StepAbout({ data, accountType, onChange }: Props) {
 
             <div className="space-y-2">
               <Label htmlFor="bio" className="text-base font-medium text-gray-900">
-                {t("onboarding.bio")} <span className="text-red-500">*</span>
-              </Label>
+                {t("onboarding.bio")}              </Label>
               <Textarea
                 id="bio"
                 placeholder={t("onboarding.bioPlaceholder")}
@@ -85,10 +85,6 @@ export default function StepAbout({ data, accountType, onChange }: Props) {
                 onChange={(e) => onChange({ bio: e.target.value })}
                 className="min-h-40 resize-none"
               />
-              <div className="flex justify-between text-xs">
-                <span className={(data.bio?.length ?? 0) < 80 ? "text-red-500" : "text-gray-500"}>Minimum 80 characters</span>
-                <span className={(data.bio?.length ?? 0) < 80 ? "text-red-500" : "text-gray-500"}>{data.bio?.length ?? 0} / 500</span>
-              </div>
             </div>
           </>
         )}
@@ -97,8 +93,7 @@ export default function StepAbout({ data, accountType, onChange }: Props) {
           <>
             <div className="space-y-2">
               <Label htmlFor="companyBio" className="text-base font-medium text-gray-900">
-                {t("onboarding.companyBio")} <span className="text-red-500">*</span>
-              </Label>
+                {t("onboarding.companyBio")}              </Label>
               <Textarea
                 id="companyBio"
                 placeholder={t("onboarding.companyBioPlaceholder")}
@@ -106,16 +101,11 @@ export default function StepAbout({ data, accountType, onChange }: Props) {
                 onChange={(e) => onChange({ companyBio: e.target.value })}
                 className="min-h-40 resize-none"
               />
-              <div className="flex justify-between text-xs">
-                <span className={(data.companyBio?.length ?? 0) < 80 ? "text-red-500" : "text-gray-500"}>Minimum 80 characters</span>
-                <span className={(data.companyBio?.length ?? 0) < 80 ? "text-red-500" : "text-gray-500"}>{data.companyBio?.length ?? 0} / 500</span>
-              </div>
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="industry" className="text-base font-medium text-gray-900">
-                {t("onboarding.companyIndustry")} <span className="text-red-500">*</span>
-              </Label>
+                {t("onboarding.companyIndustry")}              </Label>
               <Input
                 id="industry"
                 type="text"

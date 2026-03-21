@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/select";
 import {
   User, Lock, Bell, Globe, Link2, LogOut, Trash2, ChevronRight,
-  Mail, Phone, MapPin, Building2, Briefcase, Users, Check, CreditCard,
+  Mail, Phone, MapPin, Building2, Briefcase, Users, Check, CreditCard, ExternalLink,
 } from "lucide-react";
 import { Toggle } from "./settings/SubPageHeader";
 import ChangePasswordPage from "./settings/ChangePasswordPage";
@@ -90,6 +90,8 @@ export default function SettingsPage({ onClose, scrollRef }: { onClose: () => vo
     setLanguage(i18n.language === "fr" ? "fr" : "en");
   }, [i18n.language]);
   const [connectedAccounts, setConnectedAccounts] = useState<{ provider: string }[]>([]);
+  const [stripeStatus, setStripeStatus] = useState<{ connected: boolean; charges_enabled: boolean; details_submitted: boolean } | null>(null);
+  const [stripeLoading, setStripeLoading] = useState(false);
 
   const goToScreen = (screenName: Screen) => {
     if (scrollRef?.current) setScrollPosition(scrollRef.current.scrollTop);
@@ -131,8 +133,14 @@ export default function SettingsPage({ onClose, scrollRef }: { onClose: () => vo
         }).catch(() => {});
         const { data: { user: supabaseUser } } = await supabase.auth.getUser();
         if (supabaseUser?.identities) setConnectedAccounts(supabaseUser.identities);
+
+        // Fetch Stripe Connect status
+        fetch(`${process.env.NEXT_PUBLIC_API_URL}/payments/connect/status`, {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        }).then(r => r.ok ? r.json() : null).then(data => {
+          if (data) setStripeStatus(data);
+        }).catch(() => {});
       } catch (error) {
-        console.error("Error fetching settings:", error);
       } finally {
         setLoading(false);
       }
@@ -168,9 +176,23 @@ export default function SettingsPage({ onClose, scrollRef }: { onClose: () => vo
         setTimeout(() => window.location.reload(), 800);
       }
     } catch (error) {
-      console.error("Error saving settings:", error);
     } finally {
       setSavingSettings(false);
+    }
+  };
+
+  const handleConnectStripe = async () => {
+    if (!session?.access_token) return;
+    setStripeLoading(true);
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/payments/connect/create`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      const data = await res.json();
+      if (data.url) window.location.href = data.url;
+    } catch { /* silent */ } finally {
+      setStripeLoading(false);
     }
   };
 
@@ -463,6 +485,53 @@ export default function SettingsPage({ onClose, scrollRef }: { onClose: () => vo
               <Button variant="outline" className="w-full justify-between cursor-pointer text-sm" onClick={() => goToScreen("billingHistory")}>
                 <span>{t("settings.billingHistory")}</span><ChevronRight className="h-4 w-4" />
               </Button>
+
+              {/* Stripe Connect — bank account */}
+              <div className="pt-2 border-t border-gray-100">
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Compte bancaire</p>
+                {stripeStatus === null ? (
+                  <div className="flex items-center gap-2 text-sm text-gray-400 py-1">
+                    <Spinner size="sm" /> Chargement…
+                  </div>
+                ) : stripeStatus.charges_enabled ? (
+                  <div className="flex items-center gap-3 bg-green-50 border border-green-200 rounded-xl px-4 py-3">
+                    <Check className="h-4 w-4 text-green-600 shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-green-800 text-sm">Compte connecté</p>
+                      <p className="text-xs text-green-600 mt-0.5">Vos versements sont envoyés directement sur votre compte bancaire.</p>
+                    </div>
+                    <Button variant="outline" size="sm" onClick={handleConnectStripe} disabled={stripeLoading} className="cursor-pointer shrink-0 text-xs gap-1">
+                      {stripeLoading ? <Spinner size="sm" /> : <ExternalLink className="h-3 w-3" />}
+                      Gérer
+                    </Button>
+                  </div>
+                ) : stripeStatus.details_submitted ? (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-3 bg-yellow-50 border border-yellow-200 rounded-xl px-4 py-3">
+                      <Spinner size="sm" />
+                      <div>
+                        <p className="font-semibold text-yellow-800 text-sm">Vérification en cours</p>
+                        <p className="text-xs text-yellow-700 mt-0.5">Stripe examine vos informations. Confirmation sous 1–2 jours ouvrables.</p>
+                      </div>
+                    </div>
+                    <Button variant="outline" size="sm" onClick={handleConnectStripe} disabled={stripeLoading} className="cursor-pointer text-xs gap-1">
+                      {stripeLoading ? <Spinner size="sm" /> : <ExternalLink className="h-3 w-3" />}
+                      Compléter mon dossier
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-3">
+                    <Button onClick={handleConnectStripe} disabled={stripeLoading} className="bg-green-700 hover:bg-green-800 text-white cursor-pointer text-sm gap-2 h-9 rounded-xl px-4">
+                      {stripeLoading ? <Spinner size="sm" /> : <Building2 className="h-4 w-4" />}
+                      Connecter mon compte
+                    </Button>
+                    <p className="text-xs text-gray-400 flex items-center gap-1">
+                      <Check className="h-3.5 w-3.5 text-gray-300" />
+                      Sécurisé par Stripe
+                    </p>
+                  </div>
+                )}
+              </div>
             </div>
           </Card>
 

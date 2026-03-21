@@ -9,7 +9,7 @@ import { useSearchParams } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import i18n from "@/lib/i18n";
 import { ChevronRight, ChevronLeft } from "lucide-react";
-import { OnboardingData, Experience, PortfolioItem, Language } from "@/components/onboarding/onboardingTypes";
+import { OnboardingData, Experience, PortfolioItem } from "@/components/onboarding/onboardingTypes";
 import OnboardingStepBar from "@/components/onboarding/OnboardingStepBar";
 import SuccessScreen from "@/components/onboarding/SuccessScreen";
 import StepBasicInfo from "@/components/onboarding/StepBasicInfo";
@@ -18,6 +18,7 @@ import StepSkillsServices from "@/components/onboarding/StepSkillsServices";
 import StepExperience from "@/components/onboarding/StepExperience";
 import StepPortfolio from "@/components/onboarding/StepPortfolio";
 import StepSummary from "@/components/onboarding/StepSummary";
+import StepBankAccount from "@/components/onboarding/StepBankAccount";
 import { toast } from "sonner";
 import { Spinner } from "@/components/ui/Spinner";
 
@@ -60,17 +61,21 @@ function LanguageToggle() {
 }
 
 function OnboardingContent() {
-  const [currentStep, setCurrentStep] = useState(1);
-  const [showSuccess, setShowSuccess] = useState(false);
-  const [loading, setLoading] = useState(false);
-
   const { user, session } = useAuth();
   const router = useRouter();
   const { t } = useTranslation();
   const searchParams = useSearchParams();
   const accountType = searchParams.get("type") || "person";
 
-  const totalSteps = accountType === "company" ? 4 : 6;
+  const stepFromUrl = searchParams.get("step") ? Number(searchParams.get("step")) : null;
+
+  const [currentStep, setCurrentStep] = useState(stepFromUrl ?? 1);
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  const totalSteps = accountType === "company" ? 5 : 7;
+
+  const storageKey = `onboarding_data_${accountType}`;
 
   const [data, setData] = useState<OnboardingData>({
     accountType: "" as "" | "person" | "company",
@@ -93,8 +98,21 @@ function OnboardingContent() {
     portfolio: [],
   });
 
+  // Load from localStorage after hydration
   useEffect(() => {
-    if (user) setData((p) => ({ ...p, email: user.email || "", fullName: user.user_metadata?.full_name || "" }));
+    try {
+      const saved = localStorage.getItem(storageKey);
+      if (saved) setData(JSON.parse(saved));
+    } catch {}
+  }, [storageKey]);
+
+  // Persist data to localStorage on every change
+  useEffect(() => {
+    try { localStorage.setItem(storageKey, JSON.stringify(data)); } catch {}
+  }, [data, storageKey]);
+
+  useEffect(() => {
+    if (user) setData((p) => ({ ...p, email: user.email || "", fullName: p.fullName || user.user_metadata?.full_name || "" }));
   }, [user]);
 
   useEffect(() => { setData((p) => ({ ...p, accountType: accountType as "person" | "company" })); }, [accountType]);
@@ -148,20 +166,28 @@ function OnboardingContent() {
     ? !!data.fullName?.trim() && !!data.phone.trim() && !!data.adresse.trim() && !!data.ville.trim() && !!data.province.trim()
     : !!data.companyName?.trim() && !!data.phone.trim() && !!data.adresse.trim() && !!data.ville.trim() && !!data.province.trim();
   const isStep2Valid = accountType === "person"
-    ? (data.bio?.length ?? 0) >= 80 && !!data.profession?.trim()
-    : (data.companyBio?.length ?? 0) >= 80 && !!data.industry?.trim();
+    ? !!data.profession?.trim()
+    : !!data.industry?.trim();
   const isStep3Valid = (data.skills?.length ?? 0) > 0;
+
+  const isBankStep = (accountType === "person" && currentStep === 6) || (accountType === "company" && currentStep === 4);
 
   const canProceed = () => {
     if (currentStep === 1) return isStep1Valid;
     if (currentStep === 2) return isStep2Valid;
     if (currentStep === 3) return isStep3Valid;
+    if (isBankStep) return true; // optional step
     return true;
+  };
+
+  const goToStep = (step: number) => {
+    setCurrentStep(step);
+    router.replace(`/profile/complete_profil?type=${accountType}&step=${step}`);
   };
 
   const handleNext = async () => {
     if (currentStep < totalSteps) {
-      setCurrentStep(currentStep + 1);
+      goToStep(currentStep + 1);
       return;
     }
     setLoading(true);
@@ -197,6 +223,7 @@ function OnboardingContent() {
       const { error } = await supabase.auth.updateUser({ data: { profile_completed: true } });
       if (error) throw error;
 
+      try { localStorage.removeItem(storageKey); } catch {}
       setShowSuccess(true);
       setTimeout(() => router.push("/"), 2000);
     } catch (err: unknown) {
@@ -251,6 +278,10 @@ function OnboardingContent() {
               onUpdate={handleUpdatePortfolio}
             />
           )}
+          {/* Bank account step: person = step 6, company = step 4 */}
+          {((accountType === "person" && currentStep === 6) || (accountType === "company" && currentStep === 4)) && (
+            <StepBankAccount accessToken={session?.access_token ?? ""} accountType={accountType} />
+          )}
           {currentStep === totalSteps && (
             <StepSummary data={data} accountType={accountType} />
           )}
@@ -258,7 +289,7 @@ function OnboardingContent() {
           <div className="flex justify-between mt-6 sm:mt-8 gap-3">
             <Button
               variant="outline"
-              onClick={() => setCurrentStep((s) => s - 1)}
+              onClick={() => goToStep(currentStep - 1)}
               disabled={currentStep === 1}
               className="gap-2 h-10 sm:h-12 px-4 sm:px-6 text-sm sm:text-base"
             >

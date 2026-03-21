@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useScrollLock } from "@/hooks/useScrollLock";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   X, MapPin, CalendarDays, Tag, CheckCircle, CreditCard, FileText, Grid3x3,
@@ -76,6 +77,7 @@ export default function BookingDetailModal({
   onClose, onUpdated, onMessage, onOpenReview, onOpenDispute,
 }: Props) {
   const { t } = useTranslation();
+  useScrollLock(true);
   const [booking, setBooking] = useState(initialBooking);
   const [serviceDescription, setServiceDescription] = useState<string | null>(null);
   const [updating, setUpdating] = useState(false);
@@ -235,8 +237,8 @@ export default function BookingDetailModal({
                         </div>
                       </div>
 
-                      {/* Worker side — what the provider receives */}
-                      <div className="rounded-lg border border-gray-200 overflow-hidden text-sm">
+                      {/* Worker side — what the provider receives (only shown to the worker) */}
+                      {userRole === "worker" && <div className="rounded-lg border border-gray-200 overflow-hidden text-sm">
                         <div className="bg-gray-50 px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
                           {t("bookings.workerPayout")}
                         </div>
@@ -254,7 +256,7 @@ export default function BookingDetailModal({
                             <span className="text-green-700">{fmt(workerReceives)} $ CAD</span>
                           </div>
                         </div>
-                      </div>
+                      </div>}
                     </div>
                   );
                 }

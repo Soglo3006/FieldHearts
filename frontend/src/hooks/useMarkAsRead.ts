@@ -15,7 +15,6 @@ export function useMarkAsRead() {
 
       return true;
     } catch (error) {
-      console.error('Error marking messages as read:', error);
       throw error;
     }
   };

@@ -5,8 +5,25 @@ import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Wallet, ArrowDownCircle, ArrowUpCircle, Clock, ChevronRight, Calendar, AlertCircle, Building2, CheckCircle2, ExternalLink } from "lucide-react";
+import {
+  Wallet,
+  ArrowDownCircle,
+  ArrowUpCircle,
+  Clock,
+  ChevronRight,
+  Calendar,
+  AlertCircle,
+  CheckCircle2,
+  TrendingUp,
+  TrendingDown,
+  Building2,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/Spinner";
 
 interface WalletData {
@@ -42,29 +59,62 @@ const PERIODS: { key: Period; labelKey: string }[] = [
   { key: "all",     labelKey: "wallet.allTransactions" },
 ];
 
-function formatDate(dateStr: string) {
+function fmt(n: number) {
+  return Number(n).toFixed(2);
+}
+
+function formatDate(dateStr: string, lang: string) {
   try {
-    return new Date(dateStr).toLocaleDateString("fr-CA", {
+    return new Date(dateStr).toLocaleDateString(lang === "fr" ? "fr-CA" : "en-CA", {
       month: "short", day: "numeric", year: "numeric",
       hour: "2-digit", minute: "2-digit",
     });
   } catch { return dateStr; }
 }
 
-function formatPayoutDate(dateStr: string) {
+function formatPayoutDate(dateStr: string, lang: string) {
   try {
-    return new Date(dateStr).toLocaleDateString("fr-CA", {
+    return new Date(dateStr).toLocaleDateString(lang === "fr" ? "fr-CA" : "en-CA", {
       weekday: "long", month: "long", day: "numeric", year: "numeric",
     });
   } catch { return dateStr; }
 }
 
-function fmt(n: number) {
-  return Number(n).toFixed(2);
+function WalletSkeleton() {
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {[...Array(3)].map((_, i) => (
+          <Card key={i}>
+            <CardContent className="pt-6 pb-5">
+              <Skeleton className="h-4 w-24 mb-3" />
+              <Skeleton className="h-8 w-32" />
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+      <Card>
+        <CardHeader><Skeleton className="h-5 w-40" /></CardHeader>
+        <CardContent className="space-y-3">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="flex items-center gap-3">
+              <Skeleton className="h-9 w-9 rounded-full shrink-0" />
+              <div className="flex-1 space-y-1.5">
+                <Skeleton className="h-4 w-3/4" />
+                <Skeleton className="h-3 w-1/2" />
+              </div>
+              <Skeleton className="h-5 w-16" />
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+    </div>
+  );
 }
 
 export default function WalletPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const lang = i18n.language?.startsWith("fr") ? "fr" : "en";
   const { user, session, loading: authLoading } = useAuth();
   const router = useRouter();
 
@@ -73,7 +123,11 @@ export default function WalletPage() {
   const [loading, setLoading] = useState(true);
   const [txLoading, setTxLoading] = useState(false);
   const [period, setPeriod] = useState<Period>("2weeks");
-  const [connectStatus, setConnectStatus] = useState<{ connected: boolean; charges_enabled: boolean; details_submitted: boolean } | null>(null);
+  const [connectStatus, setConnectStatus] = useState<{
+    connected: boolean;
+    charges_enabled: boolean;
+    details_submitted: boolean;
+  } | null>(null);
   const [connectLoading, setConnectLoading] = useState(false);
 
   useEffect(() => {
@@ -108,8 +162,6 @@ export default function WalletPage() {
       .finally(() => setTxLoading(false));
   }, [period]);
 
-  const currentPeriodLabel = t(PERIODS.find((p) => p.key === period)?.labelKey ?? "wallet.last2weeks");
-
   const handleConnectStripe = async () => {
     if (!session?.access_token) return;
     setConnectLoading(true);
@@ -121,7 +173,6 @@ export default function WalletPage() {
       const data = await res.json();
       if (data.url) window.location.href = data.url;
     } catch {
-      alert("Une erreur est survenue. Veuillez réessayer.");
     } finally {
       setConnectLoading(false);
     }
@@ -131,210 +182,278 @@ export default function WalletPage() {
     return (
       <div className="min-h-screen bg-gray-50">
         <main className="max-w-3xl mx-auto px-4 py-10">
-          <div className="animate-pulse space-y-4">
-            <div className="h-8 bg-gray-200 rounded w-40" />
-            <div className="h-32 bg-gray-200 rounded-2xl" />
-            <div className="h-64 bg-gray-100 rounded-2xl" />
-          </div>
+          <Skeleton className="h-8 w-40 mb-8" />
+          <WalletSkeleton />
         </main>
       </div>
     );
   }
 
+  const currentPeriodLabel = t(PERIODS.find((p) => p.key === period)?.labelKey ?? "wallet.last2weeks");
+
   return (
     <div className="min-h-screen bg-gray-50">
-      <main className="max-w-3xl mx-auto px-3 sm:px-4 py-6 sm:py-10 space-y-4 sm:space-y-6">
-        <h1 className="text-2xl font-bold text-gray-900">{t("wallet.title")}</h1>
+      <main className="max-w-3xl mx-auto px-3 sm:px-4 py-6 sm:py-10 space-y-5">
 
-        {/* Stripe Connect section */}
+        {/* Page title */}
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-xl bg-green-100 flex items-center justify-center">
+            <Wallet className="h-5 w-5 text-green-700" />
+          </div>
+          <h1 className="text-2xl font-bold text-gray-900">{t("wallet.title")}</h1>
+        </div>
+
+        {/* Stripe Connect banner */}
         {connectStatus && !connectStatus.charges_enabled && (
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-            <div className="px-4 sm:px-6 pt-4 sm:pt-6 pb-4 sm:pb-5">
+          <Card className="border-green-200 bg-gradient-to-br from-green-50 to-emerald-50 shadow-sm overflow-hidden">
+            <CardContent className="p-5">
               <div className="flex items-start gap-4">
-                <div className="flex-1">
-                  <p className="text-sm font-semibold text-gray-900">
-                    {connectStatus.details_submitted ? "Vérification en cours" : "Recevez vos paiements"}
-                  </p>
-                  <p className="text-sm text-gray-500 mt-1 leading-relaxed">
+                <div className="h-10 w-10 rounded-xl bg-green-700 flex items-center justify-center shrink-0">
+                  <Building2 className="h-5 w-5 text-white" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-gray-900">
                     {connectStatus.details_submitted
-                      ? "Stripe examine vos informations. Vous recevrez une confirmation sous 1 à 2 jours ouvrables."
-                      : "Connectez votre compte bancaire pour recevoir vos versements directement, de façon sécurisée via Stripe."}
+                      ? t("wallet.verificationInProgress")
+                      : t("wallet.receivePayments")}
                   </p>
+                  <p className="text-sm text-gray-600 mt-1 leading-relaxed">
+                    {connectStatus.details_submitted
+                      ? t("wallet.stripeVerifyingDesc")
+                      : t("wallet.connectBankDesc")}
+                  </p>
+                  <div className="flex items-center gap-3 mt-4">
+                    <Button
+                      onClick={handleConnectStripe}
+                      disabled={connectLoading}
+                      size="sm"
+                      className="bg-green-700 hover:bg-green-800 text-white rounded-lg"
+                    >
+                      {connectLoading
+                        ? <Spinner size="sm" />
+                        : connectStatus.details_submitted
+                          ? t("wallet.completeFile")
+                          : t("wallet.connectAccount")}
+                    </Button>
+                    <span className="text-xs text-gray-500 flex items-center gap-1">
+                      <CheckCircle2 className="h-3.5 w-3.5 text-gray-400" />
+                      {t("wallet.securedByStripe")}
+                    </span>
+                  </div>
                 </div>
               </div>
-              <div className="mt-5 flex items-center gap-3">
-                <Button
-                  onClick={handleConnectStripe}
-                  disabled={connectLoading}
-                  className="bg-green-700 hover:bg-green-800 text-white text-sm px-5 h-10 rounded-xl"
-                >
-                  {connectLoading ? <Spinner size="sm" /> : connectStatus.details_submitted ? "Compléter mon dossier" : "Connecter mon compte"}
-                </Button>
-                <p className="text-xs text-gray-400 flex items-center gap-1">
-                  <CheckCircle2 className="h-3.5 w-3.5 text-gray-300" />
-                  Sécurisé par Stripe
-                </p>
-              </div>
-            </div>
-            {connectStatus.details_submitted && (
-              <div className="px-6 py-3 bg-amber-50 border-t border-amber-100">
-                <p className="text-xs text-amber-700 flex items-center gap-1.5">
-                  <AlertCircle className="h-3.5 w-3.5 shrink-0" />
-                  Vos versements seront activés dès la validation de votre compte.
-                </p>
-              </div>
-            )}
-          </div>
+              {connectStatus.details_submitted && (
+                <div className="mt-4 flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5">
+                  <AlertCircle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
+                  <p className="text-xs text-amber-700">{t("wallet.payoutsWillActivate")}</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         )}
 
+        {/* Bank connected pill */}
         {connectStatus?.charges_enabled && (
           <div className="flex items-center gap-2 px-1">
-            <CheckCircle2 className="h-4 w-4 text-green-600" />
-            <p className="text-sm text-gray-500">Compte bancaire connecté —
-              <button onClick={handleConnectStripe} className="text-green-700 hover:underline ml-1 cursor-pointer">Gérer sur Stripe</button>
+            <CheckCircle2 className="h-4 w-4 text-green-600 shrink-0" />
+            <p className="text-sm text-gray-500">
+              {t("wallet.bankAccountConnected")} —{" "}
+              <button
+                onClick={handleConnectStripe}
+                className="text-green-700 hover:underline cursor-pointer"
+              >
+                {t("wallet.manageOnStripe")}
+              </button>
             </p>
           </div>
         )}
 
-        {/* Top summary cards */}
+        {/* Stats cards */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 sm:col-span-1 flex flex-col items-center justify-center text-center">
-            <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center mb-3">
-              <Wallet className="h-6 w-6 text-green-700" />
-            </div>
-            <p className="text-xs text-gray-500 mb-1">{t("wallet.availableBalance")}</p>
-            <p className="text-3xl font-extrabold text-green-700">{fmt(wallet?.balance ?? 0)} $</p>
-          </div>
+          {/* Balance */}
+          <Card className="sm:col-span-1 border-green-200 bg-gradient-to-br from-green-700 to-green-800 text-white shadow-md">
+            <CardContent className="pt-5 pb-5 px-5">
+              <p className="text-xs text-green-200 font-medium uppercase tracking-wide mb-2">
+                {t("wallet.availableBalance")}
+              </p>
+              <p className="text-3xl font-extrabold tracking-tight">
+                {fmt(wallet?.balance ?? 0)}&nbsp;$
+              </p>
+            </CardContent>
+          </Card>
 
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 flex items-center gap-4">
-            <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
-              <ArrowDownCircle className="h-5 w-5 text-green-600" />
-            </div>
-            <div>
-              <p className="text-xs text-gray-500">{t("wallet.totalEarned")}</p>
-              <p className="text-xl font-bold text-gray-900">{fmt(wallet?.total_earned ?? 0)} $</p>
-            </div>
-          </div>
+          {/* Earned */}
+          <Card className="shadow-sm">
+            <CardContent className="pt-5 pb-5 px-5 flex items-center gap-4">
+              <div className="h-10 w-10 rounded-xl bg-green-100 flex items-center justify-center shrink-0">
+                <TrendingUp className="h-5 w-5 text-green-600" />
+              </div>
+              <div>
+                <p className="text-xs text-gray-500 font-medium">{t("wallet.totalEarned")}</p>
+                <p className="text-xl font-bold text-gray-900 mt-0.5">
+                  {fmt(wallet?.total_earned ?? 0)}&nbsp;$
+                </p>
+              </div>
+            </CardContent>
+          </Card>
 
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 flex items-center gap-4">
-            <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
-              <ArrowUpCircle className="h-5 w-5 text-red-600" />
-            </div>
-            <div>
-              <p className="text-xs text-gray-500">{t("wallet.totalSpent")}</p>
-              <p className="text-xl font-bold text-gray-900">{fmt(wallet?.total_spent ?? 0)} $</p>
-            </div>
-          </div>
+          {/* Spent */}
+          <Card className="shadow-sm">
+            <CardContent className="pt-5 pb-5 px-5 flex items-center gap-4">
+              <div className="h-10 w-10 rounded-xl bg-red-100 flex items-center justify-center shrink-0">
+                <TrendingDown className="h-5 w-5 text-red-500" />
+              </div>
+              <div>
+                <p className="text-xs text-gray-500 font-medium">{t("wallet.totalSpent")}</p>
+                <p className="text-xl font-bold text-gray-900 mt-0.5">
+                  {fmt(wallet?.total_spent ?? 0)}&nbsp;$
+                </p>
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
-        {/* Payout breakdown */}
-        {(wallet?.available_for_payout ?? 0) > 0 || (wallet?.pending_amount ?? 0) > 0 ? (
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-            <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-100 flex items-center gap-2">
-              <Calendar className="h-4 w-4 text-green-700" />
-              <h2 className="text-base font-semibold text-gray-900">{t("wallet.nextPayout")}</h2>
-            </div>
-            <div className="px-4 sm:px-6 py-3 sm:py-4 space-y-3">
-
-              {/* Available for payout */}
+        {/* Next payout */}
+        {((wallet?.available_for_payout ?? 0) > 0 || (wallet?.pending_amount ?? 0) > 0) && (
+          <Card className="shadow-sm">
+            <CardHeader className="pb-3 pt-5 px-5">
+              <CardTitle className="text-base flex items-center gap-2 font-semibold text-gray-900">
+                <Calendar className="h-4 w-4 text-green-700" />
+                {t("wallet.nextPayout")}
+              </CardTitle>
+            </CardHeader>
+            <Separator />
+            <CardContent className="pt-4 pb-5 px-5 space-y-3">
               {(wallet?.available_for_payout ?? 0) > 0 && (
-                <div className="flex justify-between text-base font-bold">
-                  <span className="text-gray-900">{t("wallet.youWillReceive")}</span>
-                  <span className="text-green-700">{fmt(wallet?.available_for_payout ?? 0)} $</span>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-gray-700">{t("wallet.youWillReceive")}</span>
+                  <span className="text-lg font-bold text-green-700">{fmt(wallet?.available_for_payout ?? 0)}&nbsp;$</span>
                 </div>
               )}
-
-              {/* Pending */}
               {(wallet?.pending_amount ?? 0) > 0 && (
-                <div className="flex items-start gap-2 bg-amber-50 rounded-lg p-3 mt-2">
-                  <AlertCircle className="h-4 w-4 text-amber-500 mt-0.5 flex-shrink-0" />
-                  <p className="text-xs text-amber-700">
+                <div className="flex items-start gap-2 bg-amber-50 border border-amber-100 rounded-lg p-3">
+                  <AlertCircle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
+                  <p className="text-xs text-amber-700 leading-relaxed">
                     {t("wallet.pendingInfo", { amount: fmt(wallet?.pending_amount ?? 0) })}
                   </p>
                 </div>
               )}
-
-              {/* Next payout date */}
               {wallet?.next_payout_date && (
-                <div className="flex justify-between text-sm border-t border-gray-100 pt-3">
-                  <span className="text-gray-500">{t("wallet.nextPayoutDate")}</span>
-                  <span className="font-medium text-gray-800">{formatPayoutDate(wallet.next_payout_date)}</span>
-                </div>
+                <>
+                  <Separator />
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-500">{t("wallet.nextPayoutDate")}</span>
+                    <span className="text-sm font-medium text-gray-800">
+                      {formatPayoutDate(wallet.next_payout_date, lang)}
+                    </span>
+                  </div>
+                </>
               )}
-            </div>
-          </div>
-        ) : null}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Transaction history */}
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-100">
-            <h2 className="text-base font-semibold text-gray-900 mb-3">{t("wallet.transactionHistory")}</h2>
-            <div className="flex flex-wrap gap-1.5 sm:gap-2">
-              {PERIODS.map((p) => (
-                <Button
-                  key={p.key}
-                  size="sm"
-                  variant={period === p.key ? "default" : "outline"}
-                  onClick={() => setPeriod(p.key)}
-                  className={`text-xs px-3 py-1 h-auto ${period === p.key ? "bg-green-600 hover:bg-green-700 text-white" : ""}`}
-                >
-                  {t(p.labelKey)}
-                </Button>
-              ))}
-            </div>
+        <Card className="shadow-sm overflow-hidden">
+          <CardHeader className="pb-3 pt-5 px-5">
+            <CardTitle className="text-base font-semibold text-gray-900">
+              {t("wallet.transactionHistory")}
+            </CardTitle>
+          </CardHeader>
+
+          {/* Period tabs */}
+          <div className="px-5 pb-4 overflow-x-auto">
+            <Tabs value={period} onValueChange={(v) => setPeriod(v as Period)}>
+              <TabsList className="h-8 gap-0.5 bg-gray-100">
+                {PERIODS.map((p) => (
+                  <TabsTrigger
+                    key={p.key}
+                    value={p.key}
+                    className="text-xs px-2.5 h-6 data-[state=active]:bg-white data-[state=active]:text-green-700 data-[state=active]:font-semibold"
+                  >
+                    {t(p.labelKey)}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+            </Tabs>
           </div>
 
+          <Separator />
+
           {txLoading ? (
-            <div className="flex justify-center py-12">
-              <Spinner size="md" />
-            </div>
+            <CardContent className="pt-5 pb-5 space-y-4">
+              {[...Array(3)].map((_, i) => (
+                <div key={i} className="flex items-center gap-3">
+                  <Skeleton className="h-9 w-9 rounded-full shrink-0" />
+                  <div className="flex-1 space-y-1.5">
+                    <Skeleton className="h-4 w-3/4" />
+                    <Skeleton className="h-3 w-1/2" />
+                  </div>
+                  <Skeleton className="h-5 w-16" />
+                </div>
+              ))}
+            </CardContent>
           ) : transactions.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 text-gray-400">
-              <Clock className="h-10 w-10 mb-3 text-gray-300" />
-              <p className="font-bold text-gray-700">
+            <CardContent className="flex flex-col items-center justify-center py-16 text-center">
+              <div className="h-14 w-14 rounded-full bg-gray-100 flex items-center justify-center mb-3">
+                <Clock className="h-7 w-7 text-gray-300" />
+              </div>
+              <p className="font-semibold text-gray-700">
                 {period === "all"
                   ? t("wallet.noTransactions")
                   : t("wallet.noTransactionsInPeriod", { period: currentPeriodLabel })}
               </p>
-              <Link href="/listings" className="text-sm text-green-700 hover:underline mt-4">
+              <Link href="/listings" className="text-sm text-green-700 hover:underline mt-3">
                 {t("wallet.browseListings")}
               </Link>
-            </div>
+            </CardContent>
           ) : (
             <ul className="divide-y divide-gray-100">
               {transactions.map((tx) => (
-                <li key={tx.id} className="flex items-center gap-3 px-3 sm:px-6 py-3 sm:py-4 hover:bg-gray-50 transition-colors">
-                  <div className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 ${
-                    tx.type === "credit" ? "bg-green-100" : "bg-red-100"
-                  }`}>
+                <li
+                  key={tx.id}
+                  className="flex items-center gap-3 px-5 py-3.5 hover:bg-gray-50 transition-colors"
+                >
+                  <div
+                    className={`h-9 w-9 rounded-full flex items-center justify-center shrink-0 ${
+                      tx.type === "credit" ? "bg-green-100" : "bg-red-100"
+                    }`}
+                  >
                     {tx.type === "credit"
                       ? <ArrowDownCircle className="h-5 w-5 text-green-600" />
-                      : <ArrowUpCircle className="h-5 w-5 text-red-600" />
+                      : <ArrowUpCircle className="h-5 w-5 text-red-500" />
                     }
                   </div>
+
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-gray-900 truncate">
                       {tx.listing_title ?? tx.description}
                     </p>
-                    <div className="flex items-center gap-2 mt-0.5">
+                    <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
                       {tx.other_user_name && (
                         <span className="text-xs text-gray-500">
-                          {tx.type === "credit" ? t("wallet.from") : t("wallet.to")} {tx.other_user_name}
+                          {tx.type === "credit" ? t("wallet.from") : t("wallet.to")}&nbsp;{tx.other_user_name}
                         </span>
                       )}
-                      <span className="text-xs text-gray-400">·</span>
-                      <span className="text-xs text-gray-400">{formatDate(tx.created_at)}</span>
+                      <span className="text-xs text-gray-300">·</span>
+                      <span className="text-xs text-gray-400">{formatDate(tx.created_at, lang)}</span>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <span className={`text-base font-bold ${
-                      tx.type === "credit" ? "text-green-700" : "text-red-600"
-                    }`}>
-                      {tx.type === "credit" ? "+" : "−"}{fmt(tx.amount)} $
-                    </span>
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    <Badge
+                      variant="secondary"
+                      className={`text-xs font-semibold px-2 py-0.5 ${
+                        tx.type === "credit"
+                          ? "bg-green-100 text-green-700"
+                          : "bg-red-100 text-red-600"
+                      }`}
+                    >
+                      {tx.type === "credit" ? "+" : "−"}{fmt(tx.amount)}&nbsp;$
+                    </Badge>
                     {tx.booking_id && (
                       <Link href="/bookings">
-                        <ChevronRight className="h-4 w-4 text-gray-300 hover:text-gray-500" />
+                        <ChevronRight className="h-4 w-4 text-gray-300 hover:text-gray-500 transition-colors" />
                       </Link>
                     )}
                   </div>
@@ -342,7 +461,8 @@ export default function WalletPage() {
               ))}
             </ul>
           )}
-        </div>
+        </Card>
+
       </main>
     </div>
   );

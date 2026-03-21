@@ -16,7 +16,6 @@ export function useDeleteMessage() {
 
         return true;
     } catch (error) {
-        console.error('Error deleting message:', error);
         throw error;
     }
     };

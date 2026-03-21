@@ -77,8 +77,10 @@ export const GetDisputes = async (req, res) => {
         const { id } = req.params;
 
         const result = await pool.query(
-            `SELECT * FROM disputes WHERE id = $1`,
-            [id]
+            `SELECT d.* FROM disputes d
+             JOIN bookings b ON b.id = d.booking_id
+             WHERE d.id = $1 AND (b.client_id = $2 OR b.worker_id = $2)`,
+            [id, req.user.id]
         );
 
         if (result.rows.length === 0) {

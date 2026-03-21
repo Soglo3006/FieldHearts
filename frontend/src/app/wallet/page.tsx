@@ -5,6 +5,8 @@ import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useStartConversation } from "@/hooks/useStartConversation";
+import BookingDetailModal, { type BookingDetail } from "@/components/bookings/BookingDetailModal";
 import {
   Wallet,
   ArrowDownCircle,
@@ -82,28 +84,63 @@ function formatPayoutDate(dateStr: string, lang: string) {
 
 function WalletSkeleton() {
   return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        {[...Array(3)].map((_, i) => (
-          <Card key={i}>
-            <CardContent className="pt-6 pb-5">
-              <Skeleton className="h-4 w-24 mb-3" />
-              <Skeleton className="h-8 w-32" />
-            </CardContent>
-          </Card>
-        ))}
+    <div className="space-y-5">
+      {/* Title row */}
+      <div className="flex items-center gap-3">
+        <Skeleton className="h-10 w-10 rounded-xl" />
+        <Skeleton className="h-7 w-36" />
       </div>
-      <Card>
-        <CardHeader><Skeleton className="h-5 w-40" /></CardHeader>
-        <CardContent className="space-y-3">
-          {[...Array(4)].map((_, i) => (
+
+      {/* Stat cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {/* Balance card — taller, dark */}
+        <Card className="shadow-md overflow-hidden">
+          <CardContent className="pt-5 pb-5 px-5">
+            <Skeleton className="h-3 w-28 mb-3" />
+            <Skeleton className="h-9 w-36" />
+          </CardContent>
+        </Card>
+        {/* Earned */}
+        <Card className="shadow-sm">
+          <CardContent className="pt-5 pb-5 px-5 flex items-center gap-4">
+            <Skeleton className="h-10 w-10 rounded-xl shrink-0" />
+            <div className="space-y-2">
+              <Skeleton className="h-3 w-20" />
+              <Skeleton className="h-6 w-24" />
+            </div>
+          </CardContent>
+        </Card>
+        {/* Spent */}
+        <Card className="shadow-sm">
+          <CardContent className="pt-5 pb-5 px-5 flex items-center gap-4">
+            <Skeleton className="h-10 w-10 rounded-xl shrink-0" />
+            <div className="space-y-2">
+              <Skeleton className="h-3 w-20" />
+              <Skeleton className="h-6 w-24" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Transaction card */}
+      <Card className="shadow-sm overflow-hidden">
+        <CardHeader className="pb-3 pt-5 px-5">
+          <Skeleton className="h-5 w-48" />
+        </CardHeader>
+        {/* Tabs row */}
+        <div className="px-5 pb-4">
+          <Skeleton className="h-8 w-full rounded-md" />
+        </div>
+        <Separator />
+        <CardContent className="pt-4 pb-2 space-y-4">
+          {[...Array(5)].map((_, i) => (
             <div key={i} className="flex items-center gap-3">
               <Skeleton className="h-9 w-9 rounded-full shrink-0" />
               <div className="flex-1 space-y-1.5">
                 <Skeleton className="h-4 w-3/4" />
                 <Skeleton className="h-3 w-1/2" />
               </div>
-              <Skeleton className="h-5 w-16" />
+              <Skeleton className="h-6 w-16 rounded-full" />
             </div>
           ))}
         </CardContent>
@@ -129,6 +166,9 @@ export default function WalletPage() {
     details_submitted: boolean;
   } | null>(null);
   const [connectLoading, setConnectLoading] = useState(false);
+  const [detailBooking, setDetailBooking] = useState<{ booking: BookingDetail; role: "worker" | "client" } | null>(null);
+  const [detailLoading, setDetailLoading] = useState<string | null>(null);
+  const { startConversation } = useStartConversation();
 
   useEffect(() => {
     if (authLoading) return;
@@ -162,6 +202,23 @@ export default function WalletPage() {
       .finally(() => setTxLoading(false));
   }, [period]);
 
+  const handleOpenBooking = async (tx: Transaction) => {
+    if (!tx.booking_id || !session?.access_token) return;
+    setDetailLoading(tx.id);
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/bookings/${tx.booking_id}`, {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      const role: "worker" | "client" = tx.type === "credit" ? "worker" : "client";
+      setDetailBooking({ booking: data as BookingDetail, role });
+    } catch {
+    } finally {
+      setDetailLoading(null);
+    }
+  };
+
   const handleConnectStripe = async () => {
     if (!session?.access_token) return;
     setConnectLoading(true);
@@ -181,8 +238,7 @@ export default function WalletPage() {
   if (authLoading || loading) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <main className="max-w-3xl mx-auto px-4 py-10">
-          <Skeleton className="h-8 w-40 mb-8" />
+        <main className="max-w-3xl mx-auto px-3 sm:px-4 py-6 sm:py-10">
           <WalletSkeleton />
         </main>
       </div>
@@ -325,7 +381,7 @@ export default function WalletPage() {
             <Separator />
             <CardContent className="pt-4 pb-5 px-5 space-y-3">
               {(wallet?.available_for_payout ?? 0) > 0 && (
-                <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
                   <span className="text-sm font-medium text-gray-700">{t("wallet.youWillReceive")}</span>
                   <span className="text-lg font-bold text-green-700">{fmt(wallet?.available_for_payout ?? 0)}&nbsp;$</span>
                 </div>
@@ -412,7 +468,8 @@ export default function WalletPage() {
               {transactions.map((tx) => (
                 <li
                   key={tx.id}
-                  className="flex items-center gap-3 px-5 py-3.5 hover:bg-gray-50 transition-colors"
+                  onClick={() => tx.booking_id && handleOpenBooking(tx)}
+                  className={`flex items-center gap-3 px-5 py-3.5 transition-colors ${tx.booking_id ? "cursor-pointer hover:bg-gray-50" : ""}`}
                 >
                   <div
                     className={`h-9 w-9 rounded-full flex items-center justify-center shrink-0 ${
@@ -452,9 +509,9 @@ export default function WalletPage() {
                       {tx.type === "credit" ? "+" : "−"}{fmt(tx.amount)}&nbsp;$
                     </Badge>
                     {tx.booking_id && (
-                      <Link href="/bookings">
-                        <ChevronRight className="h-4 w-4 text-gray-300 hover:text-gray-500 transition-colors" />
-                      </Link>
+                      detailLoading === tx.id
+                        ? <div className="h-4 w-4 rounded-full border-2 border-gray-300 border-t-gray-500 animate-spin" />
+                        : <ChevronRight className="h-4 w-4 text-gray-300" />
                     )}
                   </div>
                 </li>
@@ -464,6 +521,23 @@ export default function WalletPage() {
         </Card>
 
       </main>
+
+      {detailBooking && session?.access_token && (
+        <BookingDetailModal
+          booking={detailBooking.booking}
+          userRole={detailBooking.role}
+          accessToken={session.access_token}
+          onClose={() => setDetailBooking(null)}
+          onUpdated={(id, updates) =>
+            setDetailBooking((prev) =>
+              prev ? { ...prev, booking: { ...prev.booking, ...updates } } : prev
+            )
+          }
+          onMessage={(userId) => { setDetailBooking(null); startConversation(userId); }}
+          onOpenReview={() => setDetailBooking(null)}
+          onOpenDispute={() => setDetailBooking(null)}
+        />
+      )}
     </div>
   );
 }

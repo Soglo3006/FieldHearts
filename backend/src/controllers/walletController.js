@@ -32,7 +32,7 @@ export const getWallet = async (req, res) => {
     // ── Payout breakdown ──────────────────────────────────────────────────────
     const eligibilityCutoff = subtractBusinessDays(new Date(), MIN_BUSINESS_DAYS);
 
-    // Available for payout: unpaid credits older than 5 business days
+    // Available for payout: completed credits older than 5 business days
     const availableResult = await pool.query(
       `SELECT COALESCE(SUM(t.amount), 0) AS total
        FROM transactions t
@@ -40,12 +40,13 @@ export const getWallet = async (req, res) => {
        JOIN payments p ON p.booking_id = t.booking_id AND p.status = 'paid'
        WHERE t.user_id = $1
          AND t.type = 'credit'
+         AND b.status = 'completed'
          AND b.payment_status = 'paid'
          AND t.created_at <= $2`,
       [userId, eligibilityCutoff.toISOString()]
     );
 
-    // Pending: unpaid credits newer than 5 business days
+    // Pending: completed credits newer than 5 business days
     const pendingResult = await pool.query(
       `SELECT COALESCE(SUM(t.amount), 0) AS total
        FROM transactions t
@@ -53,6 +54,7 @@ export const getWallet = async (req, res) => {
        JOIN payments p ON p.booking_id = t.booking_id AND p.status = 'paid'
        WHERE t.user_id = $1
          AND t.type = 'credit'
+         AND b.status = 'completed'
          AND b.payment_status = 'paid'
          AND t.created_at > $2`,
       [userId, eligibilityCutoff.toISOString()]
@@ -125,14 +127,14 @@ export const exportTransactions = async (req, res) => {
          COALESCE(p.full_name, p.company_name, 'Unknown')                 AS "Utilisateur",
          t.other_user_name                                                 AS "Autre partie",
          t.listing_title                                                   AS "Titre du service",
-         b.price                                                           AS "Prix de base (CAD)",
-         ROUND(b.price * 0.05, 2)                                         AS "Commission acheteur 5% (CAD)",
-         ROUND(b.price * 0.05, 2)                                         AS "TPS 5% (CAD)",
-         ROUND(b.price * 0.09975, 2)                                      AS "TVQ 9.975% (CAD)",
-         ROUND(b.price * 0.14975, 2)                                      AS "Total taxes (CAD)",
-         ROUND(b.price * 1.19975, 2)                                      AS "Total facturé au client (CAD)",
-         ROUND(b.price * 0.20, 2)                                         AS "Commission plateforme 20% (CAD)",
-         ROUND(b.price * 0.80, 2)                                         AS "Versement prestataire 80% (CAD)",
+         COALESCE(b.custom_price, b.price)                                  AS "Prix de base (CAD)",
+         ROUND(COALESCE(b.custom_price, b.price) * 0.05, 2)              AS "Commission acheteur 5% (CAD)",
+         ROUND(COALESCE(b.custom_price, b.price) * 0.05, 2)              AS "TPS 5% (CAD)",
+         ROUND(COALESCE(b.custom_price, b.price) * 0.09975, 2)           AS "TVQ 9.975% (CAD)",
+         ROUND(COALESCE(b.custom_price, b.price) * 0.14975, 2)           AS "Total taxes (CAD)",
+         ROUND(COALESCE(b.custom_price, b.price) * 1.19975, 2)           AS "Total facturé au client (CAD)",
+         ROUND(COALESCE(b.custom_price, b.price) * 0.20, 2)              AS "Commission plateforme 20% (CAD)",
+         ROUND(COALESCE(b.custom_price, b.price) * 0.80, 2)              AS "Versement prestataire 80% (CAD)",
          t.amount                                                          AS "Montant transaction (CAD)",
          COALESCE(b.status, '—')                                          AS "Statut réservation"
        FROM transactions t

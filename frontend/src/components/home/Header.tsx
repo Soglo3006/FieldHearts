@@ -1,7 +1,7 @@
 // frontend/src/components/home/Header.tsx
 "use client";
 import { useTranslation } from "react-i18next";
-import { Search, User, Settings, LogOut, Building2, List, Wallet, X, CalendarDays, Menu, Heart, MessageCircle, Bell, ChevronLeft, Check, Trash2, Loader2 } from "lucide-react";
+import { Search, User, Settings, LogOut, Building2, List, Wallet, X, CalendarDays, Menu, Heart, MessageCircle, Bell, ChevronLeft, Check, Trash2, Loader2, ShieldCheck } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
 import {
@@ -27,6 +27,7 @@ import { ButtonGroup } from "@/components/ui/button-group";
 import { Badge } from "@/components/ui/badge";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
+import { isAdminUser } from "@/lib/auth";
 import Link from "next/link";
 import SettingsPage from "@/components/profile/Settings";
 import { useRef, useState, useEffect } from "react";
@@ -237,6 +238,17 @@ export default function Header() {
             <span>{t("header.settings")}</span>
           </div>
         </DropdownMenuItem>
+        {isAdminUser(user) && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem asChild>
+              <Link href="/admin" className="cursor-pointer flex items-center text-green-700">
+                <ShieldCheck className="mr-2 h-4 w-4" />
+                <span>Admin</span>
+              </Link>
+            </DropdownMenuItem>
+          </>
+        )}
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer text-red-600 focus:text-red-600">
           <LogOut className="mr-2 h-4 w-4" />
@@ -648,6 +660,11 @@ export default function Header() {
                       <button onClick={() => { setMobileMenuOpen(false); setShowSettings(true); }} className="cursor-pointer w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors text-left">
                         <Settings className="h-5 w-5 text-gray-400" /> {t("header.settings")}
                       </button>
+                      {isAdminUser(user) && (
+                        <Link href="/admin" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm text-green-700 font-medium hover:bg-green-50 transition-colors">
+                          <ShieldCheck className="h-5 w-5" /> Admin
+                        </Link>
+                      )}
                       <div className="border-t border-gray-100 mt-1 pt-1">
                         <button onClick={() => { setMobileMenuOpen(false); handleSignOut(); }} className="cursor-pointer w-full flex items-center gap-3 px-4 py-3 text-sm text-red-600 hover:bg-red-50 transition-colors">
                           <LogOut className="h-5 w-5" /> {t("header.logOut")}

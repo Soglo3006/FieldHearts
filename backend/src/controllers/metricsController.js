@@ -79,12 +79,15 @@ export const getMetrics = async (_req, res) => {
       // 12. Disputes by status
       pool.query(`SELECT status, COUNT(*) AS count FROM disputes GROUP BY status`),
 
-      // 13. Transaction volume (total money moved + commissions)
+      // 13. Transaction volume (total money moved + platform revenue)
+      // debit = client payments, credit = worker earnings (80% of service price)
+      // platform revenue = debit total - credit total (buyer commission + seller commission - taxes remitted)
       pool.query(`
         SELECT
-          COALESCE(SUM(CASE WHEN type = 'payment' THEN amount ELSE 0 END), 0) AS total_transacted,
-          COALESCE(SUM(CASE WHEN type = 'commission' THEN amount ELSE 0 END), 0) AS total_revenue,
-          COALESCE(SUM(CASE WHEN type = 'refund' THEN amount ELSE 0 END), 0) AS total_refunded
+          COALESCE(SUM(CASE WHEN type = 'debit' THEN amount ELSE 0 END), 0)  AS total_transacted,
+          COALESCE(SUM(CASE WHEN type = 'credit' THEN amount ELSE 0 END), 0) AS total_paid_out,
+          COALESCE(SUM(CASE WHEN type = 'debit' THEN amount ELSE 0 END), 0)
+            - COALESCE(SUM(CASE WHEN type = 'credit' THEN amount ELSE 0 END), 0) AS total_revenue
         FROM transactions
       `),
 

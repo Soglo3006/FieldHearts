@@ -11,6 +11,7 @@ import Link from "next/link";
 interface Booking {
   id: string;
   price: number;
+  custom_price: number | null;
   title: string;
   image_url: string | null;
   location: string;
@@ -79,7 +80,7 @@ export default function PaymentSuccessPage() {
               </div>
               <div className="mt-4 pt-4 border-t border-gray-200 space-y-1.5 text-sm">
                 {(() => {
-                  const price = Number(booking.price);
+                  const price = Number(booking.custom_price ?? booking.price);
                   const buyerCommission = price * 0.05;
                   const gst             = price * 0.05;
                   const qst             = price * 0.09975;

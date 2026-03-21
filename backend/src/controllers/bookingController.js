@@ -293,19 +293,20 @@ export const markCompleted = async (req, res) => {
       sendEmail(b.worker_email, "jobMarkedDone", [b.worker_name, b.client_name, b.title, id]);
     }
 
-    // Re-fetch to check if BOTH have now completed
-    const updated = await pool.query(
-      "SELECT * FROM bookings WHERE id = $1",
+    // Atomic UPDATE: only succeeds if BOTH flags are true AND status is still 'active'
+    // This prevents double finalization if two requests arrive simultaneously
+    const finalizeResult = await pool.query(
+      `UPDATE bookings SET status = 'completed'
+       WHERE id = $1 AND status = 'active' AND completed_by_worker = true AND completed_by_client = true
+       RETURNING *`,
       [id]
     );
+
+    const updated = await pool.query("SELECT * FROM bookings WHERE id = $1", [id]);
     const u = updated.rows[0];
 
-    if (u.completed_by_worker && u.completed_by_client) {
-      // Both confirmed — finalize
-      await pool.query(
-        "UPDATE bookings SET status = 'completed' WHERE id = $1",
-        [id]
-      );
+    if (finalizeResult.rowCount > 0) {
+      // Only entered by the one request that actually did the UPDATE
       // Only deactivate one-time listings — recurring listings stay active
       if (b.is_one_time) {
         await pool.query(
@@ -320,8 +321,9 @@ export const markCompleted = async (req, res) => {
       );
 
       // Both confirmed — send completion emails to both
-      const totalPaid = (Number(b.price) * 1.19975).toFixed(2);
-      const workerReceives = (Number(b.price) * 0.80).toFixed(2);
+      const effectivePrice = Number(b.custom_price ?? b.price);
+      const totalPaid = (effectivePrice * 1.19975).toFixed(2);
+      const workerReceives = (effectivePrice * 0.80).toFixed(2);
       sendEmail(b.client_email, "jobCompleted", [b.client_name, b.title, b.worker_name, totalPaid, id, "client"]);
       sendEmail(b.worker_email, "jobCompleted", [b.worker_name, b.title, b.client_name, workerReceives, id, "worker"]);
 
@@ -355,6 +357,12 @@ export const customizeBooking = async (req, res) => {
 
     if (b.worker_id !== req.user.id) return res.status(403).json({ message: "Only the provider can customize this request" });
     if (!["pending", "accepted"].includes(b.status)) return res.status(400).json({ message: "Can only customize pending or accepted requests" });
+    if (custom_price !== undefined) {
+      const parsed = Number(custom_price);
+      if (isNaN(parsed) || parsed <= 0 || parsed > 100000) {
+        return res.status(400).json({ message: "Invalid price" });
+      }
+    }
 
     // Track which fields changed
     const modifiedFields = [];
@@ -497,11 +505,19 @@ export const getBookingById = async (req, res) => {
   try {
     const { id } = req.params;
     const result = await pool.query(
-      `SELECT b.*, s.title, s.price, s.image_url, s.location, s.city,
-              CASE WHEN u.account_type = 'company' THEN u.company_name ELSE u.full_name END AS worker_name
+      `SELECT b.*, s.title, s.price, s.image_url, s.category, s.location AS service_location,
+              s.is_one_time, s.type AS service_type,
+              CASE WHEN uw.account_type = 'company' THEN uw.company_name ELSE uw.full_name END AS worker_name,
+              CASE WHEN uc.account_type = 'company' THEN uc.company_name ELSE uc.full_name END AS client_name,
+              EXISTS(SELECT 1 FROM reviews WHERE booking_id = b.id AND reviewer_id = $2) AS has_reviewed,
+              EXISTS(SELECT 1 FROM disputes WHERE booking_id = b.id) AS has_dispute,
+              b.payment_status, b.completed_by_worker, b.completed_by_client,
+              b.worker_note, b.custom_price, b.last_modified_at, b.modified_fields,
+              b.cancel_requested_by, b.cancel_reason
        FROM bookings b
        JOIN services s ON b.service_id = s.id
-       JOIN users u ON b.worker_id = u.id
+       JOIN users uw ON b.worker_id = uw.id
+       JOIN users uc ON b.client_id = uc.id
        WHERE b.id = $1 AND (b.client_id = $2 OR b.worker_id = $2)`,
       [id, req.user.id]
     );
@@ -553,8 +569,10 @@ async function autoRejectOtherRequests(serviceId, acceptedBookingId) {
 }
 
 async function finalizeCompletion(booking) {
-  // Worker receives 80% of the service price (platform keeps 20% commission)
-  const workerReceives = Number(booking.price) * 0.80;
+  // Use custom_price if worker adjusted it, otherwise the original service price
+  const effectivePrice = Number(booking.custom_price ?? booking.price);
+  // Worker receives 80% (platform keeps 20% commission)
+  const workerReceives = effectivePrice * 0.80;
 
   // Ensure worker wallet exists
   await pool.query(
@@ -562,21 +580,25 @@ async function finalizeCompletion(booking) {
     [booking.worker_id]
   );
 
-  // Credit worker wallet (client debit was already recorded at payment time)
-  await pool.query(
-    `UPDATE wallets
-     SET balance = balance + $1, total_earned = total_earned + $1, updated_at = NOW()
-     WHERE user_id = $2`,
-    [workerReceives, booking.worker_id]
+  // Guard both the transaction insert AND the wallet update against duplicates
+  const existingCredit = await pool.query(
+    "SELECT id FROM transactions WHERE booking_id = $1 AND type = 'credit'",
+    [booking.id]
   );
-
-  // Record worker's credit transaction
-  await pool.query(
-    `INSERT INTO transactions (user_id, booking_id, type, amount, description, other_user_name, listing_title)
-     VALUES ($1, $2, 'credit', $3, 'Paiement reçu pour travail complété', $4, $5)
-     ON CONFLICT DO NOTHING`,
-    [booking.worker_id, booking.id, workerReceives, booking.client_name, booking.title]
-  );
+  if (existingCredit.rows.length === 0) {
+    await pool.query(
+      `INSERT INTO transactions (user_id, booking_id, type, amount, description, other_user_name, listing_title)
+       VALUES ($1, $2, 'credit', $3, 'Paiement reçu pour travail complété', $4, $5)`,
+      [booking.worker_id, booking.id, workerReceives, booking.client_name, booking.title]
+    );
+    // Only credit wallet if transaction didn't already exist
+    await pool.query(
+      `UPDATE wallets
+       SET balance = balance + $1, total_earned = total_earned + $1, updated_at = NOW()
+       WHERE user_id = $2`,
+      [workerReceives, booking.worker_id]
+    );
+  }
 
   // Notify worker: payment received
   createNotification({

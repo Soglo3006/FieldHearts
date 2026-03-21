@@ -5,7 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 export interface BookingNotif {
   id: string;
   service_title: string;
-  other_name: string;  
+  other_name: string;
   other_avatar: string | null;
   status: string;
   created_at: string;
@@ -13,19 +13,15 @@ export interface BookingNotif {
   seen: boolean;
 }
 
-const STORAGE_KEY = (userId: string) => `booking_seen_${userId}`;
+// Same keys as bookings/page.tsx so the two systems stay in sync
+const RECEIVED_SEEN_KEY = (uid: string) => `bookings_received_seen_${uid}`;
+const SENT_SEEN_KEY     = (uid: string) => `bookings_sent_seen_${uid}`;
 
-function getSeenIds(userId: string): Set<string> {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY(userId));
-    return new Set(raw ? JSON.parse(raw) : []);
-  } catch { return new Set(); }
+function lsGetIds(key: string): Set<string> {
+  try { return new Set(JSON.parse(localStorage.getItem(key) ?? "[]")); } catch { return new Set(); }
 }
-
-function saveSeenIds(userId: string, ids: Set<string>) {
-  try {
-    localStorage.setItem(STORAGE_KEY(userId), JSON.stringify([...ids]));
-  } catch {}
+function lsSaveIds(key: string, ids: Set<string>) {
+  try { localStorage.setItem(key, JSON.stringify([...ids])); } catch {}
 }
 
 export function useUnreadBookings() {
@@ -36,9 +32,10 @@ export function useUnreadBookings() {
   const fetchNotifs = useCallback(async () => {
     if (!user) return;
 
-    const seenIds = getSeenIds(user.id);
+    const seenReceived = lsGetIds(RECEIVED_SEEN_KEY(user.id));
+    const seenSent     = lsGetIds(SENT_SEEN_KEY(user.id));
 
-    // Fetch worker side: pending bookings (no join — FK not set on worker_id/client_id)
+    // Worker side: pending requests (badge on "Received" tab)
     const { data: workerBookings } = await supabase
       .from("bookings")
       .select("id, status, created_at, service_id, client_id")
@@ -47,18 +44,17 @@ export function useUnreadBookings() {
       .order("created_at", { ascending: false })
       .limit(10);
 
-    // Fetch client side: accepted/refused/completed bookings (last 30 days)
+    // Client side: accepted / refused responses (badge on "Sent" tab)
     const since = new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString();
     const { data: clientBookings } = await supabase
       .from("bookings")
       .select("id, status, created_at, service_id, worker_id")
       .eq("client_id", user.id)
-      .in("status", ["accepted", "refused", "completed"])
+      .in("status", ["accepted", "refused"])
       .gte("created_at", since)
       .order("created_at", { ascending: false })
       .limit(10);
 
-    // Collect IDs to fetch in bulk
     const serviceIds = [
       ...new Set([
         ...(workerBookings || []).map((b) => b.service_id),
@@ -98,7 +94,7 @@ export function useUnreadBookings() {
         status: b.status,
         created_at: b.created_at,
         role: "worker",
-        seen: seenIds.has(b.id),
+        seen: seenReceived.has(b.id),
       });
     }
 
@@ -113,11 +109,10 @@ export function useUnreadBookings() {
         status: b.status,
         created_at: b.created_at,
         role: "client",
-        seen: seenIds.has(b.id),
+        seen: seenSent.has(b.id),
       });
     }
 
-    // Sort: unseen first, then by date
     result.sort((a, b) => {
       if (a.seen !== b.seen) return a.seen ? 1 : -1;
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
@@ -140,26 +135,46 @@ export function useUnreadBookings() {
       .on("postgres_changes", { event: "*", schema: "public", table: "bookings" }, fetchNotifs)
       .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
+    // Re-fetch when bookings page marks items as seen
+    const onSeenUpdated = () => fetchNotifs();
+    window.addEventListener("bookings-seen-updated", onSeenUpdated);
+
+    return () => {
+      supabase.removeChannel(channel);
+      window.removeEventListener("bookings-seen-updated", onSeenUpdated);
+    };
   }, [user, fetchNotifs]);
-
-  const markSeen = useCallback((id: string) => {
-    if (!user) return;
-    const seenIds = getSeenIds(user.id);
-    seenIds.add(id);
-    saveSeenIds(user.id, seenIds);
-    setNotifs((prev) => prev.map((n) => n.id === id ? { ...n, seen: true } : n));
-  }, [user]);
-
-  const markAllSeen = useCallback(() => {
-    if (!user) return;
-    const seenIds = getSeenIds(user.id);
-    notifs.forEach((n) => seenIds.add(n.id));
-    saveSeenIds(user.id, seenIds);
-    setNotifs((prev) => prev.map((n) => ({ ...n, seen: true })));
-  }, [user, notifs]);
 
   const unseenCount = notifs.filter((n) => !n.seen).length;
 
-  return { notifs, loading, unseenCount, markSeen, markAllSeen };
+  const markSeen = useCallback((id: string) => {
+    if (!user) return;
+    const notif = notifs.find((n) => n.id === id);
+    if (!notif) return;
+    const key = notif.role === "worker"
+      ? RECEIVED_SEEN_KEY(user.id)
+      : SENT_SEEN_KEY(user.id);
+    const ids = lsGetIds(key);
+    ids.add(id);
+    lsSaveIds(key, ids);
+    setNotifs((prev) => prev.map((n) => n.id === id ? { ...n, seen: true } : n));
+  }, [user, notifs]);
+
+  const markAllSeen = useCallback(() => {
+    if (!user) return;
+    const recIds = lsGetIds(RECEIVED_SEEN_KEY(user.id));
+    const sentIds = lsGetIds(SENT_SEEN_KEY(user.id));
+    notifs.forEach((n) => {
+      if (n.role === "worker") recIds.add(n.id);
+      else sentIds.add(n.id);
+    });
+    lsSaveIds(RECEIVED_SEEN_KEY(user.id), recIds);
+    lsSaveIds(SENT_SEEN_KEY(user.id), sentIds);
+    setNotifs((prev) => prev.map((n) => ({ ...n, seen: true })));
+    window.dispatchEvent(new Event("bookings-seen-updated"));
+  }, [user, notifs]);
+
+  const markReadByLink = useCallback((_linkSubstring: string) => {}, []);
+
+  return { notifs, loading, unseenCount, markSeen, markAllSeen, markReadByLink };
 }

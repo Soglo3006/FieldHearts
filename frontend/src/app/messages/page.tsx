@@ -304,7 +304,7 @@ function MessagesContent() {
 
         <div className="flex-1 max-w-[1600px] w-full mx-auto p-0 sm:p-5 min-h-0 flex flex-col">
           <div className="bg-white sm:rounded-xl shadow-sm overflow-hidden flex-1 min-h-0">
-            <div className="flex h-full min-h-0">
+            <div className="flex h-full min-h-0 overflow-hidden">
 
               {/* Colonne 1 : Liste des conversations */}
               <div className={`${showMobileChat ? 'hidden' : 'flex'} md:flex w-full md:w-64 lg:w-80 border-r flex-col bg-white min-h-0`}>
@@ -320,7 +320,7 @@ function MessagesContent() {
               </div>
 
               {/* Colonne 2 : Zone de messages */}
-              <div className={`${(isLargeScreen || (isMobile ? showMobileChat : true)) && (!showMobileSidebar || isLargeScreen) ? 'flex' : 'hidden'} flex-1 min-w-0 flex-col bg-white min-h-0 overflow-hidden`}>
+              <div className={`${(isLargeScreen || (isMobile ? showMobileChat : true)) && (!showMobileSidebar || isLargeScreen) ? 'flex' : 'hidden'} flex-1 min-w-0 flex-col bg-white min-h-0 max-h-full overflow-hidden`}>
                 {activeChat ? (
                   <>
                     <ChatHeader

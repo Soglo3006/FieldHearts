@@ -55,6 +55,14 @@ export default function UserProfilePage() {
   const [showEllipsis, setShowEllipsis] = useState(false);
   const [showRatings, setShowRatings] = useState(false);
 
+  const swipeTouchStartY = useRef(0);
+  const makeSwipeHandlers = (onClose: () => void) => ({
+    onTouchStart: (e: React.TouchEvent) => { swipeTouchStartY.current = e.touches[0].clientY; },
+    onTouchMove: (e: React.TouchEvent) => {
+      if (e.touches[0].clientY - swipeTouchStartY.current > 80) onClose();
+    },
+  });
+
   const [isBlocked, setIsBlocked] = useState(false);
   const [isBlockedByOther, setIsBlockedByOther] = useState(false);
   const [blockLoading, setBlockLoading] = useState(false);
@@ -242,6 +250,7 @@ export default function UserProfilePage() {
             className="w-full sm:max-w-3xl max-h-[88dvh] sm:max-h-[90vh] bg-white rounded-t-2xl sm:rounded-xl shadow-xl overflow-y-auto animate-in slide-in-from-bottom sm:zoom-in-95 duration-200"
             ref={settingsScrollRef}
             onClick={(e) => e.stopPropagation()}
+            {...makeSwipeHandlers(() => setShowSettings(false))}
           >
             <SettingsPage onClose={() => setShowSettings(false)} scrollRef={settingsScrollRef} />
           </div>
@@ -250,7 +259,7 @@ export default function UserProfilePage() {
 
       {showEllipsis && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex justify-center items-end sm:items-center z-50" onClick={() => setShowEllipsis(false)}>
-          <div className="w-full sm:max-w-3xl max-h-[88dvh] sm:max-h-[90vh] bg-white rounded-t-2xl sm:rounded-xl shadow-xl overflow-y-auto animate-in slide-in-from-bottom sm:zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
+          <div className="w-full sm:max-w-3xl max-h-[88dvh] sm:max-h-[90vh] bg-white rounded-t-2xl sm:rounded-xl shadow-xl overflow-y-auto animate-in slide-in-from-bottom sm:zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()} {...makeSwipeHandlers(() => setShowEllipsis(false))}>
             <EllipsisPage onClose={() => setShowEllipsis(false)} profileId={profileId} displayName={displayName} userListings={userListings} />
           </div>
         </div>
@@ -258,7 +267,7 @@ export default function UserProfilePage() {
 
       {showRatings && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex justify-center items-end sm:items-center z-50" onClick={() => setShowRatings(false)}>
-          <div className="w-full sm:max-w-3xl max-h-[88dvh] sm:max-h-[90vh] bg-white rounded-t-2xl sm:rounded-xl shadow-xl overflow-y-auto animate-in slide-in-from-bottom sm:zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
+          <div className="w-full sm:max-w-3xl max-h-[88dvh] sm:max-h-[90vh] bg-white rounded-t-2xl sm:rounded-xl shadow-xl overflow-y-auto animate-in slide-in-from-bottom sm:zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()} {...makeSwipeHandlers(() => setShowRatings(false))}>
             <RatingsPage onClose={() => setShowRatings(false)} profileId={profileId} displayName={displayName} />
           </div>
         </div>

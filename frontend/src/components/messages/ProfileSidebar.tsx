@@ -225,7 +225,7 @@ export function ProfileSidebar({ otherUser, onClose, onOpenSettings, isBlocked, 
               {/* Section Bio */}
               <div>
                 <h4 className="font-medium text-gray-900 mb-2">Bio</h4>
-                <p className="text-gray-600 text-sm leading-relaxed break-words">
+                <p className="text-gray-600 text-sm leading-relaxed break-all overflow-hidden">
                   {otherUser.bio || t("messages.noBio")}
                 </p>
               </div>

@@ -19,7 +19,7 @@ export default function AuthCallbackPage() {
           const { error } = await supabase.auth.exchangeCodeForSession(code);
           if (error) {
             setMessage("Verification failed. Redirecting to login...");
-            setTimeout(() => router.push("/login"), 2000);
+            setTimeout(() => router.replace("/login"), 1500);
             return;
           }
         }
@@ -29,23 +29,16 @@ export default function AuthCallbackPage() {
 
         if (error) {
           setMessage("Authentication failed. Redirecting to login...");
-          setTimeout(() => router.push("/login"), 2000);
+          setTimeout(() => router.replace("/login"), 1500);
           return;
         }
 
         if (session) {
           if (isAdminUser(session.user)) {
-            setMessage("Welcome, Admin!");
-            setTimeout(() => router.push("/admin"), 1500);
+            router.replace("/admin");
           } else {
             const profileCompleted = session.user.user_metadata?.profile_completed;
-            if (!profileCompleted) {
-              setMessage("Email verified! Let's complete your profile...");
-              setTimeout(() => router.push("/choose_type"), 1500);
-            } else {
-              setMessage("Welcome back!");
-              setTimeout(() => router.push("/"), 1500);
-            }
+            router.replace(profileCompleted ? "/" : "/choose_type");
           }
         } else {
           // Implicit/hash flow fallback — listen for auth state change
@@ -53,10 +46,10 @@ export default function AuthCallbackPage() {
             if (event === "SIGNED_IN" && session) {
               subscription.unsubscribe();
               if (isAdminUser(session.user)) {
-                router.push("/admin");
+                router.replace("/admin");
               } else {
                 const profileCompleted = session.user.user_metadata?.profile_completed;
-                router.push(profileCompleted ? "/" : "/choose_type");
+                router.replace(profileCompleted ? "/" : "/choose_type");
               }
             }
           });
@@ -68,7 +61,7 @@ export default function AuthCallbackPage() {
         }
       } catch (err) {
         setMessage("Something went wrong. Redirecting to login...");
-        setTimeout(() => router.push("/login"), 2000);
+        setTimeout(() => router.replace("/login"), 1500);
       }
     };
 

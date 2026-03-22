@@ -34,15 +34,15 @@ export function ChatHeader({
 
   return (
     <div className="shrink-0 p-4 border-b flex items-center justify-between bg-white shadow-sm h-[73px]">
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 min-w-0 flex-1">
         <Button variant="ghost" size="icon" className="md:hidden shrink-0 cursor-pointer" onClick={onBack}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
-        <Link href={`/profile/${otherUser?.id}`} className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+        <Link href={`/profile/${otherUser?.id}`} className="flex items-center gap-3 hover:opacity-80 transition-opacity min-w-0">
           <div className="relative">
-            <Avatar className="h-10 w-10 shrink-0">
+            <Avatar key={otherUser?.id} className="h-10 w-10 shrink-0">
               {otherUser?.avatar_url ? <AvatarImage src={otherUser.avatar_url} /> : null}
-              <AvatarFallback className="bg-green-100 text-green-800 font-semibold">
+              <AvatarFallback delayMs={0} className="bg-green-100 text-green-800 font-semibold">
                 {(displayName || "U").charAt(0).toUpperCase()}
               </AvatarFallback>
             </Avatar>
@@ -66,7 +66,7 @@ export function ChatHeader({
         </Link>
       </div>
 
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-1 shrink-0">
         <Button variant="ghost" size="icon" disabled className="opacity-40 cursor-not-allowed">
           <Phone className="h-5 w-5" />
         </Button>

@@ -55,7 +55,7 @@ function BillingHistoryPage({ onClose }: { onBack: () => void; onClose: () => vo
 export default function SettingsPage({ onClose, scrollRef }: { onClose: () => void; scrollRef?: React.RefObject<HTMLDivElement | null> }) {
   const { t, i18n } = useTranslation();
   const { user, session } = useAuth();
-  const [userProfilePicture, setUserProfilePicture] = useState(user?.user_metadata?.avatar_url || "");
+  const [userProfilePicture, setUserProfilePicture] = useState("");
   const [profileData, setProfileData] = useState<Record<string, string> | null>(() => {
     if (!user) return null;
     const meta = user.user_metadata || {};

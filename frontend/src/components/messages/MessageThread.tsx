@@ -98,10 +98,28 @@ export function MessageThread({
   const hasMoreRef = useRef(hasMore ?? false);
   const loadingMoreRef = useRef(loadingMore ?? false);
   const loadMoreRef = useRef(loadMore);
+  const prevLoadingRef = useRef(loading);
 
   useEffect(() => { hasMoreRef.current = hasMore ?? false; }, [hasMore]);
   useEffect(() => { loadingMoreRef.current = loadingMore ?? false; }, [loadingMore]);
   useEffect(() => { loadMoreRef.current = loadMore; }, [loadMore]);
+
+  // Scroll to bottom when skeleton disappears (loading: true → false)
+  useLayoutEffect(() => {
+    if (prevLoadingRef.current && !loading && messages.length > 0) {
+      const tryScroll = () => {
+        const viewport = scrollViewportRef.current;
+        if (viewport) viewport.scrollTop = viewport.scrollHeight;
+        messagesEndRef.current?.scrollIntoView({ block: "end" });
+      };
+      tryScroll();
+      setTimeout(tryScroll, 100);
+      setTimeout(tryScroll, 300);
+      isInitialLoad.current = false;
+    }
+    prevLoadingRef.current = loading;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading]);
 
   const pinnedMessages = messages
     .filter(msg => msg.pinned_at && msg.content !== "Message supprimé")

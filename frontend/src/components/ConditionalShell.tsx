@@ -79,11 +79,10 @@ export default function ConditionalShell({ children }: { children: React.ReactNo
 
   if (isNoFooterPage) {
     return (
-      <div className="h-screen flex flex-col overflow-hidden">
+      <div className="h-[100dvh] flex flex-col overflow-hidden">
         <Suspense><Header /></Suspense>
         <CategoryNav />
         <main className="flex-1 flex flex-col min-h-0">{children}</main>
-        <SupportButton floating />
       </div>
     );
   }
@@ -94,7 +93,6 @@ export default function ConditionalShell({ children }: { children: React.ReactNo
       <CategoryNav />
       <main className="flex-1">{children}</main>
       <Footer />
-      <SupportButton floating />
     </>
   );
 }

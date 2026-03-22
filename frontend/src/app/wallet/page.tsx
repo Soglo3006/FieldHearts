@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useStartConversation } from "@/hooks/useStartConversation";
 import BookingDetailModal, { type BookingDetail } from "@/components/bookings/BookingDetailModal";
@@ -153,6 +153,7 @@ export default function WalletPage() {
   const lang = i18n.language?.startsWith("fr") ? "fr" : "en";
   const { user, session, loading: authLoading } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const [wallet, setWallet] = useState<WalletData | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -233,6 +234,13 @@ export default function WalletPage() {
       setConnectLoading(false);
     }
   };
+
+  // Auto-redirect back to Stripe if URL contains ?stripe=refresh
+  useEffect(() => {
+    if (searchParams.get("stripe") === "refresh" && session?.access_token && !connectLoading) {
+      handleConnectStripe();
+    }
+  }, [searchParams, session]);
 
   if (authLoading || loading) {
     return (

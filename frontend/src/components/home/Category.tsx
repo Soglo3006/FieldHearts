@@ -57,21 +57,21 @@ export default function CategoryNav() {
               <Select
                 key={category.name}
                 value=""
-                onValueChange={(sub) =>
-                  router.push(
-                    `/listings?category=${encodeURIComponent(category.name)}&subcategory=${encodeURIComponent(sub)}`
-                  )
-                }
-              >
-                <SelectTrigger
-                  onClick={() =>
-                    router.push(`/listings?category=${encodeURIComponent(category.name)}`)
+                onValueChange={(val) => {
+                  if (val === "__all__") {
+                    router.push(`/listings?category=${encodeURIComponent(category.name)}`);
+                  } else {
+                    router.push(`/listings?category=${encodeURIComponent(category.name)}&subcategory=${encodeURIComponent(val)}`);
                   }
-                  className="w-[150px] sm:w-[170px] lg:w-[180px] cursor-pointer shrink-0 text-xs sm:text-sm"
-                >
+                }}
+              >
+                <SelectTrigger className="w-[150px] sm:w-[170px] lg:w-[180px] cursor-pointer shrink-0 text-xs sm:text-sm">
                   <SelectValue placeholder={t(`categories.${catKey}`, { defaultValue: category.name })} />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="__all__" className="cursor-pointer font-medium text-green-700">
+                    {t("home.viewAllListings")} ({t(`categories.${catKey}`, { defaultValue: category.name })})
+                  </SelectItem>
                   {category.subcategories?.map((subcategory) => (
                     <SelectItem key={subcategory} value={subcategory} className="cursor-pointer">
                       {t(`categories.${catKey}_${toKey(subcategory)}`, { defaultValue: subcategory })}

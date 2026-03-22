@@ -123,8 +123,17 @@ export function MessageThread({
 
   useLayoutEffect(() => {
     if (messages.length > 0 && isInitialLoad.current) {
-      const viewport = scrollViewportRef.current;
-      if (viewport) { viewport.scrollTop = viewport.scrollHeight; isInitialLoad.current = false; }
+      const tryScroll = () => {
+        const viewport = scrollViewportRef.current;
+        if (viewport) {
+          viewport.scrollTop = viewport.scrollHeight;
+          isInitialLoad.current = false;
+        }
+        // iOS fallback: use scrollIntoView on the end element
+        messagesEndRef.current?.scrollIntoView({ block: "end" });
+      };
+      tryScroll();
+      setTimeout(tryScroll, 150);
     }
   }, [messages]);
 

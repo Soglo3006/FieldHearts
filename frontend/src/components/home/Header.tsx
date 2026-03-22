@@ -34,6 +34,7 @@ import { useRef, useState, useEffect } from "react";
 import { Spinner } from "@/components/ui/Spinner";
 import MessageNotifications from "@/components/messages/MessageNotifications";
 import NotificationBell from "@/components/notifications/NotificationBell";
+import SupportModal from "@/components/support/SupportModal";
 import { useUnreadBookings } from "@/hooks/useUnreadBookings";
 import { useUnreadMessages } from "@/hooks/useUnreadMessages";
 import { useNotifications } from "@/hooks/useNotifications";
@@ -64,6 +65,7 @@ export default function Header() {
   const postTypeValue = isOnListings && urlType ? (urlType === "offer" ? "find" : urlType === "looking" ? "hire" : "all") : "";
 
   const [showSettings, setShowSettings] = useState(false);
+  const [showSupport, setShowSupport] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mobileView, setMobileView] = useState<"menu" | "notifications">("menu");
@@ -249,6 +251,11 @@ export default function Header() {
             </DropdownMenuItem>
           </>
         )}
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => setShowSupport(true)} className="cursor-pointer">
+          <MessageCircle className="mr-2 h-4 w-4" />
+          <span>{t("support.button")}</span>
+        </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer text-red-600 focus:text-red-600">
           <LogOut className="mr-2 h-4 w-4" />
@@ -666,15 +673,23 @@ export default function Header() {
                         </Link>
                       )}
                       <div className="border-t border-gray-100 mt-1 pt-1">
+                        <button onClick={() => { setMobileMenuOpen(false); setShowSupport(true); }} className="cursor-pointer w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                          <MessageCircle className="h-5 w-5 text-gray-400" /> {t("support.button")}
+                        </button>
                         <button onClick={() => { setMobileMenuOpen(false); handleSignOut(); }} className="cursor-pointer w-full flex items-center gap-3 px-4 py-3 text-sm text-red-600 hover:bg-red-50 transition-colors">
                           <LogOut className="h-5 w-5" /> {t("header.logOut")}
                         </button>
                       </div>
                     </>
                   ) : (
-                    <Link href="/login" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
-                      <User className="h-5 w-5 text-gray-400" /> {t("header.loginRegister")}
-                    </Link>
+                    <>
+                      <button onClick={() => { setMobileMenuOpen(false); setShowSupport(true); }} className="cursor-pointer w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                        <MessageCircle className="h-5 w-5 text-gray-400" /> {t("support.button")}
+                      </button>
+                      <Link href="/login" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                        <User className="h-5 w-5 text-gray-400" /> {t("header.loginRegister")}
+                      </Link>
+                    </>
                   )}
                 </nav>
 
@@ -704,6 +719,8 @@ export default function Header() {
             </div>
           </div>
         )}
+
+        <SupportModal open={showSupport} onClose={() => setShowSupport(false)} />
       </div>
     </>
   );

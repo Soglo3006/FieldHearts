@@ -17,11 +17,11 @@ import {
   CheckCircle2,
   TrendingUp,
   TrendingDown,
-  Building2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -324,11 +324,11 @@ export default function WalletPage() {
         )}
 
         {/* Stats cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {/* Balance */}
-          <Card className="sm:col-span-1 border-green-200 bg-gradient-to-br from-green-700 to-green-800 text-white shadow-md">
-            <CardContent className="pt-5 pb-5 px-5">
-              <p className="text-xs text-green-200 font-medium uppercase tracking-wide mb-2">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
+          {/* Balance — full width on mobile */}
+          <Card className="col-span-2 sm:col-span-1 border-green-200 bg-gradient-to-br from-green-700 to-green-800 text-white shadow-md">
+            <CardContent className="pt-4 pb-4 px-5 sm:pt-5 sm:pb-5">
+              <p className="text-xs text-green-200 font-medium uppercase tracking-wide mb-1">
                 {t("wallet.availableBalance")}
               </p>
               <p className="text-3xl font-extrabold tracking-tight">
@@ -339,13 +339,13 @@ export default function WalletPage() {
 
           {/* Earned */}
           <Card className="shadow-sm">
-            <CardContent className="pt-5 pb-5 px-5 flex items-center gap-4">
-              <div className="h-10 w-10 rounded-xl bg-green-100 flex items-center justify-center shrink-0">
-                <TrendingUp className="h-5 w-5 text-green-600" />
+            <CardContent className="pt-4 pb-4 px-4 sm:pt-5 sm:pb-5 sm:px-5 flex items-center gap-3">
+              <div className="h-9 w-9 rounded-xl bg-green-100 flex items-center justify-center shrink-0">
+                <TrendingUp className="h-4 w-4 text-green-600" />
               </div>
-              <div>
-                <p className="text-xs text-gray-500 font-medium">{t("wallet.totalEarned")}</p>
-                <p className="text-xl font-bold text-gray-900 mt-0.5">
+              <div className="min-w-0">
+                <p className="text-xs text-gray-500 font-medium truncate">{t("wallet.totalEarned")}</p>
+                <p className="text-lg font-bold text-gray-900 mt-0.5">
                   {fmt(wallet?.total_earned ?? 0)}&nbsp;$
                 </p>
               </div>
@@ -354,13 +354,13 @@ export default function WalletPage() {
 
           {/* Spent */}
           <Card className="shadow-sm">
-            <CardContent className="pt-5 pb-5 px-5 flex items-center gap-4">
-              <div className="h-10 w-10 rounded-xl bg-red-100 flex items-center justify-center shrink-0">
-                <TrendingDown className="h-5 w-5 text-red-500" />
+            <CardContent className="pt-4 pb-4 px-4 sm:pt-5 sm:pb-5 sm:px-5 flex items-center gap-3">
+              <div className="h-9 w-9 rounded-xl bg-red-100 flex items-center justify-center shrink-0">
+                <TrendingDown className="h-4 w-4 text-red-500" />
               </div>
-              <div>
-                <p className="text-xs text-gray-500 font-medium">{t("wallet.totalSpent")}</p>
-                <p className="text-xl font-bold text-gray-900 mt-0.5">
+              <div className="min-w-0">
+                <p className="text-xs text-gray-500 font-medium truncate">{t("wallet.totalSpent")}</p>
+                <p className="text-lg font-bold text-gray-900 mt-0.5">
                   {fmt(wallet?.total_spent ?? 0)}&nbsp;$
                 </p>
               </div>
@@ -416,21 +416,39 @@ export default function WalletPage() {
             </CardTitle>
           </CardHeader>
 
-          {/* Period tabs */}
-          <div className="px-5 pb-4 overflow-x-auto">
-            <Tabs value={period} onValueChange={(v) => setPeriod(v as Period)}>
-              <TabsList className="h-8 gap-0.5 bg-gray-100">
-                {PERIODS.map((p) => (
-                  <TabsTrigger
-                    key={p.key}
-                    value={p.key}
-                    className="text-xs px-2.5 h-6 data-[state=active]:bg-white data-[state=active]:text-green-700 data-[state=active]:font-semibold"
-                  >
-                    {t(p.labelKey)}
-                  </TabsTrigger>
-                ))}
-              </TabsList>
-            </Tabs>
+          {/* Period selector — dropdown on mobile, tabs on desktop */}
+          <div className="px-5 pb-4">
+            {/* Mobile: Select dropdown */}
+            <div className="sm:hidden">
+              <Select value={period} onValueChange={(v) => setPeriod(v as Period)}>
+                <SelectTrigger className="h-9 text-sm bg-gray-100 border-0 focus:ring-1 focus:ring-green-600">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {PERIODS.map((p) => (
+                    <SelectItem key={p.key} value={p.key} className="text-sm">
+                      {t(p.labelKey)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {/* Desktop: Tabs */}
+            <div className="hidden sm:block">
+              <Tabs value={period} onValueChange={(v) => setPeriod(v as Period)}>
+                <TabsList className="h-8 gap-0.5 bg-gray-100">
+                  {PERIODS.map((p) => (
+                    <TabsTrigger
+                      key={p.key}
+                      value={p.key}
+                      className="text-xs px-2.5 h-6 data-[state=active]:bg-white data-[state=active]:text-green-700 data-[state=active]:font-semibold"
+                    >
+                      {t(p.labelKey)}
+                    </TabsTrigger>
+                  ))}
+                </TabsList>
+              </Tabs>
+            </div>
           </div>
 
           <Separator />
@@ -468,26 +486,28 @@ export default function WalletPage() {
                 <li
                   key={tx.id}
                   onClick={() => tx.booking_id && handleOpenBooking(tx)}
-                  className={`flex items-center gap-3 px-5 py-3.5 transition-colors ${tx.booking_id ? "cursor-pointer hover:bg-gray-50" : ""}`}
+                  className={`flex items-center gap-3 px-4 sm:px-5 py-3 sm:py-3.5 transition-colors ${tx.booking_id ? "cursor-pointer active:bg-gray-50 hover:bg-gray-50" : ""}`}
                 >
+                  {/* Icon */}
                   <div
-                    className={`h-9 w-9 rounded-full flex items-center justify-center shrink-0 ${
+                    className={`h-8 w-8 sm:h-9 sm:w-9 rounded-full flex items-center justify-center shrink-0 ${
                       tx.type === "credit" ? "bg-green-100" : "bg-red-100"
                     }`}
                   >
                     {tx.type === "credit"
-                      ? <ArrowDownCircle className="h-5 w-5 text-green-600" />
-                      : <ArrowUpCircle className="h-5 w-5 text-red-500" />
+                      ? <ArrowDownCircle className="h-4 w-4 sm:h-5 sm:w-5 text-green-600" />
+                      : <ArrowUpCircle className="h-4 w-4 sm:h-5 sm:w-5 text-red-500" />
                     }
                   </div>
 
+                  {/* Content */}
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-gray-900 truncate">
                       {tx.listing_title ?? tx.description}
                     </p>
-                    <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                    <div className="flex items-center gap-1 mt-0.5 flex-wrap">
                       {tx.other_user_name && (
-                        <span className="text-xs text-gray-500">
+                        <span className="text-xs text-gray-500 truncate max-w-[100px] sm:max-w-none">
                           {tx.type === "credit" ? t("wallet.from") : t("wallet.to")}&nbsp;{tx.other_user_name}
                         </span>
                       )}
@@ -496,21 +516,15 @@ export default function WalletPage() {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 shrink-0">
-                    <Badge
-                      variant="secondary"
-                      className={`text-xs font-semibold px-2 py-0.5 ${
-                        tx.type === "credit"
-                          ? "bg-green-100 text-green-700"
-                          : "bg-red-100 text-red-600"
-                      }`}
-                    >
+                  {/* Amount + arrow */}
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <span className={`text-sm font-bold ${tx.type === "credit" ? "text-green-700" : "text-red-600"}`}>
                       {tx.type === "credit" ? "+" : "−"}{fmt(tx.amount)}&nbsp;$
-                    </Badge>
+                    </span>
                     {tx.booking_id && (
                       detailLoading === tx.id
                         ? <div className="h-4 w-4 rounded-full border-2 border-gray-300 border-t-gray-500 animate-spin" />
-                        : <ChevronRight className="h-4 w-4 text-gray-300" />
+                        : <ChevronRight className="h-4 w-4 text-gray-400" />
                     )}
                   </div>
                 </li>

@@ -32,18 +32,22 @@ export default function EllipsisPage({ onClose, profileId, displayName, userList
   return (
     <div className="w-full bg-gray-50">
       <div className="bg-white border-b relative">
-        <button onClick={onClose} className="text-gray-500 hover:text-gray-900 text-xl absolute top-4 right-4 cursor-pointer">✕</button>
+        {/* Bottom-sheet handle (mobile only) */}
+        <div className="flex justify-center pt-3 pb-1 sm:hidden">
+          <div className="w-10 h-1 rounded-full bg-gray-300" />
+        </div>
+        <button onClick={onClose} className="text-gray-500 hover:text-gray-900 text-xl absolute top-3 right-4 sm:top-4 sm:right-4 cursor-pointer leading-none">✕</button>
         {screen !== "default" && (
-          <button onClick={() => setScreen("default")} className="text-gray-600 hover:text-gray-900 text-sm absolute top-1 left-4 flex items-center gap-1 cursor-pointer">
+          <button onClick={() => setScreen("default")} className="text-gray-600 hover:text-gray-900 text-sm absolute top-3 left-4 sm:top-4 flex items-center gap-1 cursor-pointer">
             <ArrowLeft className="h-4 w-4" /> {t("common.back")}
           </button>
         )}
-        <div className="max-w-5xl mx-auto px-4 py-6">
-          <h1 className="text-3xl font-bold text-gray-900">{SCREEN_TITLES[screen]}</h1>
+        <div className="max-w-5xl mx-auto px-4 py-3 sm:py-6 pr-12">
+          <h1 className="text-xl sm:text-3xl font-bold text-gray-900">{SCREEN_TITLES[screen]}</h1>
         </div>
       </div>
 
-      <div className="max-w-5xl mx-auto px-4 py-8">
+      <div className="max-w-5xl mx-auto px-4 py-4 sm:py-8">
         {screen === "default" && (
           <div className="grid gap-6">
             <Card className="p-6">

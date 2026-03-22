@@ -237,24 +237,27 @@ export default function UserProfilePage() {
       </main>
 
       {showSettings && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex justify-center items-center z-50">
-          <div className="w-full max-w-3xl max-h-[90vh] bg-white rounded-xl shadow-xl p-6 overflow-y-auto animate-in fade-in duration-200" ref={settingsScrollRef}>
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex justify-center items-end sm:items-center z-50">
+          <div
+            className="w-full sm:max-w-3xl max-h-[92dvh] sm:max-h-[90vh] bg-white rounded-t-2xl sm:rounded-xl shadow-xl overflow-y-auto animate-in slide-in-from-bottom sm:zoom-in-95 duration-200"
+            ref={settingsScrollRef}
+          >
             <SettingsPage onClose={() => setShowSettings(false)} scrollRef={settingsScrollRef} />
           </div>
         </div>
       )}
 
       {showEllipsis && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex justify-center items-center z-50">
-          <div className="w-full max-w-3xl p-6 bg-white rounded-xl shadow-xl overflow-hidden">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex justify-center items-end sm:items-center z-50">
+          <div className="w-full sm:max-w-3xl max-h-[92dvh] sm:max-h-[90vh] bg-white rounded-t-2xl sm:rounded-xl shadow-xl overflow-y-auto animate-in slide-in-from-bottom sm:zoom-in-95 duration-200">
             <EllipsisPage onClose={() => setShowEllipsis(false)} profileId={profileId} displayName={displayName} userListings={userListings} />
           </div>
         </div>
       )}
 
       {showRatings && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex justify-center items-center z-50">
-          <div className="w-full max-w-3xl max-h-[90vh] bg-white rounded-xl shadow-xl overflow-y-auto">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex justify-center items-end sm:items-center z-50">
+          <div className="w-full sm:max-w-3xl max-h-[92dvh] sm:max-h-[90vh] bg-white rounded-t-2xl sm:rounded-xl shadow-xl overflow-y-auto animate-in slide-in-from-bottom sm:zoom-in-95 duration-200">
             <RatingsPage onClose={() => setShowRatings(false)} profileId={profileId} displayName={displayName} />
           </div>
         </div>

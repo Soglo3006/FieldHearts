@@ -222,11 +222,13 @@ export default function SettingsPage({ onClose, scrollRef }: { onClose: () => vo
     <div className="bg-gray-50">
       {/* Header */}
       <div className="bg-white border-b relative">
-        <button onClick={onClose} className="text-gray-500 hover:text-gray-900 text-xl absolute top-3 right-3 sm:top-4 sm:right-4 cursor-pointer">✕</button>
-        <div className="max-w-5xl mx-auto px-3 sm:px-4 py-4 sm:py-6 pr-10">
-          <div className="flex items-center gap-3 flex-wrap">
-            <h1 className="text-xl sm:text-3xl font-bold text-gray-900">{t("settings.title")}</h1>
-          </div>
+        {/* Bottom-sheet handle (mobile only) */}
+        <div className="flex justify-center pt-3 pb-1 sm:hidden">
+          <div className="w-10 h-1 rounded-full bg-gray-300" />
+        </div>
+        <button onClick={onClose} className="text-gray-500 hover:text-gray-900 text-xl absolute top-3 right-4 sm:top-4 sm:right-4 cursor-pointer leading-none">✕</button>
+        <div className="max-w-5xl mx-auto px-4 sm:px-4 py-3 sm:py-6 pr-12">
+          <h1 className="text-xl sm:text-3xl font-bold text-gray-900">{t("settings.title")}</h1>
           <p className="text-gray-600 mt-1 text-sm sm:text-base">
             {isPerson ? t("settings.manageAccount") : t("settings.manageCompany")}
           </p>

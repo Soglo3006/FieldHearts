@@ -40,7 +40,7 @@ export function ChatInputArea({
   sending, attachedFile, attachmentPreview, onFileSelect, onRemoveAttachment, fileInputRef,
 }: Props) {
   return (
-    <div className="shrink-0">
+    <div className="shrink-0 pb-[env(safe-area-inset-bottom)]">
       <ReplyPreview repliedMessage={replyingTo} onCancel={onCancelReply} />
 
       {blockCheckLoading ? (

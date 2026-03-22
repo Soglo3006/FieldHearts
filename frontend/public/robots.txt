@@ -1,0 +1,16 @@
+User-agent: *
+Allow: /
+
+Disallow: /admin/
+Disallow: /auth/
+Disallow: /payment/
+Disallow: /profile/edit
+Disallow: /wallet
+Disallow: /bookings
+Disallow: /messages
+Disallow: /my-listings
+Disallow: /favorites
+Disallow: /choose_type
+Disallow: /post
+
+Sitemap: https://uneden.ca/sitemap.xml

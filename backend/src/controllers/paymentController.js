@@ -64,7 +64,7 @@ export const createConnectAccount = async (req, res) => {
           card_payments: { requested: true },
           transfers: { requested: true },
         },
-        tos_acceptance: { service_agreement: "recipient" },
+        tos_acceptance: { service_agreement: "full" },
         business_type: isCompany ? "company" : "individual",
         ...(individualData && { individual: individualData }),
         business_profile: {

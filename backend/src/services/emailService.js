@@ -209,6 +209,21 @@ const emailTemplates = {
     `),
   }),
 
+  jobMarkUndone: (recipientName, markerName, serviceTitle, bookingId) => ({
+    subject: `${markerName} a annulé sa confirmation de fin de travail`,
+    html: base(`
+      <h2 style="margin:0 0 8px;color:#111827;">Confirmation annulée</h2>
+      <p style="color:#374151;">Bonjour <strong>${recipientName}</strong>,</p>
+      <p style="color:#374151;"><strong>${markerName}</strong> a annulé sa confirmation de fin de travail pour <strong>"${serviceTitle}"</strong>.</p>
+      <div style="background:#fef3c7;border:1px solid #fde68a;border-radius:8px;padding:16px;margin:20px 0;">
+        <p style="margin:0;color:#92400e;font-weight:600;">Travail toujours en cours</p>
+        <p style="margin:8px 0 0;color:#374151;font-size:14px;">La réservation reste active. Attendez que les deux parties confirment la fin du travail avant de clôturer.</p>
+      </div>
+      <p style="color:#374151;font-size:13px;">Réservation #${bookingId.slice(0, 8).toUpperCase()}</p>
+      ${btn(`${FRONTEND}/bookings`, "Voir la réservation", "#d97706")}
+    `),
+  }),
+
   jobCompleted: (recipientName, serviceTitle, otherPartyName, amount, bookingId, role) => ({
     subject: `Réservation complétée — ${serviceTitle}`,
     html: base(`

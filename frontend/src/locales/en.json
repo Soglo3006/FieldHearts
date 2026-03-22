@@ -201,6 +201,7 @@
     "waitingForPayment": "Waiting for client to complete payment.",
     "yourEarnings": "Your earnings",
     "paymentSummary": "Payment summary",
+    "clientPaid": "What the client paid",
     "transactionSummary": "Full transaction",
     "totalPaid": "Total paid",
     "workerPayout": "Provider payout",

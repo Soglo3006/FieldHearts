@@ -8,7 +8,6 @@ import Link from "next/link";
 import { useStartConversation } from "@/hooks/useStartConversation";
 import BookingDetailModal, { type BookingDetail } from "@/components/bookings/BookingDetailModal";
 import {
-  Wallet,
   ArrowDownCircle,
   ArrowUpCircle,
   Clock,
@@ -252,57 +251,49 @@ export default function WalletPage() {
       <main className="max-w-3xl mx-auto px-3 sm:px-4 py-6 sm:py-10 space-y-5">
 
         {/* Page title */}
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-xl bg-green-100 flex items-center justify-center">
-            <Wallet className="h-5 w-5 text-green-700" />
-          </div>
-          <h1 className="text-2xl font-bold text-gray-900">{t("wallet.title")}</h1>
-        </div>
+        <h1 className="text-2xl font-bold text-gray-900">{t("wallet.title")}</h1>
 
         {/* Stripe Connect banner */}
         {connectStatus && !connectStatus.charges_enabled && (
           <Card className="border-green-200 bg-gradient-to-br from-green-50 to-emerald-50 shadow-sm overflow-hidden">
-            <CardContent className="p-5">
-              <div className="flex items-start gap-4">
-                <div className="h-10 w-10 rounded-xl bg-green-700 flex items-center justify-center shrink-0">
-                  <Building2 className="h-5 w-5 text-white" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-gray-900">
-                    {connectStatus.details_submitted
-                      ? t("wallet.verificationInProgress")
-                      : t("wallet.receivePayments")}
-                  </p>
-                  <p className="text-sm text-gray-600 mt-1 leading-relaxed">
-                    {connectStatus.details_submitted
-                      ? t("wallet.stripeVerifyingDesc")
-                      : t("wallet.connectBankDesc")}
-                  </p>
-                  <div className="flex items-center gap-3 mt-4">
-                    <Button
-                      onClick={handleConnectStripe}
-                      disabled={connectLoading}
-                      size="sm"
-                      className="bg-green-700 hover:bg-green-800 text-white rounded-lg"
-                    >
-                      {connectLoading
-                        ? <Spinner size="sm" />
-                        : connectStatus.details_submitted
-                          ? t("wallet.completeFile")
-                          : t("wallet.connectAccount")}
-                    </Button>
-                    <span className="text-xs text-gray-500 flex items-center gap-1">
-                      <CheckCircle2 className="h-3.5 w-3.5 text-gray-400" />
-                      {t("wallet.securedByStripe")}
-                    </span>
+            <CardContent className="p-6 flex flex-col items-center text-center gap-4">
+              {connectStatus.details_submitted ? (
+                <>
+                  <div className="w-16 h-16 rounded-full bg-amber-50 flex items-center justify-center">
+                    <AlertCircle className="h-8 w-8 text-amber-400" />
                   </div>
-                </div>
-              </div>
-              {connectStatus.details_submitted && (
-                <div className="mt-4 flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5">
-                  <AlertCircle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
-                  <p className="text-xs text-amber-700">{t("wallet.payoutsWillActivate")}</p>
-                </div>
+                  <div>
+                    <p className="font-semibold text-gray-900 mb-1">{t("wallet.verificationInProgress")}</p>
+                    <p className="text-sm text-gray-500 max-w-xs">{t("wallet.stripeVerifyingDesc")}</p>
+                  </div>
+                  <Button
+                    onClick={handleConnectStripe}
+                    disabled={connectLoading}
+                    className="bg-green-700 hover:bg-green-800 text-white gap-2 px-6 h-11 rounded-xl text-sm"
+                  >
+                    {connectLoading ? <Spinner size="sm" /> : null}
+                    {t("wallet.completeFile")}
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <div>
+                    <p className="font-semibold text-gray-900 mb-1">{t("wallet.receivePayments")}</p>
+                    <p className="text-sm text-gray-500 max-w-xs">{t("wallet.connectBankDesc")}</p>
+                  </div>
+                  <Button
+                    onClick={handleConnectStripe}
+                    disabled={connectLoading}
+                    className="bg-green-700 hover:bg-green-800 text-white gap-2 px-6 h-11 rounded-xl text-sm"
+                  >
+                    {connectLoading ? <Spinner size="sm" /> : null}
+                    {t("wallet.connectAccount")}
+                  </Button>
+                  <p className="text-xs text-gray-400 flex items-center gap-1 -mt-1">
+                    <CheckCircle2 className="h-3.5 w-3.5 text-gray-300" />
+                    {t("wallet.securedByStripe")}
+                  </p>
+                </>
               )}
             </CardContent>
           </Card>

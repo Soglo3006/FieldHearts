@@ -531,6 +531,66 @@ export const getBookingById = async (req, res) => {
   }
 };
 
+// ─── Undo mark completed (only if other party hasn't confirmed yet) ───────────
+export const undoMarkCompleted = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+
+    const booking = await pool.query(
+      `SELECT b.*, s.title,
+              cw.email AS worker_email, CASE WHEN cw.account_type = 'company' THEN cw.company_name ELSE cw.full_name END AS worker_name,
+              cc.email AS client_email, CASE WHEN cc.account_type = 'company' THEN cc.company_name ELSE cc.full_name END AS client_name
+       FROM bookings b
+       JOIN services s ON b.service_id = s.id
+       JOIN users cw ON b.worker_id = cw.id
+       JOIN users cc ON b.client_id = cc.id
+       WHERE b.id = $1`,
+      [id]
+    );
+    if (booking.rows.length === 0) return res.status(404).json({ message: "Booking not found" });
+    const b = booking.rows[0];
+
+    if (b.status !== "active") return res.status(400).json({ message: "Booking is not active" });
+    if (b.client_id !== userId && b.worker_id !== userId) return res.status(403).json({ message: "Not authorized" });
+
+    const isWorker = b.worker_id === userId;
+    const myFlag  = isWorker ? b.completed_by_worker : b.completed_by_client;
+    const otherFlag = isWorker ? b.completed_by_client : b.completed_by_worker;
+
+    if (!myFlag) return res.status(400).json({ message: "You haven't marked this done yet" });
+    if (otherFlag) return res.status(400).json({ message: "The other party already confirmed — cannot undo" });
+
+    const updateField = isWorker ? "completed_by_worker" : "completed_by_client";
+    const result = await pool.query(
+      `UPDATE bookings SET ${updateField} = false WHERE id = $1 RETURNING *`,
+      [id]
+    );
+
+    // Notify the other party
+    const markerName  = isWorker ? b.worker_name : b.client_name;
+    const otherUserId = isWorker ? b.client_id   : b.worker_id;
+    const otherEmail  = isWorker ? b.client_email : b.worker_email;
+    const otherName   = isWorker ? b.client_name  : b.worker_name;
+
+    createNotification({
+      userId: otherUserId,
+      type: "booking_request",
+      title: "Confirmation annulée",
+      body: `${markerName} a annulé sa confirmation de fin de travail pour "${b.title}". Le travail est toujours en cours.`,
+      link: "/bookings",
+    }).catch(() => {});
+
+    sendEmail(otherEmail, "jobMarkUndone", [otherName, markerName, b.title, id])
+      .catch((err) => console.error("[undoMarkCompleted] Email failed:", err.message));
+
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
 // ─── Internal helpers ─────────────────────────────────────────────────────────
 
 async function autoRejectOtherRequests(serviceId, acceptedBookingId) {

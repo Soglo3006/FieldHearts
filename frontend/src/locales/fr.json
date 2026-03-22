@@ -201,6 +201,7 @@
     "waitingForPayment": "En attente du paiement du client.",
     "yourEarnings": "Vos revenus",
     "paymentSummary": "Résumé du paiement",
+    "clientPaid": "Ce que le client a payé",
     "transactionSummary": "Transaction complète",
     "totalPaid": "Total payé",
     "workerPayout": "Versement prestataire",

@@ -20,6 +20,7 @@ interface Props {
   currentUserId: string;
   onCallStatus: (status: BookingStatus) => void;
   onMarkCompleted: () => void;
+  onUndoMarkCompleted: () => void;
   onUpdated: (data: Partial<BookingDetail>) => void;
   onOpenDispute: (id: string, title: string) => void;
   onOpenReview: (id: string, name: string) => void;
@@ -30,7 +31,7 @@ interface Props {
 export default function BookingDetailFooter({
   booking, userRole, updating, hasMarkedDone, otherHasMarkedDone,
   needsPayment, accessToken, otherUserName, otherUserId, currentUserId,
-  onCallStatus, onMarkCompleted, onUpdated, onOpenDispute, onOpenReview, onMessage, onClose,
+  onCallStatus, onMarkCompleted, onUndoMarkCompleted, onUpdated, onOpenDispute, onOpenReview, onMessage, onClose,
 }: Props) {
   const [cancelMode, setCancelMode] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
@@ -125,9 +126,22 @@ export default function BookingDetailFooter({
         </Button>
       )}
       {booking.status === "active" && hasMarkedDone && (
-        <div className="flex items-center justify-center gap-2 text-sm text-green-700 font-medium py-1">
-          <CheckCircle className="h-4 w-4" />
-          You marked done{!otherHasMarkedDone && ` — waiting for ${userRole === "worker" ? "client" : "provider"}`}
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-center justify-center gap-2 text-sm text-green-700 font-medium py-1">
+            <CheckCircle className="h-4 w-4" />
+            You marked done{!otherHasMarkedDone && ` — waiting for ${userRole === "worker" ? "client" : "provider"}`}
+          </div>
+          {!otherHasMarkedDone && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full text-gray-500 border-gray-200 hover:bg-gray-50 text-xs h-8"
+              onClick={onUndoMarkCompleted}
+              disabled={updating}
+            >
+              {updating ? "…" : "Annuler ma confirmation"}
+            </Button>
+          )}
         </div>
       )}
 

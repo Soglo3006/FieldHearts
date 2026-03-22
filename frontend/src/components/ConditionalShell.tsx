@@ -7,7 +7,6 @@ import i18n from "@/lib/i18n";
 import Header from "@/components/home/Header";
 import CategoryNav from "@/components/home/Category";
 import Footer from "@/components/home/Footer";
-import SupportButton from "@/components/support/SupportButton";
 import { useAuth } from "@/contexts/AuthContext";
 import { Spinner } from "@/components/ui/Spinner";
 
@@ -72,7 +71,6 @@ export default function ConditionalShell({ children }: { children: React.ReactNo
         <Suspense><Header /></Suspense>
         <main className="flex-1">{children}</main>
         <Footer />
-        <SupportButton floating />
       </>
     );
   }

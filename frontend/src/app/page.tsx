@@ -7,7 +7,6 @@ import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import SupportButton from "@/components/support/SupportButton";
 import { Grid3x3, MapPin, Clock } from "lucide-react";
 import { Spinner } from "@/components/ui/Spinner";
 import { useTranslation } from "react-i18next";
@@ -312,7 +311,6 @@ export default function HomePage() {
         </div>
       </main>
 
-      <SupportButton floating />
     </div>
   );
 }

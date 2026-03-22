@@ -237,10 +237,11 @@ export default function UserProfilePage() {
       </main>
 
       {showSettings && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex justify-center items-end sm:items-center z-50">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex justify-center items-end sm:items-center z-50" onClick={() => setShowSettings(false)}>
           <div
-            className="w-full sm:max-w-3xl max-h-[92dvh] sm:max-h-[90vh] bg-white rounded-t-2xl sm:rounded-xl shadow-xl overflow-y-auto animate-in slide-in-from-bottom sm:zoom-in-95 duration-200"
+            className="w-full sm:max-w-3xl max-h-[88dvh] sm:max-h-[90vh] bg-white rounded-t-2xl sm:rounded-xl shadow-xl overflow-y-auto animate-in slide-in-from-bottom sm:zoom-in-95 duration-200"
             ref={settingsScrollRef}
+            onClick={(e) => e.stopPropagation()}
           >
             <SettingsPage onClose={() => setShowSettings(false)} scrollRef={settingsScrollRef} />
           </div>
@@ -248,16 +249,16 @@ export default function UserProfilePage() {
       )}
 
       {showEllipsis && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex justify-center items-end sm:items-center z-50">
-          <div className="w-full sm:max-w-3xl max-h-[92dvh] sm:max-h-[90vh] bg-white rounded-t-2xl sm:rounded-xl shadow-xl overflow-y-auto animate-in slide-in-from-bottom sm:zoom-in-95 duration-200">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex justify-center items-end sm:items-center z-50" onClick={() => setShowEllipsis(false)}>
+          <div className="w-full sm:max-w-3xl max-h-[88dvh] sm:max-h-[90vh] bg-white rounded-t-2xl sm:rounded-xl shadow-xl overflow-y-auto animate-in slide-in-from-bottom sm:zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
             <EllipsisPage onClose={() => setShowEllipsis(false)} profileId={profileId} displayName={displayName} userListings={userListings} />
           </div>
         </div>
       )}
 
       {showRatings && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex justify-center items-end sm:items-center z-50">
-          <div className="w-full sm:max-w-3xl max-h-[92dvh] sm:max-h-[90vh] bg-white rounded-t-2xl sm:rounded-xl shadow-xl overflow-y-auto animate-in slide-in-from-bottom sm:zoom-in-95 duration-200">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex justify-center items-end sm:items-center z-50" onClick={() => setShowRatings(false)}>
+          <div className="w-full sm:max-w-3xl max-h-[88dvh] sm:max-h-[90vh] bg-white rounded-t-2xl sm:rounded-xl shadow-xl overflow-y-auto animate-in slide-in-from-bottom sm:zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
             <RatingsPage onClose={() => setShowRatings(false)} profileId={profileId} displayName={displayName} />
           </div>
         </div>

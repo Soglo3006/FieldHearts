@@ -4,7 +4,6 @@ import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import SupportButton from "@/components/support/SupportButton";
 import { useStartConversation } from "@/hooks/useStartConversation";
 import { useAuth } from "@/contexts/AuthContext";
 import EditListingModal from "@/components/listings/EditListingModal";
@@ -313,8 +312,6 @@ export default function ServiceDetailPage() {
           <SimilarServices services={similarServices} />
         </div>
       </main>
-
-      <SupportButton floating />
 
       {showEditModal && service && session?.access_token && (
         <EditListingModal

@@ -283,9 +283,9 @@ function ListingsContent({ username }: { username?: string }) {
 
         {/* ── Results ── */}
         <div className="w-full lg:w-3/4 space-y-4">
-          {/* Active filter chips */}
+          {/* Active filter chips — hidden on mobile (shown in the top bar instead) */}
           {activeChips.length > 0 && (
-            <div className="flex flex-wrap gap-2">
+            <div className="hidden lg:flex flex-wrap gap-2">
               {activeChips.map(({ label, clear }) => (
                 <span
                   key={label}

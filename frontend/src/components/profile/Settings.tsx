@@ -12,7 +12,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import {
-  User, Lock, Bell, Globe, Link2, LogOut, Trash2, ChevronRight,
+  User, Lock, Bell, Globe, Link2, LogOut, Trash2, ChevronRight, X,
   Mail, Phone, MapPin, Building2, Briefcase, Users, Check, CreditCard, ExternalLink,
 } from "lucide-react";
 import { Toggle } from "./settings/SubPageHeader";
@@ -226,7 +226,9 @@ export default function SettingsPage({ onClose, scrollRef }: { onClose: () => vo
         <div className="flex justify-center pt-3 pb-1 sm:hidden">
           <div className="w-10 h-1 rounded-full bg-gray-300" />
         </div>
-        <button onClick={onClose} className="text-gray-500 hover:text-gray-900 text-xl absolute top-3 right-4 sm:top-4 sm:right-4 cursor-pointer leading-none">✕</button>
+        <button onClick={onClose} className="absolute top-2 right-2 sm:top-3 sm:right-3 p-2 rounded-full hover:bg-gray-100 text-gray-500 hover:text-gray-900 cursor-pointer leading-none touch-manipulation">
+          <X className="h-5 w-5" />
+        </button>
         <div className="max-w-5xl mx-auto px-4 sm:px-4 py-3 sm:py-6 pr-12">
           <h1 className="text-xl sm:text-3xl font-bold text-gray-900">{t("settings.title")}</h1>
           <p className="text-gray-600 mt-1 text-sm sm:text-base">

@@ -26,7 +26,7 @@ export const createConnectAccount = async (req, res) => {
     } else {
       // Get user email, account type and profile data
       const user = await pool.query(
-        `SELECT email, account_type, full_name, company_name, phone, address, city, province, postal_code
+        `SELECT email, account_type, full_name, company_name, phone, address, city, province
          FROM users WHERE id = $1`,
         [userId]
       );
@@ -42,7 +42,6 @@ export const createConnectAccount = async (req, res) => {
         line1: u.address || "",
         city: u.city || "",
         state: u.province || "",
-        postal_code: u.postal_code || "",
         country: "CA",
       } : undefined;
 
@@ -65,6 +64,7 @@ export const createConnectAccount = async (req, res) => {
           card_payments: { requested: true },
           transfers: { requested: true },
         },
+        tos_acceptance: { service_agreement: "full" },
         business_type: isCompany ? "company" : "individual",
         ...(individualData && { individual: individualData }),
         business_profile: {
@@ -87,11 +87,17 @@ export const createConnectAccount = async (req, res) => {
       );
     }
 
+    // Allow callers to specify a custom return URL (e.g. onboarding flow)
+    const customReturnUrl = req.body?.return_url;
+    const returnUrl = customReturnUrl
+      ? `${FRONTEND_URL}${customReturnUrl}`
+      : `${FRONTEND_URL}/wallet?stripe=success`;
+
     // Create account link (onboarding URL)
     const accountLink = await stripe.accountLinks.create({
       account: stripeAccountId,
       refresh_url: `${FRONTEND_URL}/wallet?stripe=refresh`,
-      return_url: `${FRONTEND_URL}/wallet?stripe=success`,
+      return_url: returnUrl,
       type: "account_onboarding",
     });
 
@@ -176,7 +182,9 @@ export const createCheckoutSession = async (req, res) => {
       return res.status(400).json({ message: "This booking has already been paid" });
     }
 
-    const servicePriceCents       = Math.round(Number(b.price) * 100);
+    // Use custom_price if worker adjusted it, otherwise the original service price
+    const effectivePrice          = Number(b.custom_price ?? b.price);
+    const servicePriceCents       = Math.round(effectivePrice * 100);
     const buyerCommissionCents    = Math.round(servicePriceCents * BUYER_COMMISSION_RATE);
     const gstCents                = Math.round(servicePriceCents * GST_RATE);
     const qstCents                = Math.round(servicePriceCents * QST_RATE);
@@ -296,20 +304,25 @@ export const stripeWebhook = async (req, res) => {
         if (booking.rows.length > 0) {
           const { client_id, amount, title, image_url, worker_name, client_name, client_email } = booking.rows[0];
           const amountDollars = (amount / 100).toFixed(2);
-          await pool.query(
-            `INSERT INTO transactions (user_id, booking_id, type, amount, description, other_user_name, listing_title)
-             VALUES ($1, $2, 'debit', $3, 'Payment for service', $4, $5)
-             ON CONFLICT DO NOTHING`,
-            [client_id, bookingId, amountDollars, worker_name, title]
+          const existing = await pool.query(
+            "SELECT id FROM transactions WHERE booking_id = $1 AND type = 'debit'",
+            [bookingId]
           );
-          await pool.query(
-            `INSERT INTO wallets (user_id, balance, total_spent)
-             VALUES ($1, 0, $2)
-             ON CONFLICT (user_id) DO UPDATE
-             SET total_spent = wallets.total_spent + $2`,
-            [client_id, amountDollars]
-          );
-          notifyPaymentReceipt(client_email, client_name, title, amountDollars, worker_name, bookingId, image_url);
+          if (existing.rows.length === 0) {
+            await pool.query(
+              `INSERT INTO transactions (user_id, booking_id, type, amount, description, other_user_name, listing_title)
+               VALUES ($1, $2, 'debit', $3, 'Payment for service', $4, $5)`,
+              [client_id, bookingId, amountDollars, worker_name, title]
+            );
+            await pool.query(
+              `INSERT INTO wallets (user_id, balance, total_spent)
+               VALUES ($1, 0, $2)
+               ON CONFLICT (user_id) DO UPDATE
+               SET total_spent = wallets.total_spent + $2`,
+              [client_id, amountDollars]
+            );
+            notifyPaymentReceipt(client_email, client_name, title, amountDollars, worker_name, bookingId, image_url);
+          }
         }
 
         console.log(`Payment confirmed for booking ${bookingId} — now active`);
@@ -378,14 +391,27 @@ export const releasePayment = async (req, res) => {
     }
 
     // Transfer 80% of service price to worker (20% kept as platform commission)
-    const servicePriceCents = Math.round(Number(b.price) * 100);
+    const effectivePrice = Number(b.custom_price ?? b.price);
+    const servicePriceCents = Math.round(effectivePrice * 100);
     const transferAmount = Math.round(servicePriceCents * 0.80);
+
+    // source_transaction requires a charge ID (ch_xxx), not a payment intent ID (pi_xxx)
+    let sourceTransaction = p.stripe_payment_intent_id;
+    if (sourceTransaction && sourceTransaction.startsWith("pi_")) {
+      try {
+        const pi = await stripe.paymentIntents.retrieve(sourceTransaction);
+        const chargeId = typeof pi.latest_charge === "object" ? pi.latest_charge?.id : pi.latest_charge;
+        if (chargeId) sourceTransaction = chargeId;
+      } catch (piErr) {
+        console.error(`[releasePayment] Could not resolve charge for PI ${sourceTransaction}:`, piErr.message);
+      }
+    }
 
     const transfer = await stripe.transfers.create({
       amount: transferAmount,
       currency: p.currency || "cad",
       destination: b.stripe_account_id,
-      source_transaction: p.stripe_payment_intent_id,
+      source_transaction: sourceTransaction,
     });
 
     // Update payment record
@@ -542,22 +568,26 @@ export const verifyPayment = async (req, res) => {
       // amount is in cents — convert to dollars
       const amountDollars = (amount / 100).toFixed(2);
 
-      await pool.query(
-        `INSERT INTO transactions (user_id, booking_id, type, amount, description, other_user_name, listing_title)
-         VALUES ($1, $2, 'debit', $3, 'Payment for service', $4, $5)
-         ON CONFLICT DO NOTHING`,
-        [client_id, booking_id, amountDollars, worker_name, title]
+      const existing = await pool.query(
+        "SELECT id FROM transactions WHERE booking_id = $1 AND type = 'debit'",
+        [booking_id]
       );
-      await pool.query(
-        `INSERT INTO wallets (user_id, balance, total_spent)
-         VALUES ($1, 0, $2)
-         ON CONFLICT (user_id) DO UPDATE
-         SET total_spent = wallets.total_spent + $2`,
-        [client_id, amountDollars]
-      );
-
-      // Send receipt email
-      notifyPaymentReceipt(client_email, client_name, title, amountDollars, worker_name, booking_id, image_url);
+      if (existing.rows.length === 0) {
+        await pool.query(
+          `INSERT INTO transactions (user_id, booking_id, type, amount, description, other_user_name, listing_title)
+           VALUES ($1, $2, 'debit', $3, 'Payment for service', $4, $5)`,
+          [client_id, booking_id, amountDollars, worker_name, title]
+        );
+        await pool.query(
+          `INSERT INTO wallets (user_id, balance, total_spent)
+           VALUES ($1, 0, $2)
+           ON CONFLICT (user_id) DO UPDATE
+           SET total_spent = wallets.total_spent + $2`,
+          [client_id, amountDollars]
+        );
+        // Send receipt email only once
+        notifyPaymentReceipt(client_email, client_name, title, amountDollars, worker_name, booking_id, image_url);
+      }
     }
 
     res.json({ confirmed: true });

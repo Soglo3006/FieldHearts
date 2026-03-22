@@ -131,7 +131,6 @@ export function useChats() {
 
       setChats(chatsWithDetails as unknown as ChatRoom[]);
     } catch (error) {
-      console.error('Error fetching chats:', error);
     } finally {
       setLoading(false);
     }

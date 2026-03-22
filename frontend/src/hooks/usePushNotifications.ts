@@ -65,7 +65,6 @@ export function usePushNotifications() {
 
       setSubscribed(true);
     } catch (err) {
-      console.error("Push subscription failed:", err);
     }
   };
 
@@ -88,7 +87,6 @@ export function usePushNotifications() {
       await sub.unsubscribe();
       setSubscribed(false);
     } catch (err) {
-      console.error("Push unsubscribe failed:", err);
     }
   };
 

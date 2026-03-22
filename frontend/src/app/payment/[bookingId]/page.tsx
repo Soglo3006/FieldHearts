@@ -13,6 +13,7 @@ interface Booking {
   status: string;
   payment_status: string;
   price: number;
+  custom_price: number | null;
   service_id: string;
   worker_id: string;
   created_at: string;
@@ -153,7 +154,7 @@ export default function PaymentPage() {
 
             <div className="mt-5 pt-4 border-t border-gray-100 space-y-1.5 text-sm">
               {(() => {
-                const price = Number(booking.price);
+                const price = Number(booking.custom_price ?? booking.price);
                 const buyerCommission = price * 0.05;
                 const gst             = price * 0.05;
                 const qst             = price * 0.09975;
@@ -213,7 +214,7 @@ export default function PaymentPage() {
           ) : (
             <span className="flex items-center gap-2">
               <CreditCard className="h-5 w-5" />
-              Payer {(Number(booking.price) * 1.19975).toFixed(2)} $ CAD
+              Payer {(Number(booking.custom_price ?? booking.price) * 1.19975).toFixed(2)} $ CAD
             </span>
           )}
         </Button>

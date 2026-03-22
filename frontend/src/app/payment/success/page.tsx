@@ -11,10 +11,10 @@ import Link from "next/link";
 interface Booking {
   id: string;
   price: number;
+  custom_price: number | null;
   title: string;
   image_url: string | null;
-  location: string;
-  city: string | null;
+  service_location: string | null;
   created_at: string;
   worker_name: string;
 }
@@ -68,10 +68,12 @@ export default function PaymentSuccessPage() {
             <div className="p-5">
               <h2 className="font-semibold text-gray-900 text-base mb-3">{booking.title}</h2>
               <div className="space-y-1.5 text-sm text-gray-600">
-                <div className="flex items-center gap-2">
-                  <MapPin className="h-4 w-4 text-gray-400 shrink-0" />
-                  <span>{booking.city ?? booking.location}</span>
-                </div>
+                {booking.service_location && (
+                  <div className="flex items-center gap-2">
+                    <MapPin className="h-4 w-4 text-gray-400 shrink-0" />
+                    <span>{booking.service_location}</span>
+                  </div>
+                )}
                 <div className="flex items-center gap-2">
                   <Calendar className="h-4 w-4 text-gray-400 shrink-0" />
                   <span>{new Date(booking.created_at).toLocaleDateString("fr-CA")}</span>
@@ -79,7 +81,7 @@ export default function PaymentSuccessPage() {
               </div>
               <div className="mt-4 pt-4 border-t border-gray-200 space-y-1.5 text-sm">
                 {(() => {
-                  const price = Number(booking.price);
+                  const price = Number(booking.custom_price ?? booking.price);
                   const buyerCommission = price * 0.05;
                   const gst             = price * 0.05;
                   const qst             = price * 0.09975;
@@ -106,10 +108,6 @@ export default function PaymentSuccessPage() {
                       <div className="flex justify-between font-bold text-base border-t border-gray-200 pt-2.5 mt-1">
                         <span>Montant payé</span>
                         <span className="text-green-700">{fmt(total)} $ CAD</span>
-                      </div>
-                      <div className="flex justify-between text-xs text-gray-400 pt-1 border-t border-gray-100 mt-1">
-                        <span>Versement au prestataire</span>
-                        <span>{fmt(price * 0.80)} $ CAD</span>
                       </div>
                     </>
                   );

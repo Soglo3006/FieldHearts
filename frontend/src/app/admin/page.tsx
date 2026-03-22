@@ -73,11 +73,16 @@ export default function AdminDashboard() {
     setPayoutLoading(true);
     setPayoutMessage("");
     try {
-      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/wallet/payout/trigger`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/wallet/payout/trigger`, {
         method: "POST",
         headers: { Authorization: `Bearer ${session.access_token}` },
       });
-      setPayoutMessage("Versements traités avec succès.");
+      if (res.ok) {
+        setPayoutMessage("Versements traités avec succès.");
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setPayoutMessage(`Erreur : ${data.message ?? res.status}`);
+      }
     } catch {
       setPayoutMessage("Erreur lors du traitement des versements.");
     } finally {

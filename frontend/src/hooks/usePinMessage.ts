@@ -14,7 +14,6 @@ export function usePinMessage() {
 
       return true;
     } catch (error) {
-      console.error('Error toggling pin:', error);
       throw error;
     }
   };
@@ -31,7 +30,6 @@ export function usePinMessage() {
 
       return count || 0;
     } catch (error) {
-      console.error('Error checking pin limit:', error);
       return 0;
     }
   };

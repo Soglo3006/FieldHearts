@@ -187,7 +187,6 @@ export function useMessages(chatRoomId: string | null) {
       setHasMore(hasMoreResult);
       messagesCacheRef.current.set(chatRoomId, enriched);
     } catch (err) {
-      console.error('Error fetching messages:', err);
     } finally {
       if (currentRequestId === requestIdRef.current) setLoading(false);
     }
@@ -255,7 +254,6 @@ export function useMessages(chatRoomId: string | null) {
       setHasMore(hasMoreResult);
       return enriched.length;
     } catch (err) {
-      console.error('Error loading more messages:', err);
       return 0;
     } finally {
       if (capturedRequestId === requestIdRef.current) setLoadingMore(false);
@@ -453,10 +451,9 @@ export function useMessages(chatRoomId: string | null) {
           senderUserId: user.id,
           messagePreview: trimmed.substring(0, 100),
         }),
-      }).catch(console.error);
+      }).catch(() => {});
 
     } catch (err) {
-      console.error('Error sending message:', err);
       setMessages((prev) => {
         const next = prev.map((m) => (m.id === tempId ? { ...m, status: 'failed' as const } : m));
         messagesCacheRef.current.set(chatRoomId, next);

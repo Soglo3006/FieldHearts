@@ -12,6 +12,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import React, { useState, useEffect } from "react"
+import { useScrollLock } from "@/hooks/useScrollLock"
 import { useAuth } from "@/contexts/AuthContext"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
@@ -29,6 +30,7 @@ export default function RegisterPage() {
   const [error, setError] = useState("")
   const [chargement, setChargement] = useState(false)
   const [showSuccess, setShowSuccess] = useState(false)
+  useScrollLock(showSuccess)
 
   const { signUpWithEmail, signInWithGoogle, signInWithFacebook } = useAuth();
   const router = useRouter();
@@ -99,7 +101,6 @@ export default function RegisterPage() {
       {showSuccess && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="bg-white rounded-2xl shadow-xl p-8 max-w-sm w-full mx-4 text-center">
-            <div className="text-4xl mb-4">✉️</div>
             <h2 className="text-xl font-bold text-gray-900 mb-2">{t("register.accountCreated")}</h2>
             <p className="text-gray-600 text-sm mb-6">
               {t("register.checkEmail")}

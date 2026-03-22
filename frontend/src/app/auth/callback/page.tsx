@@ -18,7 +18,6 @@ export default function AuthCallbackPage() {
         if (code) {
           const { error } = await supabase.auth.exchangeCodeForSession(code);
           if (error) {
-            console.error("Code exchange error:", error);
             setMessage("Verification failed. Redirecting to login...");
             setTimeout(() => router.push("/login"), 2000);
             return;
@@ -29,7 +28,6 @@ export default function AuthCallbackPage() {
         const { data: { session }, error } = await supabase.auth.getSession();
 
         if (error) {
-          console.error("Error getting session:", error);
           setMessage("Authentication failed. Redirecting to login...");
           setTimeout(() => router.push("/login"), 2000);
           return;
@@ -69,7 +67,6 @@ export default function AuthCallbackPage() {
           }, 5000);
         }
       } catch (err) {
-        console.error("Callback error:", err);
         setMessage("Something went wrong. Redirecting to login...");
         setTimeout(() => router.push("/login"), 2000);
       }

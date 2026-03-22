@@ -65,13 +65,13 @@ const TYPE_CONFIG: Record<
   },
 };
 
-function formatTime(dateString: string) {
+function formatTime(dateString: string, t: (key: string, opts?: object) => string, lang: string) {
   const diff = Date.now() - new Date(dateString).getTime();
-  if (diff < 60_000) return "Just now";
-  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m`;
-  if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}h`;
-  if (diff < 7 * 86_400_000) return `${Math.floor(diff / 86_400_000)}d`;
-  return new Date(dateString).toLocaleDateString("en-CA", { month: "short", day: "numeric" });
+  if (diff < 60_000) return t("notifications.justNow");
+  if (diff < 3_600_000) return t("notifications.minutesAgo", { count: Math.floor(diff / 60_000) });
+  if (diff < 86_400_000) return t("notifications.hoursAgo", { count: Math.floor(diff / 3_600_000) });
+  if (diff < 7 * 86_400_000) return t("notifications.daysAgo", { count: Math.floor(diff / 86_400_000) });
+  return new Date(dateString).toLocaleDateString(lang === "fr" ? "fr-CA" : "en-CA", { month: "short", day: "numeric" });
 }
 
 function NotifRow({
@@ -85,7 +85,8 @@ function NotifRow({
   onDelete: () => void;
   onClick: () => void;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const lang = i18n.language?.startsWith("fr") ? "fr" : "en";
   const cfg = TYPE_CONFIG[notif.type] ?? TYPE_CONFIG.booking_request;
   const isUnread = !notif.read_at;
 
@@ -114,7 +115,7 @@ function NotifRow({
           <p className={cn("text-sm truncate", isUnread ? "font-semibold text-gray-900" : "font-medium text-gray-700")}>
             {notif.title}
           </p>
-          <span className="text-[11px] text-gray-400 shrink-0">{formatTime(notif.created_at)}</span>
+          <span className="text-[11px] text-gray-400 shrink-0">{formatTime(notif.created_at, t, lang)}</span>
         </div>
         <p className="text-[13px] text-gray-500 mt-0.5 line-clamp-2">{notif.body}</p>
       </div>

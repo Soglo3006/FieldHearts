@@ -35,7 +35,6 @@ export default function ReportUserPage({ profileId, displayName, onClose }: Prop
       if (error) throw error;
       setSuccess(true);
     } catch (err) {
-      console.error("Error submitting report:", err);
       toast.error(t("report.failedSubmit"));
     } finally {
       setLoading(false);

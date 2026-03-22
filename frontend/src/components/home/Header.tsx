@@ -1,7 +1,7 @@
 // frontend/src/components/home/Header.tsx
 "use client";
 import { useTranslation } from "react-i18next";
-import { Search, User, Settings, LogOut, Building2, List, Wallet, X, CalendarDays, Menu, Heart, MessageCircle, Bell } from "lucide-react";
+import { Search, User, Settings, LogOut, Building2, List, Wallet, X, CalendarDays, Menu, Heart, MessageCircle, Bell, ChevronLeft, Check, Trash2, Loader2, ShieldCheck } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
 import {
@@ -27,6 +27,7 @@ import { ButtonGroup } from "@/components/ui/button-group";
 import { Badge } from "@/components/ui/badge";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
+import { isAdminUser } from "@/lib/auth";
 import Link from "next/link";
 import SettingsPage from "@/components/profile/Settings";
 import { useRef, useState, useEffect } from "react";
@@ -38,6 +39,7 @@ import { useUnreadMessages } from "@/hooks/useUnreadMessages";
 import { useNotifications } from "@/hooks/useNotifications";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { useScrollLock } from "@/hooks/useScrollLock";
+import { useWalletBadge } from "@/hooks/useWalletBadge";
 
 interface SearchResult {
   id: string;
@@ -64,6 +66,7 @@ export default function Header() {
   const [showSettings, setShowSettings] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [mobileView, setMobileView] = useState<"menu" | "notifications">("menu");
   const [profileData, setProfileData] = useState<{
     account_type?: string;
     full_name?: string;
@@ -94,7 +97,6 @@ export default function Header() {
           setProfileData(data);
         }
       } catch (error) {
-        console.error("Error fetching profile:", error);
       }
     };
     fetchProfile();
@@ -148,9 +150,11 @@ export default function Header() {
 
   const { unseenCount } = useUnreadBookings();
   const { unreadCount: unreadMessages } = useUnreadMessages();
-  const { unreadCount: unreadNotifs } = useNotifications();
+  const { notifications, unreadCount: unreadNotifs, loading: notifsLoading, markRead, markAllRead, deleteOne, clearAll } = useNotifications();
+  const lang = i18n.language?.startsWith("fr") ? "fr" : "en";
   const { permission, subscribe } = usePushNotifications();
-  const hasAnyUnread = unseenCount > 0 || unreadMessages > 0 || unreadNotifs > 0;
+  const { walletBadge } = useWalletBadge();
+  const hasAnyUnread = unseenCount > 0 || unreadMessages > 0 || unreadNotifs > 0 || walletBadge;
 
   // Ask for push permission once, after user logs in, if not yet decided
   useEffect(() => {
@@ -234,6 +238,17 @@ export default function Header() {
             <span>{t("header.settings")}</span>
           </div>
         </DropdownMenuItem>
+        {isAdminUser(user) && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem asChild>
+              <Link href="/admin" className="cursor-pointer flex items-center text-green-700">
+                <ShieldCheck className="mr-2 h-4 w-4" />
+                <span>Admin</span>
+              </Link>
+            </DropdownMenuItem>
+          </>
+        )}
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer text-red-600 focus:text-red-600">
           <LogOut className="mr-2 h-4 w-4" />
@@ -471,92 +486,207 @@ export default function Header() {
         </div>
 
         {/* Mobile menu — Sheet shadcn (< md seulement) */}
-        <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+        <Sheet open={mobileMenuOpen} onOpenChange={(open) => { setMobileMenuOpen(open); if (!open) setMobileView("menu"); }}>
           <SheetContent side="right" className="w-72 p-0 flex flex-col" aria-describedby={undefined}>
-            <SheetHeader className="px-4 py-4 border-b border-gray-100">
-              <SheetTitle asChild>
-                {user ? (
-                  <div className="flex items-center gap-3">
-                    <Avatar className="h-10 w-10 border-2 border-white shadow">
-                      <AvatarImage src={avatarUrl} alt={displayName || "User"} />
-                      <AvatarFallback className="text-sm bg-green-100 text-green-800 font-semibold">{fallbackInitial}</AvatarFallback>
-                    </Avatar>
-                    <div className="text-left">
-                      <p className="text-sm font-semibold text-gray-900 truncate max-w-[160px]">{displayName || user?.email}</p>
-                      <p className="text-xs text-gray-400 truncate max-w-[160px]">{user?.email}</p>
-                    </div>
-                  </div>
-                ) : (
-                  <span className="text-sm font-semibold text-gray-900">Menu</span>
-                )}
-              </SheetTitle>
-            </SheetHeader>
 
-            <nav className="flex-1 overflow-y-auto py-2">
-              {user ? (
-                <>
-                  <Link href="/favorites" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
-                    <Heart className="h-5 w-5 text-gray-400" /> {t("header.favorites")}
-                  </Link>
-                  <Link href="/messages" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
-                    <MessageCircle className="h-5 w-5 text-gray-400" />
-                    <span className="flex-1">{t("header.messages")}</span>
-                    {unreadMessages > 0 && (
-                      <span className="h-5 min-w-5 px-1 bg-red-500 rounded-full flex items-center justify-center text-[10px] font-bold text-white">
-                        {unreadMessages > 9 ? "9+" : unreadMessages}
-                      </span>
-                    )}
-                  </Link>
-                  <Link href="/notifications" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
-                    <Bell className="h-5 w-5 text-gray-400" />
-                    <span className="flex-1">{t("header.notifications")}</span>
-                    {unreadNotifs > 0 && (
-                      <span className="h-5 min-w-5 px-1 bg-red-500 rounded-full flex items-center justify-center text-[10px] font-bold text-white">
-                        {unreadNotifs > 9 ? "9+" : unreadNotifs}
-                      </span>
-                    )}
-                  </Link>
-                  <Link href="/bookings" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
-                    <CalendarDays className="h-5 w-5 text-gray-400" />
-                    <span>{t("header.bookings")}</span>
-                    {unseenCount > 0 && (
-                      <span className="ml-auto h-5 min-w-5 px-1 bg-red-500 rounded-full flex items-center justify-center text-[10px] font-bold text-white">
-                        {unseenCount > 9 ? "9+" : unseenCount}
-                      </span>
-                    )}
-                  </Link>
-                  <Link href={`/profile/${user?.id}`} onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
-                    {isPerson ? <User className="h-5 w-5 text-gray-400" /> : <Building2 className="h-5 w-5 text-gray-400" />}
-                    {t("header.profile")}
-                  </Link>
-                  <Link href="/my-listings" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
-                    <List className="h-5 w-5 text-gray-400" /> {t("header.listings")}
-                  </Link>
-                  <Link href="/wallet" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
-                    <Wallet className="h-5 w-5 text-gray-400" /> {t("header.wallet")}
-                  </Link>
-                  <button onClick={() => { setMobileMenuOpen(false); setShowSettings(true); }} className="cursor-pointer w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
-                    <Settings className="h-5 w-5 text-gray-400" /> {t("header.settings")}
-                  </button>
-                  <div className="border-t border-gray-100 mt-1 pt-1">
-                    <button onClick={() => { setMobileMenuOpen(false); handleSignOut(); }} className="cursor-pointer w-full flex items-center gap-3 px-4 py-3 text-sm text-red-600 hover:bg-red-50 transition-colors">
-                      <LogOut className="h-5 w-5" /> {t("header.logOut")}
+            {mobileView === "notifications" ? (
+              <>
+                {/* Notifications sub-panel */}
+                <SheetHeader className="px-4 py-4 border-b border-gray-100">
+                  <SheetTitle asChild>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setMobileView("menu")}
+                        className="cursor-pointer p-1 -ml-1 hover:bg-gray-100 rounded-lg transition-colors"
+                      >
+                        <ChevronLeft className="h-5 w-5 text-gray-700" />
+                      </button>
+                      <span className="text-sm font-semibold text-gray-900 flex-1">{t("notifications.title")}</span>
+                      {unreadNotifs > 0 && (
+                        <button onClick={markAllRead} className="cursor-pointer text-xs text-green-700 hover:underline">
+                          {t("notifications.markAllRead")}
+                        </button>
+                      )}
+                    </div>
+                  </SheetTitle>
+                </SheetHeader>
+
+                <div className="flex-1 overflow-y-auto">
+                  {notifsLoading ? (
+                    <div className="flex justify-center py-10">
+                      <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+                    </div>
+                  ) : notifications.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-16 text-center px-4">
+                      <Bell className="h-10 w-10 text-gray-300 mb-2" />
+                      <p className="text-sm text-gray-500">{t("notifications.noNotifications")}</p>
+                    </div>
+                  ) : (
+                    notifications.map((n) => {
+                      const isUnread = !n.read_at;
+                      const diff = Date.now() - new Date(n.created_at).getTime();
+                      const timeStr = diff < 60_000
+                        ? t("notifications.justNow")
+                        : diff < 3_600_000
+                        ? t("notifications.minutesAgo", { count: Math.floor(diff / 60_000) })
+                        : diff < 86_400_000
+                        ? t("notifications.hoursAgo", { count: Math.floor(diff / 3_600_000) })
+                        : diff < 7 * 86_400_000
+                        ? t("notifications.daysAgo", { count: Math.floor(diff / 86_400_000) })
+                        : new Date(n.created_at).toLocaleDateString(lang === "fr" ? "fr-CA" : "en-CA", { month: "short", day: "numeric" });
+                      return (
+                        <div
+                          key={n.id}
+                          onClick={() => {
+                            if (isUnread) markRead(n.id);
+                            setMobileMenuOpen(false);
+                            setMobileView("menu");
+                            if (n.link) router.push(n.link);
+                          }}
+                          className={`flex items-start gap-3 px-4 py-3 cursor-pointer border-b border-gray-100 last:border-b-0 transition-colors ${isUnread ? "bg-green-50/50 hover:bg-green-100/40" : "hover:bg-gray-50"}`}
+                        >
+                          <div className="flex-1 min-w-0">
+                            <p className={`text-sm truncate ${isUnread ? "font-semibold text-gray-900" : "font-medium text-gray-700"}`}>
+                              {n.title}
+                            </p>
+                            <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{n.body}</p>
+                            <p className="text-[11px] text-gray-400 mt-1">{timeStr}</p>
+                          </div>
+                          <div className="shrink-0 flex gap-1 mt-0.5" onClick={(e) => e.stopPropagation()}>
+                            {isUnread && (
+                              <button
+                                onClick={() => markRead(n.id)}
+                                className="cursor-pointer h-7 w-7 rounded-full flex items-center justify-center text-gray-400 hover:text-green-600 hover:bg-green-100 transition-colors"
+                                title={t("notifications.markAsRead")}
+                              >
+                                <Check className="h-3.5 w-3.5" />
+                              </button>
+                            )}
+                            <button
+                              onClick={() => deleteOne(n.id)}
+                              className="cursor-pointer h-7 w-7 rounded-full flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+                              title={t("common.delete")}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+
+                {notifications.length > 0 && (
+                  <div className="shrink-0 border-t border-gray-100 px-4 py-3">
+                    <button onClick={clearAll} className="cursor-pointer text-xs text-gray-400 hover:text-red-500 hover:underline">
+                      {t("notifications.clearAll")}
                     </button>
                   </div>
-                </>
-              ) : (
-                <Link href="/login" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
-                  <User className="h-5 w-5 text-gray-400" /> {t("header.loginRegister")}
-                </Link>
-              )}
-            </nav>
+                )}
+              </>
+            ) : (
+              <>
+                {/* Main menu */}
+                <SheetHeader className="px-4 py-4 border-b border-gray-100">
+                  <SheetTitle asChild>
+                    {user ? (
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-10 w-10 border-2 border-white shadow">
+                          <AvatarImage src={avatarUrl} alt={displayName || "User"} />
+                          <AvatarFallback className="text-sm bg-green-100 text-green-800 font-semibold">{fallbackInitial}</AvatarFallback>
+                        </Avatar>
+                        <div className="text-left">
+                          <p className="text-sm font-semibold text-gray-900 truncate max-w-[160px]">{displayName || user?.email}</p>
+                          <p className="text-xs text-gray-400 truncate max-w-[160px]">{user?.email}</p>
+                        </div>
+                      </div>
+                    ) : (
+                      <span className="text-sm font-semibold text-gray-900">Menu</span>
+                    )}
+                  </SheetTitle>
+                </SheetHeader>
 
-            <div className="border-t border-gray-100 px-4 py-3">
-              <ToggleGroup type="single" variant="outline" value={i18n.language === "fr" ? "FR" : "EN"} onValueChange={(val) => { if (val) { const lng = val.toLowerCase(); i18n.changeLanguage(lng); localStorage.setItem("i18nextLng", lng); } }}>
-                <ToggleGroupItem value="EN" className="cursor-pointer text-sm px-4 h-9 flex-1">EN</ToggleGroupItem>
-                <ToggleGroupItem value="FR" className="cursor-pointer text-sm px-4 h-9 flex-1">FR</ToggleGroupItem>
-              </ToggleGroup>
-            </div>
+                <nav className="flex-1 overflow-y-auto py-2">
+                  {user ? (
+                    <>
+                      <Link href="/favorites" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                        <Heart className="h-5 w-5 text-gray-400" /> {t("header.favorites")}
+                      </Link>
+                      <Link href="/messages" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                        <MessageCircle className="h-5 w-5 text-gray-400" />
+                        <span className="flex-1">{t("header.messages")}</span>
+                        {unreadMessages > 0 && (
+                          <span className="h-5 min-w-5 px-1 bg-red-500 rounded-full flex items-center justify-center text-[10px] font-bold text-white">
+                            {unreadMessages > 9 ? "9+" : unreadMessages}
+                          </span>
+                        )}
+                      </Link>
+                      <button
+                        onClick={() => setMobileView("notifications")}
+                        className="cursor-pointer w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors text-left"
+                      >
+                        <Bell className="h-5 w-5 text-gray-400" />
+                        <span className="flex-1">{t("header.notifications")}</span>
+                        {unreadNotifs > 0 && (
+                          <span className="h-5 min-w-5 px-1 bg-red-500 rounded-full flex items-center justify-center text-[10px] font-bold text-white">
+                            {unreadNotifs > 9 ? "9+" : unreadNotifs}
+                          </span>
+                        )}
+                        <ChevronLeft className="h-4 w-4 text-gray-300 rotate-180" />
+                      </button>
+                      <Link href="/wallet" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                        <Wallet className="h-5 w-5 text-gray-400" />
+                        <span className="flex-1">{t("header.wallet")}</span>
+                        {walletBadge && (
+                          <span className="h-2.5 w-2.5 bg-red-500 rounded-full" />
+                        )}
+                      </Link>
+                      <Link href="/my-listings" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                        <List className="h-5 w-5 text-gray-400" /> {t("header.listings")}
+                      </Link>
+                      <Link href="/bookings" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                        <CalendarDays className="h-5 w-5 text-gray-400" />
+                        <span className="flex-1">{t("header.bookings")}</span>
+                        {unseenCount > 0 && (
+                          <span className="h-5 min-w-5 px-1 bg-red-500 rounded-full flex items-center justify-center text-[10px] font-bold text-white">
+                            {unseenCount > 9 ? "9+" : unseenCount}
+                          </span>
+                        )}
+                      </Link>
+                      <Link href={`/profile/${user?.id}`} onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                        {isPerson ? <User className="h-5 w-5 text-gray-400" /> : <Building2 className="h-5 w-5 text-gray-400" />}
+                        {t("header.profile")}
+                      </Link>
+                      <button onClick={() => { setMobileMenuOpen(false); setShowSettings(true); }} className="cursor-pointer w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors text-left">
+                        <Settings className="h-5 w-5 text-gray-400" /> {t("header.settings")}
+                      </button>
+                      {isAdminUser(user) && (
+                        <Link href="/admin" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm text-green-700 font-medium hover:bg-green-50 transition-colors">
+                          <ShieldCheck className="h-5 w-5" /> Admin
+                        </Link>
+                      )}
+                      <div className="border-t border-gray-100 mt-1 pt-1">
+                        <button onClick={() => { setMobileMenuOpen(false); handleSignOut(); }} className="cursor-pointer w-full flex items-center gap-3 px-4 py-3 text-sm text-red-600 hover:bg-red-50 transition-colors">
+                          <LogOut className="h-5 w-5" /> {t("header.logOut")}
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <Link href="/login" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                      <User className="h-5 w-5 text-gray-400" /> {t("header.loginRegister")}
+                    </Link>
+                  )}
+                </nav>
+
+                <div className="border-t border-gray-100 px-4 py-3">
+                  <ToggleGroup type="single" variant="outline" value={i18n.language === "fr" ? "FR" : "EN"} onValueChange={(val) => { if (val) { const lng = val.toLowerCase(); i18n.changeLanguage(lng); localStorage.setItem("i18nextLng", lng); } }}>
+                    <ToggleGroupItem value="EN" className="cursor-pointer text-sm px-4 h-9 flex-1">EN</ToggleGroupItem>
+                    <ToggleGroupItem value="FR" className="cursor-pointer text-sm px-4 h-9 flex-1">FR</ToggleGroupItem>
+                  </ToggleGroup>
+                </div>
+              </>
+            )}
+
           </SheetContent>
         </Sheet>
 

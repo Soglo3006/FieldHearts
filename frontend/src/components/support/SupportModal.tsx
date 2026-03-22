@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { useScrollLock } from "@/hooks/useScrollLock";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -13,6 +14,7 @@ interface SupportModalProps {
 }
 
 export default function SupportModal({ open, onClose }: SupportModalProps) {
+  useScrollLock(open);
   const { user, session } = useAuth();
   const { t } = useTranslation();
   const [subject, setSubject] = useState("");

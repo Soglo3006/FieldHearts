@@ -137,7 +137,6 @@ export function useUnreadMessages() {
         setUnreadChats(validChats);
         setUnreadCount(newUnreadCount);
       } catch (error) {
-        console.error('Error fetching messages:', error);
       } finally {
         setLoading(false);
       }
@@ -194,8 +193,12 @@ export function useUnreadMessages() {
       )
       .subscribe();
 
+    // Fallback polling every 15s in case realtime misses events
+    const pollInterval = setInterval(() => fetchMessages(false), 15000);
+
     return () => {
       supabase.removeChannel(channel);
+      clearInterval(pollInterval);
     };
   }, [user]);
 
@@ -211,7 +214,6 @@ export function useUnreadMessages() {
       .is('read_at', null);
 
     if (error) {
-      console.error('Error marking messages as read:', error);
       return;
     }
 

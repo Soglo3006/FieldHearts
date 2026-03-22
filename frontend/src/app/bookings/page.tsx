@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useState, Suspense } from "react";
+import { useEffect, useState, Suspense, useCallback, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter, useSearchParams } from "next/navigation";
+import { supabase } from "@/lib/supabaseClient";
 import Link from "next/link";
 import { useStartConversation } from "@/hooks/useStartConversation";
+import { useUnreadBookings } from "@/hooks/useUnreadBookings";
 import { CalendarDays, CheckCircle, XCircle, Clock } from "lucide-react";
 import LeaveReviewModal from "@/components/bookings/LeaveReviewModal";
 import OpenDisputeModal from "@/components/bookings/OpenDisputeModal";
@@ -55,8 +57,35 @@ function BookingsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
+  const uid = user?.id ?? null;
+  const RECEIVED_SEEN_KEY = uid ? `bookings_received_seen_${uid}` : null;
+  const SENT_SEEN_KEY     = uid ? `bookings_sent_seen_${uid}`     : null;
+  const DONE_SEEN_KEY     = uid ? `bookings_done_seen_${uid}`     : null;
+
+  function lsGetIds(key: string | null): Set<string> {
+    if (!key) return new Set();
+    try { return new Set(JSON.parse(localStorage.getItem(key) ?? "[]")); } catch { return new Set(); }
+  }
+  function lsSaveIds(key: string | null, ids: Set<string>) {
+    if (!key) return;
+    try { localStorage.setItem(key, JSON.stringify([...ids])); } catch {}
+  }
+
   const [tab, setTab] = useState<"received" | "sent" | "done">("received");
-  const [seenCounts, setSeenCounts] = useState<Record<string, number>>({ received: 0, sent: 0, done: 0 });
+  const [seenReceivedIds, setSeenReceivedIds] = useState<Set<string>>(new Set());
+  const [seenSentIds,     setSeenSentIds]     = useState<Set<string>>(new Set());
+  const [seenDoneCount,   setSeenDoneCount]   = useState(0);
+
+  // Load persisted seen data from localStorage on mount (after user is known)
+  useEffect(() => {
+    if (!uid) return;
+    setSeenReceivedIds(lsGetIds(RECEIVED_SEEN_KEY));
+    setSeenSentIds(lsGetIds(SENT_SEEN_KEY));
+    try {
+      const saved = localStorage.getItem(DONE_SEEN_KEY!);
+      if (saved) setSeenDoneCount(parseInt(saved, 10));
+    } catch {}
+  }, [uid]);
   const [received, setReceived] = useState<ReceivedBooking[]>([]);
   const [sent, setSent] = useState<SentBooking[]>([]);
   const [loadingReceived, setLoadingReceived] = useState(true);
@@ -73,12 +102,14 @@ function BookingsContent() {
   );
 
   const { startConversation, loading: chatLoading } = useStartConversation();
+  const { markAllSeen } = useUnreadBookings();
 
-  useEffect(() => {
-    if (authLoading) return;
-    if (!user) { router.push("/login"); return; }
-    if (!session?.access_token) return;
-    const headers = { Authorization: `Bearer ${session.access_token}` };
+  const sessionRef = useRef(session);
+  useEffect(() => { sessionRef.current = session; }, [session]);
+
+  const fetchBookings = useCallback(async () => {
+    if (!sessionRef.current?.access_token) return;
+    const headers = { Authorization: `Bearer ${sessionRef.current.access_token}` };
 
     fetch(`${process.env.NEXT_PUBLIC_API_URL}/bookings/received-bookings`, { headers })
       .then((r) => r.json())
@@ -91,15 +122,54 @@ function BookingsContent() {
       .then((data) => setSent(Array.isArray(data) ? data : []))
       .catch(() => setSent([]))
       .finally(() => setLoadingSent(false));
-  }, [user, session, router, authLoading]);
+  }, []);
+
+  useEffect(() => {
+    if (authLoading) return;
+    if (!user) { router.push("/login"); return; }
+    if (!session?.access_token) return;
+    fetchBookings();
+  }, [user, session, router, authLoading, fetchBookings]);
+
+  // Realtime: re-fetch when a booking is created/updated for this user.
+  // Two channels to cover both roles:
+  //   ch1 — bookings where I am the worker (offer listings: I receive the request)
+  //   ch2 — bookings where I am the client (looking listings: I receive the application)
+  useEffect(() => {
+    if (!user) return;
+    const ch1 = supabase
+      .channel('bookings-as-worker')
+      .on('postgres_changes', {
+        event: '*', schema: 'public', table: 'bookings',
+        filter: `worker_id=eq.${user.id}`,
+      }, () => { fetchBookings(); })
+      .subscribe();
+    const ch2 = supabase
+      .channel('bookings-as-client')
+      .on('postgres_changes', {
+        event: '*', schema: 'public', table: 'bookings',
+        filter: `client_id=eq.${user.id}`,
+      }, () => { fetchBookings(); })
+      .subscribe();
+    return () => {
+      supabase.removeChannel(ch1);
+      supabase.removeChannel(ch2);
+    };
+  }, [user, fetchBookings]);
 
   useEffect(() => {
     if (paymentResult === "success" || paymentResult === "cancelled") {
       setTab("sent");
       const timer = setTimeout(() => setPaymentBanner(null), 5000);
+      if (paymentResult === "success") {
+        // Refetch immediately + after a delay in case the Stripe webhook takes a moment to update the DB
+        fetchBookings();
+        const refetchTimer = setTimeout(() => fetchBookings(), 3000);
+        return () => { clearTimeout(timer); clearTimeout(refetchTimer); };
+      }
       return () => clearTimeout(timer);
     }
-  }, [paymentResult]);
+  }, [paymentResult, fetchBookings]);
 
   const updateStatus = async (bookingId: string, status: BookingStatus, side: "received" | "sent") => {
     setUpdating(bookingId);
@@ -110,10 +180,11 @@ function BookingsContent() {
         body: JSON.stringify({ status }),
       });
       if (!res.ok) return;
+      const updated = await res.json();
       if (side === "received") {
-        setReceived((prev) => prev.map((b) => (b.id === bookingId ? { ...b, status } : b)));
+        setReceived((prev) => prev.map((b) => (b.id === bookingId ? { ...b, ...updated } : b)));
       } else {
-        setSent((prev) => prev.map((b) => (b.id === bookingId ? { ...b, status } : b)));
+        setSent((prev) => prev.map((b) => (b.id === bookingId ? { ...b, ...updated } : b)));
       }
     } catch { /* silent */ } finally {
       setUpdating(null);
@@ -139,31 +210,66 @@ function BookingsContent() {
     }
   };
 
-  const activeStatuses = ["pending", "accepted", "active"];
-  const activeReceived = received.filter((b) => activeStatuses.includes(b.status)).length;
-  const activeSent = sent.filter((b) => activeStatuses.includes(b.status)).length;
+  // Merge all completed bookings (deduplicated) then split by actual role
+  const allCompleted = [...received, ...sent].filter((b) => b.status === "completed");
+  const seenIds = new Set<string>();
+  const uniqueCompleted = allCompleted.filter((b) => {
+    if (seenIds.has(b.id)) return false;
+    seenIds.add(b.id);
+    return true;
+  });
+  const completedReceived = uniqueCompleted.filter((b) => b.worker_id === uid);
+  const completedSent     = uniqueCompleted.filter((b) => b.client_id === uid);
+  const doneCount = uniqueCompleted.length;
 
-  const completedReceived = received.filter((b) => b.status === "completed");
-  const completedSent = sent.filter((b) => b.status === "completed");
-  const doneCount = completedReceived.length + completedSent.length;
+  // Badge logic — based on unseen IDs, not counts
+  // Received: new pending requests (need worker action)
+  const unseenReceivedIds = received
+    .filter((b) => b.status === "pending" && !seenReceivedIds.has(b.id))
+    .map((b) => b.id);
+  // Sent: accepted or refused responses (status changed for client)
+  const unseenSentIds = sent
+    .filter((b) => ["accepted", "refused"].includes(b.status) && !seenSentIds.has(b.id))
+    .map((b) => b.id);
 
-  const badgeReceived = Math.max(0, activeReceived - seenCounts.received);
-  const badgeSent = Math.max(0, activeSent - seenCounts.sent);
-  const badgeDone = Math.max(0, doneCount - seenCounts.done);
+  const badgeReceived = unseenReceivedIds.length;
+  const badgeSent     = unseenSentIds.length;
+  const badgeDone     = Math.max(0, doneCount - seenDoneCount);
+
+  const markReceivedSeen = () => {
+    const newIds = new Set([...seenReceivedIds, ...unseenReceivedIds]);
+    setSeenReceivedIds(newIds);
+    lsSaveIds(RECEIVED_SEEN_KEY, newIds);
+  };
+  const markSentSeen = () => {
+    const newIds = new Set([...seenSentIds, ...unseenSentIds]);
+    setSeenSentIds(newIds);
+    lsSaveIds(SENT_SEEN_KEY, newIds);
+  };
+  const markDoneSeen = () => {
+    setSeenDoneCount(doneCount);
+    try { if (DONE_SEEN_KEY) localStorage.setItem(DONE_SEEN_KEY, String(doneCount)); } catch {}
+  };
 
   const switchTab = (newTab: "received" | "sent" | "done") => {
     setTab(newTab);
-    const current = newTab === "received" ? activeReceived : newTab === "sent" ? activeSent : doneCount;
-    setSeenCounts((prev) => ({ ...prev, [newTab]: current }));
+    if (newTab === "received") markReceivedSeen();
+    if (newTab === "sent")     markSentSeen();
+    if (newTab === "done")     markDoneSeen();
   };
 
-  // Auto-mark initial tab as seen once data loads
+  // Auto-mark current tab as seen once data loads
   useEffect(() => {
-    if (!loadingReceived) setSeenCounts((prev) => ({ ...prev, received: activeReceived }));
+    if (!loadingReceived && tab === "received") markReceivedSeen();
   }, [loadingReceived]);
   useEffect(() => {
-    if (!loadingSent) setSeenCounts((prev) => ({ ...prev, sent: activeSent }));
+    if (!loadingSent && tab === "sent") markSentSeen();
   }, [loadingSent]);
+
+  // Clear the Header badge when both lists are loaded
+  useEffect(() => {
+    if (!loadingReceived && !loadingSent) markAllSeen();
+  }, [loadingReceived, loadingSent]);
 
   if (authLoading) {
     return (
@@ -252,12 +358,13 @@ function BookingsContent() {
               bookings={received}
               updating={updating}
               chatLoading={chatLoading}
+              accessToken={session?.access_token ?? ""}
               onUpdateStatus={updateStatus}
               onMarkCompleted={markCompleted}
-              onMessage={(clientId) => startConversation(clientId)}
+              onMessage={(userId) => startConversation(userId)}
               onReview={(id, targetName) => setReviewBooking({ id, targetName })}
               onDispute={(id, title) => setDisputeBooking({ id, title })}
-              onCardClick={(booking) => setDetailBooking({ booking, role: "worker" })}
+              onCardClick={(booking) => setDetailBooking({ booking, role: booking.worker_id === uid ? "worker" : "client" })}
             />
           )}
         </>
@@ -277,7 +384,7 @@ function BookingsContent() {
             onMessage={(workerId) => startConversation(workerId)}
             onReview={(id, targetName) => setReviewBooking({ id, targetName })}
             onDispute={(id, title) => setDisputeBooking({ id, title })}
-            onCardClick={(booking) => setDetailBooking({ booking, role: "client" })}
+            onCardClick={(booking) => setDetailBooking({ booking, role: booking.worker_id === uid ? "worker" : "client" })}
           />
         )
       )}
@@ -307,11 +414,11 @@ function BookingsContent() {
                       )}
                       <div className="flex-1 min-w-0">
                         <p className="font-medium text-gray-900 truncate">{b.title}</p>
-                        <p className="text-sm text-gray-500">Client : {b.client_name}</p>
+                        <p className="text-sm text-gray-500">Client : {("client_name" in b ? (b as ReceivedBooking).client_name : (b as SentBooking).worker_name)}</p>
                         <p className="text-xs text-gray-400">{new Date(b.created_at).toLocaleDateString("fr-CA", { year: "numeric", month: "long", day: "numeric" })}</p>
                       </div>
                       <div className="text-right shrink-0">
-                        <p className="font-semibold text-green-700">+{(Number(b.price) * 0.80).toFixed(2)} $</p>
+                        <p className="font-semibold text-green-700">+{(Number(b.custom_price ?? b.price) * 0.80).toFixed(2)} $</p>
                         <span className="inline-block mt-1 text-xs bg-green-100 text-green-800 border border-green-200 rounded-full px-2 py-0.5">Terminé</span>
                       </div>
                     </div>
@@ -334,16 +441,16 @@ function BookingsContent() {
                       )}
                       <div className="flex-1 min-w-0">
                         <p className="font-medium text-gray-900 truncate">{b.title}</p>
-                        <p className="text-sm text-gray-500">Prestataire : {b.worker_name}</p>
+                        <p className="text-sm text-gray-500">Prestataire : {("worker_name" in b ? (b as SentBooking).worker_name : (b as ReceivedBooking).client_name)}</p>
                         <p className="text-xs text-gray-400">{new Date(b.created_at).toLocaleDateString("fr-CA", { year: "numeric", month: "long", day: "numeric" })}</p>
                       </div>
                       <div className="text-right shrink-0">
-                        <p className="font-semibold text-red-600">-{(Number(b.price) * 1.19975).toFixed(2)} $</p>
+                        <p className="font-semibold text-red-600">-{(Number(b.custom_price ?? b.price) * 1.19975).toFixed(2)} $</p>
                         <span className="inline-block mt-1 text-xs bg-green-100 text-green-800 border border-green-200 rounded-full px-2 py-0.5">Terminé</span>
                         {!b.has_reviewed && (
                           <button
                             type="button"
-                            onClick={(e) => { e.stopPropagation(); setReviewBooking({ id: b.id, targetName: b.worker_name }); }}
+                            onClick={(e) => { e.stopPropagation(); setReviewBooking({ id: b.id, targetName: ("worker_name" in b ? (b as SentBooking).worker_name : (b as ReceivedBooking).client_name) }); }}
                             className="block mt-1 text-xs text-green-700 hover:underline"
                           >
                             Laisser un avis

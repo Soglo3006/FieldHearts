@@ -1,9 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useScrollLock } from "@/hooks/useScrollLock";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Card, CardContent } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 import {
   X, MapPin, CalendarDays, Tag, CheckCircle, CreditCard, FileText, Grid3x3,
+  TrendingDown, TrendingUp,
 } from "lucide-react";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import DisputeThread from "@/components/bookings/DisputeThread";
@@ -76,18 +80,46 @@ export default function BookingDetailModal({
   onClose, onUpdated, onMessage, onOpenReview, onOpenDispute,
 }: Props) {
   const { t } = useTranslation();
+  useScrollLock(true);
   const [booking, setBooking] = useState(initialBooking);
   const [serviceDescription, setServiceDescription] = useState<string | null>(null);
   const [updating, setUpdating] = useState(false);
-
-  useEffect(() => { setBooking(initialBooking); }, [initialBooking]);
+  const bookingRef = useRef(booking);
+  bookingRef.current = booking;
 
   useEffect(() => {
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/services/${booking.service_id}`)
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/services/${initialBooking.service_id}`)
       .then((r) => r.json())
       .then((s) => { if (s?.description) setServiceDescription(s.description); })
       .catch(() => {});
-  }, [booking.service_id]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Poll every 4s while active so both parties see live completion state
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      if (bookingRef.current.status !== "active") return;
+      try {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/bookings/${bookingRef.current.id}`, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        setBooking((prev) => {
+          if (
+            prev.completed_by_worker !== data.completed_by_worker ||
+            prev.completed_by_client !== data.completed_by_client ||
+            prev.status !== data.status
+          ) {
+            return { ...prev, ...data };
+          }
+          return prev;
+        });
+      } catch { /* silent */ }
+    }, 4000);
+    return () => clearInterval(interval);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const callStatus = async (status: BookingStatus) => {
     setUpdating(true);
@@ -107,6 +139,20 @@ export default function BookingDetailModal({
     setUpdating(true);
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/bookings/${booking.id}/complete`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      setBooking((prev) => ({ ...prev, ...data }));
+      onUpdated(booking.id, data);
+    } finally { setUpdating(false); }
+  };
+
+  const callUndoMarkCompleted = async () => {
+    setUpdating(true);
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/bookings/${booking.id}/uncomplete`, {
         method: "POST",
         headers: { Authorization: `Bearer ${accessToken}` },
       });
@@ -198,19 +244,119 @@ export default function BookingDetailModal({
                 const commission20    = base * 0.20;
                 const workerReceives  = base * 0.80;
 
-                // For completed/cancelled: show two separate cards
-                if (["completed", "cancelled"].includes(booking.status)) {
+                if (["cancelled", "rejected"].includes(booking.status)) return null;
+
+                // Completed: worker sees client summary + payout, client sees total paid only
+                if (booking.status === "completed") {
+                  if (userRole === "worker") {
+                    return (
+                      <div className="space-y-3">
+                        {/* What the client paid */}
+                        <Card className="overflow-hidden shadow-none">
+                          <div className="flex items-center gap-2 bg-gray-50 px-4 py-2.5 border-b border-gray-100">
+                            <TrendingDown className="h-3.5 w-3.5 text-gray-500" />
+                            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{t("bookings.clientPaid")}</span>
+                          </div>
+                          <CardContent className="p-4 space-y-2 text-sm">
+                            <div className="flex justify-between text-gray-600">
+                              <span>{t("serviceDetail.servicePrice")}</span>
+                              <span className="font-medium">{fmt(base)} $</span>
+                            </div>
+                            <div className="flex justify-between text-gray-500">
+                              <span>{t("serviceDetail.buyerCommission")}</span>
+                              <span>{fmt(buyerCommission)} $</span>
+                            </div>
+                            <div className="flex justify-between text-gray-500">
+                              <div>
+                                <div>{t("serviceDetail.taxes")}</div>
+                                <div className="text-[11px] text-gray-400">TPS (5%) + TVQ (9.975%)</div>
+                              </div>
+                              <span>{fmt(taxes)} $</span>
+                            </div>
+                            <Separator />
+                            <div className="flex justify-between font-bold text-base">
+                              <span>{t("serviceDetail.total")}</span>
+                              <span className="text-gray-900">{fmt(totalPaid)} $ CAD</span>
+                            </div>
+                          </CardContent>
+                        </Card>
+                        {/* Worker payout */}
+                        <Card className="overflow-hidden border-green-100 shadow-none">
+                          <div className="flex items-center gap-2 bg-green-50 px-4 py-2.5 border-b border-green-100">
+                            <TrendingUp className="h-3.5 w-3.5 text-green-600" />
+                            <span className="text-xs font-semibold text-green-700 uppercase tracking-wide">{t("bookings.workerPayout")}</span>
+                          </div>
+                          <CardContent className="p-4 space-y-2 text-sm">
+                            <div className="flex justify-between text-gray-600">
+                              <span>{t("serviceDetail.servicePrice")}</span>
+                              <span className="font-medium">{fmt(base)} $</span>
+                            </div>
+                            <div className="flex justify-between text-red-500">
+                              <span>{t("bookings.platformCommission20")}</span>
+                              <span>−{fmt(commission20)} $</span>
+                            </div>
+                            <Separator />
+                            <div className="flex justify-between font-bold text-base">
+                              <span className="text-gray-900">{t("bookings.youWillReceive")}</span>
+                              <span className="text-green-600">{fmt(workerReceives)} $ CAD</span>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      </div>
+                    );
+                  }
+                  // Client completed view
                   return (
-                    <div className="space-y-2">
-                      {/* Client side — what was charged */}
-                      <div className="rounded-lg border border-gray-200 overflow-hidden text-sm">
-                        <div className="bg-gray-50 px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                          {t("bookings.totalPaid")}
+                    <Card className="overflow-hidden shadow-none">
+                      <div className="flex items-center gap-2 bg-gray-50 px-4 py-2.5 border-b border-gray-100">
+                        <TrendingDown className="h-3.5 w-3.5 text-gray-500" />
+                        <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{t("bookings.totalPaid")}</span>
+                      </div>
+                      <CardContent className="p-4 space-y-2 text-sm">
+                        <div className="flex justify-between text-gray-600">
+                          <span>{t("serviceDetail.servicePrice")}</span>
+                          <span className="font-medium">
+                            {fmt(base)} $
+                            {booking.custom_price && Number(booking.custom_price) !== origBase && (
+                              <span className="text-xs text-gray-400 line-through ml-2">{fmt(origBase)} $</span>
+                            )}
+                          </span>
                         </div>
-                        <div className="p-3 space-y-1.5">
-                          <div className="flex justify-between">
-                            <span className="text-gray-600">{t("serviceDetail.servicePrice")}</span>
-                            <span className="font-semibold">
+                        <div className="flex justify-between text-gray-500">
+                          <span>{t("serviceDetail.buyerCommission")}</span>
+                          <span>{fmt(buyerCommission)} $</span>
+                        </div>
+                        <div className="flex justify-between text-gray-500">
+                          <div>
+                            <div>{t("serviceDetail.taxes")}</div>
+                            <div className="text-[11px] text-gray-400">TPS (5%) + TVQ (9.975%)</div>
+                          </div>
+                          <span>{fmt(taxes)} $</span>
+                        </div>
+                        <Separator />
+                        <div className="flex justify-between font-bold text-base">
+                          <span>{t("serviceDetail.total")}</span>
+                          <span className="text-gray-900">{fmt(totalPaid)} $ CAD</span>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                }
+
+                // Worker view (pending/accepted/active): payment summary + projected earnings
+                if (userRole === "worker") {
+                  return (
+                    <div className="space-y-3">
+                      {/* Full payment breakdown — what the client paid */}
+                      <Card className="overflow-hidden shadow-none">
+                        <div className="flex items-center gap-2 bg-gray-50 px-4 py-2.5 border-b border-gray-100">
+                          <TrendingDown className="h-3.5 w-3.5 text-gray-500" />
+                          <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{t("bookings.clientPaid")}</span>
+                        </div>
+                        <CardContent className="p-4 space-y-2 text-sm">
+                          <div className="flex justify-between text-gray-600">
+                            <span>{t("serviceDetail.servicePrice")}</span>
+                            <span className="font-medium">
                               {fmt(base)} $
                               {booking.custom_price && Number(booking.custom_price) !== origBase && (
                                 <span className="text-xs text-gray-400 line-through ml-2">{fmt(origBase)} $</span>
@@ -224,105 +370,79 @@ export default function BookingDetailModal({
                           <div className="flex justify-between text-gray-500">
                             <div>
                               <div>{t("serviceDetail.taxes")}</div>
-                              <div className="text-xs text-gray-400">TPS (5%) + TVQ (9.975%)</div>
+                              <div className="text-[11px] text-gray-400">TPS (5%) + TVQ (9.975%)</div>
                             </div>
                             <span>{fmt(taxes)} $</span>
                           </div>
-                          <div className="flex justify-between font-bold border-t border-gray-200 pt-2 text-base">
+                          <Separator />
+                          <div className="flex justify-between font-bold text-base">
                             <span>{t("serviceDetail.total")}</span>
                             <span className="text-gray-900">{fmt(totalPaid)} $ CAD</span>
                           </div>
+                        </CardContent>
+                      </Card>
+                      {/* Worker earnings */}
+                      <Card className="overflow-hidden border-green-100 shadow-none">
+                        <div className="flex items-center gap-2 bg-green-50 px-4 py-2.5 border-b border-green-100">
+                          <TrendingUp className="h-3.5 w-3.5 text-green-600" />
+                          <span className="text-xs font-semibold text-green-700 uppercase tracking-wide">{t("bookings.yourEarnings")}</span>
                         </div>
-                      </div>
-
-                      {/* Worker side — what the provider receives */}
-                      <div className="rounded-lg border border-gray-200 overflow-hidden text-sm">
-                        <div className="bg-gray-50 px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                          {t("bookings.workerPayout")}
-                        </div>
-                        <div className="p-3 space-y-1.5">
-                          <div className="flex justify-between">
-                            <span className="text-gray-600">{t("serviceDetail.servicePrice")}</span>
-                            <span className="font-semibold">${fmt(base)}</span>
+                        <CardContent className="p-4 space-y-2 text-sm">
+                          <div className="flex justify-between text-gray-600">
+                            <span>{t("serviceDetail.servicePrice")}</span>
+                            <span className="font-medium">{fmt(base)} $</span>
                           </div>
-                          <div className="flex justify-between">
-                            <span className="text-red-600 font-medium">{t("bookings.platformCommission20")}</span>
-                            <span className="text-red-600 font-medium">−{fmt(commission20)} $</span>
+                          <div className="flex justify-between text-red-500">
+                            <span>{t("bookings.platformCommission20")}</span>
+                            <span>−{fmt(commission20)} $</span>
                           </div>
-                          <div className="flex justify-between font-bold border-t border-gray-200 pt-2 text-base">
+                          <Separator />
+                          <div className="flex justify-between font-bold text-base">
                             <span className="text-gray-900">{t("bookings.youWillReceive")}</span>
-                            <span className="text-green-700">{fmt(workerReceives)} $ CAD</span>
+                            <span className="text-green-600">{fmt(workerReceives)} $</span>
                           </div>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                }
-
-                // Worker view (pending/accepted/active): earnings only
-                if (userRole === "worker") {
-                  return (
-                    <div className="rounded-lg border border-gray-200 overflow-hidden text-sm">
-                      <div className="bg-gray-50 px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                        {t("bookings.yourEarnings")}
-                      </div>
-                      <div className="p-3 space-y-1.5">
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">{t("serviceDetail.servicePrice")}</span>
-                          <span className="font-semibold">
-                            ${fmt(base)}
-                            {booking.custom_price && Number(booking.custom_price) !== origBase && (
-                              <span className="text-xs text-gray-400 line-through ml-2">${fmt(origBase)}</span>
-                            )}
-                          </span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-red-600 font-medium">{t("bookings.platformCommission20")}</span>
-                          <span className="text-red-600 font-medium">−{fmt(commission20)} $</span>
-                        </div>
-                        <div className="flex justify-between font-bold border-t border-gray-200 pt-2 text-base">
-                          <span className="text-gray-900">{t("bookings.youWillReceive")}</span>
-                          <span className="text-green-700">{fmt(workerReceives)} $</span>
-                        </div>
-                        <p className="text-xs text-gray-400 pt-0.5">{t("bookings.payoutDelay")}</p>
-                      </div>
+                          <p className="text-[11px] text-gray-400">{t("bookings.payoutDelay")}</p>
+                        </CardContent>
+                      </Card>
                     </div>
                   );
                 }
 
                 // Client view (pending/accepted/active): payment summary
                 return (
-                  <div className="rounded-lg border border-gray-200 overflow-hidden text-sm">
-                    <div className="bg-gray-50 px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                      {t("bookings.paymentSummary")}
+                  <Card className="overflow-hidden shadow-none">
+                    <div className="flex items-center gap-2 bg-gray-50 px-4 py-2.5 border-b border-gray-100">
+                      <TrendingDown className="h-3.5 w-3.5 text-gray-500" />
+                      <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{t("bookings.paymentSummary")}</span>
                     </div>
-                    <div className="p-3 space-y-1.5">
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">{t("serviceDetail.servicePrice")}</span>
-                        <span className="font-semibold">
-                          ${fmt(base)}
+                    <CardContent className="p-4 space-y-2 text-sm">
+                      <div className="flex justify-between text-gray-600">
+                        <span>{t("serviceDetail.servicePrice")}</span>
+                        <span className="font-medium">
+                          {fmt(base)} $
                           {booking.custom_price && Number(booking.custom_price) !== origBase && (
-                            <span className="text-xs text-gray-400 line-through ml-2">${fmt(origBase)}</span>
+                            <span className="text-xs text-gray-400 line-through ml-2">{fmt(origBase)} $</span>
                           )}
                         </span>
                       </div>
                       <div className="flex justify-between text-gray-500">
                         <span>{t("serviceDetail.buyerCommission")}</span>
-                        <span>${fmt(buyerCommission)}</span>
+                        <span>{fmt(buyerCommission)} $</span>
                       </div>
                       <div className="flex justify-between text-gray-500">
                         <div>
                           <div>{t("serviceDetail.taxes")}</div>
-                          <div className="text-xs text-gray-400">TPS (5%) + TVQ (9.975%)</div>
+                          <div className="text-[11px] text-gray-400">TPS (5%) + TVQ (9.975%)</div>
                         </div>
-                        <span>${fmt(taxes)}</span>
+                        <span>{fmt(taxes)} $</span>
                       </div>
-                      <div className="flex justify-between font-bold border-t border-gray-200 pt-2 text-base">
+                      <Separator />
+                      <div className="flex justify-between font-bold text-base">
                         <span>{t("serviceDetail.total")}</span>
-                        <span className="text-green-700">{fmt(totalPaid)} $</span>
+                        <span className="text-green-600">{fmt(totalPaid)} $</span>
                       </div>
-                    </div>
-                  </div>
+                    </CardContent>
+                  </Card>
                 );
               })()}
             </div>
@@ -427,6 +547,7 @@ export default function BookingDetailModal({
           currentUserId={currentUserId}
           onCallStatus={callStatus}
           onMarkCompleted={callMarkCompleted}
+          onUndoMarkCompleted={callUndoMarkCompleted}
           onUpdated={handleFooterUpdated}
           onOpenDispute={onOpenDispute}
           onOpenReview={onOpenReview}

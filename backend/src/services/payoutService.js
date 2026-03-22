@@ -1,6 +1,7 @@
 import pool from "../config/db.js";
 import stripe from "../config/stripe.js";
 import { notifyPayoutReceived } from "./emailService.js";
+import { createNotification } from "./notificationService.js";
 
 const MIN_BUSINESS_DAYS = 5;             // money must sit 5 business days before payout
 
@@ -65,6 +66,13 @@ export async function processUserPayout(userId) {
 
   if (stripeAccount.rows.length === 0 || !stripeAccount.rows[0].stripe_account_id) {
     console.log(`[Payout] No Stripe account for user ${userId} — skipping`);
+    createNotification({
+      userId,
+      type: "payment",
+      title: "Compte bancaire requis",
+      body: "Un versement vous est dû mais votre compte Stripe n'est pas configuré. Connectez votre compte dans Portefeuille pour recevoir vos paiements.",
+      link: "/wallet",
+    }).catch(() => {});
     return null;
   }
 
@@ -103,12 +111,27 @@ export async function processUserPayout(userId) {
     // Credit amount is already net (price * 0.80) — transfer it as-is
     const transferCents = Math.round(Number(row.amount) * 100);
 
+    // source_transaction requires a charge ID (ch_xxx), not a payment intent ID (pi_xxx).
+    // Resolve the PI to its underlying charge before transferring.
+    let sourceTransaction = row.stripe_payment_intent_id;
+    if (sourceTransaction && sourceTransaction.startsWith("pi_")) {
+      try {
+        const pi = await stripe.paymentIntents.retrieve(sourceTransaction);
+        const chargeId = typeof pi.latest_charge === "object"
+          ? pi.latest_charge?.id
+          : pi.latest_charge;
+        if (chargeId) sourceTransaction = chargeId;
+      } catch (piErr) {
+        console.error(`[Payout] Could not resolve charge for PI ${sourceTransaction}:`, piErr.message);
+      }
+    }
+
     try {
       await stripe.transfers.create({
         amount: transferCents,
         currency: "cad",
         destination: stripeAccountId,
-        source_transaction: row.stripe_payment_intent_id,
+        source_transaction: sourceTransaction,
         description: `Versement bi-mensuel — réservation ${row.booking_id}`,
       });
 
@@ -168,10 +191,63 @@ export async function processUserPayout(userId) {
 }
 
 /**
+ * Recover any completed bookings whose credit transaction was never inserted
+ * (e.g. finalizeCompletion failed silently due to a DB hiccup).
+ * Safe to call multiple times — guarded by NOT EXISTS.
+ */
+async function recoverMissingCredits() {
+  // Find completed+paid bookings with no credit transaction and insert them
+  const missing = await pool.query(
+    `SELECT b.id, b.worker_id, b.client_id,
+            COALESCE(b.custom_price, s.price) * 0.80 AS worker_receives,
+            s.title,
+            CASE WHEN uc.account_type = 'company' THEN uc.company_name ELSE uc.full_name END AS client_name
+     FROM bookings b
+     JOIN services s ON b.service_id = s.id
+     JOIN users uc ON b.client_id = uc.id
+     WHERE b.status = 'completed'
+       AND b.payment_status = 'paid'
+       AND NOT EXISTS (
+         SELECT 1 FROM transactions t WHERE t.booking_id = b.id AND t.type = 'credit'
+       )`
+  );
+
+  if (missing.rows.length === 0) return;
+
+  console.log(`[Payout] Recovering ${missing.rows.length} missing credit transaction(s)...`);
+
+  for (const row of missing.rows) {
+    try {
+      await pool.query(
+        `INSERT INTO transactions (user_id, booking_id, type, amount, description, other_user_name, listing_title)
+         VALUES ($1, $2, 'credit', $3, 'Paiement reçu pour travail complété', $4, $5)`,
+        [row.worker_id, row.id, row.worker_receives, row.client_name, row.title]
+      );
+      await pool.query(
+        `INSERT INTO wallets (user_id, balance, total_earned)
+         VALUES ($1, $2, $2)
+         ON CONFLICT (user_id) DO UPDATE
+         SET balance = wallets.balance + $2, total_earned = wallets.total_earned + $2, updated_at = NOW()`,
+        [row.worker_id, row.worker_receives]
+      );
+      console.log(`[Payout] Recovered credit for booking ${row.id} — worker ${row.worker_id}`);
+    } catch (err) {
+      console.error(`[Payout] Failed to recover credit for booking ${row.id}:`, err.message);
+    }
+  }
+}
+
+/**
  * Process bi-weekly payouts for all eligible workers.
  */
 export async function processAllPayouts() {
   console.log("[Payout] Starting bi-weekly payout run...");
+
+  // Recover any bookings where finalizeCompletion failed silently
+  await recoverMissingCredits().catch((err) =>
+    console.error("[Payout] recoverMissingCredits failed:", err.message)
+  );
+
   const eligibilityCutoff = subtractBusinessDays(new Date(), MIN_BUSINESS_DAYS);
 
   const workers = await pool.query(

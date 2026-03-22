@@ -44,7 +44,7 @@ export function VoiceMessage({ audioUrl, duration, isOwn }: VoiceMessageProps) {
     if (isPlaying) {
       audio.pause();
     } else {
-      audio.play().catch(err => console.error('Audio error:', err));
+      audio.play().catch(() => {});
     }
     setIsPlaying(!isPlaying);
   };

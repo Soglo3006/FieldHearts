@@ -1,6 +1,7 @@
 "use client";
 
 import Link from 'next/link';
+import { useScrollLock } from "@/hooks/useScrollLock";
 import { useTranslation } from 'react-i18next';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -32,6 +33,7 @@ interface ProfileSidebarProps {
 
 export function ProfileSidebar({ otherUser, onClose, onOpenSettings, isBlocked, isBlockedByOther, blockCheckLoading }: ProfileSidebarProps) {
   const { t, i18n } = useTranslation();
+  useScrollLock(true);
   const [userListings, setUserListings] = useState<any[]>([]);
   const [listingsLoading, setListingsLoading] = useState(false);
   const [reviewStats, setReviewStats] = useState<{ avg: number; count: number } | null>(null);
@@ -69,7 +71,6 @@ export function ProfileSidebar({ otherUser, onClose, onOpenSettings, isBlocked, 
         // Limiter à 3 listings maximum
         setUserListings(data.slice(0, 3));
       } catch (err) {
-        console.error('Error fetching user listings:', err);
         setUserListings([]);
       } finally {
         setListingsLoading(false);

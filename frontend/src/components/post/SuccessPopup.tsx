@@ -1,5 +1,6 @@
 "use client";
 import { useTranslation } from "react-i18next";
+import { useScrollLock } from "@/hooks/useScrollLock";
 import { Button } from "@/components/ui/button";
 import { CheckCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -13,6 +14,7 @@ interface Props {
 export default function SuccessPopup({ type, id, onClose }: Props) {
   const { t } = useTranslation();
   const router = useRouter();
+  useScrollLock(true);
   return (
     <div
       className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4 overflow-hidden"

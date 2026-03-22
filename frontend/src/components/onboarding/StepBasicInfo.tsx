@@ -91,6 +91,7 @@ export default function StepBasicInfo({ data, accountType, onChange }: Props) {
           <Input id="phone" type="tel" placeholder="123-456-7890" value={data.phone} onChange={handlePhone} maxLength={12} className="h-12" />
         </div>
 
+
         {/* Address autocomplete */}
         <div className="space-y-2">
           <Label htmlFor="adresse" className="text-base font-medium text-gray-900">

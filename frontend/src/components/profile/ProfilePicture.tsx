@@ -68,7 +68,6 @@ export default function ProfilePictureUploader({
             onProfileChange(croppedImage);
             setShowCropper(false);
             } catch (err) {
-            console.error(err);
             }
         };
         return (

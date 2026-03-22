@@ -89,11 +89,17 @@ export const createBooking = async (req, res) => {
 
 export const getMyBookings = async (req, res) => {
   try {
+    // "Envoyées" = bookings YOU initiated:
+    //   offer listing  → you are the client (you booked someone's offer)
+    //   looking listing → you are the worker (you applied to someone's search)
     const result = await pool.query(
       `SELECT b.*, s.title, s.price, s.image_url, s.category, s.location AS service_location,
               s.is_one_time, s.type AS service_type,
-              CASE WHEN u.account_type = 'company' THEN u.company_name ELSE u.full_name END AS worker_name,
-              CASE WHEN w.account_type = 'company' THEN w.company_name ELSE w.full_name END AS client_name,
+              -- worker_name = the OTHER person you're dealing with
+              CASE
+                WHEN s.type = 'offer' THEN CASE WHEN u.account_type = 'company' THEN u.company_name ELSE u.full_name END
+                ELSE CASE WHEN w.account_type = 'company' THEN w.company_name ELSE w.full_name END
+              END AS worker_name,
               EXISTS(SELECT 1 FROM reviews WHERE booking_id = b.id AND reviewer_id = $1) AS has_reviewed,
               EXISTS(SELECT 1 FROM disputes WHERE booking_id = b.id) AS has_dispute,
               b.payment_status, b.completed_by_worker, b.completed_by_client,
@@ -103,7 +109,8 @@ export const getMyBookings = async (req, res) => {
        JOIN services s ON b.service_id = s.id
        JOIN users u ON b.worker_id = u.id
        JOIN users w ON b.client_id = w.id
-       WHERE b.client_id = $1
+       WHERE (b.client_id = $1 AND s.type = 'offer')
+          OR (b.worker_id = $1 AND s.type = 'looking')
        ORDER BY b.created_at DESC`,
       [req.user.id]
     );
@@ -116,10 +123,17 @@ export const getMyBookings = async (req, res) => {
 
 export const getReceivedBookings = async (req, res) => {
   try {
+    // "Reçues" = bookings someone sent TO you:
+    //   offer listing  → you are the worker (someone booked your offer)
+    //   looking listing → you are the client (someone applied to your search)
     const result = await pool.query(
       `SELECT b.*, s.title, s.price, s.image_url, s.category, s.location AS service_location,
               s.is_one_time, s.type AS service_type,
-              CASE WHEN u.account_type = 'company' THEN u.company_name ELSE u.full_name END AS client_name,
+              -- client_name = the OTHER person who initiated the booking
+              CASE
+                WHEN s.type = 'offer' THEN CASE WHEN uc.account_type = 'company' THEN uc.company_name ELSE uc.full_name END
+                ELSE CASE WHEN uw.account_type = 'company' THEN uw.company_name ELSE uw.full_name END
+              END AS client_name,
               EXISTS(SELECT 1 FROM reviews WHERE booking_id = b.id AND reviewer_id = $1) AS has_reviewed,
               EXISTS(SELECT 1 FROM disputes WHERE booking_id = b.id) AS has_dispute,
               b.payment_status, b.completed_by_worker, b.completed_by_client,
@@ -127,8 +141,10 @@ export const getReceivedBookings = async (req, res) => {
               b.cancel_requested_by, b.cancel_reason
        FROM bookings b
        JOIN services s ON b.service_id = s.id
-       JOIN users u ON b.client_id = u.id
-       WHERE b.worker_id = $1
+       JOIN users uc ON b.client_id = uc.id
+       JOIN users uw ON b.worker_id = uw.id
+       WHERE (b.worker_id = $1 AND s.type = 'offer')
+          OR (b.client_id = $1 AND s.type = 'looking')
        ORDER BY b.created_at DESC`,
       [req.user.id]
     );
@@ -232,7 +248,7 @@ export const markCompleted = async (req, res) => {
     const userId = req.user.id;
 
     const booking = await pool.query(
-      `SELECT b.*, s.title, s.price,
+      `SELECT b.*, s.title, s.price, s.is_one_time,
               CASE WHEN cw.account_type = 'company' THEN cw.company_name ELSE cw.full_name END AS worker_name,
               CASE WHEN cc.account_type = 'company' THEN cc.company_name ELSE cc.full_name END AS client_name,
               cw.id AS worker_user_id, cc.id AS client_user_id,
@@ -277,24 +293,27 @@ export const markCompleted = async (req, res) => {
       sendEmail(b.worker_email, "jobMarkedDone", [b.worker_name, b.client_name, b.title, id]);
     }
 
-    // Re-fetch to check if BOTH have now completed
-    const updated = await pool.query(
-      "SELECT * FROM bookings WHERE id = $1",
+    // Atomic UPDATE: only succeeds if BOTH flags are true AND status is still 'active'
+    // This prevents double finalization if two requests arrive simultaneously
+    const finalizeResult = await pool.query(
+      `UPDATE bookings SET status = 'completed'
+       WHERE id = $1 AND status = 'active' AND completed_by_worker = true AND completed_by_client = true
+       RETURNING *`,
       [id]
     );
+
+    const updated = await pool.query("SELECT * FROM bookings WHERE id = $1", [id]);
     const u = updated.rows[0];
 
-    if (u.completed_by_worker && u.completed_by_client) {
-      // Both confirmed — finalize
-      await pool.query(
-        "UPDATE bookings SET status = 'completed' WHERE id = $1",
-        [id]
-      );
-      // Hide the listing from public search now that the job is done
-      await pool.query(
-        "UPDATE services SET is_active = false WHERE id = $1",
-        [u.service_id]
-      );
+    if (finalizeResult.rowCount > 0) {
+      // Only entered by the one request that actually did the UPDATE
+      // Only deactivate one-time listings — recurring listings stay active
+      if (b.is_one_time) {
+        await pool.query(
+          "UPDATE services SET is_active = false WHERE id = $1",
+          [u.service_id]
+        );
+      }
 
       // Credit worker wallet automatically
       finalizeCompletion(b).catch((err) =>
@@ -302,8 +321,9 @@ export const markCompleted = async (req, res) => {
       );
 
       // Both confirmed — send completion emails to both
-      const totalPaid = (Number(b.price) * 1.19975).toFixed(2);
-      const workerReceives = (Number(b.price) * 0.80).toFixed(2);
+      const effectivePrice = Number(b.custom_price ?? b.price);
+      const totalPaid = (effectivePrice * 1.19975).toFixed(2);
+      const workerReceives = (effectivePrice * 0.80).toFixed(2);
       sendEmail(b.client_email, "jobCompleted", [b.client_name, b.title, b.worker_name, totalPaid, id, "client"]);
       sendEmail(b.worker_email, "jobCompleted", [b.worker_name, b.title, b.client_name, workerReceives, id, "worker"]);
 
@@ -337,6 +357,12 @@ export const customizeBooking = async (req, res) => {
 
     if (b.worker_id !== req.user.id) return res.status(403).json({ message: "Only the provider can customize this request" });
     if (!["pending", "accepted"].includes(b.status)) return res.status(400).json({ message: "Can only customize pending or accepted requests" });
+    if (custom_price !== undefined) {
+      const parsed = Number(custom_price);
+      if (isNaN(parsed) || parsed <= 0 || parsed > 100000) {
+        return res.status(400).json({ message: "Invalid price" });
+      }
+    }
 
     // Track which fields changed
     const modifiedFields = [];
@@ -479,17 +505,85 @@ export const getBookingById = async (req, res) => {
   try {
     const { id } = req.params;
     const result = await pool.query(
-      `SELECT b.*, s.title, s.price, s.image_url, s.location, s.city,
-              CASE WHEN u.account_type = 'company' THEN u.company_name ELSE u.full_name END AS worker_name
+      `SELECT b.*, s.title, s.price, s.image_url, s.category, s.location AS service_location,
+              s.is_one_time, s.type AS service_type,
+              CASE WHEN uw.account_type = 'company' THEN uw.company_name ELSE uw.full_name END AS worker_name,
+              CASE WHEN uc.account_type = 'company' THEN uc.company_name ELSE uc.full_name END AS client_name,
+              EXISTS(SELECT 1 FROM reviews WHERE booking_id = b.id AND reviewer_id = $2) AS has_reviewed,
+              EXISTS(SELECT 1 FROM disputes WHERE booking_id = b.id) AS has_dispute,
+              b.payment_status, b.completed_by_worker, b.completed_by_client,
+              b.worker_note, b.custom_price, b.last_modified_at, b.modified_fields,
+              b.cancel_requested_by, b.cancel_reason
        FROM bookings b
        JOIN services s ON b.service_id = s.id
-       JOIN users u ON b.worker_id = u.id
+       JOIN users uw ON b.worker_id = uw.id
+       JOIN users uc ON b.client_id = uc.id
        WHERE b.id = $1 AND (b.client_id = $2 OR b.worker_id = $2)`,
       [id, req.user.id]
     );
     if (result.rows.length === 0) {
       return res.status(404).json({ message: "Booking not found" });
     }
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+// ─── Undo mark completed (only if other party hasn't confirmed yet) ───────────
+export const undoMarkCompleted = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+
+    const booking = await pool.query(
+      `SELECT b.*, s.title,
+              cw.email AS worker_email, CASE WHEN cw.account_type = 'company' THEN cw.company_name ELSE cw.full_name END AS worker_name,
+              cc.email AS client_email, CASE WHEN cc.account_type = 'company' THEN cc.company_name ELSE cc.full_name END AS client_name
+       FROM bookings b
+       JOIN services s ON b.service_id = s.id
+       JOIN users cw ON b.worker_id = cw.id
+       JOIN users cc ON b.client_id = cc.id
+       WHERE b.id = $1`,
+      [id]
+    );
+    if (booking.rows.length === 0) return res.status(404).json({ message: "Booking not found" });
+    const b = booking.rows[0];
+
+    if (b.status !== "active") return res.status(400).json({ message: "Booking is not active" });
+    if (b.client_id !== userId && b.worker_id !== userId) return res.status(403).json({ message: "Not authorized" });
+
+    const isWorker = b.worker_id === userId;
+    const myFlag  = isWorker ? b.completed_by_worker : b.completed_by_client;
+    const otherFlag = isWorker ? b.completed_by_client : b.completed_by_worker;
+
+    if (!myFlag) return res.status(400).json({ message: "You haven't marked this done yet" });
+    if (otherFlag) return res.status(400).json({ message: "The other party already confirmed — cannot undo" });
+
+    const updateField = isWorker ? "completed_by_worker" : "completed_by_client";
+    const result = await pool.query(
+      `UPDATE bookings SET ${updateField} = false WHERE id = $1 RETURNING *`,
+      [id]
+    );
+
+    // Notify the other party
+    const markerName  = isWorker ? b.worker_name : b.client_name;
+    const otherUserId = isWorker ? b.client_id   : b.worker_id;
+    const otherEmail  = isWorker ? b.client_email : b.worker_email;
+    const otherName   = isWorker ? b.client_name  : b.worker_name;
+
+    createNotification({
+      userId: otherUserId,
+      type: "booking_request",
+      title: "Confirmation annulée",
+      body: `${markerName} a annulé sa confirmation de fin de travail pour "${b.title}". Le travail est toujours en cours.`,
+      link: "/bookings",
+    }).catch(() => {});
+
+    sendEmail(otherEmail, "jobMarkUndone", [otherName, markerName, b.title, id])
+      .catch((err) => console.error("[undoMarkCompleted] Email failed:", err.message));
+
     res.json(result.rows[0]);
   } catch (err) {
     console.error(err);
@@ -535,8 +629,10 @@ async function autoRejectOtherRequests(serviceId, acceptedBookingId) {
 }
 
 async function finalizeCompletion(booking) {
-  // Worker receives 80% of the service price (platform keeps 20% commission)
-  const workerReceives = Number(booking.price) * 0.80;
+  // Use custom_price if worker adjusted it, otherwise the original service price
+  const effectivePrice = Number(booking.custom_price ?? booking.price);
+  // Worker receives 80% (platform keeps 20% commission)
+  const workerReceives = effectivePrice * 0.80;
 
   // Ensure worker wallet exists
   await pool.query(
@@ -544,21 +640,25 @@ async function finalizeCompletion(booking) {
     [booking.worker_id]
   );
 
-  // Credit worker wallet (client debit was already recorded at payment time)
-  await pool.query(
-    `UPDATE wallets
-     SET balance = balance + $1, total_earned = total_earned + $1, updated_at = NOW()
-     WHERE user_id = $2`,
-    [workerReceives, booking.worker_id]
+  // Guard both the transaction insert AND the wallet update against duplicates
+  const existingCredit = await pool.query(
+    "SELECT id FROM transactions WHERE booking_id = $1 AND type = 'credit'",
+    [booking.id]
   );
-
-  // Record worker's credit transaction
-  await pool.query(
-    `INSERT INTO transactions (user_id, booking_id, type, amount, description, other_user_name, listing_title)
-     VALUES ($1, $2, 'credit', $3, 'Paiement reçu pour travail complété', $4, $5)
-     ON CONFLICT DO NOTHING`,
-    [booking.worker_id, booking.id, workerReceives, booking.client_name, booking.title]
-  );
+  if (existingCredit.rows.length === 0) {
+    await pool.query(
+      `INSERT INTO transactions (user_id, booking_id, type, amount, description, other_user_name, listing_title)
+       VALUES ($1, $2, 'credit', $3, 'Paiement reçu pour travail complété', $4, $5)`,
+      [booking.worker_id, booking.id, workerReceives, booking.client_name, booking.title]
+    );
+    // Only credit wallet if transaction didn't already exist
+    await pool.query(
+      `UPDATE wallets
+       SET balance = balance + $1, total_earned = total_earned + $1, updated_at = NOW()
+       WHERE user_id = $2`,
+      [workerReceives, booking.worker_id]
+    );
+  }
 
   // Notify worker: payment received
   createNotification({

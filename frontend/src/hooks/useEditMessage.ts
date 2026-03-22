@@ -15,7 +15,6 @@ export function useEditMessage() {
 
       return true;
     } catch (error) {
-      console.error('Error editing message:', error);
       throw error;
     }
   };

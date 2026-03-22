@@ -15,14 +15,14 @@ export default function SuccessScreen() {
         </div>
         <h1 className="text-2xl font-bold text-gray-900 mb-2">{t("onboarding.profileReady")}</h1>
         <p className="text-gray-600 mb-8">
-          You&apos;re all set to start posting listings and connecting with customers.
+          {t("onboarding.profileReadyDesc")}
         </p>
         <div className="flex flex-col gap-3">
           <Button className="w-full bg-green-700 hover:bg-green-800 text-white h-12">
             {t("onboarding.startExploring")}
           </Button>
           <Button variant="outline" className="w-full h-12">
-            View My Profile
+            {t("serviceDetail.viewProfile")}
           </Button>
         </div>
       </Card>

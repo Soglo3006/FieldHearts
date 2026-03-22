@@ -43,10 +43,10 @@ export const metadata: Metadata = {
     description: "Connecte-toi avec ta communauté pour offrir et trouver des services locaux.",
     images: [
       {
-        url: "https://uneden.ca/logo.png",
-        width: 512,
-        height: 512,
-        alt: "Uneden",
+        url: "https://uneden.ca/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "Uneden — Trouve de l'aide près de chez toi",
       },
     ],
     locale: "fr_CA",
@@ -55,7 +55,7 @@ export const metadata: Metadata = {
     card: "summary",
     title: "Uneden — Trouve de l'aide près de chez toi",
     description: "Connecte-toi avec ta communauté pour offrir et trouver des services locaux.",
-    images: ["https://uneden.ca/logo.png"],
+    images: ["https://uneden.ca/og-image.png"],
   },
   robots: {
     index: true,

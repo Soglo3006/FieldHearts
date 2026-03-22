@@ -65,7 +65,8 @@ const TYPE_CONFIG: Record<
   },
 };
 
-function formatTime(dateString: string, t: (key: string, opts?: Record<string, unknown>) => string, lang: string) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function formatTime(dateString: string, t: (key: string, opts?: any) => string, lang: string) {
   const diff = Date.now() - new Date(dateString).getTime();
   if (diff < 60_000) return t("notifications.justNow");
   if (diff < 3_600_000) return t("notifications.minutesAgo", { count: Math.floor(diff / 60_000) });

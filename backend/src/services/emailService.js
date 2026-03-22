@@ -20,8 +20,8 @@ const base = (content) => `
       <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.08);">
         <!-- Header -->
         <tr>
-          <td style="background:#15803d;padding:24px 32px;">
-            <span style="color:#ffffff;font-size:22px;font-weight:700;letter-spacing:-0.5px;">Uneden</span>
+          <td style="background:#15803d;padding:20px 32px;text-align:center;">
+            <img src="https://uneden.ca/logo.png" alt="Uneden" style="height:48px;width:auto;display:inline-block;" />
           </td>
         </tr>
         <!-- Body -->

@@ -21,8 +21,46 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Uneden",
-  description: "Find services near you",
+  title: {
+    default: "Uneden — Trouve de l'aide près de chez toi",
+    template: "%s | Uneden",
+  },
+  description: "Uneden connecte les gens de ta communauté pour offrir et trouver des services locaux. Publie ton service ou trouve de l'aide près de chez toi.",
+  keywords: ["services locaux", "communauté", "aide", "prestataire", "Québec", "Canada", "Uneden"],
+  metadataBase: new URL("https://uneden.ca"),
+  alternates: {
+    canonical: "https://uneden.ca",
+    languages: {
+      "fr-CA": "https://uneden.ca",
+      "en-CA": "https://uneden.ca/en",
+    },
+  },
+  openGraph: {
+    type: "website",
+    url: "https://uneden.ca",
+    siteName: "Uneden",
+    title: "Uneden — Trouve de l'aide près de chez toi",
+    description: "Connecte-toi avec ta communauté pour offrir et trouver des services locaux.",
+    images: [
+      {
+        url: "https://uneden.ca/logo.png",
+        width: 512,
+        height: 512,
+        alt: "Uneden",
+      },
+    ],
+    locale: "fr_CA",
+  },
+  twitter: {
+    card: "summary",
+    title: "Uneden — Trouve de l'aide près de chez toi",
+    description: "Connecte-toi avec ta communauté pour offrir et trouver des services locaux.",
+    images: ["https://uneden.ca/logo.png"],
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
 };
 
 export default function RootLayout({

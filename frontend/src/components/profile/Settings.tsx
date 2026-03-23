@@ -31,7 +31,7 @@ function PaymentMethodsPage({ onBack, onClose }: { onBack: () => void; onClose: 
     <div className="bg-gray-50">
       <div className="bg-white border-b relative">
         <button onClick={onClose} className="absolute top-3 right-3 sm:top-4 sm:right-4 text-gray-500 hover:text-gray-900 text-xl cursor-pointer">✕</button>
-        <button onClick={onBack} className="absolute top-3 left-3 sm:top-4 sm:left-4 text-gray-600 hover:text-gray-900 cursor-pointer text-sm sm:text-base">← Back</button>
+        <button onClick={onBack} className="absolute top-3 left-3 sm:top-4 sm:left-4 text-gray-600 hover:text-gray-900 cursor-pointer text-sm sm:text-base">← {t("common.back")}</button>
         <div className="px-3 sm:px-4 py-4 sm:py-6 text-center">
           <h1 className="text-lg sm:text-3xl font-bold text-gray-900 mt-6 sm:mt-0">{t("settings.paymentMethods")}</h1>
         </div>
@@ -89,7 +89,7 @@ export default function SettingsPage({ onClose, scrollRef }: { onClose: () => vo
   useEffect(() => {
     setLanguage(i18n.language === "fr" ? "fr" : "en");
   }, [i18n.language]);
-  const [connectedAccounts, setConnectedAccounts] = useState<{ provider: string }[]>([]);
+  const [connectedAccounts, setConnectedAccounts] = useState<{ provider: string; identity_data?: { email?: string } }[]>([]);
   const [stripeStatus, setStripeStatus] = useState<{ connected: boolean; charges_enabled: boolean; details_submitted: boolean } | null>(null);
   const [stripeLoading, setStripeLoading] = useState(false);
 
@@ -209,10 +209,12 @@ export default function SettingsPage({ onClose, scrollRef }: { onClose: () => vo
   const isGoogleConnected = connectedAccounts.some(a => a.provider === "google");
   const isFacebookConnected = connectedAccounts.some(a => a.provider === "facebook");
   const isEmailConnected = connectedAccounts.some(a => a.provider === "email");
+  const googleEmail = connectedAccounts.find(a => a.provider === "google")?.identity_data?.email;
+  const facebookEmail = connectedAccounts.find(a => a.provider === "facebook")?.identity_data?.email;
 
   if (loading) {
     return (
-      <div className="bg-gray-50 flex items-center justify-center min-h-[400px]">
+      <div className="bg-gray-50 flex items-center justify-center min-h-100">
         <Spinner size="xl" />
       </div>
     );
@@ -374,9 +376,9 @@ export default function SettingsPage({ onClose, scrollRef }: { onClose: () => vo
                       <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
                     </svg>
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <p className="font-medium text-gray-900 text-sm">Google</p>
-                    <p className="text-xs text-gray-500">{t("settings.signInWithGoogle")}</p>
+                    <p className="text-xs text-gray-500 truncate">{isGoogleConnected && googleEmail ? googleEmail : t("settings.signInWithGoogle")}</p>
                   </div>
                 </div>
                 {isGoogleConnected ? (
@@ -395,9 +397,9 @@ export default function SettingsPage({ onClose, scrollRef }: { onClose: () => vo
                       <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
                     </svg>
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <p className="font-medium text-gray-900 text-sm">Facebook</p>
-                    <p className="text-xs text-gray-500">{t("settings.signInWithFacebook")}</p>
+                    <p className="text-xs text-gray-500 truncate">{isFacebookConnected && facebookEmail ? facebookEmail : t("settings.signInWithFacebook")}</p>
                   </div>
                 </div>
                 {isFacebookConnected ? (
@@ -492,21 +494,21 @@ export default function SettingsPage({ onClose, scrollRef }: { onClose: () => vo
 
               {/* Stripe Connect — bank account */}
               <div className="pt-2 border-t border-gray-100">
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Compte bancaire</p>
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">{t("settings.stripeSection")}</p>
                 {stripeStatus === null ? (
                   <div className="flex items-center gap-2 text-sm text-gray-400 py-1">
-                    <Spinner size="sm" /> Chargement…
+                    <Spinner size="sm" /> {t("settings.stripeLoading")}
                   </div>
                 ) : stripeStatus.charges_enabled ? (
                   <div className="flex items-center gap-3 bg-green-50 border border-green-200 rounded-xl px-4 py-3">
                     <Check className="h-4 w-4 text-green-600 shrink-0" />
                     <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-green-800 text-sm">Compte connecté</p>
-                      <p className="text-xs text-green-600 mt-0.5">Vos versements sont envoyés directement sur votre compte bancaire.</p>
+                      <p className="font-semibold text-green-800 text-sm">{t("settings.stripeConnected")}</p>
+                      <p className="text-xs text-green-600 mt-0.5">{t("settings.stripeConnectedDesc")}</p>
                     </div>
                     <Button variant="outline" size="sm" onClick={handleConnectStripe} disabled={stripeLoading} className="cursor-pointer shrink-0 text-xs gap-1">
                       {stripeLoading ? <Spinner size="sm" /> : <ExternalLink className="h-3 w-3" />}
-                      Gérer
+                      {t("settings.stripeManage")}
                     </Button>
                   </div>
                 ) : stripeStatus.details_submitted ? (
@@ -514,24 +516,24 @@ export default function SettingsPage({ onClose, scrollRef }: { onClose: () => vo
                     <div className="flex items-center gap-3 bg-yellow-50 border border-yellow-200 rounded-xl px-4 py-3">
                       <Spinner size="sm" />
                       <div>
-                        <p className="font-semibold text-yellow-800 text-sm">Vérification en cours</p>
-                        <p className="text-xs text-yellow-700 mt-0.5">Stripe examine vos informations. Confirmation sous 1–2 jours ouvrables.</p>
+                        <p className="font-semibold text-yellow-800 text-sm">{t("settings.stripeVerifying")}</p>
+                        <p className="text-xs text-yellow-700 mt-0.5">{t("settings.stripeVerifyingDesc")}</p>
                       </div>
                     </div>
                     <Button variant="outline" size="sm" onClick={handleConnectStripe} disabled={stripeLoading} className="cursor-pointer text-xs gap-1">
                       {stripeLoading ? <Spinner size="sm" /> : <ExternalLink className="h-3 w-3" />}
-                      Compléter mon dossier
+                      {t("settings.stripeCompleteFile")}
                     </Button>
                   </div>
                 ) : (
                   <div className="flex items-center gap-3">
                     <Button onClick={handleConnectStripe} disabled={stripeLoading} className="bg-green-700 hover:bg-green-800 text-white cursor-pointer text-sm gap-2 h-9 rounded-xl px-4">
-                      {stripeLoading ? <Spinner size="sm" /> : <Building2 className="h-4 w-4" />}
-                      Connecter mon compte
+                      {stripeLoading ? <Spinner size="sm" /> : <ExternalLink className="h-3 w-3" />}
+                      {t("settings.stripeConnectAccount")}
                     </Button>
                     <p className="text-xs text-gray-400 flex items-center gap-1">
                       <Check className="h-3.5 w-3.5 text-gray-300" />
-                      Sécurisé par Stripe
+                      {t("settings.stripeSecure")}
                     </p>
                   </div>
                 )}

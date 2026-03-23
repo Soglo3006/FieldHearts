@@ -34,7 +34,7 @@ export default function ProfilePortfolio({ portfolio, isPerson }: Props) {
               className="group cursor-pointer"
               onClick={() => setSelected(item)}
             >
-              <div className="relative overflow-hidden rounded-lg aspect-square">
+              <div className="relative overflow-hidden rounded-lg aspect-4/3">
                 <img
                   src={item.image}
                   alt={item.title}
@@ -62,7 +62,7 @@ export default function ProfilePortfolio({ portfolio, isPerson }: Props) {
             >
               ✕
             </Button>
-            <div className="w-full aspect-square rounded-lg overflow-hidden bg-gray-200 max-w-[500px] mx-auto">
+            <div className="w-full aspect-4/3 rounded-lg overflow-hidden bg-gray-200 max-w-150 mx-auto">
               <img src={selected.image} alt={selected.title} className="w-full h-full object-cover" />
             </div>
             <h3 className="text-xl font-semibold text-center mt-4">{selected.title}</h3>

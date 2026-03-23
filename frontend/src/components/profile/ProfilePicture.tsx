@@ -103,48 +103,76 @@ export default function ProfilePictureUploader({
             )}
         </div>
 
-        {/* Cropper Modal */}
+        {/* Cropper Modal — full screen */}
         {showCropper && imageToCrop && (
-            <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
-                <h2 className="text-lg font-semibold mb-4">{t("profile.adjustPhoto")}</h2>
+            <div className="fixed inset-0 z-[100] bg-black flex flex-col">
+              {/* Header */}
+              <div className="shrink-0 flex items-center justify-between px-5 py-4 bg-black/80">
+                <h2 className="text-white font-semibold text-base">{t("profile.adjustPhoto")}</h2>
+                <button
+                  onClick={() => setShowCropper(false)}
+                  type="button"
+                  className="text-white/70 hover:text-white text-sm cursor-pointer px-3 py-1.5 rounded-lg hover:bg-white/10 transition-colors"
+                >
+                  {t("profile.cancel")}
+                </button>
+              </div>
 
-                <div className="relative w-full h-64 bg-gray-200 rounded-xl overflow-hidden">
+              {/* Crop area — takes all remaining space */}
+              <div className="relative flex-1 bg-gray-900">
                 <Cropper
-                    image={imageToCrop}
-                    crop={crop}
-                    zoom={zoom}
-                    aspect={1}
-                    cropShape="round"
-                    onCropChange={setCrop}
-                    onZoomChange={setZoom}
-                    onCropComplete={(croppedArea, croppedPixels) =>
+                  image={imageToCrop}
+                  crop={crop}
+                  zoom={zoom}
+                  aspect={1}
+                  cropShape="round"
+                  showGrid={true}
+                  onCropChange={setCrop}
+                  onZoomChange={setZoom}
+                  onCropComplete={(croppedArea, croppedPixels) =>
                     setCroppedAreaPixels(croppedPixels)
-                    }
+                  }
                 />
-                </div>
+              </div>
 
-                <div className="mt-4 mb-4">
-                  <label className="text-sm font-medium text-gray-700 mb-2 block">{t("profile.zoom")}</label>
+              {/* Controls */}
+              <div className="shrink-0 bg-black/90 px-5 pt-5 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+                {/* Zoom label + percentage */}
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-white/70 text-sm font-medium">{t("profile.zoom")}</span>
+                  <span className="text-white/50 text-xs tabular-nums">{Math.round((zoom - 1) / 2 * 100)}%</span>
+                </div>
+                {/* Zoom row: − slider + */}
+                <div className="flex items-center gap-3 mb-5">
+                  <button
+                    type="button"
+                    onClick={() => setZoom((z) => Math.max(1, +(z - 0.1).toFixed(2)))}
+                    className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white text-lg flex items-center justify-center shrink-0 cursor-pointer select-none"
+                  >−</button>
                   <input
                     type="range"
                     title={t("profile.zoom")}
                     min={1}
                     max={3}
-                    step={0.1}
+                    step={0.05}
                     value={zoom}
                     onChange={(e) => setZoom(Number(e.target.value))}
-                    className="w-full cursor-pointer"
+                    className="flex-1 h-1.5 rounded-full cursor-pointer accent-green-500"
                   />
+                  <button
+                    type="button"
+                    onClick={() => setZoom((z) => Math.min(3, +(z + 0.1).toFixed(2)))}
+                    className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white text-lg flex items-center justify-center shrink-0 cursor-pointer select-none"
+                  >+</button>
                 </div>
-
-                <div className="flex gap-3">
-                <Button variant="outline" onClick={() => setShowCropper(false)} type="button" className="flex-1 cursor-pointer">
-                    {t("profile.cancel")}
+                <Button
+                  onClick={saveCroppedImage}
+                  type="button"
+                  className="w-full bg-green-700 hover:bg-green-800 text-white h-12 text-base font-semibold rounded-xl cursor-pointer"
+                >
+                  {t("profile.save")}
                 </Button>
-                <Button onClick={saveCroppedImage} type="button" className="flex-1 cursor-pointer">{t("profile.save")}</Button>
-                </div>
-            </div>
+              </div>
             </div>
         )}
         </>

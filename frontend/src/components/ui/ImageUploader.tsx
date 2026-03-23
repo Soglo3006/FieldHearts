@@ -19,7 +19,7 @@ export default function ImageUploader({
   currentImage,
   onImageChange,
   label = "Upload Image",
-  aspectRatio = 1,
+  aspectRatio = 16 / 9,
 }: ImageUploaderProps) {
   const [showCropper, setShowCropper] = useState(false);
   const [imageToCrop, setImageToCrop] = useState<string | null>(null);
@@ -85,11 +85,11 @@ export default function ImageUploader({
         </Button>
 
         {currentImage && (
-        <div className="mt-3 relative">
+        <div className="mt-3 relative aspect-video rounded-lg overflow-hidden border bg-gray-100">
             <img
             src={currentImage}
             alt="Preview"
-            className="w-full h-full object-cover rounded-lg border"
+            className="w-full h-full object-cover"
             />
 
             <button
@@ -104,58 +104,56 @@ export default function ImageUploader({
       </div>
 
       {showCropper && imageToCrop && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl p-6 w-full max-w-xl max-h-[90vh] overflow-y-auto">
-            <h2 className="text-lg font-semibold mb-4">Adjust your image</h2>
+        <div className="fixed inset-0 z-[100] bg-black flex flex-col">
+          {/* Header */}
+          <div className="shrink-0 flex items-center justify-between px-5 py-4 bg-black/80">
+            <h2 className="text-white font-semibold text-base">Ajuster l'image</h2>
+            <button
+              type="button"
+              onClick={() => { setShowCropper(false); setCrop({ x: 0, y: 0 }); setZoom(1); }}
+              className="text-white/70 hover:text-white text-sm cursor-pointer px-3 py-1.5 rounded-lg hover:bg-white/10 transition-colors"
+            >
+              Annuler
+            </button>
+          </div>
 
-            <div className="relative w-full h-64 bg-gray-200 rounded-xl overflow-hidden mb-4">
-              <Cropper
-                image={imageToCrop}
-                crop={crop}
-                zoom={zoom}
-                aspect={aspectRatio}
-                cropShape="rect"
-                onCropChange={setCrop}
-                onZoomChange={setZoom}
-                onCropComplete={(croppedArea, croppedPixels) =>
-                  setCroppedAreaPixels(croppedPixels)
-                }
-              />
-            </div>
+          {/* Crop area */}
+          <div className="relative flex-1 bg-gray-900">
+            <Cropper
+              image={imageToCrop}
+              crop={crop}
+              zoom={zoom}
+              aspect={aspectRatio}
+              cropShape="rect"
+              showGrid={true}
+              onCropChange={setCrop}
+              onZoomChange={setZoom}
+              onCropComplete={(_, croppedPixels) => setCroppedAreaPixels(croppedPixels)}
+            />
+          </div>
 
-            <div className="mb-4">
-              <label className="text-sm font-medium text-gray-700 mb-2 block">
-                Zoom
-              </label>
-              <input
-                type="range"
-                title="Zoom"
-                min={1}
-                max={3}
-                step={0.1}
-                value={zoom}
-                onChange={(e) => setZoom(Number(e.target.value))}
-                className="w-full cursor-pointer"
-              />
+          {/* Controls */}
+          <div className="shrink-0 bg-black/90 px-5 pt-5 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-white/70 text-sm font-medium">Zoom</span>
+              <span className="text-white/50 text-xs tabular-nums">{Math.round((zoom - 1) / 2 * 100)}%</span>
             </div>
-
-            <div className="flex gap-3">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  setShowCropper(false);
-                  setCrop({ x: 0, y: 0 });
-                  setZoom(1);
-                }}
-                className="flex-1 cursor-pointer"
-              >
-                Cancel
-              </Button>
-              <Button type="button" onClick={saveCroppedImage} className="flex-1 cursor-pointer">
-                Save
-              </Button>
+            <div className="flex items-center gap-3 mb-5">
+              <button type="button" onClick={() => setZoom((z) => Math.max(1, +(z - 0.1).toFixed(2)))}
+                className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white text-lg flex items-center justify-center shrink-0 cursor-pointer select-none">−</button>
+              <input type="range" title="Zoom" min={1} max={3} step={0.05}
+                value={zoom} onChange={(e) => setZoom(Number(e.target.value))}
+                className="flex-1 h-1.5 rounded-full cursor-pointer accent-green-500" />
+              <button type="button" onClick={() => setZoom((z) => Math.min(3, +(z + 0.1).toFixed(2)))}
+                className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white text-lg flex items-center justify-center shrink-0 cursor-pointer select-none">+</button>
             </div>
+            <Button
+              type="button"
+              onClick={saveCroppedImage}
+              className="w-full bg-green-700 hover:bg-green-800 text-white h-12 text-base font-semibold rounded-xl cursor-pointer"
+            >
+              Sauvegarder
+            </Button>
           </div>
         </div>
       )}

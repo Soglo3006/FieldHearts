@@ -7,7 +7,7 @@ const CSP = [
   "img-src 'self' data: https: blob: https://*.supabase.co https://images.unsplash.com https://maps.googleapis.com https://maps.gstatic.com",
   "font-src 'self' data: https://fonts.gstatic.com",
   "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://uneden.onrender.com http://localhost:5000 https://va.vercel-scripts.com https://maps.googleapis.com",
-  "frame-src https://js.stripe.com",
+  "frame-src https://js.stripe.com https://www.google.com/maps/embed/",
   "object-src 'none'",
   "worker-src blob:",
 ].join("; ");

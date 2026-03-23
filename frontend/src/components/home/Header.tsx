@@ -388,8 +388,8 @@ export default function Header() {
               </Select>
 
               <ToggleGroup type="single" variant="outline" value={i18n.language === "fr" ? "FR" : "EN"} onValueChange={(val) => { if (val) { const lng = val.toLowerCase(); i18n.changeLanguage(lng); localStorage.setItem("i18nextLng", lng); } }}>
-                <ToggleGroupItem value="EN" className="cursor-pointer text-xs px-2 lg:px-3 h-8">EN</ToggleGroupItem>
                 <ToggleGroupItem value="FR" className="cursor-pointer text-xs px-2 lg:px-3 h-8">FR</ToggleGroupItem>
+                <ToggleGroupItem value="EN" className="cursor-pointer text-xs px-2 lg:px-3 h-8">EN</ToggleGroupItem>
               </ToggleGroup>
 
 
@@ -485,8 +485,8 @@ export default function Header() {
             </Select>
 
             <ToggleGroup type="single" variant="outline" value={i18n.language === "fr" ? "FR" : "EN"} onValueChange={(val) => { if (val) { const lng = val.toLowerCase(); i18n.changeLanguage(lng); localStorage.setItem("i18nextLng", lng); } }}>
-              <ToggleGroupItem value="EN" className="cursor-pointer text-xs px-2 h-8">EN</ToggleGroupItem>
               <ToggleGroupItem value="FR" className="cursor-pointer text-xs px-2 h-8">FR</ToggleGroupItem>
+              <ToggleGroupItem value="EN" className="cursor-pointer text-xs px-2 h-8">EN</ToggleGroupItem>
             </ToggleGroup>
           </div>
 
@@ -695,8 +695,8 @@ export default function Header() {
 
                 <div className="border-t border-gray-100 px-4 py-3">
                   <ToggleGroup type="single" variant="outline" value={i18n.language === "fr" ? "FR" : "EN"} onValueChange={(val) => { if (val) { const lng = val.toLowerCase(); i18n.changeLanguage(lng); localStorage.setItem("i18nextLng", lng); } }}>
-                    <ToggleGroupItem value="EN" className="cursor-pointer text-sm px-4 h-9 flex-1">EN</ToggleGroupItem>
                     <ToggleGroupItem value="FR" className="cursor-pointer text-sm px-4 h-9 flex-1">FR</ToggleGroupItem>
+                    <ToggleGroupItem value="EN" className="cursor-pointer text-sm px-4 h-9 flex-1">EN</ToggleGroupItem>
                   </ToggleGroup>
                 </div>
               </>

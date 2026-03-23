@@ -103,7 +103,7 @@ export default function EditPortfolioCard({ portfolio, isPerson, onAdd, onRemove
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
             {portfolio.map((item, i) => (
               <div key={i} className="relative group">
-                <div className="relative overflow-hidden rounded-lg aspect-square">
+                <div className="relative overflow-hidden rounded-lg aspect-4/3">
                   <img src={item.image} alt={item.title} className="w-full h-full object-cover" />
                   <div className="absolute inset-0 bg-opacity-0 group-hover:bg-opacity-40 transition-all duration-200" />
                   <div className="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -138,50 +138,69 @@ export default function EditPortfolioCard({ portfolio, isPerson, onAdd, onRemove
       </Card>
 
       {showModal && image && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-bold text-gray-900">{t("profile.addPortfolioItem")}</h3>
-              <button type="button" onClick={closeModal} className="cursor-pointer text-gray-500 hover:text-gray-700">
-                <X className="h-6 w-6" />
-              </button>
+        <div className="fixed inset-0 z-[100] bg-black flex flex-col">
+          {/* Header */}
+          <div className="shrink-0 flex items-center justify-between px-5 py-4 bg-black/80">
+            <h3 className="text-white font-semibold text-base">{t("profile.addPortfolioItem")}</h3>
+            <button
+              type="button"
+              onClick={closeModal}
+              className="text-white/70 hover:text-white text-sm cursor-pointer px-3 py-1.5 rounded-lg hover:bg-white/10 transition-colors"
+            >
+              {t("profile.cancel")}
+            </button>
+          </div>
+
+          {/* Crop area */}
+          <div className="relative flex-1 bg-gray-900">
+            <Cropper
+              image={image}
+              crop={crop}
+              zoom={zoom}
+              aspect={4 / 3}
+              showGrid={true}
+              onCropChange={setCrop}
+              onZoomChange={setZoom}
+              onCropComplete={(_, pixels) => setCroppedPixels(pixels)}
+            />
+          </div>
+
+          {/* Controls */}
+          <div className="shrink-0 bg-black/90 px-5 pt-5 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+            {/* Zoom */}
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-white/70 text-sm font-medium">{t("profile.zoom")}</span>
+              <span className="text-white/50 text-xs tabular-nums">{Math.round((zoom - 1) / 2 * 100)}%</span>
+            </div>
+            <div className="flex items-center gap-3 mb-4">
+              <button type="button" onClick={() => setZoom((z) => Math.max(1, +(z - 0.1).toFixed(2)))}
+                className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white text-lg flex items-center justify-center shrink-0 cursor-pointer select-none">−</button>
+              <input type="range" title={t("profile.zoom")} min="1" max="3" step="0.05"
+                value={zoom} onChange={(e) => setZoom(Number(e.target.value))}
+                className="flex-1 h-1.5 rounded-full cursor-pointer accent-green-500" />
+              <button type="button" onClick={() => setZoom((z) => Math.min(3, +(z + 0.1).toFixed(2)))}
+                className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white text-lg flex items-center justify-center shrink-0 cursor-pointer select-none">+</button>
             </div>
 
-            <div className="space-y-4">
-              <div className="relative h-64 bg-gray-100 rounded-lg overflow-hidden">
-                <Cropper
-                  image={image}
-                  crop={crop}
-                  zoom={zoom}
-                  aspect={1}
-                  onCropChange={setCrop}
-                  onZoomChange={setZoom}
-                  onCropComplete={(_, pixels) => setCroppedPixels(pixels)}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="zoom-add">{t("profile.zoom")}</Label>
-                <input id="zoom-add" type="range" title={t("profile.zoom")} min="1" max="3" step="0.1"
-                  value={zoom} onChange={(e) => setZoom(Number(e.target.value))} className="w-full" />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="portfolioTitle">{t("profile.portfolioTitle")} <span className="text-red-500">*</span></Label>
-                <Input id="portfolioTitle" type="text" placeholder={t("profile.portfolioTitlePlaceholder")}
-                  value={title}
-                  onChange={(e) => { setTitle(e.target.value); setError(false); }}
-                  className={error ? "border-red-500" : ""} />
-                {error && <p className="text-xs text-red-500">{t("profile.titleRequired")}</p>}
-              </div>
-
-              <div className="flex gap-3 pt-4">
-                <Button variant="outline" onClick={closeModal} className="flex-1 cursor-pointer">{t("profile.cancel")}</Button>
-                <Button onClick={handleSave} className="flex-1 bg-green-600 hover:bg-green-700 text-white cursor-pointer">
-                  {t("profile.addToPortfolio")}
-                </Button>
-              </div>
+            {/* Title */}
+            <div className="mb-4">
+              <Input
+                type="text"
+                placeholder={t("profile.portfolioTitlePlaceholder")}
+                value={title}
+                onChange={(e) => { setTitle(e.target.value); setError(false); }}
+                className={`bg-white/10 border-white/20 text-white placeholder:text-white/40 focus:border-green-500 ${error ? "border-red-500" : ""}`}
+              />
+              {error && <p className="text-xs text-red-400 mt-1">{t("profile.titleRequired")}</p>}
             </div>
+
+            <Button
+              onClick={handleSave}
+              type="button"
+              className="w-full bg-green-700 hover:bg-green-800 text-white h-12 text-base font-semibold rounded-xl cursor-pointer"
+            >
+              {t("profile.addToPortfolio")}
+            </Button>
           </div>
         </div>
       )}

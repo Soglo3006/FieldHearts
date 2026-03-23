@@ -3,7 +3,6 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Plus, Trash2, ImageIcon } from "lucide-react";
 import Cropper from "react-easy-crop";
@@ -22,10 +21,10 @@ interface Props {
 
 export default function StepPortfolio({ portfolio, onAdd, onRemove, onUpdate }: Props) {
   const { t } = useTranslation();
-  const [showModal, setShowModal] = useState(false);
-  const [image, setImage] = useState<string | null>(null);
+  const [showCropper, setShowCropper] = useState(false);
+  const [rawImage, setRawImage] = useState<string | null>(null);
   const [title, setTitle] = useState("");
-  useScrollLock(showModal);
+  useScrollLock(showCropper);
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [croppedPixels, setCroppedPixels] = useState<Area | null>(null);
@@ -37,19 +36,21 @@ export default function StepPortfolio({ portfolio, onAdd, onRemove, onUpdate }: 
     if (!file.type.startsWith("image/")) { toast.error("Please upload an image file."); return; }
     const reader = new FileReader();
     reader.onloadend = () => {
-      setImage(reader.result as string);
+      setRawImage(reader.result as string);
       setCrop({ x: 0, y: 0 });
       setZoom(1);
+      setCroppedPixels(null);
       setTitle("");
-      setShowModal(true);
+      setError(false);
+      setShowCropper(true);
     };
     reader.readAsDataURL(file);
   };
 
   const handleSave = async () => {
-    if (!image || !title.trim() || !croppedPixels) { setError(true); return; }
+    if (!rawImage || !title.trim() || !croppedPixels) { setError(true); return; }
     try {
-      const cropped = await getCroppedImg(image, croppedPixels);
+      const cropped = await getCroppedImg(rawImage, croppedPixels);
       onAdd({ id: portfolio.length + 1, image: cropped, title: title.trim(), description: "" });
       closeModal();
     } catch {
@@ -58,8 +59,8 @@ export default function StepPortfolio({ portfolio, onAdd, onRemove, onUpdate }: 
   };
 
   const closeModal = () => {
-    setShowModal(false);
-    setImage(null);
+    setShowCropper(false);
+    setRawImage(null);
     setTitle("");
     setCrop({ x: 0, y: 0 });
     setZoom(1);
@@ -78,7 +79,7 @@ export default function StepPortfolio({ portfolio, onAdd, onRemove, onUpdate }: 
             <div className="grid sm:grid-cols-2 gap-4">
               {portfolio.map((item) => (
                 <div key={item.id} className="border border-gray-200 rounded-xl overflow-hidden">
-                  <div className="relative aspect-square bg-gray-100">
+                  <div className="relative aspect-4/3 bg-gray-100">
                     <img src={item.image} alt={item.title || "Portfolio item"} className="w-full h-full object-cover" />
                     <button
                       type="button"
@@ -116,30 +117,69 @@ export default function StepPortfolio({ portfolio, onAdd, onRemove, onUpdate }: 
         </div>
       </Card>
 
-      {showModal && image && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl p-6 w-full max-w-3xl">
-            <h2 className="text-xl font-semibold mb-4">{t("onboarding.addPhoto")}</h2>
-            <div className="relative w-full h-80 bg-gray-200 rounded-lg overflow-hidden mb-4">
-              <Cropper
-                image={image}
-                crop={crop}
-                zoom={zoom}
-                aspect={1}
-                onCropChange={setCrop}
-                onCropComplete={(_, pixels) => setCroppedPixels(pixels)}
-                onZoomChange={setZoom}
+      {showCropper && rawImage && (
+        <div className="fixed inset-0 z-[100] bg-black flex flex-col">
+          {/* Header */}
+          <div className="shrink-0 flex items-center justify-between px-5 py-4 bg-black/80">
+            <h3 className="text-white font-semibold text-base">{t("onboarding.addPhoto")}</h3>
+            <button
+              type="button"
+              onClick={closeModal}
+              className="text-white/70 hover:text-white text-sm cursor-pointer px-3 py-1.5 rounded-lg hover:bg-white/10 transition-colors"
+            >
+              {t("common.cancel")}
+            </button>
+          </div>
+
+          {/* Crop area */}
+          <div className="relative flex-1 bg-gray-900">
+            <Cropper
+              image={rawImage}
+              crop={crop}
+              zoom={zoom}
+              aspect={4 / 3}
+              showGrid={true}
+              onCropChange={setCrop}
+              onCropComplete={(_, pixels) => setCroppedPixels(pixels)}
+              onZoomChange={setZoom}
+            />
+          </div>
+
+          {/* Controls */}
+          <div className="shrink-0 bg-black/90 px-5 pt-5 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-white/70 text-sm font-medium">{t("profile.zoom")}</span>
+              <span className="text-white/50 text-xs tabular-nums">{Math.round((zoom - 1) / 2 * 100)}%</span>
+            </div>
+            <div className="flex items-center gap-3 mb-4">
+              <button type="button" onClick={() => setZoom((z) => Math.max(1, +(z - 0.1).toFixed(2)))}
+                className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white text-lg flex items-center justify-center shrink-0 cursor-pointer select-none">−</button>
+              <input type="range" title="Zoom" min={1} max={3} step={0.05}
+                value={zoom} onChange={(e) => setZoom(Number(e.target.value))}
+                className="flex-1 h-1.5 rounded-full cursor-pointer accent-green-500" />
+              <button type="button" onClick={() => setZoom((z) => Math.min(3, +(z + 0.1).toFixed(2)))}
+                className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white text-lg flex items-center justify-center shrink-0 cursor-pointer select-none">+</button>
+            </div>
+
+            {/* Title input */}
+            <div className="mb-4">
+              <Input
+                type="text"
+                placeholder={t("onboarding.photoTitle")}
+                value={title}
+                onChange={(e) => { setTitle(e.target.value); setError(false); }}
+                className={`bg-white/10 border-white/20 text-white placeholder:text-white/40 focus:border-green-500 ${error ? "border-red-500" : ""}`}
               />
+              {error && <p className="text-xs text-red-400 mt-1">Please enter a title.</p>}
             </div>
-            <div className="space-y-2 mb-6">
-              <Label>{t("onboarding.photoTitle")} <span className="text-red-500">*</span></Label>
-              <Input value={title} onChange={(e) => { setTitle(e.target.value); if (error) setError(false); }} />
-              {error && <p className="text-xs text-red-500">Please enter a title.</p>}
-            </div>
-            <div className="flex gap-3">
-              <Button variant="outline" onClick={closeModal} className="flex-1">{t("common.cancel")}</Button>
-              <Button onClick={handleSave} disabled={!title.trim()} className="flex-1 bg-green-600 text-white">{t("onboarding.addPhoto")}</Button>
-            </div>
+
+            <Button
+              type="button"
+              onClick={handleSave}
+              className="w-full bg-green-700 hover:bg-green-800 text-white h-12 text-base font-semibold rounded-xl cursor-pointer"
+            >
+              {t("onboarding.addPhoto")}
+            </Button>
           </div>
         </div>
       )}

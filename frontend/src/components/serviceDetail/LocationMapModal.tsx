@@ -14,13 +14,13 @@ export default function LocationMapModal({ location, lat, lng, onClose }: Props)
   const { t } = useTranslation();
   useScrollLock(true);
 
+  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
   const hasCoords = lat != null && lng != null;
   const mapSrc = hasCoords
-    ? `https://www.google.com/maps?q=${lat},${lng}&output=embed&z=14`
-    : `https://www.google.com/maps?q=${encodeURIComponent(location)}&output=embed&z=12`;
-  const mapsHref = hasCoords
-    ? `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`
-    : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`;
+    ? `https://www.google.com/maps/embed/v1/view?key=${apiKey}&center=${lat},${lng}&zoom=14`
+    : `https://www.google.com/maps/embed/v1/place?key=${apiKey}&q=${encodeURIComponent(location)}&zoom=12`;
+  // Open in Google Maps → always uses the address text for a more meaningful link
+  const mapsHref = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">

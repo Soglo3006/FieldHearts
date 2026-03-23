@@ -2,7 +2,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Check } from "lucide-react";
@@ -51,26 +50,25 @@ export default function ReportListingPage({ profileId, displayName, userListings
 
   if (success) {
     return (
-      <Card className="p-8 text-center space-y-4">
-        <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto">
-          <Check className="h-8 w-8 text-green-700" />
+      <div className="bg-white rounded-2xl p-8 text-center space-y-4 shadow-sm">
+        <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center mx-auto">
+          <Check className="h-7 w-7 text-green-700" />
         </div>
-        <h3 className="text-xl font-bold text-gray-900">{t("report.received")}</h3>
-        <p className="text-gray-600">
-          {t("report.receivedListingDesc")}
-        </p>
+        <h3 className="text-lg font-bold text-gray-900">{t("report.received")}</h3>
+        <p className="text-sm text-gray-600">{t("report.receivedListingDesc")}</p>
         <Button className="w-full bg-green-700 hover:bg-green-800 text-white cursor-pointer" onClick={onClose}>
           {t("report.close")}
         </Button>
-      </Card>
+      </div>
     );
   }
 
   return (
-    <Card className="p-6 space-y-4">
-      <p className="text-gray-600">{t("report.selectListingToReport", { name: displayName })}</p>
-      <div>
-        <label className="text-sm font-medium text-gray-700 block mb-2">{t("report.listing")}</label>
+    <div className="bg-white rounded-2xl p-5 shadow-sm space-y-4">
+      <p className="text-sm text-gray-600">{t("report.selectListingToReport", { name: displayName })}</p>
+
+      <div className="space-y-1.5">
+        <label className="text-sm font-medium text-gray-700">{t("report.listing")}</label>
         {userListings.length === 0 ? (
           <p className="text-sm text-gray-500 italic">{t("report.noListings")}</p>
         ) : (
@@ -92,8 +90,9 @@ export default function ReportListingPage({ profileId, displayName, userListings
           </Select>
         )}
       </div>
-      <div>
-        <label className="text-sm font-medium text-gray-700 block mb-2">{t("report.reason")}</label>
+
+      <div className="space-y-1.5">
+        <label className="text-sm font-medium text-gray-700">{t("report.reason")}</label>
         <Select value={reason} onValueChange={setReason}>
           <SelectTrigger className="w-full cursor-pointer">
             <SelectValue placeholder={t("report.selectReason")} />
@@ -108,8 +107,9 @@ export default function ReportListingPage({ profileId, displayName, userListings
           </SelectContent>
         </Select>
       </div>
-      <div>
-        <label className="text-sm font-medium text-gray-700 block mb-2">{t("report.details")}</label>
+
+      <div className="space-y-1.5">
+        <label className="text-sm font-medium text-gray-700">{t("report.details")}</label>
         <Textarea
           placeholder={t("report.listingDetailPlaceholder")}
           className="min-h-[120px] resize-none"
@@ -117,6 +117,7 @@ export default function ReportListingPage({ profileId, displayName, userListings
           onChange={(e) => setDetails(e.target.value)}
         />
       </div>
+
       <Button
         className="w-full bg-green-700 hover:bg-green-800 text-white cursor-pointer"
         onClick={handleSubmit}
@@ -124,6 +125,6 @@ export default function ReportListingPage({ profileId, displayName, userListings
       >
         {loading ? t("report.submitting") : t("report.submit")}
       </Button>
-    </Card>
+    </div>
   );
 }

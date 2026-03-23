@@ -2,8 +2,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Check } from "lucide-react";
+import { Check, ShieldX } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabaseClient";
 
@@ -27,7 +26,7 @@ export default function BlockUserPage({ profileId, displayName, onBack, onClose 
       const { error } = await supabase.from("blocked_users").insert({ blocker_id: user.id, blocked_user_id: profileId });
       if (error) throw error;
       setSuccess(true);
-    } catch (err) {
+    } catch {
     } finally {
       setLoading(false);
     }
@@ -35,40 +34,47 @@ export default function BlockUserPage({ profileId, displayName, onBack, onClose 
 
   if (success) {
     return (
-      <Card className="p-8 text-center space-y-4">
-        <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto">
-          <Check className="h-8 w-8 text-red-600" />
+      <div className="bg-white rounded-2xl p-8 text-center space-y-4 shadow-sm">
+        <div className="w-14 h-14 bg-red-100 rounded-full flex items-center justify-center mx-auto">
+          <Check className="h-7 w-7 text-red-600" />
         </div>
-        <h3 className="text-xl font-bold text-gray-900">{t("block.blocked")}</h3>
-        <p className="text-gray-600">
+        <h3 className="text-lg font-bold text-gray-900">{t("block.blocked")}</h3>
+        <p className="text-sm text-gray-600">
           {displayName} has been blocked. They will no longer be able to contact you or see your profile.
         </p>
         <Button className="w-full bg-green-700 hover:bg-green-800 text-white cursor-pointer"
           onClick={() => { onClose(); window.location.reload(); }}>
           {t("common.close")}
         </Button>
-      </Card>
+      </div>
     );
   }
 
   return (
-    <Card className="p-6 space-y-4">
-      <p className="text-gray-900 font-bold text-2xl text-center">{t("block.message", { name: displayName })}</p>
-      <div className="bg-gray-50 px-4 py-3 rounded-lg space-y-2">
-        <p className="text-gray-700 text-sm">When you block this user:</p>
-        <ul className="list-disc list-inside space-y-1 text-sm text-gray-600">
-          <li>They won't be able to contact you</li>
-          <li>You won't see their listings or posts</li>
-          <li>They won't be notified that you blocked them</li>
-          <li>You can unblock them later in settings</li>
+    <div className="bg-white rounded-2xl p-5 shadow-sm space-y-4">
+      <div className="flex flex-col items-center text-center gap-3 py-2">
+        <div className="w-14 h-14 bg-red-50 rounded-full flex items-center justify-center">
+          <ShieldX className="h-7 w-7 text-red-500" />
+        </div>
+        <p className="text-base font-bold text-gray-900">{t("block.message", { name: displayName })}</p>
+      </div>
+
+      <div className="bg-gray-50 rounded-xl px-4 py-3 space-y-1.5">
+        <p className="text-sm font-medium text-gray-700">When you block this user:</p>
+        <ul className="space-y-1 text-sm text-gray-600">
+          <li className="flex items-start gap-2"><span className="text-gray-400 mt-0.5">•</span>They won't be able to contact you</li>
+          <li className="flex items-start gap-2"><span className="text-gray-400 mt-0.5">•</span>You won't see their listings or posts</li>
+          <li className="flex items-start gap-2"><span className="text-gray-400 mt-0.5">•</span>They won't be notified that you blocked them</li>
+          <li className="flex items-start gap-2"><span className="text-gray-400 mt-0.5">•</span>You can unblock them later in settings</li>
         </ul>
       </div>
-      <div className="flex gap-3">
+
+      <div className="flex gap-3 pt-1">
         <Button variant="outline" className="flex-1 cursor-pointer" onClick={onBack} disabled={loading}>{t("common.cancel")}</Button>
         <Button className="flex-1 bg-red-600 hover:bg-red-700 text-white cursor-pointer" onClick={handleBlock} disabled={loading}>
           {loading ? t("block.blocking") : t("block.confirm")}
         </Button>
       </div>
-    </Card>
+    </div>
   );
 }

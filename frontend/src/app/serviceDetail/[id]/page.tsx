@@ -64,13 +64,16 @@ export default function ServiceDetailPage() {
 
   function formatRelativeDate(dateStr: string): string {
     try {
-      const date = new Date(dateStr);
-      const diffDays = Math.floor((Date.now() - date.getTime()) / (1000 * 60 * 60 * 24));
-      if (diffDays === 0) return t("home.today");
-      if (diffDays === 1) return t("home.yesterday");
-      if (diffDays < 7) return t("home.daysAgo", { days: diffDays });
-      if (diffDays < 30) return t("home.weeksAgo", { weeks: Math.floor(diffDays / 7) });
-      return date.toLocaleDateString(i18n.language, { year: "numeric", month: "short", day: "numeric" });
+      const diff = Date.now() - new Date(dateStr).getTime();
+      const minutes = Math.floor(diff / 60000);
+      const hours = Math.floor(diff / 3600000);
+      const days = Math.floor(diff / 86400000);
+      if (minutes < 5) return t("home.justNow");
+      if (minutes < 60) return t("home.minutesAgo", { minutes });
+      if (hours < 24) return t("home.hoursAgo", { hours });
+      if (days === 1) return t("home.yesterday");
+      if (days < 7) return t("home.daysAgo", { days });
+      return t("home.weeksAgo", { weeks: Math.floor(days / 7) });
     } catch {
       return dateStr;
     }

@@ -29,8 +29,12 @@ const toKey = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace
 function formatRelativeDate(dateStr: string, t: (key: string, opts?: Record<string, unknown>) => string) {
   try {
     const diff = Date.now() - new Date(dateStr).getTime();
+    const minutes = Math.floor(diff / 60000);
+    const hours = Math.floor(diff / 3600000);
     const days = Math.floor(diff / 86400000);
-    if (days === 0) return t("home.today");
+    if (minutes < 5) return t("home.justNow");
+    if (minutes < 60) return t("home.minutesAgo", { minutes });
+    if (hours < 24) return t("home.hoursAgo", { hours });
     if (days === 1) return t("home.yesterday");
     if (days < 7) return t("home.daysAgo", { days });
     return t("home.weeksAgo", { weeks: Math.floor(days / 7) });

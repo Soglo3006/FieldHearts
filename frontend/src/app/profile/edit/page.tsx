@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -47,6 +47,7 @@ export default function EditProfilePage() {
   const [initialData, setInitialData] = useState<FormData | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const hasFetchedRef = useRef(false);
 
   const isPerson = accountType === "person";
   const isCompany = accountType === "company";
@@ -57,7 +58,8 @@ export default function EditProfilePage() {
   }, [user, authLoading, router]);
 
   useEffect(() => {
-    if (!session?.access_token) return;
+    if (!session?.access_token || hasFetchedRef.current) return;
+    hasFetchedRef.current = true;
     const fetchProfile = async () => {
       try {
         setLoading(true);

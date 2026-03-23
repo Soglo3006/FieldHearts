@@ -27,7 +27,8 @@
     "contact": "Contact",
     "privacyPolicy": "Politique de confidentialité",
     "termsOfUse": "Conditions d'utilisation",
-    "rights": "© {{year}} Uneden. Tous droits réservés."
+    "rights": "© {{year}} Uneden. Tous droits réservés.",
+    "help": "Aide"
   },
   "home": {
     "heroTitle": "Trouvez l'aide dont vous avez besoin.\nOffrez les compétences que vous avez.",
@@ -229,7 +230,12 @@
     "disputeOpen": "Dispute ouverte",
     "message": "Message",
     "provider": "Prestataire :",
-    "bookingAcceptedPayment": "Réservation acceptée — effectuez votre paiement pour confirmer le travail."
+    "bookingAcceptedPayment": "Réservation acceptée — effectuez votre paiement pour confirmer le travail.",
+    "done": "Terminées",
+    "noDone": "Aucune réservation terminée",
+    "noDoneDesc": "Vos réservations complétées apparaîtront ici.",
+    "servicesRendered": "Services rendus",
+    "servicesReceived": "Services reçus"
   },
   "wallet": {
     "title": "Portefeuille",

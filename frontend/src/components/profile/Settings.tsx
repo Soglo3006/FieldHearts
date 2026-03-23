@@ -452,7 +452,7 @@ export default function SettingsPage({ onClose, scrollRef }: { onClose: () => vo
                 <p className="text-xs sm:text-sm text-gray-600">{t("settings.setLanguageRegion")}</p>
               </div>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4">
               <div>
                 <Label className="mb-2 block text-sm">{t("settings.language")}</Label>
                 <Select value={language} onValueChange={setLanguage}>

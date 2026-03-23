@@ -115,11 +115,11 @@ export default function LoginPage() {
         <Card className="w-full max-w-sm">
           <CardHeader className="text-center pb-4">
             <CardTitle className="text-2xl font-bold">
-              {step === "not-found" ? (t("login.noAccountFound") || "Compte introuvable") : t("login.title")}
+              {step === "not-found" ? t("login.noAccountFound") : t("login.title")}
             </CardTitle>
             <CardDescription className="text-xs font-semibold">
               {step === "not-found"
-                ? (t("login.noAccountFoundSubtitle") || "Aucun compte trouvé avec cette adresse courriel.")
+                ? t("login.noAccountFoundSubtitle")
                 : t("login.subtitle")}
             </CardDescription>
           </CardHeader>
@@ -146,8 +146,8 @@ export default function LoginPage() {
                     </div>
                     <Button type="submit" className="w-full bg-green-800 hover:bg-green-900 cursor-pointer" disabled={checkingEmail}>
                       {checkingEmail
-                        ? <><Loader2 className="h-4 w-4 animate-spin mr-2" />{t("login.checking") || "Vérification..."}</>
-                        : (t("login.continue") || "Continuer")}
+                        ? <><Loader2 className="h-4 w-4 animate-spin mr-2" />{t("login.checking")}</>
+                        : t("login.continue")}
                     </Button>
                   </div>
                 </form>
@@ -188,7 +188,7 @@ export default function LoginPage() {
                       className="text-green-700 hover:text-green-800 flex items-center gap-1 shrink-0"
                     >
                       <ArrowLeft className="h-3 w-3" />
-                      <span className="text-xs">{t("login.change") || "Modifier"}</span>
+                      <span className="text-xs">{t("login.change")}</span>
                     </button>
                   </div>
 
@@ -236,17 +236,17 @@ export default function LoginPage() {
                 </div>
 
                 <p className="text-sm text-gray-600 text-center">
-                  {t("login.wantToCreate") || "Voulez-vous créer un compte avec cette adresse ?"}
+                  {t("login.wantToCreate")}
                 </p>
 
                 <Link href={`/register?email=${encodeURIComponent(email)}`} className="w-full">
                   <Button className="w-full bg-green-800 hover:bg-green-900 cursor-pointer">
-                    {t("login.createAccount") || "Créer un compte"}
+                    {t("login.createAccount")}
                   </Button>
                 </Link>
 
                 <Button variant="outline" className="w-full cursor-pointer" onClick={resetToEmail}>
-                  {t("login.tryAnotherEmail") || "Essayer une autre adresse"}
+                  {t("login.tryAnotherEmail")}
                 </Button>
               </div>
             )}
@@ -264,7 +264,7 @@ export default function LoginPage() {
             {t("footer.termsOfUse")}
           </Link>
           <span>·</span>
-          <span className="text-gray-300 cursor-default">Aide</span>
+          <span className="text-gray-300 cursor-default">{t("footer.help")}</span>
         </div>
         <p className="mt-3 text-xs text-gray-400">
           {t("footer.rights", { year: new Date().getFullYear() })}

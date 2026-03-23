@@ -340,7 +340,7 @@ function BookingsContent() {
             tab === "done" ? "border-green-600 text-green-700" : "border-transparent text-gray-500 hover:text-gray-700"
           }`}
         >
-          Terminé
+          {t("bookings.done")}
           {badgeDone > 0 && (
             <span className="bg-green-600 text-white text-xs font-bold rounded-full px-1.5 py-0.5 leading-none">
               {badgeDone}
@@ -394,14 +394,14 @@ function BookingsContent() {
         doneCount === 0 ? (
           <div className="text-center py-16 text-gray-500">
             <Clock className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-            <p className="font-medium text-gray-700">Aucune réservation terminée</p>
-            <p className="text-sm text-gray-400 mt-1">Vos réservations complétées apparaîtront ici.</p>
+            <p className="font-medium text-gray-700">{t("bookings.noDone")}</p>
+            <p className="text-sm text-gray-400 mt-1">{t("bookings.noDoneDesc")}</p>
           </div>
         ) : (
           <div className="space-y-6">
             {completedReceived.length > 0 && (
               <div>
-                <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Services rendus</h2>
+                <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">{t("bookings.servicesRendered")}</h2>
                 <div className="space-y-3">
                   {completedReceived.map((b) => (
                     <div
@@ -414,12 +414,12 @@ function BookingsContent() {
                       )}
                       <div className="flex-1 min-w-0">
                         <p className="font-medium text-gray-900 truncate">{b.title}</p>
-                        <p className="text-sm text-gray-500">Client : {("client_name" in b ? (b as ReceivedBooking).client_name : (b as SentBooking).worker_name)}</p>
+                        <p className="text-sm text-gray-500">{t("bookings.clientLabel")} : {("client_name" in b ? (b as ReceivedBooking).client_name : (b as SentBooking).worker_name)}</p>
                         <p className="text-xs text-gray-400">{new Date(b.created_at).toLocaleDateString("fr-CA", { year: "numeric", month: "long", day: "numeric" })}</p>
                       </div>
                       <div className="text-right shrink-0">
                         <p className="font-semibold text-green-700">+{(Number(b.custom_price ?? b.price) * 0.80).toFixed(2)} $</p>
-                        <span className="inline-block mt-1 text-xs bg-green-100 text-green-800 border border-green-200 rounded-full px-2 py-0.5">Terminé</span>
+                        <span className="inline-block mt-1 text-xs bg-green-100 text-green-800 border border-green-200 rounded-full px-2 py-0.5">{t("bookings.done")}</span>
                       </div>
                     </div>
                   ))}
@@ -428,7 +428,7 @@ function BookingsContent() {
             )}
             {completedSent.length > 0 && (
               <div>
-                <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Services reçus</h2>
+                <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">{t("bookings.servicesReceived")}</h2>
                 <div className="space-y-3">
                   {completedSent.map((b) => (
                     <div
@@ -441,19 +441,19 @@ function BookingsContent() {
                       )}
                       <div className="flex-1 min-w-0">
                         <p className="font-medium text-gray-900 truncate">{b.title}</p>
-                        <p className="text-sm text-gray-500">Prestataire : {("worker_name" in b ? (b as SentBooking).worker_name : (b as ReceivedBooking).client_name)}</p>
+                        <p className="text-sm text-gray-500">{t("bookings.providerLabel")} : {("worker_name" in b ? (b as SentBooking).worker_name : (b as ReceivedBooking).client_name)}</p>
                         <p className="text-xs text-gray-400">{new Date(b.created_at).toLocaleDateString("fr-CA", { year: "numeric", month: "long", day: "numeric" })}</p>
                       </div>
                       <div className="text-right shrink-0">
                         <p className="font-semibold text-red-600">-{(Number(b.custom_price ?? b.price) * 1.19975).toFixed(2)} $</p>
-                        <span className="inline-block mt-1 text-xs bg-green-100 text-green-800 border border-green-200 rounded-full px-2 py-0.5">Terminé</span>
+                        <span className="inline-block mt-1 text-xs bg-green-100 text-green-800 border border-green-200 rounded-full px-2 py-0.5">{t("bookings.done")}</span>
                         {!b.has_reviewed && (
                           <button
                             type="button"
                             onClick={(e) => { e.stopPropagation(); setReviewBooking({ id: b.id, targetName: ("worker_name" in b ? (b as SentBooking).worker_name : (b as ReceivedBooking).client_name) }); }}
                             className="block mt-1 text-xs text-green-700 hover:underline"
                           >
-                            Laisser un avis
+                            {t("bookings.leaveReview")}
                           </button>
                         )}
                       </div>

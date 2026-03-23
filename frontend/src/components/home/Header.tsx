@@ -709,7 +709,7 @@ export default function Header() {
         {showSettings && (
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex justify-center items-center z-50">
             <div
-              className="w-full max-w-3xl max-h-[95vh] sm:max-h-[90vh] bg-white rounded-xl shadow-xl p-4 sm:p-6 overflow-y-auto animate-in fade-in duration-200 mx-2 sm:mx-4"
+              className="w-full max-w-3xl max-h-[95vh] sm:max-h-[90vh] bg-white rounded-xl shadow-xl overflow-hidden overflow-y-auto animate-in fade-in duration-200 mx-2 sm:mx-4"
               ref={settingsScrollRef}
             >
               <SettingsPage

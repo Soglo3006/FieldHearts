@@ -10,10 +10,13 @@ export const protect = async (req, res, next) => {
 
     const token = authHeader.split(" ")[1];
 
+    if (!token) {
+      return res.status(401).json({ message: "Not authorized, no token" });
+    }
+
     const { data: { user }, error } = await supabaseAdmin.auth.getUser(token);
 
     if (error || !user) {
-      console.error("Auth error:", error);
       return res.status(401).json({ message: "Invalid or expired token" });
     }
 

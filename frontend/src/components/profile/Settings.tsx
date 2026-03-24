@@ -82,6 +82,16 @@ export default function SettingsPage({ onClose, scrollRef }: { onClose: () => vo
   const [emailPrefs, setEmailPrefs] = useState({
     email_messages: true, email_payments: true, email_listings: true, email_complaints: true,
   });
+  const [locationEnabled, setLocationEnabled] = useState(() => {
+    if (typeof window === "undefined") return true;
+    return localStorage.getItem("location_enabled") !== "false";
+  });
+
+  const handleLocationToggle = () => {
+    const newVal = !locationEnabled;
+    setLocationEnabled(newVal);
+    localStorage.setItem("location_enabled", String(newVal));
+  };
   const [language, setLanguage] = useState(i18n.language === "fr" ? "fr" : "en");
   const [region, setRegion] = useState("CA");
 
@@ -440,6 +450,13 @@ export default function SettingsPage({ onClose, scrollRef }: { onClose: () => vo
                   <Toggle checked={emailPrefs[key]} onChange={() => setEmailPrefs(prev => ({ ...prev, [key]: !prev[key] }))} />
                 </div>
               ))}
+              <div className="flex items-center justify-between p-3 sm:p-4 border rounded-lg hover:bg-gray-50 gap-3">
+                <div className="min-w-0">
+                  <p className="font-medium text-gray-900 text-sm">{t("settings.locationSharing")}</p>
+                  <p className="text-xs sm:text-sm text-gray-600">{t("settings.locationSharingDesc")}</p>
+                </div>
+                <Toggle checked={locationEnabled} onChange={handleLocationToggle} />
+              </div>
             </div>
           </Card>
 

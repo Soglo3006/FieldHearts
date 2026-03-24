@@ -694,6 +694,8 @@
     "notifBookingsDesc": "Booking requests, accepted & completed",
     "notifComplaints": "Complaints",
     "notifComplaintsDesc": "Disputes & complaint notifications",
+    "locationSharing": "Listings near me",
+    "locationSharingDesc": "Uses your location to show services close to you",
     "languageRegion": "Language & Region",
     "setLanguageRegion": "Set your preferred language and region",
     "billingPayments": "Billing & Payments",

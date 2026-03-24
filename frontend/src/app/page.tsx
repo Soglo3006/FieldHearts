@@ -123,6 +123,9 @@ export default function HomePage() {
   const [nearbyListings, setNearbyListings] = useState<Listing[]>([]);
   const [sortedCategories, setSortedCategories] = useState(categories);
   const [dataLoading, setDataLoading] = useState(true);
+  const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [locationPending, setLocationPending] = useState(true);
+  const [nearbyLoading, setNearbyLoading] = useState(false);
 
   useEffect(() => {
     if (loading) return;
@@ -154,26 +157,7 @@ export default function HomePage() {
         );
         setSortedCategories(sorted);
 
-        // Listings near you via geolocation — uses real coordinates
-        if (navigator.geolocation) {
-          navigator.geolocation.getCurrentPosition(
-            async (pos) => {
-              try {
-                const { latitude, longitude } = pos.coords;
-                const nearbyRes = await fetch(
-                  `${API_URL}/services?userLat=${latitude}&userLng=${longitude}&radius=50`
-                );
-                const nearbyData: Listing[] = await nearbyRes.json();
-                setNearbyListings(nearbyData.length > 0 ? nearbyData.slice(0, 3) : data.slice(0, 3));
-              } catch {
-                setNearbyListings(data.slice(0, 3));
-              }
-            },
-            () => setNearbyListings(data.slice(0, 3))
-          );
-        } else {
-          setNearbyListings(data.slice(0, 3));
-        }
+        setNearbyListings(data.slice(0, 3));
       } catch {
         toast.error("Unable to load listings. Please check your connection.");
       } finally {
@@ -183,6 +167,43 @@ export default function HomePage() {
 
     fetchListings();
   }, []);
+
+  // Géolocalisation séparée
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (localStorage.getItem("location_enabled") === "false") {
+      setLocationPending(false);
+      return;
+    }
+    if (!navigator.geolocation) {
+      setLocationPending(false);
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setUserCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        setLocationPending(false);
+      },
+      () => {
+        // Permission refusée
+        setLocationPending(false);
+      }
+    );
+  }, []);
+
+  // Re-fetch annonces proches quand on a les coords ET les listings
+  useEffect(() => {
+    if (!userCoords || listings.length === 0) return;
+    setNearbyLoading(true);
+    fetch(`${API_URL}/services?userLat=${userCoords.lat}&userLng=${userCoords.lng}&radius=50`)
+      .then((r) => r.json())
+      .then((data: Listing[]) => {
+        setNearbyListings(Array.isArray(data) && data.length > 0 ? data.slice(0, 3) : listings.slice(0, 3));
+      })
+      .catch(() => {})
+      .finally(() => setNearbyLoading(false));
+  }, [userCoords, listings]);
 
   if (loading) {
     return (
@@ -285,7 +306,7 @@ export default function HomePage() {
               <div className="col-span-full mt-10">
                 <h1 className="text-2xl font-bold mb-5">{t("home.listingsNearYou")}</h1>
                 <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
-                  {dataLoading ? (
+                  {dataLoading || locationPending || nearbyLoading ? (
                     Array.from({ length: 3 }).map((_, i) => <ListingSkeleton key={i} />)
                   ) : nearbyListings.length === 0 ? (
                     <p className="text-gray-500 col-span-full">{t("home.noListingsNearYou")}</p>

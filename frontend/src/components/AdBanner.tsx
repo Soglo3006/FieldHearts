@@ -1,5 +1,5 @@
 "use client";
-
+// AdSense banner component
 import { useEffect } from "react";
 
 interface AdBannerProps {

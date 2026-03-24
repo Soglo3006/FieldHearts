@@ -2,14 +2,14 @@ import type { NextConfig } from "next";
 
 const CSP = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://js.stripe.com https://maps.googleapis.com https://va.vercel-scripts.com",
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://js.stripe.com https://maps.googleapis.com https://va.vercel-scripts.com https://pagead2.googlesyndication.com",
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com",
   "img-src 'self' data: https: blob: https://*.supabase.co https://images.unsplash.com https://maps.googleapis.com https://maps.gstatic.com",
   "font-src 'self' data: https://fonts.gstatic.com",
-  "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://uneden.onrender.com http://localhost:5000 https://va.vercel-scripts.com https://maps.googleapis.com",
+  "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://uneden.onrender.com http://localhost:5000 https://va.vercel-scripts.com https://maps.googleapis.com https://pagead2.googlesyndication.com https://googleads.g.doubleclick.net",
   "frame-src https://js.stripe.com https://www.google.com/maps/embed/",
   "object-src 'none'",
-  "worker-src blob:",
+  "worker-src 'self' blob:",
 ].join("; ");
 
 const SECURITY_HEADERS = [
@@ -17,7 +17,7 @@ const SECURITY_HEADERS = [
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "X-XSS-Protection", value: "1; mode=block" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-  { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
+  { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(self)" },
   { key: "Content-Security-Policy", value: CSP },
 ];
 

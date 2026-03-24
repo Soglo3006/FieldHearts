@@ -9,6 +9,7 @@ import { ChevronDown, ChevronRight, MapPin, X, SlidersHorizontal } from "lucide-
 import { categories } from "@/lib/categories";
 import ListingsGrid from "@/components/listings/ListingsGrid";
 import { Spinner } from "@/components/ui/Spinner";
+import AdBanner from "@/components/AdBanner";
 
 const toKey = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
 
@@ -275,9 +276,7 @@ function ListingsContent({ username }: { username?: string }) {
             </div>
 
             {/* Ad in sidebar */}
-            <div className="bg-gray-100 rounded-lg p-6 flex items-center justify-center border border-gray-200">
-              <span className="text-gray-500 text-xs">{t("listings.adPlaceholder")}</span>
-            </div>
+            <AdBanner slot="LISTINGS_SIDEBAR_SLOT" format="rectangle" style={{ minHeight: 250 }} />
           </div>
         </aside>
 
@@ -327,7 +326,7 @@ export default function ListingsPage({ username }: { username?: string }) {
       <div className="bg-gray-200 border-b border-gray-300">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="h-20 flex items-center justify-center">
-            <span className="text-gray-500 text-sm font-medium">{t("listings.adPlaceholder")}</span>
+            <AdBanner slot="LISTINGS_BANNER_SLOT" format="horizontal" style={{ minHeight: 70, width: "100%" }} />
           </div>
         </div>
       </div>

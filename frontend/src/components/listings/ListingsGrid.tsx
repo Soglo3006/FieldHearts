@@ -8,6 +8,7 @@ import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import AdBanner from "@/components/AdBanner";
 
 interface ApiService {
   id: string;
@@ -156,11 +157,8 @@ export default function ListingsGrid({ filters }: { filters?: ListingsFilters })
         {items.map((item) => {
           if (item.type === "ad") {
             return (
-              <div
-                key={`ad-${item.key}`}
-                className="sm:col-span-2 lg:col-span-3 bg-gray-100 rounded-xl p-6 flex items-center justify-center border border-gray-200 h-24"
-              >
-                <span className="text-gray-400 text-sm font-medium">{t("listings.adPlaceholder")}</span>
+              <div key={`ad-${item.key}`} className="sm:col-span-2 lg:col-span-3">
+                <AdBanner slot="LISTINGS_GRID_AD_SLOT" format="horizontal" style={{ minHeight: 90 }} />
               </div>
             );
           }

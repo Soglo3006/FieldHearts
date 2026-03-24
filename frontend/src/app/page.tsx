@@ -10,6 +10,7 @@ import { useEffect, useState } from "react";
 import { Grid3x3, MapPin, Clock } from "lucide-react";
 import { Spinner } from "@/components/ui/Spinner";
 import { useTranslation } from "react-i18next";
+import AdBanner from "@/components/AdBanner";
 
 const COMING_SOON = process.env.NEXT_PUBLIC_COMING_SOON === "true";
 
@@ -275,8 +276,8 @@ export default function HomePage() {
               )}
 
               {/* Ad banner */}
-              <div className="border-2 border-dashed border-gray-300 rounded-xl h-[200px] col-span-full flex items-center justify-center text-gray-500">
-                {t("home.advertisement")}
+              <div className="col-span-full">
+                <AdBanner slot="HOME_BANNER_SLOT" format="horizontal" style={{ minHeight: 90 }} />
               </div>
 
               {/* Listings near you */}
@@ -304,12 +305,8 @@ export default function HomePage() {
 
             {/* Sidebar ads */}
             <div className="lg:col-span-1 space-y-6">
-              <div className="border-2 border-dashed border-gray-300 rounded-xl h-[300px] flex items-center justify-center text-gray-500">
-                {t("home.advertisement")}
-              </div>
-              <div className="border-2 border-dashed border-gray-300 rounded-xl h-[250px] flex items-center justify-center text-gray-500">
-                {t("home.advertisement")}
-              </div>
+              <AdBanner slot="HOME_SIDEBAR_1_SLOT" format="vertical" style={{ minHeight: 300 }} />
+              <AdBanner slot="HOME_SIDEBAR_2_SLOT" format="rectangle" style={{ minHeight: 250 }} />
             </div>
           </div>
         </div>

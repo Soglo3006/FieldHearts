@@ -13,6 +13,7 @@ import ServiceFaqReviews from "@/components/serviceDetail/ServiceFaqReviews";
 import OwnerSidebar from "@/components/serviceDetail/OwnerSidebar";
 import BookingSidebar from "@/components/serviceDetail/BookingSidebar";
 import SimilarServices from "@/components/serviceDetail/SimilarServices";
+import AdBanner from "@/components/AdBanner";
 import BookingModal from "@/components/serviceDetail/BookingModal";
 import LocationMapModal from "@/components/serviceDetail/LocationMapModal";
 import { useTranslation } from "react-i18next";
@@ -306,10 +307,8 @@ export default function ServiceDetailPage() {
               />
             )}
 
-            {/* Ad placeholder */}
-            <div className="border border-dashed border-gray-300 rounded-2xl p-6 bg-gray-50 flex items-center justify-center text-gray-500 h-64">
-              <div className="text-sm font-medium text-gray-500">Advertisement</div>
-            </div>
+            {/* Ad */}
+            <AdBanner slot="SERVICE_DETAIL_SIDEBAR_SLOT" format="vertical" style={{ minHeight: 250 }} />
           </aside>
 
           <SimilarServices services={similarServices} />

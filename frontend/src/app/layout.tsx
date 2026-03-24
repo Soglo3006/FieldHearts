@@ -1,7 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "@/lib/i18n";
 import { Geist, Geist_Mono } from "next/font/google";
-import Script from "next/script";
 import "./globals.css";
 import { AuthProvider } from "@/contexts/AuthContext";
 import ConditionalShell from "@/components/ConditionalShell";
@@ -78,11 +77,11 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <Script
+        {/* eslint-disable-next-line @next/next/no-sync-scripts */}
+        <script
           async
           src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1987537963844035"
           crossOrigin="anonymous"
-          strategy="afterInteractive"
         />
       </head>
       <body

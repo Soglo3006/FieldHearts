@@ -125,6 +125,7 @@ export default function HomePage() {
   const [dataLoading, setDataLoading] = useState(true);
   const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [locationPending, setLocationPending] = useState(true);
+  const [locationGranted, setLocationGranted] = useState(false);
   const [nearbyLoading, setNearbyLoading] = useState(false);
 
   useEffect(() => {
@@ -157,7 +158,7 @@ export default function HomePage() {
         );
         setSortedCategories(sorted);
 
-        setNearbyListings(data.slice(0, 3));
+        // nearbyListings set only after geolocation decision
       } catch {
         toast.error("Unable to load listings. Please check your connection.");
       } finally {
@@ -168,28 +169,51 @@ export default function HomePage() {
     fetchListings();
   }, []);
 
-  // Géolocalisation séparée
+  // Géolocalisation — réagit aussi aux changements via l'icône 🔒 du navigateur
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (localStorage.getItem("location_enabled") === "false") {
-      setLocationPending(false);
-      return;
-    }
     if (!navigator.geolocation) {
+      setLocationGranted(false);
       setLocationPending(false);
       return;
     }
 
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setUserCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-        setLocationPending(false);
-      },
-      () => {
-        // Permission refusée
-        setLocationPending(false);
-      }
-    );
+    const onSuccess = (pos: GeolocationPosition) => {
+      setUserCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+      setLocationGranted(true);
+      setLocationPending(false);
+    };
+
+    const onError = () => {
+      setLocationGranted(false);
+      setLocationPending(false);
+    };
+
+    const requestCoords = () => {
+      setLocationPending(true);
+      navigator.geolocation.getCurrentPosition(onSuccess, onError);
+    };
+
+    if (navigator.permissions) {
+      navigator.permissions.query({ name: "geolocation" as PermissionName }).then((result) => {
+        if (result.state === "denied") {
+          onError();
+        } else {
+          requestCoords();
+        }
+
+        // Écoute les changements de permission (ex: via icône 🔒)
+        result.onchange = () => {
+          if (result.state === "granted") {
+            requestCoords();
+          } else if (result.state === "denied") {
+            onError();
+            setNearbyListings([]);
+          }
+        };
+      }).catch(() => requestCoords());
+    } else {
+      requestCoords();
+    }
   }, []);
 
   // Re-fetch annonces proches quand on a les coords ET les listings
@@ -302,26 +326,28 @@ export default function HomePage() {
                 <AdBanner slot="HOME_BANNER_SLOT" format="horizontal" style={{ minHeight: 90 }} />
               </div>
 
-              {/* Listings near you */}
-              <div className="col-span-full mt-10">
-                <h1 className="text-2xl font-bold mb-5">{t("home.listingsNearYou")}</h1>
-                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
-                  {dataLoading || locationPending || nearbyLoading ? (
-                    Array.from({ length: 3 }).map((_, i) => <ListingSkeleton key={i} />)
-                  ) : nearbyListings.length === 0 ? (
-                    <p className="text-gray-500 col-span-full">{t("home.noListingsNearYou")}</p>
-                  ) : (
-                    nearbyListings.map((listing) => (
-                      <ListingCard key={listing.id} listing={listing} t={t} />
-                    ))
-                  )}
+              {/* Listings near you — only if location pending or granted */}
+              {(locationPending || locationGranted) && (
+                <div className="col-span-full mt-10">
+                  <h1 className="text-2xl font-bold mb-5">{t("home.listingsNearYou")}</h1>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
+                    {dataLoading || locationPending || nearbyLoading ? (
+                      Array.from({ length: 3 }).map((_, i) => <ListingSkeleton key={i} />)
+                    ) : nearbyListings.length === 0 ? (
+                      <p className="text-gray-500 col-span-full">{t("home.noListingsNearYou")}</p>
+                    ) : (
+                      nearbyListings.map((listing) => (
+                        <ListingCard key={listing.id} listing={listing} t={t} />
+                      ))
+                    )}
+                  </div>
+                  <Link href="/listings">
+                    <Button className="mt-6 w-full bg-green-700 text-white hover:bg-green-800 cursor-pointer">
+                      {t("home.viewAllListings")}
+                    </Button>
+                  </Link>
                 </div>
-                <Link href="/listings">
-                  <Button className="mt-6 w-full bg-green-700 text-white hover:bg-green-800 cursor-pointer">
-                    {t("home.viewAllListings")}
-                  </Button>
-                </Link>
-              </div>
+              )}
 
             </div>
 

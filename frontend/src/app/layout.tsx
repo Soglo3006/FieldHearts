@@ -83,6 +83,21 @@ export default function RootLayout({
           src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1987537963844035"
           crossOrigin="anonymous"
         />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "Organization",
+              name: "Uneden",
+              url: "https://uneden.ca",
+              logo: "https://uneden.ca/logo.png",
+              description: "Uneden connecte les gens de ta communauté pour offrir et trouver des services locaux.",
+              address: { "@type": "PostalAddress", addressCountry: "CA" },
+              sameAs: [],
+            }),
+          }}
+        />
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen flex flex-col bg-white text-black`}

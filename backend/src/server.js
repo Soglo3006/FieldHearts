@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
+import rateLimit from "express-rate-limit";
 import serviceRoutes from "./routes/serviceRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
 import bookingRoutes from "./routes/bookingRoutes.js";
@@ -16,6 +17,8 @@ import notificationRoutes from './routes/notificationRoutes.js';
 import metricsRoutes from './routes/metricsRoutes.js';
 import favoriteRoutes from './routes/favoriteRoutes.js';
 import { startMessageReminderJob } from './jobs/messageReminderJob.js';
+import { startHealthMonitorJob } from './jobs/healthMonitorJob.js';
+import healthRoutes from './routes/healthRoutes.js';
 import cron from 'node-cron';
 import { processAllPayouts, isPayoutDay } from './services/payoutService.js';
 
@@ -28,6 +31,35 @@ const allowedOrigins = [
   "https://www.uneden.ca",
   ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : []),
 ];
+// ── Rate Limiters ─────────────────────────────────────────────────────────────
+
+// General API — 200 requests per 15 minutes per IP
+const generalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 200,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: "Too many requests, please try again later." },
+});
+
+// Auth routes — stricter: 20 attempts per 15 minutes (prevents brute force)
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: "Too many login attempts, please try again later." },
+});
+
+// Expensive routes (search, listings) — 100 per 15 minutes
+const searchLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: "Too many requests, please slow down." },
+});
+
 app.use(cors({
   origin: (origin, callback) => {
     if (!origin || allowedOrigins.includes(origin) || origin.endsWith(".ngrok-free.app") || origin.endsWith(".ngrok.io")) return callback(null, true);
@@ -42,25 +74,27 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 
-app.use("/api/services", serviceRoutes);
-app.use("/api/bookings", bookingRoutes);
-app.use("/api/reviews", reviewRoutes);
-app.use("/api/disputes", disputeRoutes);
-app.use("/api/profiles", profileRoutes);
-app.use("/api/auth", authRoutes);
-app.use("/api/support", supportRoutes);
-app.use('/api/messages', messageRoutes);
-app.use('/api/reports', reportRoutes);
-app.use('/api/payments', paymentRoutes);
-app.use('/api/wallet', walletRoutes);
-app.use('/api/notifications', notificationRoutes);
-app.use('/api/admin/metrics', metricsRoutes);
-app.use('/api/favorites', favoriteRoutes);
+app.use("/api/auth", authLimiter, authRoutes);
+app.use("/api/services", searchLimiter, serviceRoutes);
+app.use("/api/bookings", generalLimiter, bookingRoutes);
+app.use("/api/reviews", generalLimiter, reviewRoutes);
+app.use("/api/disputes", generalLimiter, disputeRoutes);
+app.use("/api/profiles", generalLimiter, profileRoutes);
+app.use("/api/support", generalLimiter, supportRoutes);
+app.use('/api/messages', generalLimiter, messageRoutes);
+app.use('/api/reports', generalLimiter, reportRoutes);
+app.use('/api/payments', generalLimiter, paymentRoutes);
+app.use('/api/wallet', generalLimiter, walletRoutes);
+app.use('/api/notifications', generalLimiter, notificationRoutes);
+app.use('/api/admin/metrics', generalLimiter, metricsRoutes);
+app.use('/api/favorites', generalLimiter, favoriteRoutes);
+app.use('/api/health', healthRoutes);
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   startMessageReminderJob();
+  startHealthMonitorJob();
 
   // Bi-weekly payout — runs every Friday at 12:00 EST (16:00 UTC)
   // node-cron doesn't support bi-weekly natively, so we run every Friday

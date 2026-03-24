@@ -6,7 +6,16 @@ import { createNotification, shouldSendEmail } from "../services/notificationSer
 
 export const createBooking = async (req, res) => {
   try {
-    const { service_id, client_description } = req.body;
+    const { errors, data } = (await import("../utils/validate.js")).validateInput(req.body, {
+      service_id:         { required: true, type: "uuid" },
+      client_description: { type: "string", maxLen: 2000 },
+    });
+
+    if (errors) {
+      return res.status(400).json({ message: errors[0] });
+    }
+
+    const { service_id, client_description } = data;
 
     const service = await pool.query(
       "SELECT s.*, u.email as worker_email, CASE WHEN u.account_type = 'company' THEN u.company_name ELSE u.full_name END as worker_name FROM services s JOIN users u ON s.user_id = u.id WHERE s.id = $1",

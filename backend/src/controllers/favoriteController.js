@@ -38,6 +38,8 @@ export const getFavorites = async (req, res) => {
 export const addFavorite = async (req, res) => {
   const { service_id } = req.body;
   if (!service_id) return res.status(400).json({ message: "service_id required" });
+  const { isValidUUID } = await import("../utils/validate.js");
+  if (!isValidUUID(service_id)) return res.status(400).json({ message: "Invalid service_id" });
   try {
     await pool.query(
       `INSERT INTO service_favorites (user_id, service_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,

@@ -20,14 +20,27 @@ export default function ResetPasswordPage() {
   const [error, setError] = useState("");
   const [ready, setReady] = useState(false);
 
+  const [expired, setExpired] = useState(false);
+
   // Supabase sends the recovery token via URL hash — wait for session to be set
   useEffect(() => {
-    supabase.auth.onAuthStateChange((event) => {
+    // If no PASSWORD_RECOVERY event after 30 minutes, treat link as expired
+    const expireTimer = setTimeout(() => {
+      if (!ready) setExpired(true);
+    }, 30 * 60 * 1000);
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === "PASSWORD_RECOVERY") {
+        clearTimeout(expireTimer);
         setReady(true);
       }
     });
-  }, []);
+
+    return () => {
+      clearTimeout(expireTimer);
+      subscription.unsubscribe();
+    };
+  }, [ready]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,8 +49,8 @@ export default function ResetPasswordPage() {
       setError("Passwords do not match.");
       return;
     }
-    if (password.length < 6) {
-      setError("Password must be at least 6 characters.");
+    if (password.length < 8) {
+      setError("Password must be at least 8 characters.");
       return;
     }
     setLoading(true);
@@ -63,6 +76,28 @@ export default function ResetPasswordPage() {
             </div>
             <h2 className="text-xl font-bold text-gray-900">Password updated!</h2>
             <p className="text-sm text-gray-500">Redirecting you to login…</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (expired) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4 bg-gray-50">
+        <Card className="w-full max-w-sm text-center">
+          <CardContent className="pt-8 pb-6 space-y-4">
+            <KeyRound className="h-12 w-12 text-red-400 mx-auto" />
+            <h2 className="text-xl font-bold text-gray-900">Link expired</h2>
+            <p className="text-sm text-gray-500">
+              This password reset link has expired. Please request a new one.
+            </p>
+            <Button
+              className="w-full bg-green-800 hover:bg-green-900"
+              onClick={() => router.push("/forgot-password")}
+            >
+              Request a new link
+            </Button>
           </CardContent>
         </Card>
       </div>
@@ -104,7 +139,7 @@ export default function ResetPasswordPage() {
               <Input
                 id="password"
                 type="password"
-                placeholder="Min. 6 characters"
+                placeholder="Min. 8 characters"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required

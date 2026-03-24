@@ -19,9 +19,19 @@ export function sanitizeMessage(content: string): string {
  * Nettoie et convertit les retours à la ligne en <br>
  */
 export function sanitizeAndFormatMessage(content: string): string {
-  // D'abord sanitize
   const clean = sanitizeMessage(content);
-  
-  // Puis convertir les \n en <br>
   return clean.replace(/\n/g, '<br>');
+}
+
+/**
+ * Sanitize plain text user content (descriptions, bios, reviews)
+ * Strips all HTML — no tags allowed
+ */
+export function sanitizePlainText(content: string): string {
+  if (!content) return content;
+  return DOMPurify.sanitize(content, {
+    ALLOWED_TAGS: [],
+    ALLOWED_ATTR: [],
+    KEEP_CONTENT: true,
+  }).trim();
 }

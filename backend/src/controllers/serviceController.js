@@ -1,7 +1,19 @@
 import pool from "../config/db.js";
+import { validateInput, sanitizeText } from "../utils/validate.js";
 
 export const createService = async (req, res) => {
   try {
+    const { errors, data } = validateInput(req.body, {
+      title:       { required: true, type: "string", maxLen: 200 },
+      description: { required: true, type: "string", maxLen: 5000 },
+      type:        { required: true, enum: ["offer", "looking"] },
+      price:       { required: true, type: "number", min: 0.01 },
+    });
+
+    if (errors) {
+      return res.status(400).json({ message: errors[0] });
+    }
+
     const {
       type,
       title,
@@ -23,19 +35,7 @@ export const createService = async (req, res) => {
       urgency,
       image_url,
       is_one_time,
-    } = req.body;
-
-    if (!title || !description) {
-      return res.status(400).json({ message: "Title and description are required" });
-    }
-
-    if (!type || !['offer', 'looking'].includes(type)) {
-      return res.status(400).json({ message: "Invalid type. Must be 'offer' or 'looking'" });
-    }
-
-    if (!price || price <= 0) {
-      return res.status(400).json({ message: "Price/Budget must be greater than 0" });
-    }
+    } = { ...req.body, ...data };
 
     // Créer le service
     const result = await pool.query(

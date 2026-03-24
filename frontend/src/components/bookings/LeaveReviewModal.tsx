@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { X, Star, CheckCircle } from "lucide-react";
+import { sanitizePlainText } from "@/lib/sanitize";
 
 interface Props {
   bookingId: string;
@@ -44,7 +45,7 @@ export default function LeaveReviewModal({
           "Content-Type": "application/json",
           Authorization: `Bearer ${accessToken}`,
         },
-        body: JSON.stringify({ booking_id: bookingId, rating, comment: comment.trim() }),
+        body: JSON.stringify({ booking_id: bookingId, rating, comment: sanitizePlainText(comment) }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));

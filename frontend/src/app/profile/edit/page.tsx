@@ -89,8 +89,8 @@ export default function EditProfilePage() {
         };
         setFormData(profile);
         setInitialData(JSON.parse(JSON.stringify(profile)));
-      } catch (err: unknown) {
-        toast.error(err instanceof Error ? err.message : String(err));
+      } catch {
+        toast.error("Failed to load profile. Please refresh the page.");
       } finally {
         setLoading(false);
       }

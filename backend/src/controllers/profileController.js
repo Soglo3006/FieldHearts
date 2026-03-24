@@ -1,4 +1,5 @@
 import pool from "../config/db.js";
+import { sanitizeText } from "../utils/validate.js";
 import { createClient } from '@supabase/supabase-js';
 import { notifyWelcome } from '../services/emailService.js';
 
@@ -41,14 +42,22 @@ export const completeProfile = async (req, res) => {
         const userId = req.user.id;
         const fullName = req.user.full_name;
 
+        // Sanitize text inputs
+        if (bio && bio.length > 1000) return res.status(400).json({ message: "Bio must be at most 1000 characters" });
+        if (profession && profession.length > 200) return res.status(400).json({ message: "Profession must be at most 200 characters" });
+        if (company_name && company_name.length > 200) return res.status(400).json({ message: "Company name must be at most 200 characters" });
+        const sanitizedBio = sanitizeText(bio);
+        const sanitizedProfession = sanitizeText(profession);
+        const sanitizedCompanyName = sanitizeText(company_name);
+
 
         //Préparer les métadonnées pour auth.users
         const metaData = account_type === 'person' 
             ? {
                 account_type: 'person',
                 full_name: fullName,
-                profession: profession,
-                bio: bio,
+                profession: sanitizedProfession,
+                bio: sanitizedBio,
                 city: city,
                 province: province,
                 phone: phone,
@@ -58,7 +67,7 @@ export const completeProfile = async (req, res) => {
             }
             : {
                 account_type: 'company',
-                company_name: company_name,
+                company_name: sanitizedCompanyName,
                 full_name: fullName, // Nom du représentant
                 industry: industry,
                 bio: bio,
@@ -112,13 +121,13 @@ export const completeProfile = async (req, res) => {
                 address,
                 city,
                 province,
-                bio,
+                sanitizedBio,
                 avatar,
-                profession,
+                sanitizedProfession,
                 JSON.stringify(skills || []),
                 JSON.stringify(languages || []),
                 JSON.stringify(experiences || []),
-                company_name,
+                sanitizedCompanyName,
                 industry,
                 team_size,
                 JSON.stringify(portfolio || []),

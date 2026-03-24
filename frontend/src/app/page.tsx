@@ -11,6 +11,7 @@ import { Grid3x3, MapPin, Clock } from "lucide-react";
 import { Spinner } from "@/components/ui/Spinner";
 import { useTranslation } from "react-i18next";
 import AdBanner from "@/components/AdBanner";
+import { toast } from "sonner";
 
 const COMING_SOON = process.env.NEXT_PUBLIC_COMING_SOON === "true";
 
@@ -174,7 +175,7 @@ export default function HomePage() {
           setNearbyListings(data.slice(0, 3));
         }
       } catch {
-        // API unreachable
+        toast.error("Unable to load listings. Please check your connection.");
       } finally {
         setDataLoading(false);
       }

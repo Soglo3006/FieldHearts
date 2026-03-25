@@ -28,6 +28,7 @@ export default function LoginPage() {
   const [step, setStep] = useState<Step>("email");
   const [checkingEmail, setCheckingEmail] = useState(false);
   const [loggingIn, setLoggingIn] = useState(false);
+  const [emailNotConfirmed, setEmailNotConfirmed] = useState(false);
 
   const { signInWithEmail, signInWithGoogle, signInWithFacebook } = useAuth();
   const { t, i18n } = useTranslation();
@@ -74,8 +75,10 @@ export default function LoginPage() {
       setLoggingIn(false);
       const msg = err instanceof Error ? err.message : "";
       if (msg.includes("Email not confirmed")) {
+        setEmailNotConfirmed(true);
         setError(t("login.emailNotConfirmed"));
       } else {
+        setEmailNotConfirmed(false);
         setError(t("login.loginFailed"));
       }
     }
@@ -177,7 +180,19 @@ export default function LoginPage() {
             {step === "password" && (
               <form onSubmit={handleLogin}>
                 <div className="flex flex-col gap-5">
-                  {error && <div className="bg-red-50 text-red-600 p-3 rounded-md text-sm">{error}</div>}
+                  {error && (
+                    <div className="bg-red-50 text-red-600 p-3 rounded-md text-sm">
+                      {error}
+                      {emailNotConfirmed && (
+                        <Link
+                          href={`/auth/verify-email?email=${encodeURIComponent(email)}`}
+                          className="block mt-2 text-green-700 underline font-medium"
+                        >
+                          {t("auth.resendEmail")}
+                        </Link>
+                      )}
+                    </div>
+                  )}
 
                   {/* Email confirmé (read-only) */}
                   <div className="flex items-center gap-2 text-sm text-gray-600 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">

@@ -107,7 +107,7 @@ export default function RegisterPage() {
             </p>
             <Button
               className="w-full bg-green-800 hover:bg-green-900"
-              onClick={() => router.push("/auth/verify-email")}
+              onClick={() => router.push(`/auth/verify-email?email=${encodeURIComponent(email)}`)}
             >
               {t("register.ok")}
             </Button>

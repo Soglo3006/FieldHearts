@@ -23,7 +23,7 @@ export default function StepBankAccount({ accessToken, accountType = "person" }:
   const [connecting, setConnecting] = useState(false);
 
   useEffect(() => {
-    if (!accessToken) return;
+    if (!accessToken) { setLoading(false); return; }
     fetch(`${process.env.NEXT_PUBLIC_API_URL}/payments/connect/status`, {
       headers: { Authorization: `Bearer ${accessToken}` },
     })

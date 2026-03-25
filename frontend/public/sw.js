@@ -13,8 +13,8 @@ self.addEventListener("push", (event) => {
   event.waitUntil(
     self.registration.showNotification(title || "Uneden", {
       body: body || "",
-      icon: icon || "/icon.png",
-      badge: "/icon.png",
+      icon: icon || "/logo.png",
+      badge: "/logo.png",
       tag: tag || "uneden",
       data: { url: url || "/" },
       vibrate: [200, 100, 200],

@@ -98,17 +98,17 @@ function OnboardingContent() {
     portfolio: [],
   });
 
-  // Load from localStorage after hydration
+  // Load from sessionStorage after hydration (per-tab — avoids conflicts with multiple tabs)
   useEffect(() => {
     try {
-      const saved = localStorage.getItem(storageKey);
+      const saved = sessionStorage.getItem(storageKey);
       if (saved) setData(JSON.parse(saved));
     } catch {}
   }, [storageKey]);
 
-  // Persist data to localStorage on every change
+  // Persist data to sessionStorage on every change
   useEffect(() => {
-    try { localStorage.setItem(storageKey, JSON.stringify(data)); } catch {}
+    try { sessionStorage.setItem(storageKey, JSON.stringify(data)); } catch {}
   }, [data, storageKey]);
 
   useEffect(() => {
@@ -223,7 +223,7 @@ function OnboardingContent() {
       const { error } = await supabase.auth.updateUser({ data: { profile_completed: true } });
       if (error) throw error;
 
-      try { localStorage.removeItem(storageKey); } catch {}
+      try { sessionStorage.removeItem(storageKey); } catch {}
       setShowSuccess(true);
       setTimeout(() => router.push("/"), 2000);
     } catch (err: unknown) {

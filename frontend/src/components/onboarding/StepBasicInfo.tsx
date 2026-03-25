@@ -108,7 +108,7 @@ export default function StepBasicInfo({ data, accountType, onChange }: Props) {
                 province: result.province,
               })
             }
-            placeholder="123 Rue Principale"
+            placeholder="ex : 123 Rue Principale, Montréal"
           />
           <p className="text-xs text-gray-400">{t("onboarding.addressHint", "Commence à taper pour voir les suggestions")}</p>
         </div>

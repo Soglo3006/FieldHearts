@@ -1,3 +1,5 @@
+import "./instrument.js";
+import * as Sentry from "@sentry/node";
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
@@ -90,6 +92,9 @@ app.use('/api/notifications', generalLimiter, notificationRoutes);
 app.use('/api/admin/metrics', generalLimiter, metricsRoutes);
 app.use('/api/favorites', generalLimiter, favoriteRoutes);
 app.use('/api/health', healthRoutes);
+
+// Sentry error handler — must be after all routes
+Sentry.setupExpressErrorHandler(app);
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {

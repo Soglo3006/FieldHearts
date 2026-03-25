@@ -16,6 +16,7 @@ import walletRoutes from './routes/walletRoutes.js';
 import notificationRoutes from './routes/notificationRoutes.js';
 import metricsRoutes from './routes/metricsRoutes.js';
 import favoriteRoutes from './routes/favoriteRoutes.js';
+import pool from './config/db.js';
 import { startMessageReminderJob } from './jobs/messageReminderJob.js';
 import { startHealthMonitorJob } from './jobs/healthMonitorJob.js';
 import healthRoutes from './routes/healthRoutes.js';
@@ -92,7 +93,9 @@ app.use('/api/health', healthRoutes);
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  // Warmup DB connection on startup so first user request is instant
+  pool.query("SELECT 1").catch(() => {});
+
   startMessageReminderJob();
   startHealthMonitorJob();
 

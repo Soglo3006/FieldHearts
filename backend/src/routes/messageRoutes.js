@@ -51,8 +51,18 @@ router.post('/notify', async (req, res) => {
       : sender?.full_name || 'Quelqu\'un';
 
     // Envoyer le push seulement si la conversation n'est pas en sourdine
+    // ET si le destinataire n'est pas déjà dans cette conversation
     if (!receiverMemberRaw.is_muted) {
-      pushNewMessage(receiverId, senderName).catch(() => {});
+      const { data: presenceData } = await supabase
+        .from('user_presence')
+        .select('active_chat_id')
+        .eq('user_id', receiverId)
+        .single();
+
+      const alreadyViewing = presenceData?.active_chat_id === chatRoomId;
+      if (!alreadyViewing) {
+        pushNewMessage(receiverId, senderName).catch(() => {});
+      }
     }
 
     // In-app notification for new message

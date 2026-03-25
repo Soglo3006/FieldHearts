@@ -152,6 +152,7 @@
     "paymentCancelled": "Le paiement a été annulé.",
     "noReceived": "Aucune demande de réservation reçue.",
     "noSent": "Vous n'avez encore envoyé aucune demande de réservation.",
+    "loadError": "Impossible de charger les réservations. Veuillez réessayer.",
     "browseListings": "Parcourir les annonces",
     "pending": "En attente",
     "accepted": "Acceptée",

@@ -120,7 +120,7 @@ export default function PaymentSuccessPage() {
         )}
 
         <div className="flex flex-col gap-2.5">
-          <Link href="/bookings">
+          <Link href="/bookings?payment=success">
             <Button className="w-full bg-green-700 hover:bg-green-800 text-white h-12 rounded-xl">
               {t("payment.viewBookings")}
             </Button>

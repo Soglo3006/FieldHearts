@@ -192,6 +192,24 @@ export function useMessages(chatRoomId: string | null) {
     }
   }, [chatRoomId, enrichMessages]);
 
+  // Track active chat in user_presence so the backend can suppress push notifications
+  // when the recipient is already viewing this conversation.
+  useEffect(() => {
+    if (!user?.id || !chatRoomId) return;
+
+    supabase.from('user_presence').upsert(
+      { user_id: user.id, active_chat_id: chatRoomId },
+      { onConflict: 'user_id' }
+    ).catch(() => {});
+
+    return () => {
+      supabase.from('user_presence').upsert(
+        { user_id: user.id, active_chat_id: null },
+        { onConflict: 'user_id' }
+      ).catch(() => {});
+    };
+  }, [user?.id, chatRoomId]);
+
   // Initial load — fetch last PAGE_SIZE messages
   useEffect(() => {
     if (!chatRoomId) {

@@ -152,6 +152,7 @@
     "paymentCancelled": "Payment was cancelled.",
     "noReceived": "No booking requests received.",
     "noSent": "You haven't sent any booking requests yet.",
+    "loadError": "Unable to load bookings. Please try again.",
     "browseListings": "Browse listings",
     "pending": "Pending",
     "accepted": "Accepted",

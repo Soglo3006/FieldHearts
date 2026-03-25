@@ -90,6 +90,7 @@ function BookingsContent() {
   const [sent, setSent] = useState<SentBooking[]>([]);
   const [loadingReceived, setLoadingReceived] = useState(true);
   const [loadingSent, setLoadingSent] = useState(true);
+  const [fetchError, setFetchError] = useState(false);
   const [updating, setUpdating] = useState<string | null>(null);
 
   const [reviewBooking, setReviewBooking] = useState<{ id: string; targetName: string } | null>(null);
@@ -110,18 +111,26 @@ function BookingsContent() {
   const fetchBookings = useCallback(async () => {
     if (!sessionRef.current?.access_token) return;
     const headers = { Authorization: `Bearer ${sessionRef.current.access_token}` };
+    setFetchError(false);
 
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/bookings/received-bookings`, { headers })
-      .then((r) => r.json())
-      .then((data) => setReceived(Array.isArray(data) ? data : []))
-      .catch(() => setReceived([]))
-      .finally(() => setLoadingReceived(false));
+    const [receivedRes, sentRes] = await Promise.allSettled([
+      fetch(`${process.env.NEXT_PUBLIC_API_URL}/bookings/received-bookings`, { headers }).then((r) => r.json()),
+      fetch(`${process.env.NEXT_PUBLIC_API_URL}/bookings/my-bookings`, { headers }).then((r) => r.json()),
+    ]);
 
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/bookings/my-bookings`, { headers })
-      .then((r) => r.json())
-      .then((data) => setSent(Array.isArray(data) ? data : []))
-      .catch(() => setSent([]))
-      .finally(() => setLoadingSent(false));
+    if (receivedRes.status === "fulfilled" && Array.isArray(receivedRes.value)) {
+      setReceived(receivedRes.value);
+    } else {
+      setFetchError(true);
+    }
+    if (sentRes.status === "fulfilled" && Array.isArray(sentRes.value)) {
+      setSent(sentRes.value);
+    } else {
+      setFetchError(true);
+    }
+
+    setLoadingReceived(false);
+    setLoadingSent(false);
   }, []);
 
   useEffect(() => {
@@ -164,7 +173,7 @@ function BookingsContent() {
       if (paymentResult === "success") {
         // Refetch immediately + after a delay in case the Stripe webhook takes a moment to update the DB
         fetchBookings();
-        const refetchTimer = setTimeout(() => fetchBookings(), 3000);
+        const refetchTimer = setTimeout(() => fetchBookings(), 6000);
         return () => { clearTimeout(timer); clearTimeout(refetchTimer); };
       }
       return () => clearTimeout(timer);
@@ -348,6 +357,16 @@ function BookingsContent() {
           )}
         </button>
       </div>
+
+      {fetchError && !loadingReceived && !loadingSent && (
+        <div className="flex items-center justify-between bg-red-50 border border-red-200 rounded-lg px-4 py-3 mb-4 text-sm text-red-700">
+          <span>{t("bookings.loadError")}</span>
+          <button type="button" onClick={() => { setLoadingReceived(true); setLoadingSent(true); fetchBookings(); }}
+            className="cursor-pointer ml-4 font-medium underline hover:no-underline">
+            {t("common.retry")}
+          </button>
+        </div>
+      )}
 
       {tab === "received" && (
         <>

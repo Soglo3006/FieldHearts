@@ -7,6 +7,7 @@ import { CheckCircle, MapPin, Calendar } from "lucide-react";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
+import { useTranslation } from "react-i18next";
 
 interface Booking {
   id: string;
@@ -23,6 +24,7 @@ export default function PaymentSuccessPage() {
   const searchParams = useSearchParams();
   const bookingId = searchParams.get("booking_id");
   const { session } = useAuth();
+  const { t, i18n } = useTranslation();
   const [booking, setBooking] = useState<Booking | null>(null);
 
   useEffect(() => {
@@ -51,9 +53,9 @@ export default function PaymentSuccessPage() {
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-100 mb-4">
             <CheckCircle className="h-8 w-8 text-green-600" />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">Paiement confirmé !</h1>
+          <h1 className="text-2xl font-bold text-gray-900">{t("payment.confirmed")}</h1>
           <p className="text-gray-500 mt-1.5 text-sm">
-            Votre réservation est maintenant active. Le prestataire a été notifié.
+            {t("payment.confirmedDesc")}
           </p>
         </div>
 
@@ -76,7 +78,7 @@ export default function PaymentSuccessPage() {
                 )}
                 <div className="flex items-center gap-2">
                   <Calendar className="h-4 w-4 text-gray-400 shrink-0" />
-                  <span>{new Date(booking.created_at).toLocaleDateString("fr-CA")}</span>
+                  <span>{new Date(booking.created_at).toLocaleDateString(i18n.language?.startsWith("fr") ? "fr-CA" : "en-CA")}</span>
                 </div>
               </div>
               <div className="mt-4 pt-4 border-t border-gray-200 space-y-1.5 text-sm">
@@ -91,22 +93,22 @@ export default function PaymentSuccessPage() {
                   return (
                     <>
                       <div className="flex justify-between text-gray-500">
-                        <span>Prix du service</span>
+                        <span>{t("payment.servicePrice")}</span>
                         <span className="text-gray-700">{fmt(price)} $</span>
                       </div>
                       <div className="flex justify-between text-gray-400">
-                        <span>Commission acheteur (5%)</span>
+                        <span>{t("payment.buyerCommission")}</span>
                         <span>{fmt(buyerCommission)} $</span>
                       </div>
                       <div className="flex justify-between text-gray-400">
                         <div>
-                          <div>Taxes (15%)</div>
-                          <div className="text-xs text-gray-300">TPS (5%) + TVQ (9.975%)</div>
+                          <div>{t("payment.taxes")}</div>
+                          <div className="text-xs text-gray-300">{t("payment.taxDetail")}</div>
                         </div>
                         <span>{fmt(taxes)} $</span>
                       </div>
                       <div className="flex justify-between font-bold text-base border-t border-gray-200 pt-2.5 mt-1">
-                        <span>Montant payé</span>
+                        <span>{t("payment.amountPaid")}</span>
                         <span className="text-green-700">{fmt(total)} $ CAD</span>
                       </div>
                     </>
@@ -120,12 +122,12 @@ export default function PaymentSuccessPage() {
         <div className="flex flex-col gap-2.5">
           <Link href="/bookings">
             <Button className="w-full bg-green-700 hover:bg-green-800 text-white h-12 rounded-xl">
-              Voir mes réservations
+              {t("payment.viewBookings")}
             </Button>
           </Link>
           <Link href="/">
             <Button variant="outline" className="w-full h-12 rounded-xl">
-              Retour à l&apos;accueil
+              {t("payment.backHome")}
             </Button>
           </Link>
         </div>

@@ -214,7 +214,9 @@ export default function ServiceDetailPage() {
   }
 
   const price = Number(service.price);
-  const providerFirstName = service.owner_name?.split(" ")[0] ?? "Provider";
+  const providerFirstName = service.owner_account_type === "company"
+    ? (service.owner_name ?? "Provider")
+    : (service.owner_name?.split(" ")[0] ?? "Provider");
   const isOwner = !!user && user.id === service.user_id;
 
   const handleOwnerDelete = async () => {

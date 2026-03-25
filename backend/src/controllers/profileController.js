@@ -70,7 +70,7 @@ export const completeProfile = async (req, res) => {
                 company_name: sanitizedCompanyName,
                 full_name: fullName, // Nom du représentant
                 industry: industry,
-                bio: bio,
+                bio: sanitizedBio,
                 city: city,
                 province: province,
                 phone: phone,

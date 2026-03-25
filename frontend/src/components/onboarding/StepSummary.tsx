@@ -78,7 +78,7 @@ export default function StepSummary({ data, accountType }: Props) {
           </div>
         )}
 
-        {(data.experiences ?? []).some((e) => e.title.trim() || e.company.trim() || e.description.trim()) && (
+        {accountType === "person" && (data.experiences ?? []).some((e) => e.title.trim() || e.company.trim() || e.description.trim()) && (
           <div>
             <h4 className="font-semibold text-gray-900 mb-2">{t("onboarding.workExperience")}</h4>
             <div className="space-y-4">
@@ -95,7 +95,7 @@ export default function StepSummary({ data, accountType }: Props) {
           </div>
         )}
 
-        {(data.portfolio?.length ?? 0) > 0 && (
+        {accountType === "person" && (data.portfolio?.length ?? 0) > 0 && (
           <div>
             <h4 className="font-semibold text-gray-900 mb-2">{t("onboarding.portfolio")}</h4>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-4">

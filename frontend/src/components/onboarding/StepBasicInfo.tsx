@@ -95,7 +95,7 @@ export default function StepBasicInfo({ data, accountType, onChange }: Props) {
         {/* Address autocomplete */}
         <div className="space-y-2">
           <Label htmlFor="adresse" className="text-base font-medium text-gray-900">
-            Adresse <span className="text-red-500">*</span>
+            {t("profileEdit.address")} <span className="text-red-500">*</span>
           </Label>
           <AddressAutocomplete
             id="adresse"
@@ -108,16 +108,16 @@ export default function StepBasicInfo({ data, accountType, onChange }: Props) {
                 province: result.province,
               })
             }
-            placeholder="ex : 123 Rue Principale, Montréal"
+            placeholder={t("onboarding.addressPlaceholder")}
           />
-          <p className="text-xs text-gray-400">{t("onboarding.addressHint", "Commence à taper pour voir les suggestions")}</p>
+          <p className="text-xs text-gray-400">{t("onboarding.addressHint")}</p>
         </div>
 
         {/* City + Province auto-filled, still editable */}
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label htmlFor="ville" className="text-base font-medium text-gray-900">
-              Ville <span className="text-red-500">*</span>
+              {t("profileEdit.city")} <span className="text-red-500">*</span>
             </Label>
             <Input
               id="ville"
@@ -130,7 +130,7 @@ export default function StepBasicInfo({ data, accountType, onChange }: Props) {
           </div>
           <div className="space-y-2">
             <Label htmlFor="province" className="text-base font-medium text-gray-900">
-              Province <span className="text-red-500">*</span>
+              {t("profileEdit.province")} <span className="text-red-500">*</span>
             </Label>
             <Input
               id="province"

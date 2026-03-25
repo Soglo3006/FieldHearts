@@ -3,13 +3,6 @@ import pool from "../config/db.js";
 /**
  * Create an in-app notification for a user.
  * Fires-and-forgets; never throws.
- *
- * @param {object} opts
- * @param {string} opts.userId    - recipient user UUID
- * @param {string} opts.type      - 'message' | 'booking_request' | 'booking_accepted' | 'booking_rejected' | 'booking_completed' | 'dispute' | 'payment'
- * @param {string} opts.title     - short title
- * @param {string} opts.body      - longer description
- * @param {string} [opts.link]    - optional frontend path to navigate to
  */
 export async function createNotification({ userId, type, title, body, link = null }) {
   try {
@@ -21,6 +14,39 @@ export async function createNotification({ userId, type, title, body, link = nul
   } catch (err) {
     console.error("Failed to create notification:", err.message);
   }
+}
+
+/**
+ * Look up a user's preferred language from their settings.
+ * Defaults to "fr" if not set.
+ */
+async function getUserLang(userId) {
+  try {
+    const result = await pool.query(
+      `SELECT settings->>'language' AS lang FROM users WHERE id = $1`,
+      [userId]
+    );
+    const lang = result.rows[0]?.lang;
+    return lang === "en" ? "en" : "fr";
+  } catch {
+    return "fr";
+  }
+}
+
+/**
+ * Create a bilingual notification — picks the right language based on the recipient's settings.
+ *
+ * @param {object} opts
+ * @param {string} opts.userId  - recipient user UUID
+ * @param {string} opts.type
+ * @param {string} [opts.link]
+ * @param {{ title: string, body: string }} opts.en - English strings
+ * @param {{ title: string, body: string }} opts.fr - French strings
+ */
+export async function createLocalizedNotification({ userId, type, link = null, en, fr }) {
+  const lang = await getUserLang(userId);
+  const strings = lang === "en" ? en : fr;
+  return createNotification({ userId, type, title: strings.title, body: strings.body, link });
 }
 
 /**

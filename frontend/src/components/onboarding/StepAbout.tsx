@@ -22,13 +22,9 @@ export default function StepAbout({ data, accountType, onChange }: Props) {
   return (
     <Card className="p-6 sm:p-8 animate-in fade-in duration-300">
       <h2 className="text-xl font-bold text-gray-900">
-        {accountType === "company" ? t("onboarding.aboutYourself") : t("onboarding.aboutYourself")}
+        {accountType === "company" ? t("onboarding.aboutYourCompany") : t("onboarding.aboutYourself")}
       </h2>
-      <p className="text-gray-600">
-        {accountType === "company"
-          ? t("onboarding.aboutSubtitle")
-          : t("onboarding.aboutSubtitle")}
-      </p>
+      <p className="text-gray-600">{t("onboarding.aboutSubtitle")}</p>
 
       <div className="space-y-6">
         {accountType === "person" && (

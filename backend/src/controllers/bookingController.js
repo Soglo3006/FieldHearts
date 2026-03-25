@@ -2,7 +2,7 @@ import pool from "../config/db.js";
 import { notifyBookingCreated, notifyBookingStatusUpdated, sendEmail } from "../services/emailService.js";
 import { pushNewBooking, pushBookingStatus } from "../services/pushService.js";
 import stripe from "../config/stripe.js";
-import { createNotification, shouldSendEmail } from "../services/notificationService.js";
+import { createLocalizedNotification, shouldSendEmail } from "../services/notificationService.js";
 
 export const createBooking = async (req, res) => {
   try {
@@ -81,12 +81,12 @@ export const createBooking = async (req, res) => {
         .catch((err) => console.error("Booking email notification failed:", err.message));
     });
     pushNewBooking(s.user_id, clientName, s.title).catch(() => {});
-    createNotification({
+    createLocalizedNotification({
       userId: s.user_id,
       type: "booking_request",
-      title: "New booking request",
-      body: `${clientName} applied to your listing "${s.title}"`,
       link: "/bookings",
+      en: { title: "New booking request", body: `${clientName} applied to your listing "${s.title}"` },
+      fr: { title: "Nouvelle demande", body: `${clientName} a postulé pour votre annonce « ${s.title} »` },
     });
 
     res.status(201).json(booking);
@@ -225,14 +225,22 @@ export const updateBookingStatus = async (req, res) => {
           .catch((err) => console.error("Status email notification failed:", err.message));
       });
       pushBookingStatus(notifyId, status, b.title).catch(() => {});
-      createNotification({
+      createLocalizedNotification({
         userId: notifyId,
         type: status === "accepted" ? "booking_accepted" : "booking_rejected",
-        title: status === "accepted" ? "Booking accepted" : "Booking rejected",
-        body: status === "accepted"
-          ? `Your request for "${b.title}" was accepted!`
-          : `Your request for "${b.title}" was declined.`,
         link: "/bookings",
+        en: {
+          title: status === "accepted" ? "Booking accepted" : "Booking rejected",
+          body: status === "accepted"
+            ? `Your request for "${b.title}" was accepted!`
+            : `Your request for "${b.title}" was declined.`,
+        },
+        fr: {
+          title: status === "accepted" ? "Demande acceptée" : "Demande refusée",
+          body: status === "accepted"
+            ? `Votre demande pour « ${b.title} » a été acceptée !`
+            : `Votre demande pour « ${b.title} » a été refusée.`,
+        },
       });
     }
 
@@ -393,12 +401,12 @@ export const customizeBooking = async (req, res) => {
 
     // Notify client if something actually changed
     if (modifiedFields.length > 0) {
-      createNotification({
+      createLocalizedNotification({
         userId: b.client_id,
         type: "booking_request",
-        title: "Request details updated",
-        body: `The request for "${b.title}" was modified in: ${modifiedFields.join(", ")}.`,
         link: "/bookings",
+        en: { title: "Request details updated", body: `The request for "${b.title}" was modified in: ${modifiedFields.join(", ")}.` },
+        fr: { title: "Détails de la demande mis à jour", body: `La demande pour « ${b.title} » a été modifiée : ${modifiedFields.join(", ")}.` },
       });
     }
 
@@ -439,12 +447,12 @@ export const requestCancellation = async (req, res) => {
       );
       // Notify the other party
       const otherUserId = userId === b.worker_id ? b.client_id : b.worker_id;
-      createNotification({
+      createLocalizedNotification({
         userId: otherUserId,
         type: "booking_request",
-        title: "Cancellation requested",
-        body: `The other party wants to cancel "${b.title}". Review and approve or decline.`,
         link: "/bookings",
+        en: { title: "Cancellation requested", body: `The other party wants to cancel "${b.title}". Review and approve or decline.` },
+        fr: { title: "Annulation demandée", body: `L'autre partie souhaite annuler « ${b.title} ». Approuvez ou refusez.` },
       });
       return res.json(result.rows[0]);
     }
@@ -460,12 +468,12 @@ export const requestCancellation = async (req, res) => {
       [id]
     );
     // Notify requester that it's approved
-    createNotification({
+    createLocalizedNotification({
       userId: b.cancel_requested_by,
       type: "booking_rejected",
-      title: "Cancellation approved",
-      body: `The cancellation of "${b.title}" has been approved.`,
       link: "/bookings",
+      en: { title: "Cancellation approved", body: `The cancellation of "${b.title}" has been approved.` },
+      fr: { title: "Annulation approuvée", body: `L'annulation de « ${b.title} » a été approuvée.` },
     });
     res.json(result.rows[0]);
   } catch (err) {
@@ -496,12 +504,12 @@ export const declineCancellation = async (req, res) => {
       [id]
     );
     // Notify requester that it was declined
-    createNotification({
+    createLocalizedNotification({
       userId: b.cancel_requested_by,
       type: "booking_rejected",
-      title: "Cancellation declined",
-      body: `The other party declined your cancellation request.`,
       link: "/bookings",
+      en: { title: "Cancellation declined", body: `The other party declined your cancellation request.` },
+      fr: { title: "Annulation refusée", body: `L'autre partie a refusé votre demande d'annulation.` },
     });
     res.json(result.rows[0]);
   } catch (err) {
@@ -582,12 +590,12 @@ export const undoMarkCompleted = async (req, res) => {
     const otherEmail  = isWorker ? b.client_email : b.worker_email;
     const otherName   = isWorker ? b.client_name  : b.worker_name;
 
-    createNotification({
+    createLocalizedNotification({
       userId: otherUserId,
       type: "booking_request",
-      title: "Confirmation annulée",
-      body: `${markerName} a annulé sa confirmation de fin de travail pour "${b.title}". Le travail est toujours en cours.`,
       link: "/bookings",
+      en: { title: "Confirmation cancelled", body: `${markerName} cancelled their completion confirmation for "${b.title}". The work is still in progress.` },
+      fr: { title: "Confirmation annulée", body: `${markerName} a annulé sa confirmation de fin de travail pour « ${b.title} ». Le travail est toujours en cours.` },
     }).catch(() => {});
 
     sendEmail(otherEmail, "jobMarkUndone", [otherName, markerName, b.title, id])
@@ -620,12 +628,12 @@ async function autoRejectOtherRequests(serviceId, acceptedBookingId) {
     // Notify each rejected applicant (worker_id for "looking", client_id for "offer")
     for (const b of others.rows) {
       const notifyId = b.service_type === "looking" ? b.worker_id : b.client_id;
-      createNotification({
+      createLocalizedNotification({
         userId: notifyId,
         type: "booking_rejected",
-        title: "Request no longer available",
-        body: `Your request for "${b.title}" was closed — the listing has been filled.`,
         link: "/bookings",
+        en: { title: "Request no longer available", body: `Your request for "${b.title}" was closed — the listing has been filled.` },
+        fr: { title: "Demande non disponible", body: `Votre demande pour « ${b.title} » a été fermée — l'annonce est remplie.` },
       });
     }
   }
@@ -657,7 +665,7 @@ async function finalizeCompletion(booking) {
   if (existingCredit.rows.length === 0) {
     await pool.query(
       `INSERT INTO transactions (user_id, booking_id, type, amount, description, other_user_name, listing_title)
-       VALUES ($1, $2, 'credit', $3, 'Paiement reçu pour travail complété', $4, $5)`,
+       VALUES ($1, $2, 'credit', $3, 'Payment received for completed work', $4, $5)`,
       [booking.worker_id, booking.id, workerReceives, booking.client_name, booking.title]
     );
     // Only credit wallet if transaction didn't already exist
@@ -670,28 +678,28 @@ async function finalizeCompletion(booking) {
   }
 
   // Notify worker: payment received
-  createNotification({
+  createLocalizedNotification({
     userId: booking.worker_id,
     type: "payment",
-    title: "Payment received",
-    body: `You received $${workerReceives.toFixed(2)} for "${booking.title}"`,
     link: "/wallet",
+    en: { title: "Payment received", body: `You received $${workerReceives.toFixed(2)} for "${booking.title}"` },
+    fr: { title: "Paiement reçu", body: `Vous avez reçu ${workerReceives.toFixed(2)} $ pour « ${booking.title} »` },
   });
 
   // Notify both: listing completed
-  createNotification({
+  createLocalizedNotification({
     userId: booking.worker_id,
     type: "booking_completed",
-    title: "Listing completed",
-    body: `"${booking.title}" has been marked as completed.`,
     link: "/bookings",
+    en: { title: "Listing completed", body: `"${booking.title}" has been marked as completed.` },
+    fr: { title: "Travail terminé", body: `« ${booking.title} » a été marqué comme terminé.` },
   });
-  createNotification({
+  createLocalizedNotification({
     userId: booking.client_id,
     type: "booking_completed",
-    title: "Listing completed",
-    body: `"${booking.title}" has been marked as completed.`,
     link: "/bookings",
+    en: { title: "Listing completed", body: `"${booking.title}" has been marked as completed.` },
+    fr: { title: "Travail terminé", body: `« ${booking.title} » a été marqué comme terminé.` },
   });
 }
 

@@ -1,7 +1,7 @@
 import pool from "../config/db.js";
 import stripe from "../config/stripe.js";
 import { notifyDisputeCreated } from "../services/emailService.js";
-import { createNotification, shouldSendEmail } from "../services/notificationService.js";
+import { createLocalizedNotification, shouldSendEmail } from "../services/notificationService.js";
 
 export const CreateDispute = async (req, res) => {
     try {
@@ -57,12 +57,12 @@ export const CreateDispute = async (req, res) => {
             // Notify the other party in-app
             const otherPartyId = raised_by === b.client_id ? b.worker_id : b.client_id;
             const raisedByName = raised_by === b.client_id ? client_name : worker_name;
-            createNotification({
+            createLocalizedNotification({
               userId: otherPartyId,
               type: "dispute",
-              title: "Complaint opened",
-              body: `${raisedByName} opened a complaint about a booking.`,
               link: "/bookings",
+              en: { title: "Complaint opened", body: `${raisedByName} opened a complaint about a booking.` },
+              fr: { title: "Plainte ouverte", body: `${raisedByName} a ouvert une plainte concernant une réservation.` },
             });
         }
 
@@ -342,12 +342,12 @@ export const AdminUpdateDispute = async (req, res) => {
             }
 
             // Notify client
-            createNotification({
+            createLocalizedNotification({
                 userId: client_id,
                 type: "payment",
-                title: "Remboursement effectué",
-                body: "Votre paiement a été remboursé suite à la résolution de votre plainte.",
                 link: "/wallet",
+                en: { title: "Refund processed", body: "Your payment has been refunded following the resolution of your dispute." },
+                fr: { title: "Remboursement effectué", body: "Votre paiement a été remboursé suite à la résolution de votre plainte." },
             });
         }
 

@@ -224,7 +224,7 @@ export const createCheckoutSession = async (req, res) => {
         },
       ],
       mode: "payment",
-      locale: "fr-CA",
+      locale: req.body.locale || "fr-CA",
       success_url: `${FRONTEND_URL}/payment/success?booking_id=${booking_id}`,
       cancel_url: `${FRONTEND_URL}/payment/${booking_id}?cancelled=true`,
       metadata: {

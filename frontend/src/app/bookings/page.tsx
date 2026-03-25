@@ -52,7 +52,7 @@ function EmptyState({ message }: { message: string }) {
 }
 
 function BookingsContent() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { user, session, loading: authLoading } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -415,7 +415,7 @@ function BookingsContent() {
                       <div className="flex-1 min-w-0">
                         <p className="font-medium text-gray-900 truncate">{b.title}</p>
                         <p className="text-sm text-gray-500">{t("bookings.clientLabel")} : {("client_name" in b ? (b as ReceivedBooking).client_name : (b as SentBooking).worker_name)}</p>
-                        <p className="text-xs text-gray-400">{new Date(b.created_at).toLocaleDateString("fr-CA", { year: "numeric", month: "long", day: "numeric" })}</p>
+                        <p className="text-xs text-gray-400">{new Date(b.created_at).toLocaleDateString(i18n.language?.startsWith("fr") ? "fr-CA" : "en-CA", { year: "numeric", month: "long", day: "numeric" })}</p>
                       </div>
                       <div className="text-right shrink-0">
                         <p className="font-semibold text-green-700">+{(Number(b.custom_price ?? b.price) * 0.80).toFixed(2)} $</p>
@@ -442,7 +442,7 @@ function BookingsContent() {
                       <div className="flex-1 min-w-0">
                         <p className="font-medium text-gray-900 truncate">{b.title}</p>
                         <p className="text-sm text-gray-500">{t("bookings.providerLabel")} : {("worker_name" in b ? (b as SentBooking).worker_name : (b as ReceivedBooking).client_name)}</p>
-                        <p className="text-xs text-gray-400">{new Date(b.created_at).toLocaleDateString("fr-CA", { year: "numeric", month: "long", day: "numeric" })}</p>
+                        <p className="text-xs text-gray-400">{new Date(b.created_at).toLocaleDateString(i18n.language?.startsWith("fr") ? "fr-CA" : "en-CA", { year: "numeric", month: "long", day: "numeric" })}</p>
                       </div>
                       <div className="text-right shrink-0">
                         <p className="font-semibold text-red-600">-{(Number(b.custom_price ?? b.price) * 1.19975).toFixed(2)} $</p>

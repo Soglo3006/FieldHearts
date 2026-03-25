@@ -65,7 +65,7 @@ const searchLimiter = rateLimit({
 
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin) || origin.endsWith(".ngrok-free.app") || origin.endsWith(".ngrok.io")) return callback(null, true);
+    if (!origin || allowedOrigins.includes(origin) || origin.endsWith(".ngrok-free.app") || origin.endsWith(".ngrok.io") || origin.endsWith(".vercel.app")) return callback(null, true);
     callback(new Error("Not allowed by CORS"));
   },
   credentials: true,

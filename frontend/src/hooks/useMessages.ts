@@ -197,16 +197,20 @@ export function useMessages(chatRoomId: string | null) {
   useEffect(() => {
     if (!user?.id || !chatRoomId) return;
 
-    supabase.from('user_presence').upsert(
-      { user_id: user.id, active_chat_id: chatRoomId },
-      { onConflict: 'user_id' }
-    ).catch(() => {});
+    (async () => {
+      await supabase.from('user_presence').upsert(
+        { user_id: user.id, active_chat_id: chatRoomId },
+        { onConflict: 'user_id' }
+      );
+    })();
 
     return () => {
-      supabase.from('user_presence').upsert(
-        { user_id: user.id, active_chat_id: null },
-        { onConflict: 'user_id' }
-      ).catch(() => {});
+      (async () => {
+        await supabase.from('user_presence').upsert(
+          { user_id: user.id, active_chat_id: null },
+          { onConflict: 'user_id' }
+        );
+      })();
     };
   }, [user?.id, chatRoomId]);
 

@@ -65,7 +65,7 @@ export default function StepBasicInfo({ data, accountType, onChange }: Props) {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="companyName" className="text-base font-medium text-gray-900">{t("profileEdit.companyName")}</Label>
+              <Label htmlFor="companyName" className="text-base font-medium text-gray-900">{t("profileEdit.companyName")} <span className="text-red-500">*</span></Label>
               <Input
                 id="companyName"
                 type="text"

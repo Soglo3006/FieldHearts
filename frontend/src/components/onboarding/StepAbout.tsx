@@ -105,7 +105,8 @@ export default function StepAbout({ data, accountType, onChange }: Props) {
 
             <div className="space-y-2">
               <Label htmlFor="industry" className="text-base font-medium text-gray-900">
-                {t("onboarding.companyIndustry")}              </Label>
+                {t("onboarding.companyIndustry")} <span className="text-red-500">*</span>
+              </Label>
               <Input
                 id="industry"
                 type="text"

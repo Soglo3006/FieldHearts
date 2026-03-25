@@ -715,6 +715,7 @@
     "stripeSecure": "Sécurisé par Stripe"
   },
   "onboarding": {
+    "stepLabel": "Étape",
     "step1": "Infos de base",
     "step2": "À propos",
     "step3": "Compétences",
@@ -785,7 +786,18 @@
     "summarySubtitle": "Vérifiez vos informations avant de terminer.",
     "confirmReady": "Tout est correct ? Cliquez sur Terminer pour créer votre profil.",
     "suggestions": "Suggestions",
-    "remove": "Retirer"
+    "remove": "Retirer",
+    "bankAccount": "Compte bancaire",
+    "bankAccountSubtitle": "Connectez votre compte bancaire pour recevoir vos paiements. Vous pouvez passer cette étape et le faire plus tard.",
+    "bankConnected": "Compte connecté !",
+    "bankConnectedDesc": "Vous êtes prêt à recevoir des paiements via Stripe.",
+    "bankPending": "Vérification en cours",
+    "bankPendingDesc": "Stripe examine vos informations. Vous recevrez une confirmation sous 1–2 jours ouvrables.",
+    "bankCompleteFile": "Compléter mon dossier",
+    "bankReceiveTitle": "Recevez vos paiements",
+    "bankReceiveDesc": "Connectez votre compte bancaire pour recevoir vos versements directement, de façon sécurisée via Stripe.",
+    "bankConnectBtn": "Connecter mon compte",
+    "bankSecuredBy": "Sécurisé par Stripe"
   },
   "messages": {
     "title": "Messages",

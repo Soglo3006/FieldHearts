@@ -106,6 +106,7 @@ export default function EditProfilePage() {
     try {
       const payload = {
         email: formData.email,
+        full_name: formData.fullName,
         phone: formData.phone,
         avatar: formData.avatar,
         bio: formData.bio,
@@ -115,7 +116,7 @@ export default function EditProfilePage() {
         languages: formData.languages,
         portfolio: formData.portfolio,
         account_type: accountType,
-        ...(isPerson && { full_name: formData.fullName, profession: formData.profession }),
+        ...(isPerson && { profession: formData.profession }),
         ...(isCompany && { company_name: formData.companyName, industry: formData.industry, team_size: formData.teamSize }),
       };
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/profiles/me`, {

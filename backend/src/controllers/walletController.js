@@ -138,7 +138,7 @@ export const exportTransactions = async (req, res) => {
          t.amount                                                          AS "Montant transaction (CAD)",
          COALESCE(b.status, '—')                                          AS "Statut réservation"
        FROM transactions t
-       LEFT JOIN profiles p ON p.user_id = t.user_id
+       LEFT JOIN users p ON p.id = t.user_id
        LEFT JOIN bookings b ON b.id = t.booking_id
        WHERE 1=1 ${dateFilter}
        ORDER BY t.created_at DESC`

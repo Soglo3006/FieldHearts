@@ -225,7 +225,6 @@ function OnboardingContent() {
 
       try { sessionStorage.removeItem(storageKey); } catch {}
       setShowSuccess(true);
-      setTimeout(() => router.push("/"), 2000);
     } catch (err: unknown) {
       toast.error(t("onboarding.profileSaveFailed", { message: err instanceof Error ? err.message : String(err) }));
     } finally {

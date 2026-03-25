@@ -38,7 +38,7 @@ export default function OnboardingStepBar({ accountType, currentStep, totalSteps
     <div className="bg-white border-b border-gray-200 top-0 z-10">
       <div className="max-w-3xl mx-auto px-4 py-4 sm:py-6">
         <h1 className="text-lg sm:text-2xl font-bold text-gray-900 mb-1">{t("onboarding.basicInfoTitle")}</h1>
-        <p className="text-gray-600 text-sm">{t("onboarding.step1")} {currentStep} / {totalSteps}</p>
+        <p className="text-gray-600 text-sm">{t("onboarding.stepLabel")} {currentStep} / {totalSteps}</p>
         <div className="flex justify-between mt-4">
           {titles.map((title, index) => {
             const StepIcon = icons[index];

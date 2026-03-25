@@ -87,7 +87,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
 
     if (error) throw new Error(error.message);
-    router.push(isAdminUser(data.user) ? "/admin" : "/");
+    if (isAdminUser(data.user)) {
+      router.push("/admin");
+    } else {
+      const profileCompleted = data.user.user_metadata?.profile_completed;
+      router.push(profileCompleted ? "/" : "/choose_type");
+    }
   };
 
   const signUpWithEmail = async (email: string, password: string, fullName: string) => {

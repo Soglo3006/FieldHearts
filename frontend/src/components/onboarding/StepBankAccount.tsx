@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CheckCircle2, CreditCard, ExternalLink, Clock } from "lucide-react";
 import { Spinner } from "@/components/ui/Spinner";
+import { useTranslation } from "react-i18next";
 
 interface ConnectStatus {
   connected: boolean;
@@ -18,6 +19,7 @@ interface Props {
 }
 
 export default function StepBankAccount({ accessToken, accountType = "person" }: Props) {
+  const { t } = useTranslation();
   const [status, setStatus] = useState<ConnectStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [connecting, setConnecting] = useState(false);
@@ -57,10 +59,10 @@ export default function StepBankAccount({ accessToken, accountType = "person" }:
     <Card className="p-6 sm:p-8 animate-in fade-in duration-300">
       <div className="flex items-center gap-3 mb-1">
         <CreditCard className="h-6 w-6 text-green-700 shrink-0" />
-        <h2 className="text-xl font-bold text-gray-900">Compte bancaire</h2>
+        <h2 className="text-xl font-bold text-gray-900">{t("onboarding.bankAccount")}</h2>
       </div>
       <p className="text-gray-500 text-sm mb-8">
-        Connectez votre compte bancaire pour recevoir vos paiements. Vous pouvez passer cette étape et le faire plus tard.
+        {t("onboarding.bankAccountSubtitle")}
       </p>
 
       {loading ? (
@@ -71,15 +73,15 @@ export default function StepBankAccount({ accessToken, accountType = "person" }:
         /* Connected */
         <div className="flex flex-col items-center gap-3 py-4 text-center">
           <CheckCircle2 className="h-12 w-12 text-green-500" />
-          <p className="font-semibold text-gray-900">Compte connecté !</p>
-          <p className="text-sm text-gray-500">Vous êtes prêt à recevoir des paiements via Stripe.</p>
+          <p className="font-semibold text-gray-900">{t("onboarding.bankConnected")}</p>
+          <p className="text-sm text-gray-500">{t("onboarding.bankConnectedDesc")}</p>
         </div>
       ) : status?.details_submitted ? (
         /* Pending verification */
         <div className="flex flex-col items-center gap-3 py-4 text-center">
           <Clock className="h-12 w-12 text-yellow-400" />
-          <p className="font-semibold text-gray-900">Vérification en cours</p>
-          <p className="text-sm text-gray-500 max-w-xs">Stripe examine vos informations. Vous recevrez une confirmation sous 1–2 jours ouvrables.</p>
+          <p className="font-semibold text-gray-900">{t("onboarding.bankPending")}</p>
+          <p className="text-sm text-gray-500 max-w-xs">{t("onboarding.bankPendingDesc")}</p>
           <Button
             type="button"
             variant="outline"
@@ -88,7 +90,7 @@ export default function StepBankAccount({ accessToken, accountType = "person" }:
             className="mt-2 gap-2 text-sm"
           >
             {connecting ? <Spinner size="sm" /> : <ExternalLink className="h-4 w-4" />}
-            Compléter mon dossier
+            {t("onboarding.bankCompleteFile")}
           </Button>
         </div>
       ) : (
@@ -98,9 +100,9 @@ export default function StepBankAccount({ accessToken, accountType = "person" }:
             <CreditCard className="h-8 w-8 text-green-600" />
           </div>
           <div>
-            <p className="font-semibold text-gray-900 mb-1">Recevez vos paiements</p>
+            <p className="font-semibold text-gray-900 mb-1">{t("onboarding.bankReceiveTitle")}</p>
             <p className="text-sm text-gray-500 max-w-xs">
-              Connectez votre compte bancaire pour recevoir vos versements directement, de façon sécurisée via Stripe.
+              {t("onboarding.bankReceiveDesc")}
             </p>
           </div>
           <Button
@@ -110,11 +112,11 @@ export default function StepBankAccount({ accessToken, accountType = "person" }:
             className="bg-green-700 hover:bg-green-800 text-white gap-2 px-6 h-11 rounded-xl text-sm"
           >
             {connecting ? <Spinner size="sm" /> : <CreditCard className="h-4 w-4" />}
-            Connecter mon compte
+            {t("onboarding.bankConnectBtn")}
           </Button>
           <p className="text-xs text-gray-400 flex items-center gap-1">
             <CheckCircle2 className="h-3.5 w-3.5 text-gray-300" />
-            Sécurisé par Stripe
+            {t("onboarding.bankSecuredBy")}
           </p>
         </div>
       )}

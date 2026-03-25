@@ -189,7 +189,7 @@ export default function WalletPage() {
       })
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [user, session, router, authLoading]);
+  }, [user, session?.user?.id, router, authLoading]);
 
   useEffect(() => {
     if (!session?.access_token || !user) return;

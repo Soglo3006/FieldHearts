@@ -1,4 +1,5 @@
 import pool from "../config/db.js";
+import stripe from "../config/stripe.js";
 import { notifyDisputeCreated } from "../services/emailService.js";
 import { createNotification, shouldSendEmail } from "../services/notificationService.js";
 
@@ -260,21 +261,100 @@ export const AdminGetAllDisputes = async (_req, res) => {
 export const AdminUpdateDispute = async (req, res) => {
     try {
         const { id } = req.params;
-        const { status, resolution } = req.body;
+        const { status, resolution, refund_client } = req.body;
 
         const allowed = ["open", "resolved", "rejected"];
         if (!allowed.includes(status)) {
             return res.status(400).json({ message: "Invalid dispute status" });
         }
 
+        const dispute = await pool.query(
+            `SELECT d.*, b.client_id, b.worker_id FROM disputes d JOIN bookings b ON d.booking_id = b.id WHERE d.id = $1`,
+            [id]
+        );
+        if (dispute.rows.length === 0) {
+            return res.status(404).json({ message: "Dispute not found" });
+        }
+
+        // Trigger refund if admin chose to refund the client
+        if (status === "resolved" && refund_client) {
+            const booking_id = dispute.rows[0].booking_id;
+            const client_id  = dispute.rows[0].client_id;
+            const worker_id  = dispute.rows[0].worker_id;
+
+            const payment = await pool.query(
+                "SELECT * FROM payments WHERE booking_id = $1 AND status IN ('paid', 'transferred') ORDER BY created_at DESC LIMIT 1",
+                [booking_id]
+            );
+
+            if (payment.rows.length === 0) {
+                return res.status(400).json({ message: "No eligible payment found for this booking — refund cannot be processed." });
+            }
+
+            const p = payment.rows[0];
+
+            if (!p.stripe_payment_intent_id) {
+                return res.status(400).json({ message: "No Stripe payment intent found — refund cannot be processed." });
+            }
+
+            // If funds were already transferred to worker, reverse the transfer first
+            if (p.stripe_transfer_id) {
+                try {
+                    await stripe.transfers.createReversal(p.stripe_transfer_id);
+                } catch (_) { /* transfer may already be reversed */ }
+            }
+            await stripe.refunds.create({ payment_intent: p.stripe_payment_intent_id });
+
+            await pool.query(
+                "UPDATE payments SET status = 'refunded', updated_at = NOW() WHERE id = $1",
+                [p.id]
+            );
+            await pool.query(
+                "UPDATE bookings SET payment_status = 'refunded' WHERE id = $1",
+                [booking_id]
+            );
+
+            // Decrement client's total_spent in wallet
+            const debitTx = await pool.query(
+                "SELECT amount FROM transactions WHERE booking_id = $1 AND type = 'debit' LIMIT 1",
+                [booking_id]
+            );
+            if (debitTx.rows.length > 0) {
+                await pool.query(
+                    "UPDATE wallets SET total_spent = GREATEST(0, total_spent - $1) WHERE user_id = $2",
+                    [debitTx.rows[0].amount, client_id]
+                );
+            }
+
+            // Decrement worker's balance and total_earned in wallet
+            const creditTx = await pool.query(
+                "SELECT amount FROM transactions WHERE booking_id = $1 AND type = 'credit' LIMIT 1",
+                [booking_id]
+            );
+            if (creditTx.rows.length > 0) {
+                await pool.query(
+                    `UPDATE wallets
+                     SET balance = GREATEST(0, balance - $1),
+                         total_earned = GREATEST(0, total_earned - $1)
+                     WHERE user_id = $2`,
+                    [creditTx.rows[0].amount, worker_id]
+                );
+            }
+
+            // Notify client
+            createNotification({
+                userId: client_id,
+                type: "payment",
+                title: "Remboursement effectué",
+                body: "Votre paiement a été remboursé suite à la résolution de votre plainte.",
+                link: "/wallet",
+            });
+        }
+
         const result = await pool.query(
             `UPDATE disputes SET status = $1, resolution = $2 WHERE id = $3 RETURNING *`,
             [status, resolution || null, id]
         );
-
-        if (result.rows.length === 0) {
-            return res.status(404).json({ message: "Dispute not found" });
-        }
 
         res.status(200).json(result.rows[0]);
     } catch (err) {

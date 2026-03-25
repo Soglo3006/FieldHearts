@@ -55,6 +55,7 @@ export default function AdminDisputesPage() {
   const [newStatus, setNewStatus] = useState("");
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
+  const [refundClient, setRefundClient] = useState(false);
 
   useEffect(() => {
     if (loading) return;
@@ -110,6 +111,7 @@ export default function AdminDisputesPage() {
     setResolution(d.resolution || "");
     setNewStatus(d.status);
     setSaveError("");
+    setRefundClient(false);
   };
 
   const handleSave = async () => {
@@ -123,7 +125,7 @@ export default function AdminDisputesPage() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${session?.access_token}`,
         },
-        body: JSON.stringify({ status: newStatus, resolution }),
+        body: JSON.stringify({ status: newStatus, resolution, refund_client: refundClient }),
       });
       if (!res.ok) throw new Error();
       const updated = await res.json();
@@ -322,6 +324,18 @@ export default function AdminDisputesPage() {
                   rows={4}
                 />
               </div>
+
+              {newStatus === "resolved" && (
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={refundClient}
+                    onChange={(e) => setRefundClient(e.target.checked)}
+                    className="h-4 w-4 rounded border-gray-300 text-green-700"
+                  />
+                  <span className="text-sm font-medium text-gray-800">Rembourser le client</span>
+                </label>
+              )}
 
               {saveError && (
                 <p className="text-sm text-red-600 bg-red-50 rounded px-3 py-2">{saveError}</p>

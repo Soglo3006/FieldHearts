@@ -108,7 +108,7 @@ function BookingsContent() {
   const sessionRef = useRef(session);
   useEffect(() => { sessionRef.current = session; }, [session]);
 
-  const fetchBookings = useCallback(async () => {
+  const fetchBookings = useCallback(async (attempt = 0) => {
     if (!sessionRef.current?.access_token) return;
     const headers = { Authorization: `Bearer ${sessionRef.current.access_token}` };
     setFetchError(false);
@@ -118,15 +118,22 @@ function BookingsContent() {
       fetch(`${process.env.NEXT_PUBLIC_API_URL}/bookings/my-bookings`, { headers }).then((r) => r.json()),
     ]);
 
-    if (receivedRes.status === "fulfilled" && Array.isArray(receivedRes.value)) {
-      setReceived(receivedRes.value);
-    } else {
-      setFetchError(true);
-    }
-    if (sentRes.status === "fulfilled" && Array.isArray(sentRes.value)) {
-      setSent(sentRes.value);
-    } else {
-      setFetchError(true);
+    const receivedOk = receivedRes.status === "fulfilled" && Array.isArray(receivedRes.value);
+    const sentOk = sentRes.status === "fulfilled" && Array.isArray(sentRes.value);
+
+    if (receivedOk) setReceived(receivedRes.value);
+    if (sentOk) setSent(sentRes.value);
+
+    if (!receivedOk || !sentOk) {
+      if (attempt < 2) {
+        // Auto-retry — backend may be waking up from cold start
+        setTimeout(() => fetchBookings(attempt + 1), 8000);
+      } else {
+        setFetchError(true);
+        setLoadingReceived(false);
+        setLoadingSent(false);
+      }
+      return;
     }
 
     setLoadingReceived(false);
@@ -361,7 +368,7 @@ function BookingsContent() {
       {fetchError && !loadingReceived && !loadingSent && (
         <div className="flex items-center justify-between bg-red-50 border border-red-200 rounded-lg px-4 py-3 mb-4 text-sm text-red-700">
           <span>{t("bookings.loadError")}</span>
-          <button type="button" onClick={() => { setLoadingReceived(true); setLoadingSent(true); fetchBookings(); }}
+          <button type="button" onClick={() => { setLoadingReceived(true); setLoadingSent(true); fetchBookings(0); }}
             className="cursor-pointer ml-4 font-medium underline hover:no-underline">
             {t("common.retry")}
           </button>

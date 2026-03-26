@@ -32,17 +32,35 @@ export default function PaymentSuccessPage() {
     const headers = { Authorization: `Bearer ${session.access_token}`, "Content-Type": "application/json" };
 
     // Confirm payment with backend (updates booking to active + creates wallet transaction)
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/payments/verify`, {
-      method: "POST",
-      headers,
-      body: JSON.stringify({ booking_id: bookingId }),
-    }).catch(() => {});
+    // Retry once after 8s in case the server was cold-starting
+    const verify = () =>
+      fetch(`${process.env.NEXT_PUBLIC_API_URL}/payments/verify`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ booking_id: bookingId }),
+      }).catch(() => {});
+    verify();
+    const retryVerify = setTimeout(verify, 8000);
 
-    // Fetch booking details for display
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/bookings/${bookingId}`, { headers })
-      .then((r) => r.json())
-      .then(setBooking)
-      .catch(() => {});
+    // Fetch booking details for display — validate response before setting state
+    const fetchBookingDetails = (attempt = 0) => {
+      fetch(`${process.env.NEXT_PUBLIC_API_URL}/bookings/${bookingId}`, { headers })
+        .then((r) => r.json())
+        .then((data) => {
+          if (data && data.id && data.created_at) {
+            setBooking(data);
+          } else if (attempt < 2) {
+            // Backend may be cold-starting; retry after a short delay
+            setTimeout(() => fetchBookingDetails(attempt + 1), 5000);
+          }
+        })
+        .catch(() => {
+          if (attempt < 2) setTimeout(() => fetchBookingDetails(attempt + 1), 5000);
+        });
+    };
+    fetchBookingDetails();
+
+    return () => clearTimeout(retryVerify);
   }, [bookingId, session?.access_token]);
 
   return (

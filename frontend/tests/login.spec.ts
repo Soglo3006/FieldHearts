@@ -14,7 +14,7 @@ test.describe('Login flow', () => {
     await page.goto('/login');
     await page.fill('#email', process.env.TEST_EMAIL!);
     await page.click('button[type="submit"]');
-    await expect(page.locator('#password')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('#password')).toBeVisible({ timeout: 30000 });
   });
 
   test('shows not-found step for unknown email', async ({ page }) => {

@@ -34,7 +34,7 @@ test.describe('Register form validation', () => {
 
   test('password toggle shows and hides password', async ({ page }) => {
     await page.goto('/register');
-    await page.fill('#password', 'MySecret123');
+    await page.fill('#password', 'test_toggle_value');
     await expect(page.locator('#password')).toHaveAttribute('type', 'password');
     // Go up to parent div then find the toggle button inside it
     const toggleBtn = page.locator('#password').locator('..').locator('button');

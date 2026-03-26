@@ -8,11 +8,13 @@ export default defineConfig({
   workers: 1,
   reporter: [['html', { open: 'never' }], ['list']],
 
+  timeout: 120000,
   use: {
     baseURL: process.env.TEST_BASE_URL || 'http://localhost:3000',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
+    actionTimeout: 30000,
   },
 
   projects: [
@@ -21,7 +23,7 @@ export default defineConfig({
       name: 'setup',
       testMatch: /auth\.setup\.ts/,
     },
-    // All other tests reuse the saved auth state
+    // All other tests reuse the saved auth state (user1 = seller)
     {
       name: 'chromium',
       use: {

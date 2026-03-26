@@ -1,7 +1,7 @@
 // frontend/src/components/home/Header.tsx
 "use client";
 import { useTranslation } from "react-i18next";
-import { Search, User, Settings, LogOut, Building2, List, Wallet, X, CalendarDays, Menu, Heart, MessageCircle, Bell, ChevronLeft, Check, Trash2, Loader2, ShieldCheck } from "lucide-react";
+import { Search, User, Settings, LogOut, Building2, List, Wallet, X, CalendarDays, Menu, Heart, MessageCircle, Bell, ChevronLeft, Check, Trash2, Loader2, ShieldCheck, UsersRound } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
 import {
@@ -253,7 +253,7 @@ export default function Header() {
         )}
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={() => setShowSupport(true)} className="cursor-pointer">
-          <MessageCircle className="mr-2 h-4 w-4" />
+          <UsersRound className="mr-2 h-4 w-4" />
           <span>{t("support.button")}</span>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
@@ -674,7 +674,7 @@ export default function Header() {
                       )}
                       <div className="border-t border-gray-100 mt-1 pt-1">
                         <button onClick={() => { setMobileMenuOpen(false); setShowSupport(true); }} className="cursor-pointer w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
-                          <MessageCircle className="h-5 w-5 text-gray-400" /> {t("support.button")}
+                          <UsersRound className="h-5 w-5 text-gray-400" /> {t("support.button")}
                         </button>
                         <button onClick={() => { setMobileMenuOpen(false); handleSignOut(); }} className="cursor-pointer w-full flex items-center gap-3 px-4 py-3 text-sm text-red-600 hover:bg-red-50 transition-colors">
                           <LogOut className="h-5 w-5" /> {t("header.logOut")}
@@ -684,7 +684,7 @@ export default function Header() {
                   ) : (
                     <>
                       <button onClick={() => { setMobileMenuOpen(false); setShowSupport(true); }} className="cursor-pointer w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
-                        <MessageCircle className="h-5 w-5 text-gray-400" /> {t("support.button")}
+                        <UsersRound className="h-5 w-5 text-gray-400" /> {t("support.button")}
                       </button>
                       <Link href="/login" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
                         <User className="h-5 w-5 text-gray-400" /> {t("header.loginRegister")}

@@ -12,6 +12,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import React, { useState, useEffect } from "react"
+import { Eye, EyeOff } from "lucide-react";
 import { useScrollLock } from "@/hooks/useScrollLock"
 import { useAuth } from "@/contexts/AuthContext"
 import { useRouter, useSearchParams } from "next/navigation"
@@ -29,6 +30,8 @@ export default function RegisterPage() {
   const [confirmPassword, setConfirmPassword] = useState("")
   const [error, setError] = useState("")
   const [chargement, setChargement] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [showSuccess, setShowSuccess] = useState(false)
   useScrollLock(showSuccess)
 
@@ -159,25 +162,47 @@ export default function RegisterPage() {
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="password">{t("register.password")}</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  autoComplete="new-password"
-                  required
-                />
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    autoComplete="new-password"
+                    required
+                    className="pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((v) => !v)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
+                    tabIndex={-1}
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="confirm_password">{t("register.confirmPassword")}</Label>
-                <Input
-                  id="confirm_password"
-                  type="password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  autoComplete="new-password"
-                  required
-                />
+                <div className="relative">
+                  <Input
+                    id="confirm_password"
+                    type={showConfirmPassword ? "text" : "password"}
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    autoComplete="new-password"
+                    required
+                    className="pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword((v) => !v)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
+                    tabIndex={-1}
+                  >
+                    {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
               </div>
               <Button
                 type="submit"

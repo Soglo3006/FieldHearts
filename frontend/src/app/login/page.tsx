@@ -16,7 +16,7 @@ import Link from "next/link";
 import { FcGoogle } from "react-icons/fc";
 import { FaFacebookF } from "react-icons/fa";
 import { useTranslation } from "react-i18next";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft, Loader2, Eye, EyeOff } from "lucide-react";
 import { Spinner } from "@/components/ui/Spinner";
 
 type Step = "email" | "password" | "not-found";
@@ -29,6 +29,7 @@ export default function LoginPage() {
   const [checkingEmail, setCheckingEmail] = useState(false);
   const [loggingIn, setLoggingIn] = useState(false);
   const [emailNotConfirmed, setEmailNotConfirmed] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const { signInWithEmail, signInWithGoogle, signInWithFacebook } = useAuth();
   const { t, i18n } = useTranslation();
@@ -214,15 +215,26 @@ export default function LoginPage() {
                         {t("login.forgotPassword")}
                       </Link>
                     </div>
-                    <Input
-                      id="password"
-                      type="password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      autoComplete="current-password"
-                      autoFocus
-                      required
-                    />
+                    <div className="relative">
+                      <Input
+                        id="password"
+                        type={showPassword ? "text" : "password"}
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        autoComplete="current-password"
+                        autoFocus
+                        required
+                        className="pr-10"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword((v) => !v)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
+                        tabIndex={-1}
+                      >
+                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
                   </div>
 
                   <Button type="submit" className="w-full bg-green-800 hover:bg-green-900 cursor-pointer" disabled={loggingIn}>

@@ -1,24 +1,69 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useProtectedRoute } from "@/hooks/useProtectedRoute";
 import OfferServiceForm from "@/components/post/OfferServiceForm";
 import LookingForWorkerForm from "@/components/post/LookingForWorkerForm";
 import SuccessPopup from "@/components/post/SuccessPopup";
 import { Spinner } from "@/components/ui/Spinner";
+import { useAuth } from "@/contexts/AuthContext";
+import { MapPin } from "lucide-react";
+
+const CANADIAN_PROVINCES = [
+  "AB", "BC", "MB", "NB", "NL", "NS", "NT", "NU", "ON", "PE", "QC", "SK", "YT",
+  "Alberta", "British Columbia", "Manitoba", "New Brunswick", "Newfoundland and Labrador",
+  "Nova Scotia", "Northwest Territories", "Nunavut", "Ontario", "Prince Edward Island",
+  "Quebec", "Québec", "Saskatchewan", "Yukon",
+];
 
 type PostMode = "offer" | "looking";
 
 export default function PostServicePage() {
   const { loading } = useProtectedRoute({ requireAuth: true, requireProfileCompleted: true });
   const { t } = useTranslation();
+  const { session } = useAuth();
   const [mode, setMode] = useState<PostMode>("offer");
   const [success, setSuccess] = useState<{ type: PostMode; id: string } | null>(null);
+  const [locationAllowed, setLocationAllowed] = useState<boolean | null>(null);
 
-  if (loading) {
+  useEffect(() => {
+    if (loading || !session?.access_token) return;
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/profiles/me`, {
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        const province = (data?.province || "").trim();
+        const allowed = CANADIAN_PROVINCES.some(
+          (p) => p.toLowerCase() === province.toLowerCase()
+        );
+        setLocationAllowed(province === "" ? false : allowed);
+      })
+      .catch(() => setLocationAllowed(false));
+  }, [loading, session]);
+
+  if (loading || locationAllowed === null) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Spinner size="xl" />
+      </div>
+    );
+  }
+
+  if (!locationAllowed) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-xl shadow-md p-8 max-w-md w-full text-center">
+          <div className="flex items-center justify-center w-16 h-16 bg-red-100 rounded-full mx-auto mb-4">
+            <MapPin className="h-8 w-8 text-red-600" />
+          </div>
+          <h2 className="text-xl font-bold text-gray-900 mb-2">
+            {t("post.canadaOnly")}
+          </h2>
+          <p className="text-gray-600 text-sm">
+            {t("post.canadaOnlyDesc")}
+          </p>
+        </div>
       </div>
     );
   }

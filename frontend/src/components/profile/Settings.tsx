@@ -56,24 +56,8 @@ export default function SettingsPage({ onClose, scrollRef }: { onClose: () => vo
   const { t, i18n } = useTranslation();
   const { user, session } = useAuth();
   const [userProfilePicture, setUserProfilePicture] = useState("");
-  const [profileData, setProfileData] = useState<Record<string, string> | null>(() => {
-    if (!user) return null;
-    const meta = user.user_metadata || {};
-    return {
-      email: user.email || "",
-      full_name: meta.full_name || meta.name || "",
-      company_name: meta.company_name || "",
-      profession: meta.profession || "",
-      industry: meta.industry || "",
-      team_size: meta.team_size || "",
-      account_type: meta.account_type || "",
-      avatar: meta.avatar_url || meta.avatar || "",
-      phone: meta.phone || "",
-      city: meta.city || "",
-      province: meta.province || "",
-    };
-  });
-  const [loading, setLoading] = useState(!user);
+  const [profileData, setProfileData] = useState<Record<string, string> | null>(null);
+  const [loading, setLoading] = useState(true);
   const [screen, setScreen] = useState<Screen>("default");
   const [scrollPosition, setScrollPosition] = useState(0);
   const [settingsSaved, setSettingsSaved] = useState(false);
@@ -147,7 +131,7 @@ export default function SettingsPage({ onClose, scrollRef }: { onClose: () => vo
     };
     fetchAll();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session]);
+  }, [session?.access_token]);
 
   useEffect(() => {
     if (scrollRef?.current) scrollRef.current.scrollTop = 0;

@@ -2,11 +2,72 @@ import pool from "../config/db.js";
 import stripe from "../config/stripe.js";
 import { notifyPaymentReceipt } from "../services/emailService.js";
 
-// Fee rates (applied to service price)
-const BUYER_COMMISSION_RATE  = 0.05;    // 5% buyer commission
-const GST_RATE               = 0.05;    // 5% TPS (Federal)
-const QST_RATE               = 0.09975; // 9.975% TVQ (Québec)
+// Fee rates
+const BUYER_COMMISSION_RATE = 0.05; // 5% buyer commission
 const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:3000";
+
+// Tax rates by Canadian province
+const PROVINCE_TAX_RATES = {
+  AB: 0.05,
+  BC: 0.12,
+  MB: 0.12,
+  NB: 0.15,
+  NL: 0.15,
+  NS: 0.15,
+  NT: 0.05,
+  NU: 0.05,
+  ON: 0.13,
+  PE: 0.15,
+  QC: 0.14975,
+  SK: 0.11,
+  YT: 0.05,
+};
+
+const PROVINCE_TAX_LABELS = {
+  AB: "GST (5%)",
+  BC: "GST (5%) + PST (7%)",
+  MB: "GST (5%) + PST (7%)",
+  NB: "HST (15%)",
+  NL: "HST (15%)",
+  NS: "HST (15%)",
+  NT: "GST (5%)",
+  NU: "GST (5%)",
+  ON: "HST (13%)",
+  PE: "HST (15%)",
+  QC: "GST (5%) + QST (9.975%)",
+  SK: "GST (5%) + PST (6%)",
+  YT: "GST (5%)",
+};
+
+const PROVINCE_NAME_TO_CODE = {
+  "alberta": "AB",
+  "british columbia": "BC", "colombie-britannique": "BC",
+  "manitoba": "MB",
+  "new brunswick": "NB", "nouveau-brunswick": "NB",
+  "newfoundland and labrador": "NL", "terre-neuve-et-labrador": "NL",
+  "nova scotia": "NS", "nouvelle-écosse": "NS",
+  "northwest territories": "NT", "territoires du nord-ouest": "NT",
+  "nunavut": "NU",
+  "ontario": "ON",
+  "prince edward island": "PE", "île-du-prince-édouard": "PE",
+  "quebec": "QC", "québec": "QC",
+  "saskatchewan": "SK",
+  "yukon": "YT",
+};
+
+function normalizeProvince(province) {
+  if (!province) return "QC";
+  if (PROVINCE_TAX_RATES[province.toUpperCase()]) return province.toUpperCase();
+  return PROVINCE_NAME_TO_CODE[province.toLowerCase()] ?? "QC";
+}
+
+function getTaxRate(province) {
+  return PROVINCE_TAX_RATES[normalizeProvince(province)] ?? PROVINCE_TAX_RATES.QC;
+}
+
+function getTaxLabel(province) {
+  return PROVINCE_TAX_LABELS[normalizeProvince(province)] ?? PROVINCE_TAX_LABELS.QC;
+}
 
 // ─── Stripe Connect: create onboarding link for worker ───────────────────────
 export const createConnectAccount = async (req, res) => {
@@ -181,14 +242,26 @@ export const createCheckoutSession = async (req, res) => {
       return res.status(400).json({ message: "This booking has already been paid" });
     }
 
+    // Fetch client's province for tax calculation
+    const clientProfile = await pool.query(
+      "SELECT province FROM users WHERE id = $1",
+      [clientId]
+    );
+    const province = clientProfile.rows[0]?.province;
+    if (!province) {
+      return res.status(400).json({
+        message: "Please complete your profile with your province before paying.",
+        code: "MISSING_PROVINCE",
+      });
+    }
+
     // Use custom_price if worker adjusted it, otherwise the original service price
-    const effectivePrice          = Number(b.custom_price ?? b.price);
-    const servicePriceCents       = Math.round(effectivePrice * 100);
-    const buyerCommissionCents    = Math.round(servicePriceCents * BUYER_COMMISSION_RATE);
-    const gstCents                = Math.round(servicePriceCents * GST_RATE);
-    const qstCents                = Math.round(servicePriceCents * QST_RATE);
-    const taxesCents              = gstCents + qstCents;
-    const totalCents = servicePriceCents + buyerCommissionCents + taxesCents;
+    const effectivePrice       = Number(b.custom_price ?? b.price);
+    const servicePriceCents    = Math.round(effectivePrice * 100);
+    const buyerCommissionCents = Math.round(servicePriceCents * BUYER_COMMISSION_RATE);
+    const taxRate              = getTaxRate(province);
+    const taxesCents           = Math.round(servicePriceCents * taxRate);
+    const totalCents           = servicePriceCents + buyerCommissionCents + taxesCents;
 
     // Create Checkout Session — funds go directly to platform account
     const session = await stripe.checkout.sessions.create({
@@ -217,7 +290,7 @@ export const createCheckoutSession = async (req, res) => {
         {
           price_data: {
             currency: "cad",
-            product_data: { name: "Taxes (TPS 5% + TVQ 9.975%)" },
+            product_data: { name: `Taxes (${getTaxLabel(province)})` },
             unit_amount: taxesCents,
           },
           quantity: 1,

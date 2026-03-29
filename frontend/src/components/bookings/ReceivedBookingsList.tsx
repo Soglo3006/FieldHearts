@@ -114,7 +114,7 @@ export default function ReceivedBookingsList({
                         </Link>
                       </p>
 
-                      <p className="text-green-700 font-bold text-lg mb-1">{(Number(b.custom_price ?? b.price) * 1.19975).toFixed(2)} $</p>
+                      <p className="text-green-700 font-bold text-lg mb-1">{Number(b.custom_price ?? b.price).toFixed(2)} $</p>
 
                       {b.service_location && (
                         <div className="flex items-center text-xs text-gray-500 mb-1">

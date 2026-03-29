@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { CheckCircle, AlertCircle, MapPin, Calendar, CreditCard, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { useTranslation } from "react-i18next";
+import { useClientTax } from "@/hooks/useClientTax";
 
 interface Booking {
   id: string;
@@ -31,6 +32,7 @@ export default function PaymentPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { t, i18n } = useTranslation();
+  const { taxRate, taxLabel, loading: taxLoading, missingProvince } = useClientTax(i18n.language ?? "fr");
   const wasCancelled = searchParams.get("cancelled") === "true";
 
   const [booking, setBooking] = useState<Booking | null>(null);
@@ -77,7 +79,7 @@ export default function PaymentPage() {
     }
   };
 
-  if (loading) {
+  if (loading || taxLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <Spinner size="lg" />
@@ -114,6 +116,12 @@ export default function PaymentPage() {
     );
   }
 
+  const price = Number(booking.custom_price ?? booking.price);
+  const buyerCommission = price * 0.05;
+  const taxes = price * taxRate;
+  const total = price + buyerCommission + taxes;
+  const fmt = (n: number) => n.toFixed(2);
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-lg mx-auto px-4 py-10">
@@ -132,6 +140,21 @@ export default function PaymentPage() {
           <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl px-4 py-3 mb-5 text-sm">
             <AlertCircle className="h-4 w-4 shrink-0" />
             {t("payment.cancelledNotice")}
+          </div>
+        )}
+
+        {/* Missing province warning */}
+        {missingProvince && (
+          <div className="flex items-start gap-2 bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 mb-5 text-sm">
+            <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+            <span>
+              {i18n.language?.startsWith("fr")
+                ? "Veuillez compléter votre profil avec votre province avant de payer. "
+                : "Please complete your profile with your province before paying. "}
+              <Link href="/profile/edit" className="underline font-medium">
+                {i18n.language?.startsWith("fr") ? "Compléter mon profil" : "Complete my profile"}
+              </Link>
+            </span>
           </div>
         )}
 
@@ -155,38 +178,25 @@ export default function PaymentPage() {
             </div>
 
             <div className="mt-5 pt-4 border-t border-gray-100 space-y-1.5 text-sm">
-              {(() => {
-                const price = Number(booking.custom_price ?? booking.price);
-                const buyerCommission = price * 0.05;
-                const gst             = price * 0.05;
-                const qst             = price * 0.09975;
-                const taxes           = gst + qst;
-                const total = price * 1.19975;
-                const fmt = (n: number) => n.toFixed(2);
-                return (
-                  <>
-                    <div className="flex justify-between text-gray-600">
-                      <span>{t("payment.servicePrice")}</span>
-                      <span className="font-medium text-gray-900">{fmt(price)} $</span>
-                    </div>
-                    <div className="flex justify-between text-gray-500">
-                      <span>{t("payment.buyerCommission")}</span>
-                      <span>{fmt(buyerCommission)} $</span>
-                    </div>
-                    <div className="flex justify-between text-gray-500">
-                      <div>
-                        <div>{t("payment.taxes")}</div>
-                        <div className="text-xs text-gray-400">{t("payment.taxDetail")}</div>
-                      </div>
-                      <span>{fmt(taxes)} $</span>
-                    </div>
-                    <div className="flex justify-between font-bold text-base border-t border-gray-100 pt-2 mt-1">
-                      <span>{t("payment.total")}</span>
-                      <span className="text-green-700">{fmt(total)} $ CAD</span>
-                    </div>
-                  </>
-                );
-              })()}
+              <div className="flex justify-between text-gray-600">
+                <span>{t("payment.servicePrice")}</span>
+                <span className="font-medium text-gray-900">{fmt(price)} $</span>
+              </div>
+              <div className="flex justify-between text-gray-500">
+                <span>{t("payment.buyerCommission")}</span>
+                <span>{fmt(buyerCommission)} $</span>
+              </div>
+              <div className="flex justify-between text-gray-500">
+                <div>
+                  <div>{t("payment.taxes")}</div>
+                  <div className="text-xs text-gray-400">{taxLabel}</div>
+                </div>
+                <span>{fmt(taxes)} $</span>
+              </div>
+              <div className="flex justify-between font-bold text-base border-t border-gray-100 pt-2 mt-1">
+                <span>{t("payment.total")}</span>
+                <span className="text-green-700">{fmt(total)} $ CAD</span>
+              </div>
             </div>
           </div>
         </div>
@@ -202,8 +212,8 @@ export default function PaymentPage() {
         {/* Pay button */}
         <Button
           onClick={handlePay}
-          disabled={paying}
-          className="w-full h-14 text-base font-semibold bg-green-700 hover:bg-green-800 text-white rounded-xl"
+          disabled={paying || missingProvince}
+          className="w-full h-14 text-base font-semibold bg-green-700 hover:bg-green-800 text-white rounded-xl disabled:opacity-50"
         >
           {paying ? (
             <span className="flex items-center gap-2">
@@ -216,7 +226,7 @@ export default function PaymentPage() {
           ) : (
             <span className="flex items-center gap-2">
               <CreditCard className="h-5 w-5" />
-              {t("payment.payAmount", { amount: (Number(booking.custom_price ?? booking.price) * 1.19975).toFixed(2) })}
+              {t("payment.payAmount", { amount: fmt(total) })}
             </span>
           )}
         </Button>

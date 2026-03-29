@@ -1,6 +1,7 @@
 "use client";
 import { useTranslation } from "react-i18next";
 import { useScrollLock } from "@/hooks/useScrollLock";
+import { useClientTax } from "@/hooks/useClientTax";
 import { Button } from "@/components/ui/button";
 import { CheckCircle, X } from "lucide-react";
 
@@ -21,7 +22,8 @@ export default function BookingModal({
   state, note, errorMsg, price, serviceTitle, providerFirstName,
   onNoteChange, onSubmit, onClose, onMessageProvider,
 }: Props) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const { taxRate, taxLabel, loading: taxLoading } = useClientTax(i18n.language ?? "fr");
   useScrollLock(true);
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -66,11 +68,10 @@ export default function BookingModal({
               <p className="font-medium text-gray-900 text-sm mb-3 line-clamp-2">{serviceTitle}</p>
               {(() => {
                 const buyerCommission = price * 0.05;
-                const gst             = price * 0.05;
-                const qst             = price * 0.09975;
-                const taxes           = gst + qst;
-                const total = price * 1.19975;
+                const taxes           = price * taxRate;
+                const total           = price + buyerCommission + taxes;
                 const fmt = (n: number) => n.toFixed(2);
+                const skeletonCls = "h-3.5 rounded bg-gray-200 animate-pulse";
                 return (
                   <div className="space-y-1.5 text-sm">
                     <div className="flex justify-between">
@@ -84,13 +85,22 @@ export default function BookingModal({
                     <div className="flex justify-between">
                       <div>
                         <div className="text-gray-500">{t("serviceDetail.taxes")}</div>
-                        <div className="text-xs text-gray-400">TPS (5%) + TVQ (9.975%)</div>
+                        {taxLoading
+                          ? <div className={`${skeletonCls} w-28 mt-1`} />
+                          : <div className="text-xs text-gray-400">{taxLabel}</div>
+                        }
                       </div>
-                      <span className="text-gray-700">{fmt(taxes)} $</span>
+                      {taxLoading
+                        ? <div className={`${skeletonCls} w-12 self-center`} />
+                        : <span className="text-gray-700">{fmt(taxes)} $</span>
+                      }
                     </div>
                     <div className="flex justify-between font-bold border-t border-gray-200 pt-2">
                       <span>{t("serviceDetail.total")}</span>
-                      <span className="text-green-700">{fmt(total)} $</span>
+                      {taxLoading
+                        ? <div className={`${skeletonCls} w-16`} />
+                        : <span className="text-green-700">{fmt(total)} $</span>
+                      }
                     </div>
                   </div>
                 );

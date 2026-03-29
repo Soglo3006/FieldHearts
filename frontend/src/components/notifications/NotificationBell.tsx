@@ -24,6 +24,8 @@ import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
 
+type NotifHookData = ReturnType<typeof useNotifications>;
+
 const TYPE_CONFIG: Record<
   string,
   { icon: React.ReactNode; color: string; bg: string }
@@ -144,10 +146,11 @@ function NotifRow({
   );
 }
 
-export default function NotificationBell() {
+export default function NotificationBell({ data }: { data?: NotifHookData }) {
   const { t } = useTranslation();
+  const hookData = useNotifications();
   const { notifications, unreadCount, loading, markRead, markAllRead, deleteOne, clearAll } =
-    useNotifications();
+    data ?? hookData;
   const router = useRouter();
   const [open, setOpen] = useState(false);
 

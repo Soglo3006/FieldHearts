@@ -526,6 +526,7 @@ export const getBookingById = async (req, res) => {
               s.is_one_time, s.type AS service_type,
               CASE WHEN uw.account_type = 'company' THEN uw.company_name ELSE uw.full_name END AS worker_name,
               CASE WHEN uc.account_type = 'company' THEN uc.company_name ELSE uc.full_name END AS client_name,
+              uc.province AS client_province,
               EXISTS(SELECT 1 FROM reviews WHERE booking_id = b.id AND reviewer_id = $2) AS has_reviewed,
               EXISTS(SELECT 1 FROM disputes WHERE booking_id = b.id) AS has_dispute,
               b.payment_status, b.completed_by_worker, b.completed_by_client,

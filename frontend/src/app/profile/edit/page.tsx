@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -18,6 +18,7 @@ interface FormData {
   phone: string;
   avatar: string;
   bio: string;
+  address: string;
   city: string;
   province: string;
   skills: string[];
@@ -31,7 +32,7 @@ interface FormData {
 }
 
 const EMPTY_FORM: FormData = {
-  email: "", phone: "", avatar: "", bio: "", city: "", province: "",
+  email: "", phone: "", avatar: "", bio: "", address: "", city: "", province: "",
   skills: [], languages: [], portfolio: [],
   fullName: "", profession: "",
   companyName: "", industry: "", teamSize: "",
@@ -47,7 +48,6 @@ export default function EditProfilePage() {
   const [initialData, setInitialData] = useState<FormData | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const hasFetchedRef = useRef(false);
 
   const isPerson = accountType === "person";
   const isCompany = accountType === "company";
@@ -58,8 +58,7 @@ export default function EditProfilePage() {
   }, [user, authLoading, router]);
 
   useEffect(() => {
-    if (!session?.access_token || hasFetchedRef.current) return;
-    hasFetchedRef.current = true;
+    if (!session?.access_token) return;
     const fetchProfile = async () => {
       try {
         setLoading(true);
@@ -76,6 +75,7 @@ export default function EditProfilePage() {
           phone: data.phone || "",
           avatar: data.avatar || "",
           bio: data.bio || "",
+          address: data.address || "",
           city: data.city || "",
           province: data.province || "",
           skills: parse(data.skills),
@@ -96,7 +96,7 @@ export default function EditProfilePage() {
       }
     };
     fetchProfile();
-  }, [session]);
+  }, [session?.access_token]);
 
   const patch = (update: Partial<FormData>) => setFormData((p) => ({ ...p, ...update }));
 
@@ -110,6 +110,7 @@ export default function EditProfilePage() {
         phone: formData.phone,
         avatar: formData.avatar,
         bio: formData.bio,
+        address: formData.address,
         city: formData.city,
         province: formData.province,
         skills: formData.skills,
@@ -128,7 +129,6 @@ export default function EditProfilePage() {
       router.push(`/profile/${user?.id}`);
     } catch {
       toast.error(t("profileEdit.failedSaveProfile"));
-    } finally {
       setSaving(false);
     }
   };

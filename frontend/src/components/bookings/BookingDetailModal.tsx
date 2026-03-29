@@ -14,6 +14,7 @@ import DisputeThread from "@/components/bookings/DisputeThread";
 import WorkerCustomizeSection from "./WorkerCustomizeSection";
 import BookingDetailFooter from "./BookingDetailFooter";
 import { useTranslation } from "react-i18next";
+import { getTaxRate, getTaxLabel } from "@/lib/taxes";
 
 type BookingStatus = "pending" | "accepted" | "active" | "completed" | "cancelled" | "rejected";
 
@@ -45,6 +46,7 @@ export interface BookingDetail {
   client_name?: string;
   worker_name?: string;
   service_type?: "offer" | "looking";
+  client_province?: string | null;
 }
 
 interface Props {
@@ -79,7 +81,7 @@ export default function BookingDetailModal({
   booking: initialBooking, userRole, accessToken,
   onClose, onUpdated, onMessage, onOpenReview, onOpenDispute,
 }: Props) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   useScrollLock(true);
   const [booking, setBooking] = useState(initialBooking);
   const [serviceDescription, setServiceDescription] = useState<string | null>(null);
@@ -238,9 +240,11 @@ export default function BookingDetailModal({
                 const origBase = Number(booking.price);
                 const fmt = (n: number) => n.toFixed(2);
 
+                const taxRate         = getTaxRate(booking.client_province ?? "QC");
+                const taxLabel        = getTaxLabel(booking.client_province ?? "QC", i18n.language ?? "fr");
                 const buyerCommission = base * 0.05;
-                const taxes           = base * 0.05 + base * 0.09975;
-                const totalPaid       = base * 1.19975;
+                const taxes           = base * taxRate;
+                const totalPaid       = base + buyerCommission + taxes;
                 const commission20    = base * 0.20;
                 const workerReceives  = base * 0.80;
 
@@ -269,7 +273,7 @@ export default function BookingDetailModal({
                             <div className="flex justify-between text-gray-500">
                               <div>
                                 <div>{t("serviceDetail.taxes")}</div>
-                                <div className="text-[11px] text-gray-400">TPS (5%) + TVQ (9.975%)</div>
+                                <div className="text-[11px] text-gray-400">{taxLabel}</div>
                               </div>
                               <span>{fmt(taxes)} $</span>
                             </div>
@@ -329,7 +333,7 @@ export default function BookingDetailModal({
                         <div className="flex justify-between text-gray-500">
                           <div>
                             <div>{t("serviceDetail.taxes")}</div>
-                            <div className="text-[11px] text-gray-400">TPS (5%) + TVQ (9.975%)</div>
+                            <div className="text-[11px] text-gray-400">{taxLabel}</div>
                           </div>
                           <span>{fmt(taxes)} $</span>
                         </div>
@@ -370,7 +374,7 @@ export default function BookingDetailModal({
                           <div className="flex justify-between text-gray-500">
                             <div>
                               <div>{t("serviceDetail.taxes")}</div>
-                              <div className="text-[11px] text-gray-400">TPS (5%) + TVQ (9.975%)</div>
+                              <div className="text-[11px] text-gray-400">{taxLabel}</div>
                             </div>
                             <span>{fmt(taxes)} $</span>
                           </div>

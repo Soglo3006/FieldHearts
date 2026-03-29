@@ -137,9 +137,10 @@ export default function StepBasicInfo({ data, accountType, onChange }: Props) {
               type="text"
               placeholder="Québec"
               value={data.province}
-              onChange={(e) => onChange({ province: e.target.value })}
-              className="h-12"
+              readOnly
+              className="h-12 bg-gray-50 cursor-not-allowed"
             />
+            <p className="text-xs text-gray-400">{t("onboarding.provinceReadOnly")}</p>
           </div>
         </div>
       </div>

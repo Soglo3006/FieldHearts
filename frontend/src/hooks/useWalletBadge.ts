@@ -30,7 +30,7 @@ export function useWalletBadge() {
     check();
     const interval = setInterval(check, 60_000);
     return () => clearInterval(interval);
-  }, [user, session]);
+  }, [user?.id, session?.access_token]);
 
   // Clear badge when user visits /wallet
   useEffect(() => {

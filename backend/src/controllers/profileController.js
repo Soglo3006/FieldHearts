@@ -184,14 +184,15 @@ export const UpdateMyProfile = async (req, res) => {
             phone,
             avatar,
             bio,
+            address,
             city,
             province,
             skills,
             languages,
             portfolio,
-            profession,      
-            company_name,     
-            industry,          
+            profession,
+            company_name,
+            industry,
             team_size,
             account_type
         } = req.body;
@@ -219,24 +220,25 @@ export const UpdateMyProfile = async (req, res) => {
 
         // Mise à jour avec tous les champs
         const result = await pool.query(
-            `UPDATE users 
-            SET 
+            `UPDATE users
+            SET
                 full_name = $1,
                 email = $2,
                 phone = $3,
                 avatar = $4,
                 bio = $5,
-                city = $6,
-                province = $7,
-                skills = $8,
-                languages = $9,
-                portfolio = $10,
-                profession = $11,
-                company_name = $12,
-                industry = $13,
-                team_size = $14,
+                address = $6,
+                city = $7,
+                province = $8,
+                skills = $9,
+                languages = $10,
+                portfolio = $11,
+                profession = $12,
+                company_name = $13,
+                industry = $14,
+                team_size = $15,
                 updated_at = NOW()
-            WHERE id = $15
+            WHERE id = $16
             RETURNING *`,
             [
                 full_name || null,
@@ -244,14 +246,15 @@ export const UpdateMyProfile = async (req, res) => {
                 phone || null,
                 avatar || null,
                 bio || null,
+                address || null,
                 city || null,
                 province || null,
                 skillsJson || '[]',
                 languagesJson || '[]',
                 portfolioJson || '[]',
-                profession || null,      
-                company_name || null,    
-                industry || null,        
+                profession || null,
+                company_name || null,
+                industry || null,
                 team_size || null,
                 req.user.id
             ]

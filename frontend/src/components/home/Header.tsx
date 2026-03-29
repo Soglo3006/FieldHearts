@@ -102,7 +102,7 @@ export default function Header() {
       }
     };
     fetchProfile();
-  }, [user, session]);
+  }, [user?.id, session?.access_token]);
 
   // Debounced live search
   useEffect(() => {
@@ -152,7 +152,8 @@ export default function Header() {
 
   const { unseenCount } = useUnreadBookings();
   const { unreadCount: unreadMessages } = useUnreadMessages();
-  const { notifications, unreadCount: unreadNotifs, loading: notifsLoading, markRead, markAllRead, deleteOne, clearAll } = useNotifications();
+  const notifData = useNotifications();
+  const { notifications, unreadCount: unreadNotifs, loading: notifsLoading, markRead, markAllRead, deleteOne, clearAll } = notifData;
   const lang = i18n.language?.startsWith("fr") ? "fr" : "en";
   const { permission, subscribe } = usePushNotifications();
   const { walletBadge } = useWalletBadge();
@@ -407,7 +408,7 @@ export default function Header() {
                     </Button>
                   </Link>
                   <MessageNotifications />
-                  <NotificationBell />
+                  <NotificationBell data={notifData} />
                 </div>
               )}
 

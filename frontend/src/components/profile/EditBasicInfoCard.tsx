@@ -9,12 +9,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { X, Plus, Building2, User, Briefcase, Users } from "lucide-react";
 import ProfilePictureUploader from "@/components/profile/ProfilePicture";
+import AddressAutocomplete from "@/components/ui/AddressAutocomplete";
 
 interface FormData {
   email: string;
   phone: string;
   avatar: string;
   bio: string;
+  address: string;
   city: string;
   province: string;
   skills: string[];
@@ -116,6 +118,20 @@ export default function EditBasicInfoCard({ formData, accountType, onChange }: P
             onChange={(e) => onChange({ phone: e.target.value })} className="h-12" />
         </div>
 
+        {/* Address autocomplete */}
+        <div className="space-y-2">
+          <Label htmlFor="address" className="text-base font-medium text-gray-900">
+            {t("profileEdit.address")} <span className="text-red-500">*</span>
+          </Label>
+          <AddressAutocomplete
+            id="address"
+            value={formData.address}
+            onChange={(raw) => onChange({ address: raw })}
+            onSelect={(result) => onChange({ address: result.adresse, city: result.ville, province: result.province })}
+            placeholder={t("onboarding.addressPlaceholder")}
+          />
+        </div>
+
         {/* City + Province */}
         <div className="grid md:grid-cols-2 gap-4">
           <div className="space-y-2">
@@ -130,7 +146,8 @@ export default function EditBasicInfoCard({ formData, accountType, onChange }: P
               {t("profileEdit.province")} <span className="text-red-500">*</span>
             </Label>
             <Input id="province" type="text" placeholder="Ontario" value={formData.province}
-              onChange={(e) => onChange({ province: e.target.value })} className="h-12" />
+              readOnly className="h-12 bg-gray-50 cursor-not-allowed" />
+            <p className="text-xs text-gray-400">{t("onboarding.provinceReadOnly")}</p>
           </div>
         </div>
 
@@ -195,7 +212,7 @@ export default function EditBasicInfoCard({ formData, accountType, onChange }: P
             {formData.skills.map((skill, i) => (
               <Badge key={i} variant="secondary" className="bg-green-100 text-green-700 pl-3 pr-2 py-1.5 text-sm">
                 {skill}
-                <button onClick={() => onChange({ skills: formData.skills.filter((s) => s !== skill) })}
+                <button type="button" title="Remove" onClick={() => onChange({ skills: formData.skills.filter((s) => s !== skill) })}
                   className="ml-2 hover:text-red-600 cursor-pointer">
                   <X className="h-3 w-3" />
                 </button>
@@ -224,7 +241,7 @@ export default function EditBasicInfoCard({ formData, accountType, onChange }: P
               return (
                 <Badge key={i} variant="secondary" className="bg-green-100 text-green-700 pl-3 pr-2 py-1.5 text-sm">
                   {text}
-                  <button onClick={() => onChange({ languages: formData.languages.filter((l) => l !== lang) })}
+                  <button type="button" title="Remove" onClick={() => onChange({ languages: formData.languages.filter((l) => l !== lang) })}
                     className="ml-2 hover:text-red-600 cursor-pointer">
                     <X className="h-3 w-3" />
                   </button>

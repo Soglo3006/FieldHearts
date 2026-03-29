@@ -24,6 +24,12 @@ const AUTH_ROUTES = [
 
 const NO_CATEGORY_ROUTES = [
   "/listings",
+  "/privacy-policy",
+  "/terms",
+  "/payment-terms",
+  "/trust-safety",
+  "/about",
+  "/contact",
 ];
 
 const NO_FOOTER_ROUTES = [

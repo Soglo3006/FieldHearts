@@ -18,11 +18,13 @@ export default function Footer() {
           </div>
 
           {/* Nav links */}
-          <nav className="flex flex-wrap justify-center sm:justify-start gap-x-6 gap-y-2 text-sm font-medium ">
-            <a href="#" className="hover:text-white transition-colors cursor-pointer">{t("footer.about")}</a>
-            <a href="#" className="hover:text-white transition-colors cursor-pointer">{t("footer.contact")}</a>
-            <a href="#" className="hover:text-white transition-colors cursor-pointer">{t("footer.privacyPolicy")}</a>
-            <a href="#" className="hover:text-white transition-colors cursor-pointer">{t("footer.termsOfUse")}</a>
+          <nav className="flex flex-wrap justify-center sm:justify-start gap-x-4 gap-y-2 text-xs font-medium">
+            <a href="/about" className="whitespace-nowrap hover:text-white transition-colors cursor-pointer">{t("footer.about")}</a>
+            <a href="/contact" className="whitespace-nowrap hover:text-white transition-colors cursor-pointer">{t("footer.contact")}</a>
+            <a href="/privacy-policy" className="whitespace-nowrap hover:text-white transition-colors cursor-pointer">{t("footer.privacyPolicy")}</a>
+            <a href="/terms" className="whitespace-nowrap hover:text-white transition-colors cursor-pointer">{t("footer.termsOfUse")}</a>
+            <a href="/payment-terms" className="whitespace-nowrap hover:text-white transition-colors cursor-pointer">{t("footer.paymentTerms")}</a>
+            <a href="/trust-safety" className="whitespace-nowrap hover:text-white transition-colors cursor-pointer">{t("footer.trustSafety")}</a>
           </nav>
 
           {/* Toggle langue */}

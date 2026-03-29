@@ -27,6 +27,8 @@
     "contact": "Contact",
     "privacyPolicy": "Privacy Policy",
     "termsOfUse": "Terms of Use",
+    "paymentTerms": "Payment Terms",
+    "trustSafety": "Trust & Safety",
     "rights": "© {{year}} Uneden. All rights reserved.",
     "help": "Help"
   },
@@ -49,7 +51,17 @@
     "yesterday": "Yesterday",
     "daysAgo": "{{days}} days ago",
     "weeksAgo": "{{weeks}} weeks ago",
-    "recently": "Recently"
+    "recently": "Recently",
+    "trustTitle": "Your Safety, Our Priority",
+    "trustSubtitle": "Everything we do is built around keeping you safe and confident",
+    "trust1Title": "Secure Payments",
+    "trust1Desc": "Your money is protected until the job is done",
+    "trust2Title": "Verified Reviews",
+    "trust2Desc": "Choose based on real user feedback",
+    "trust3Title": "Dispute Protection",
+    "trust3Desc": "3-day protection with fair resolution",
+    "trust4Title": "Local & Transparent",
+    "trust4Desc": "Find trusted people near you"
   },
   "listings": {
     "filters": "Filters",

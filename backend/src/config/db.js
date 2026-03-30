@@ -11,4 +11,8 @@ const pool = new Pool({
   }
 });
 
+pool.on("error", (err) => {
+  console.error("[pg pool] Idle client error:", err.message);
+});
+
 export default pool;

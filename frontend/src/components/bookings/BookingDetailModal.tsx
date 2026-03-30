@@ -48,7 +48,7 @@ export interface BookingDetail {
   service_type?: "offer" | "looking";
   client_province?: string | null;
   worker_province?: string | null;
-  tax_rate?: number | string | null;
+  tax_rate?: number | null;
 }
 
 interface Props {

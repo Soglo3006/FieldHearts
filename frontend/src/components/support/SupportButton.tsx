@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { MessageSquareText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import SupportModal from "./SupportModal";
 import { useAuth } from "@/contexts/AuthContext";
@@ -16,6 +17,7 @@ export default function SupportButton({ floating = false }: { floating?: boolean
       className={`bg-green-700 text-white hover:bg-green-800 cursor-pointer ${floating ? "fixed bottom-6 right-6 z-40" : ""}`}
       onClick={() => setOpen(true)}
     >
+      <MessageSquareText className="h-4 w-4 mr-2" />
       {t("support.button")}
     </Button>
   );

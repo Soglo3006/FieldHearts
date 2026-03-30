@@ -3,10 +3,10 @@
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useTranslation } from "react-i18next";
-import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
-import { ChevronDown, ChevronRight, MapPin, X, SlidersHorizontal } from "lucide-react";
-import { categories } from "@/lib/categories";
+import { ChevronDown, ChevronRight, X, SlidersHorizontal } from "lucide-react";
+import CityAutocomplete from "@/components/ui/CityAutocomplete";
+import { categories, toCategoryKey } from "@/lib/categories";
 import ListingsGrid from "@/components/listings/ListingsGrid";
 import { Spinner } from "@/components/ui/Spinner";
 import AdBanner from "@/components/AdBanner";
@@ -201,61 +201,67 @@ function ListingsContent({ username }: { username?: string }) {
                 )}
               </div>
               <div className="space-y-0.5">
-                {categories.map((cat) => (
-                  <div key={cat.name}>
-                    <button
-                      onClick={() => {
-                        toggleExpand(cat.name);
-                        selectCategory(cat.name);
-                      }}
-                      className={`cursor-pointer w-full flex items-center justify-between py-2 px-2 rounded-lg text-sm transition-colors ${
-                        selectedCategory === cat.name && !selectedSubcategory
-                          ? "bg-green-50 text-green-800 font-semibold"
-                          : "text-gray-700 hover:bg-gray-50"
-                      }`}
-                    >
-                      <span>{t(`categories.${toKey(cat.name)}`, { defaultValue: cat.name })}</span>
-                      {expandedCategories.includes(cat.name) ? (
-                        <ChevronDown className="h-4 w-4" />
-                      ) : (
-                        <ChevronRight className="h-4 w-4" />
-                      )}
-                    </button>
-                    {expandedCategories.includes(cat.name) && (
-                      <div className="ml-3 pl-3 border-l-2 border-gray-100 space-y-0.5 mb-1">
-                        {cat.subcategories?.map((sub) => (
-                          <button
-                            key={sub}
-                            onClick={() => selectSubcategory(cat.name, sub)}
-                            className={`cursor-pointer block w-full text-left py-1.5 px-2 rounded text-xs transition-colors ${
-                              selectedSubcategory === sub
-                                ? "text-green-800 bg-green-50 font-semibold"
-                                : "text-gray-600 hover:text-green-700 hover:bg-green-50"
-                            }`}
-                          >
-                            {t(`categories.${toKey(cat.name)}_${toKey(sub)}`, { defaultValue: sub })}
-                          </button>
-                        ))}
+                {categories.map((cat) => {
+                  const isSelected = selectedCategory === cat.name && !selectedSubcategory;
+                  const isExpanded = expandedCategories.includes(cat.name);
+                  return (
+                    <div key={cat.name}>
+                      <div
+                        className={`flex items-center rounded-lg text-sm transition-colors ${
+                          isSelected ? "bg-green-50 text-green-800" : "text-gray-700 hover:bg-gray-50"
+                        }`}
+                      >
+                        {/* Category name — selects the filter */}
+                        <button
+                          onClick={() => selectCategory(cat.name)}
+                          className={`cursor-pointer flex-1 text-left py-2 pl-2 font-${isSelected ? "semibold" : "normal"}`}
+                        >
+                          {t(`categories.${toKey(cat.name)}`, { defaultValue: cat.name })}
+                        </button>
+                        {/* Arrow — only expands/collapses subcategories */}
+                        <button
+                          onClick={() => toggleExpand(cat.name)}
+                          className="cursor-pointer p-2 shrink-0 text-gray-400 hover:text-gray-700"
+                          aria-label={isExpanded ? "Réduire" : "Développer"}
+                        >
+                          {isExpanded ? (
+                            <ChevronDown className="h-4 w-4" />
+                          ) : (
+                            <ChevronRight className="h-4 w-4" />
+                          )}
+                        </button>
                       </div>
-                    )}
-                  </div>
-                ))}
+                      {isExpanded && (
+                        <div className="ml-3 pl-3 border-l-2 border-gray-100 space-y-0.5 mb-1">
+                          {cat.subcategories?.map((sub) => (
+                            <button
+                              key={sub}
+                              onClick={() => selectSubcategory(cat.name, sub)}
+                              className={`cursor-pointer block w-full text-left py-1.5 px-2 rounded text-xs transition-colors ${
+                                selectedSubcategory === sub
+                                  ? "text-green-800 bg-green-50 font-semibold"
+                                  : "text-gray-600 hover:text-green-700 hover:bg-green-50"
+                              }`}
+                            >
+                              {t(`categories.${toKey(cat.name)}_${toKey(sub)}`, { defaultValue: sub })}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
 
             {/* Location */}
             <div>
               <h3 className="text-sm font-semibold text-gray-900 mb-2">{t("listings.location")}</h3>
-              <div className="relative">
-                <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <Input
-                  type="text"
-                  placeholder={t("listings.cityOrArea")}
-                  value={location}
-                  onChange={(e) => setLocation(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
+              <CityAutocomplete
+                value={location}
+                onChange={setLocation}
+                placeholder={t("listings.cityOrArea")}
+              />
             </div>
 
             {/* Price range */}
@@ -282,6 +288,7 @@ function ListingsContent({ username }: { username?: string }) {
 
         {/* ── Results ── */}
         <div className="w-full lg:w-3/4 space-y-4">
+
           {/* Active filter chips — hidden on mobile (shown in the top bar instead) */}
           {activeChips.length > 0 && (
             <div className="hidden lg:flex flex-wrap gap-2">

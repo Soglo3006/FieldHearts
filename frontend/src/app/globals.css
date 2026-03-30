@@ -127,6 +127,14 @@
   }
 }
 
+/* Outside @layer so it beats Radix/react-remove-scroll injected styles */
+html[data-scroll-locked],
+body[data-scroll-locked] {
+  padding-right: 0px !important;
+  margin-right: 0px !important;
+  overflow-y: scroll !important;
+}
+
 
 .no-scrollbar::-webkit-scrollbar {
   width: 0px;

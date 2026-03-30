@@ -9,6 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import AdBanner from "@/components/AdBanner";
+import { formatTranslatedCategoryTrail, categories, toCategoryKey } from "@/lib/categories";
+import frLocale from "@/locales/fr.json";
 
 interface ApiService {
   id: string;
@@ -51,8 +53,6 @@ function formatRelativeDate(dateStr: string, t: (key: string, opts?: Record<stri
   }
 }
 
-const toKey = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
-
 const LISTINGS_PER_PAGE = 12;
 const AD_INTERVAL = 8; // insert ad every N cards
 
@@ -70,10 +70,27 @@ export default function ListingsGrid({ filters }: { filters?: ListingsFilters })
 
     const fetchListings = async () => {
       try {
+        // Translate category/subcategory to French before sending to API
+        // (DB stores category names in French)
+        const frCats = frLocale.categories as Record<string, string>;
+        const toApiCategoryName = (name: string) => {
+          const cat = categories.find((c) => c.name === name);
+          if (cat) return frCats[toCategoryKey(cat.name)] ?? name;
+          return name;
+        };
+        const toApiSubcategoryName = (catName: string, subName: string) => {
+          const cat = categories.find((c) => c.name === catName);
+          if (cat) {
+            const sub = cat.subcategories?.find((s) => s === subName);
+            if (sub) return frCats[`${toCategoryKey(cat.name)}_${toCategoryKey(sub)}`] ?? subName;
+          }
+          return subName;
+        };
+
         const params = new URLSearchParams();
         if (filters?.search)                               params.set("search", filters.search);
-        if (filters?.category)                             params.set("categoryName", filters.category);
-        if (filters?.subcategory)                          params.set("subcategory", filters.subcategory);
+        if (filters?.category)                             params.set("categoryName", toApiCategoryName(filters.category));
+        if (filters?.subcategory)                          params.set("subcategory", toApiSubcategoryName(filters.category ?? "", filters.subcategory));
         if (filters?.location)                             params.set("location", filters.location);
         if (filters?.minPrice && filters.minPrice > 0)     params.set("minPrice", String(filters.minPrice));
         if (filters?.maxPrice && filters.maxPrice < 1000)  params.set("maxPrice", String(filters.maxPrice));
@@ -191,10 +208,7 @@ export default function ListingsGrid({ filters }: { filters?: ListingsFilters })
 
                   {(s.category_name || s.subcategory) && (
                     <p className="text-xs text-gray-400 mb-1 line-clamp-1">
-                      {[
-                        s.category_name ? t(`categories.${toKey(s.category_name)}`, { defaultValue: s.category_name }) : null,
-                        s.subcategory ? t(`categories.${toKey(s.category_name ?? "")}_${toKey(s.subcategory)}`, { defaultValue: s.subcategory }) : null,
-                      ].filter(Boolean).join(" | ")}
+                      {formatTranslatedCategoryTrail(s.category_name, s.subcategory, t)}
                     </p>
                   )}
 

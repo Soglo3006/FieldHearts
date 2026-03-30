@@ -1,6 +1,8 @@
 "use client";
 
 import { MapPin, Clock, Grid3x3 } from "lucide-react";
+import { useTranslation } from "react-i18next";
+import { formatTranslatedCategoryTrail } from "@/lib/categories";
 
 interface ListingCardProps {
     title?: string;
@@ -23,6 +25,7 @@ export default function ListingCard({
     category,
     subcategory,
     }: ListingCardProps) {
+    const { t } = useTranslation();
     const formatCompleted = (n?: number) => {
         if (!n || n <= 0) return "";
         if (n >= 1000) return " (1k+)";
@@ -51,7 +54,7 @@ export default function ListingCard({
             </h3>
             {(category || subcategory) && (
                 <p className="text-xs text-gray-400 mt-0.5 line-clamp-1">
-                    {[category, subcategory].filter(Boolean).join(" | ")}
+                    {formatTranslatedCategoryTrail(category, subcategory, t)}
                 </p>
             )}
             <p className="text-xl font-bold text-brand-green text-green-700 mt-1">

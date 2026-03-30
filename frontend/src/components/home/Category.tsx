@@ -6,14 +6,13 @@ import Link from "next/link";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { categories } from "@/lib/categories";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 
 const toKey = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
 
@@ -54,31 +53,31 @@ export default function CategoryNav() {
           {categories.map((category) => {
             const catKey = toKey(category.name);
             return (
-              <Select
-                key={category.name}
-                value=""
-                onValueChange={(val) => {
-                  if (val === "__all__") {
-                    router.push(`/listings?category=${encodeURIComponent(category.name)}`);
-                  } else {
-                    router.push(`/listings?category=${encodeURIComponent(category.name)}&subcategory=${encodeURIComponent(val)}`);
-                  }
-                }}
-              >
-                <SelectTrigger className="w-[150px] sm:w-[170px] lg:w-[180px] cursor-pointer shrink-0 text-xs sm:text-sm">
-                  <SelectValue placeholder={t(`categories.${catKey}`, { defaultValue: category.name })} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__all__" className="cursor-pointer font-medium text-green-700">
+              <DropdownMenu key={category.name} modal={false}>
+                <DropdownMenuTrigger asChild>
+                  <button className="w-[150px] sm:w-[170px] lg:w-[180px] h-9 cursor-pointer shrink-0 text-xs sm:text-sm border border-gray-300 rounded-lg px-3 flex items-center justify-between bg-white text-left">
+                    <span className="truncate">{t(`categories.${catKey}`, { defaultValue: category.name })}</span>
+                    <ChevronDown className="h-4 w-4 text-gray-400 shrink-0" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-[220px] max-h-80 overflow-y-auto">
+                  <DropdownMenuItem
+                    onClick={() => router.push(`/listings?category=${encodeURIComponent(category.name)}`)}
+                    className="cursor-pointer font-medium text-green-700"
+                  >
                     {t("home.viewAllListings")} ({t(`categories.${catKey}`, { defaultValue: category.name })})
-                  </SelectItem>
+                  </DropdownMenuItem>
                   {category.subcategories?.map((subcategory) => (
-                    <SelectItem key={subcategory} value={subcategory} className="cursor-pointer">
+                    <DropdownMenuItem
+                      key={subcategory}
+                      onClick={() => router.push(`/listings?category=${encodeURIComponent(category.name)}&subcategory=${encodeURIComponent(subcategory)}`)}
+                      className="cursor-pointer"
+                    >
                       {t(`categories.${catKey}_${toKey(subcategory)}`, { defaultValue: subcategory })}
-                    </SelectItem>
+                    </DropdownMenuItem>
                   ))}
-                </SelectContent>
-              </Select>
+                </DropdownMenuContent>
+              </DropdownMenu>
             );
           })}
         </div>

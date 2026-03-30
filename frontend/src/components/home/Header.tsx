@@ -1,18 +1,9 @@
 // frontend/src/components/home/Header.tsx
 "use client";
 import { useTranslation } from "react-i18next";
-import { Search, User, Settings, LogOut, Building2, List, Wallet, X, CalendarDays, Menu, Heart, MessageCircle, MessageSquareText, Bell, ChevronLeft, Check, Trash2, Loader2, ShieldCheck } from "lucide-react";
+import { Search, User, Settings, LogOut, Building2, List, Wallet, X, CalendarDays, Menu, Heart, MessageCircle, MessageSquareText, Bell, ChevronLeft, ChevronDown, Check, Trash2, Loader2, ShieldCheck } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectLabel,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -29,8 +20,9 @@ import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { isAdminUser } from "@/lib/auth";
 import Link from "next/link";
+import { createPortal } from "react-dom";
 import SettingsPage from "@/components/profile/Settings";
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState, useEffect, useLayoutEffect } from "react";
 import { Spinner } from "@/components/ui/Spinner";
 import MessageNotifications from "@/components/messages/MessageNotifications";
 import NotificationBell from "@/components/notifications/NotificationBell";
@@ -41,6 +33,9 @@ import { useNotifications } from "@/hooks/useNotifications";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { useScrollLock } from "@/hooks/useScrollLock";
 import { useWalletBadge } from "@/hooks/useWalletBadge";
+import { formatTranslatedCategoryTrail, categories, toCategoryKey } from "@/lib/categories";
+import frLocale from "@/locales/fr.json";
+import enLocale from "@/locales/en.json";
 
 interface SearchResult {
   id: string;
@@ -84,7 +79,14 @@ export default function Header() {
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [showSearchDrop, setShowSearchDrop] = useState(false);
   const [searchLoading, setSearchLoading] = useState(false);
+  const [focusedIndex, setFocusedIndex] = useState(-1);
+  const [recentSearches, setRecentSearches] = useState<string[]>(() => {
+    if (typeof window === "undefined") return [];
+    try { return JSON.parse(localStorage.getItem("uneden_recent_searches") || "[]"); } catch { return []; }
+  });
   const searchRef = useRef<HTMLDivElement>(null);
+  const searchDropdownRef = useRef<HTMLDivElement>(null);
+  const [searchDropdownStyle, setSearchDropdownStyle] = useState<{ top: number; left: number; width: number } | null>(null);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -107,21 +109,21 @@ export default function Header() {
   // Debounced live search
   useEffect(() => {
     const q = headerSearch.trim();
-    if (q.length < 2) {
+    setFocusedIndex(-1);
+    if (q.length < 1) {
       setSearchResults([]);
-      setShowSearchDrop(false);
       setSearchLoading(false);
       return;
     }
     setSearchLoading(true);
-    const t = setTimeout(async () => {
+    const timer = setTimeout(async () => {
       try {
         const res = await fetch(
           `${process.env.NEXT_PUBLIC_API_URL}/services?search=${encodeURIComponent(q)}`
         );
         if (res.ok) {
           const data = await res.json();
-          setSearchResults(Array.isArray(data) ? data.slice(0, 6) : []);
+          setSearchResults(Array.isArray(data) ? data.slice(0, 5) : []);
           setShowSearchDrop(true);
         }
       } catch {
@@ -129,20 +131,148 @@ export default function Header() {
       } finally {
         setSearchLoading(false);
       }
-    }, 300);
-    return () => clearTimeout(t);
+    }, 280);
+    return () => clearTimeout(timer);
   }, [headerSearch]);
 
   // Click outside closes dropdown
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+      if (
+        searchRef.current &&
+        !searchRef.current.contains(target) &&
+        searchDropdownRef.current &&
+        !searchDropdownRef.current.contains(target)
+      ) {
         setShowSearchDrop(false);
       }
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
+
+  useLayoutEffect(() => {
+    const updateSearchDropdownPosition = () => {
+      const hasContent = showRecent || categorySuggestions.length > 0 || searchResults.length > 0 || searchLoading || headerSearch.trim().length > 0;
+      if (!searchRef.current || !showSearchDrop || !hasContent) {
+        setSearchDropdownStyle(null);
+        return;
+      }
+
+      const rect = searchRef.current.getBoundingClientRect();
+      setSearchDropdownStyle({
+        top: rect.bottom + 4,
+        left: rect.left,
+        width: rect.width,
+      });
+    };
+
+    updateSearchDropdownPosition();
+
+    if (!showSearchDrop) return;
+
+    window.addEventListener("resize", updateSearchDropdownPosition);
+    window.addEventListener("scroll", updateSearchDropdownPosition, true);
+
+    return () => {
+      window.removeEventListener("resize", updateSearchDropdownPosition);
+      window.removeEventListener("scroll", updateSearchDropdownPosition, true);
+    };
+  }, [showSearchDrop, searchResults.length, headerSearch]);
+
+  // Category suggestions — client-side, instant
+  const lang = i18n.language?.startsWith("fr") ? "fr" : "en";
+  const catLocale = (lang === "fr" ? frLocale : enLocale).categories as Record<string, string>;
+  const categorySuggestions = headerSearch.trim().length > 0
+    ? categories.flatMap((cat) => {
+        const key = toCategoryKey(cat.name);
+        const catLabel = catLocale[key] ?? cat.name;
+        const q = headerSearch.toLowerCase();
+        const results: { catName: string; subName?: string; label: string; catLabel?: string }[] = [];
+        if (cat.name.toLowerCase().includes(q) || catLabel.toLowerCase().includes(q)) {
+          results.push({ catName: cat.name, label: catLabel });
+        }
+        cat.subcategories?.forEach((sub) => {
+          const subKey = `${key}_${toCategoryKey(sub)}`;
+          const subLabel = catLocale[subKey] ?? sub;
+          if (sub.toLowerCase().includes(q) || subLabel.toLowerCase().includes(q)) {
+            results.push({ catName: cat.name, subName: sub, label: subLabel, catLabel });
+          }
+        });
+        return results;
+      }).slice(0, 3)
+    : [];
+
+  // Highlight matching text
+  const highlight = (text: string, query: string) => {
+    if (!query.trim()) return <span>{text}</span>;
+    const idx = text.toLowerCase().indexOf(query.toLowerCase());
+    if (idx === -1) return <span>{text}</span>;
+    return (
+      <span>
+        {text.slice(0, idx)}
+        <strong className="text-gray-900 font-semibold">{text.slice(idx, idx + query.length)}</strong>
+        {text.slice(idx + query.length)}
+      </span>
+    );
+  };
+
+  const saveRecentSearch = (q: string) => {
+    const trimmed = q.trim();
+    if (!trimmed) return;
+    const updated = [trimmed, ...recentSearches.filter((r) => r !== trimmed)].slice(0, 5);
+    setRecentSearches(updated);
+    try { localStorage.setItem("uneden_recent_searches", JSON.stringify(updated)); } catch {}
+  };
+
+  const removeRecentSearch = (q: string) => {
+    const updated = recentSearches.filter((r) => r !== q);
+    setRecentSearches(updated);
+    try { localStorage.setItem("uneden_recent_searches", JSON.stringify(updated)); } catch {}
+  };
+
+  const goToSearch = (q: string) => {
+    saveRecentSearch(q);
+    setShowSearchDrop(false);
+    setHeaderSearch("");
+    router.push(`/listings?search=${encodeURIComponent(q.trim())}`);
+  };
+
+  const goToCategory = (catName: string, subName?: string) => {
+    setShowSearchDrop(false);
+    setHeaderSearch("");
+    const params = new URLSearchParams({ category: catName });
+    if (subName) params.set("subcategory", subName);
+    router.push(`/listings?${params.toString()}`);
+  };
+
+  // Total items for keyboard nav
+  const showRecent = headerSearch.trim().length === 0 && recentSearches.length > 0;
+  const navItems = showRecent
+    ? recentSearches
+    : [...categorySuggestions.map(() => "cat"), ...searchResults.map(() => "listing"), "seeAll"];
+
+  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!showSearchDrop && e.key !== "Enter") return;
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setFocusedIndex((i) => Math.min(i + 1, navItems.length - 1));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setFocusedIndex((i) => Math.max(i - 1, 0));
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (focusedIndex >= 0 && showRecent) {
+        goToSearch(recentSearches[focusedIndex]);
+      } else {
+        goToSearch(headerSearch);
+      }
+    } else if (e.key === "Escape") {
+      setShowSearchDrop(false);
+      setFocusedIndex(-1);
+    }
+  };
 
   const handleSignOut = async () => {
     await signOut();
@@ -154,7 +284,6 @@ export default function Header() {
   const { unreadCount: unreadMessages } = useUnreadMessages();
   const notifData = useNotifications();
   const { notifications, unreadCount: unreadNotifs, loading: notifsLoading, markRead, markAllRead, deleteOne, clearAll } = notifData;
-  const lang = i18n.language?.startsWith("fr") ? "fr" : "en";
   const { permission, subscribe } = usePushNotifications();
   const { walletBadge } = useWalletBadge();
   const hasAnyUnread = unseenCount > 0 || unreadMessages > 0 || unreadNotifs > 0 || walletBadge;
@@ -176,9 +305,15 @@ export default function Header() {
   const fallbackInitial = displayName
     ? displayName.charAt(0).toUpperCase()
     : user?.email?.charAt(0).toUpperCase() || "U";
+  const postTypeLabel =
+    postTypeValue === "find"
+      ? t("header.findWork")
+      : postTypeValue === "hire"
+        ? t("header.hireWorker")
+        : t("header.postType");
 
   const UserDropdown = () => (
-    <DropdownMenu>
+    <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild>
         <div className="relative cursor-pointer">
           <Avatar className="h-9 w-9 lg:h-10 lg:w-10 border-4 border-white shadow-lg">
@@ -268,11 +403,11 @@ export default function Header() {
 
   return (
     <>
-      <div className="w-full border-b border-gray-200 shadow-sm bg-white">
+      <div className="relative z-40 w-full border-b border-gray-200 shadow-sm bg-white overflow-x-hidden">
         <div className="max-w-7xl mx-auto px-4">
 
           {/* ── RANGÉE 1 : Logo + Search + actions droite ── */}
-          <div className="flex items-center justify-between py-3 gap-3">
+          <div className="relative z-10 flex items-center justify-between py-3 gap-3">
 
             {/* Logo — taille fixe sur tous les écrans */}
             <Link href="/">
@@ -282,111 +417,58 @@ export default function Header() {
             </Link>
 
             {/* Search — live dropdown */}
-            <div ref={searchRef} className="relative flex-1 min-w-0">
-              <div className="flex items-center border border-gray-300 rounded-lg px-3 py-1.5">
+            <div ref={searchRef} className="relative z-20 flex-1 min-w-0">
+              <div className={`flex items-center border rounded-xl px-3 py-1.5 transition-colors ${showSearchDrop ? "border-green-500 ring-1 ring-green-200" : "border-gray-300 hover:border-gray-400"}`}>
                 <Search className="shrink-0 text-gray-400 mr-2" size={16} />
                 <input
                   placeholder={t("header.search")}
                   type="text"
                   value={headerSearch}
-                  onChange={(e) => setHeaderSearch(e.target.value)}
-                  onFocus={() => { if (searchResults.length > 0) setShowSearchDrop(true); }}
+                  onChange={(e) => { setHeaderSearch(e.target.value); setShowSearchDrop(true); }}
+                  onFocus={() => setShowSearchDrop(true)}
+                  onKeyDown={handleSearchKeyDown}
                   className="w-full text-sm outline-none bg-transparent placeholder:text-gray-400"
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      const q = headerSearch.trim();
-                      setShowSearchDrop(false);
-                      router.push(q ? `/listings?search=${encodeURIComponent(q)}` : "/listings");
-                    }
-                    if (e.key === "Escape") setShowSearchDrop(false);
-                  }}
+                  autoComplete="off"
                 />
-                {searchLoading && (
-                  <Spinner size="xs" className="ml-2 shrink-0" />
-                )}
+                {searchLoading && <Spinner size="xs" className="ml-2 shrink-0" />}
                 {headerSearch && !searchLoading && (
                   <button
-                    onClick={() => { setHeaderSearch(""); setSearchResults([]); setShowSearchDrop(false); }}
+                    onClick={() => { setHeaderSearch(""); setSearchResults([]); setFocusedIndex(-1); }}
                     className="cursor-pointer text-gray-400 hover:text-gray-600 ml-1 shrink-0"
                   >
                     <X size={13} />
                   </button>
                 )}
               </div>
-
-              {/* Dropdown results */}
-              {showSearchDrop && searchResults.length > 0 && (
-                <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-xl z-50 overflow-hidden max-h-96 overflow-y-auto">
-                  {searchResults.map((result) => (
-                    <button
-                      key={result.id}
-                      onClick={() => {
-                        setShowSearchDrop(false);
-                        setHeaderSearch("");
-                        router.push(`/serviceDetail/${result.id}`);
-                      }}
-                      className="cursor-pointer w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 text-left border-b border-gray-100 last:border-b-0 transition-colors"
-                    >
-                      {result.image_url ? (
-                        <img src={result.image_url} alt="" className="w-10 h-10 rounded-lg object-cover shrink-0" />
-                      ) : (
-                        <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center shrink-0 text-base">🛠️</div>
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-900 truncate">{result.title}</p>
-                        {(result.category_name || result.subcategory) && (
-                          <p className="text-xs text-gray-400">
-                            {[result.category_name, result.subcategory].filter(Boolean).join(" | ")}
-                          </p>
-                        )}
-                      </div>
-                      <div className="text-right shrink-0 ml-2">
-                        <p className="text-sm font-bold text-green-700">${Number(result.price)}</p>
-                        <p className="text-xs text-gray-400 truncate max-w-[80px]">{result.location}</p>
-                      </div>
-                    </button>
-                  ))}
-                  <button
-                    onClick={() => {
-                      setShowSearchDrop(false);
-                      router.push(`/listings?search=${encodeURIComponent(headerSearch.trim())}`);
-                    }}
-                    className="cursor-pointer w-full text-center py-3 text-sm text-green-700 font-semibold hover:bg-green-50 transition-colors"
-                  >
-                    {t("header.seeAllResults", { query: headerSearch })}
-                  </button>
-                </div>
-              )}
             </div>
 
             {/* Selects + Toggle — lg+ seulement */}
             <div className="hidden lg:flex items-center gap-2 shrink-0">
-              <Select value={postTypeValue} onValueChange={(val) => {
-                if (val === "all") router.push("/listings");
-                else if (val === "find") router.push("/listings?type=offer");
-                else if (val === "hire") router.push("/listings?type=looking");
-              }}>
-                <SelectTrigger className="w-[110px] lg:w-[130px] xl:w-[140px] border-gray-300 rounded-lg cursor-pointer text-xs lg:text-sm">
-                  <SelectValue placeholder={t("header.postType")} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all" className="cursor-pointer">{t("header.allPosts")}</SelectItem>
-                  <SelectItem value="find" className="cursor-pointer">{t("header.findWork")}</SelectItem>
-                  <SelectItem value="hire" className="cursor-pointer">{t("header.hireWorker")}</SelectItem>
-                </SelectContent>
-              </Select>
+              <DropdownMenu modal={false}>
+                <DropdownMenuTrigger asChild>
+                  <button className="w-[110px] lg:w-[130px] xl:w-[140px] h-9 border border-gray-300 rounded-lg cursor-pointer text-xs lg:text-sm px-3 flex items-center justify-between bg-white text-left">
+                    <span className="truncate">{postTypeLabel}</span>
+                    <ChevronDown className="h-4 w-4 text-gray-400 shrink-0" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-[180px]">
+                  <DropdownMenuItem onClick={() => router.push("/listings")} className="cursor-pointer">{t("header.allPosts")}</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => router.push("/listings?type=offer")} className="cursor-pointer">{t("header.findWork")}</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => router.push("/listings?type=looking")} className="cursor-pointer">{t("header.hireWorker")}</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
 
-              <Select defaultValue="canada">
-                <SelectTrigger className="w-[100px] lg:w-[130px] xl:w-[140px] border-gray-300 rounded-lg cursor-pointer text-xs lg:text-sm">
-                  <SelectValue placeholder={t("header.location")} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    <SelectLabel>{t("header.location")}</SelectLabel>
-                    <SelectItem value="canada" className="cursor-pointer">Canada</SelectItem>
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
+              <DropdownMenu modal={false}>
+                <DropdownMenuTrigger asChild>
+                  <button className="w-[100px] lg:w-[130px] xl:w-[140px] h-9 border border-gray-300 rounded-lg cursor-pointer text-xs lg:text-sm px-3 flex items-center justify-between bg-white text-left">
+                    <span className="truncate">Canada</span>
+                    <ChevronDown className="h-4 w-4 text-gray-400 shrink-0" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-[160px]">
+                  <DropdownMenuItem className="cursor-pointer">Canada</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
 
               <ToggleGroup type="single" variant="outline" value={i18n.language === "fr" ? "FR" : "EN"} onValueChange={(val) => { if (val) { const lng = val.toLowerCase(); i18n.changeLanguage(lng); localStorage.setItem("i18nextLng", lng); } }}>
                 <ToggleGroupItem value="FR" className="cursor-pointer text-xs px-2 lg:px-3 h-8">FR</ToggleGroupItem>
@@ -458,32 +540,31 @@ export default function Header() {
 
           {/* ── RANGÉE 2 : Filtres — < lg (mobile + iPad Mini) ── */}
           <div className="flex lg:hidden items-center justify-center gap-2 pb-3">
-            <Select value={postTypeValue} onValueChange={(val) => {
-              if (val === "all") router.push("/listings");
-              else if (val === "find") router.push("/listings?type=offer");
-              else if (val === "hire") router.push("/listings?type=looking");
-            }}>
-              <SelectTrigger className="w-[130px] shrink-0 border-gray-300 rounded-lg cursor-pointer text-xs">
-                <SelectValue placeholder={t("header.postType")} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all" className="cursor-pointer">{t("header.allPosts")}</SelectItem>
-                <SelectItem value="find" className="cursor-pointer">{t("header.findWork")}</SelectItem>
-                <SelectItem value="hire" className="cursor-pointer">{t("header.hireWorker")}</SelectItem>
-              </SelectContent>
-            </Select>
+            <DropdownMenu modal={false}>
+              <DropdownMenuTrigger asChild>
+                <button className="w-[130px] h-9 shrink-0 border border-gray-300 rounded-lg cursor-pointer text-xs px-3 flex items-center justify-between bg-white text-left">
+                  <span className="truncate">{postTypeLabel}</span>
+                  <ChevronDown className="h-4 w-4 text-gray-400 shrink-0" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-[180px]">
+                <DropdownMenuItem onClick={() => router.push("/listings")} className="cursor-pointer">{t("header.allPosts")}</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => router.push("/listings?type=offer")} className="cursor-pointer">{t("header.findWork")}</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => router.push("/listings?type=looking")} className="cursor-pointer">{t("header.hireWorker")}</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
 
-            <Select defaultValue="canada">
-              <SelectTrigger className="w-[120px] shrink-0 border-gray-300 rounded-lg cursor-pointer text-xs">
-                <SelectValue placeholder={t("header.location")} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  <SelectLabel>{t("header.location")}</SelectLabel>
-                  <SelectItem value="canada" className="cursor-pointer">Canada</SelectItem>
-                </SelectGroup>
-              </SelectContent>
-            </Select>
+            <DropdownMenu modal={false}>
+              <DropdownMenuTrigger asChild>
+                <button className="w-[120px] h-9 shrink-0 border border-gray-300 rounded-lg cursor-pointer text-xs px-3 flex items-center justify-between bg-white text-left">
+                  <span className="truncate">Canada</span>
+                  <ChevronDown className="h-4 w-4 text-gray-400 shrink-0" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-[160px]">
+                <DropdownMenuItem className="cursor-pointer">Canada</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
 
             <ToggleGroup type="single" variant="outline" value={i18n.language === "fr" ? "FR" : "EN"} onValueChange={(val) => { if (val) { const lng = val.toLowerCase(); i18n.changeLanguage(lng); localStorage.setItem("i18nextLng", lng); } }}>
               <ToggleGroupItem value="FR" className="cursor-pointer text-xs px-2 h-8">FR</ToggleGroupItem>
@@ -723,6 +804,131 @@ export default function Header() {
 
         <SupportModal open={showSupport} onClose={() => setShowSupport(false)} />
       </div>
+      {typeof document !== "undefined" && showSearchDrop && searchDropdownStyle && createPortal(
+        <div
+          ref={searchDropdownRef}
+          className="fixed bg-white border border-gray-200 rounded-xl shadow-2xl z-[9999] overflow-hidden max-h-[480px] overflow-y-auto"
+          style={{ top: searchDropdownStyle.top, left: searchDropdownStyle.left, width: searchDropdownStyle.width }}
+        >
+          {/* ── Recent searches (when input is empty) ── */}
+          {showRecent && (
+            <>
+              <div className="px-4 pt-3 pb-1 flex items-center justify-between">
+                <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                  {lang === "fr" ? "Recherches récentes" : "Recent searches"}
+                </span>
+                <button
+                  onClick={() => { setRecentSearches([]); localStorage.removeItem("uneden_recent_searches"); }}
+                  className="cursor-pointer text-xs text-gray-400 hover:text-gray-600"
+                >
+                  {lang === "fr" ? "Tout effacer" : "Clear all"}
+                </button>
+              </div>
+              {recentSearches.map((q, i) => (
+                <div
+                  key={q}
+                  className={`flex items-center gap-3 px-4 py-2.5 cursor-pointer transition-colors ${focusedIndex === i ? "bg-gray-50" : "hover:bg-gray-50"}`}
+                >
+                  <Search className="h-3.5 w-3.5 text-gray-400 shrink-0" />
+                  <button className="flex-1 text-left text-sm text-gray-700" onClick={() => goToSearch(q)}>{q}</button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); removeRecentSearch(q); }}
+                    className="cursor-pointer text-gray-300 hover:text-gray-500"
+                  >
+                    <X size={13} />
+                  </button>
+                </div>
+              ))}
+            </>
+          )}
+
+          {/* ── Category suggestions (instant, client-side) ── */}
+          {!showRecent && categorySuggestions.length > 0 && (
+            <>
+              <div className="px-4 pt-3 pb-1">
+                <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                  {lang === "fr" ? "Catégories" : "Categories"}
+                </span>
+              </div>
+              {categorySuggestions.map((s, i) => (
+                <button
+                  key={i}
+                  onClick={() => goToCategory(s.catName, s.subName)}
+                  className={`cursor-pointer w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors ${focusedIndex === i ? "bg-gray-50" : "hover:bg-gray-50"}`}
+                >
+                  <div className="w-7 h-7 rounded-lg bg-green-50 flex items-center justify-center shrink-0 text-sm">🗂️</div>
+                  <div className="min-w-0">
+                    <span className="text-sm text-gray-800">{highlight(s.label, headerSearch)}</span>
+                    {s.catLabel && <span className="text-xs text-gray-400 ml-1.5">· {s.catLabel}</span>}
+                  </div>
+                </button>
+              ))}
+            </>
+          )}
+
+          {/* ── Listing results (from API) ── */}
+          {!showRecent && searchResults.length > 0 && (
+            <>
+              <div className={`px-4 pb-1 ${categorySuggestions.length > 0 ? "pt-2 border-t border-gray-100 mt-1" : "pt-3"}`}>
+                <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                  {lang === "fr" ? "Annonces" : "Listings"}
+                </span>
+              </div>
+              {searchResults.map((result, i) => {
+                const navIdx = categorySuggestions.length + i;
+                return (
+                  <button
+                    key={result.id}
+                    onClick={() => { saveRecentSearch(headerSearch); setShowSearchDrop(false); setHeaderSearch(""); router.push(`/serviceDetail/${result.id}`); }}
+                    className={`cursor-pointer w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors ${focusedIndex === navIdx ? "bg-gray-50" : "hover:bg-gray-50"}`}
+                  >
+                    {result.image_url ? (
+                      <img src={result.image_url} alt="" className="w-9 h-9 rounded-lg object-cover shrink-0" />
+                    ) : (
+                      <div className="w-9 h-9 rounded-lg bg-gray-100 flex items-center justify-center shrink-0 text-sm">🛠️</div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-gray-800 truncate">{highlight(result.title, headerSearch)}</p>
+                      {(result.category_name || result.subcategory) && (
+                        <p className="text-xs text-gray-400 truncate">
+                          {formatTranslatedCategoryTrail(result.category_name, result.subcategory, t)}
+                        </p>
+                      )}
+                    </div>
+                    <p className="text-sm font-bold text-green-700 shrink-0 ml-2">${Number(result.price)}</p>
+                  </button>
+                );
+              })}
+            </>
+          )}
+
+          {/* ── Loading state ── */}
+          {!showRecent && searchLoading && categorySuggestions.length === 0 && searchResults.length === 0 && (
+            <div className="flex items-center justify-center py-6 gap-2 text-gray-400 text-sm">
+              <Spinner size="xs" /> {lang === "fr" ? "Recherche..." : "Searching..."}
+            </div>
+          )}
+
+          {/* ── No results ── */}
+          {!showRecent && !searchLoading && headerSearch.trim().length > 0 && categorySuggestions.length === 0 && searchResults.length === 0 && (
+            <div className="px-4 py-5 text-center text-sm text-gray-500">
+              {lang === "fr" ? `Aucun résultat pour « ${headerSearch} »` : `No results for "${headerSearch}"`}
+            </div>
+          )}
+
+          {/* ── See all results ── */}
+          {!showRecent && headerSearch.trim().length > 0 && (
+            <button
+              onClick={() => goToSearch(headerSearch)}
+              className={`cursor-pointer w-full flex items-center justify-center gap-2 py-3 text-sm text-green-700 font-semibold hover:bg-green-50 transition-colors border-t border-gray-100 ${focusedIndex === navItems.length - 1 ? "bg-green-50" : ""}`}
+            >
+              <Search size={13} />
+              {t("header.seeAllResults", { query: headerSearch })}
+            </button>
+          )}
+        </div>,
+        document.body
+      )}
     </>
   );
 }

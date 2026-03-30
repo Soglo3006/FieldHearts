@@ -16,6 +16,7 @@ import ReceivedBookingsList from "@/components/bookings/ReceivedBookingsList";
 import SentBookingsList from "@/components/bookings/SentBookingsList";
 import { ReceivedBooking, SentBooking, BookingStatus } from "@/components/bookings/bookingTypes";
 import { Spinner } from "@/components/ui/Spinner";
+import { getTaxRate } from "@/lib/taxes";
 
 function LoadingSkeleton() {
   return (
@@ -471,7 +472,7 @@ function BookingsContent() {
                         <p className="text-xs text-gray-400">{new Date(b.created_at).toLocaleDateString(i18n.language?.startsWith("fr") ? "fr-CA" : "en-CA", { year: "numeric", month: "long", day: "numeric" })}</p>
                       </div>
                       <div className="text-right shrink-0">
-                        <p className="font-semibold text-red-600">-{(Number(b.custom_price ?? b.price) * 1.19975).toFixed(2)} $</p>
+                        <p className="font-semibold text-red-600">-{(Number(b.custom_price ?? b.price) * (1 + 0.05 + (b.tax_rate ? Number(b.tax_rate) : getTaxRate(b.worker_province ?? "QC")))).toFixed(2)} $</p>
                         <span className="inline-block mt-1 text-xs bg-green-100 text-green-800 border border-green-200 rounded-full px-2 py-0.5">{t("bookings.done")}</span>
                         {!b.has_reviewed && (
                           <button

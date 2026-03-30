@@ -137,10 +137,89 @@ export const getAllServices = async (req, res) => {
       paramCount++;
     }
 
-    if (search) {
-      query += ` AND (s.title ILIKE $${paramCount} OR s.description ILIKE $${paramCount})`;
-      params.push(`%${search}%`);
-      paramCount++;
+    if (search && search.trim()) {
+      // Bilingual synonym map (FR ↔ EN common service terms)
+      const SYNONYMS = {
+        cleaning: ["nettoyage", "ménage", "menage", "nettoyer"],
+        nettoyage: ["cleaning", "ménage", "menage"],
+        menage: ["cleaning", "nettoyage", "ménage"],
+        moving: ["déménagement", "demenagement", "déménager"],
+        "déménagement": ["moving", "demenagement"],
+        demenagement: ["moving", "déménagement"],
+        repair: ["réparation", "reparation", "réparer", "reparer"],
+        "réparation": ["repair", "reparation", "fix"],
+        reparation: ["repair", "réparation"],
+        painting: ["peinture", "peindre", "peintre"],
+        peinture: ["painting", "peindre"],
+        gardening: ["jardinage", "jardin", "aménagement paysager"],
+        jardinage: ["gardening", "garden", "jardin"],
+        landscaping: ["aménagement paysager", "jardinage", "jardin"],
+        childcare: ["garde enfants", "babysitting", "garderie"],
+        babysitting: ["garde enfants", "childcare", "garderie"],
+        "garde": ["childcare", "babysitting"],
+        delivery: ["livraison", "livrer", "courses"],
+        livraison: ["delivery", "livrer"],
+        tech: ["informatique", "support technique", "ordinateur"],
+        informatique: ["tech", "computer", "support"],
+        snow: ["neige", "déneigement", "deneigement"],
+        "déneigement": ["snow removal", "neige", "deneigement"],
+        deneigement: ["déneigement", "snow"],
+        plumbing: ["plomberie", "plombier"],
+        plomberie: ["plumbing", "plombier"],
+        electrical: ["électricité", "electricite", "électricien"],
+        "électricité": ["electrical", "electricite"],
+        pet: ["animal", "animaux", "chien", "chat"],
+        dog: ["chien", "animal", "animaux"],
+        cat: ["chat", "animal", "animaux"],
+        tutoring: ["cours", "tutorat", "enseignement", "leçons"],
+        cours: ["tutoring", "lessons", "leçons"],
+        photography: ["photographie", "photo", "photographe"],
+        photographie: ["photography", "photo"],
+        renovation: ["rénovation", "rénover"],
+        "rénovation": ["renovation", "rénover"],
+      };
+
+      const words = search.trim().split(/\s+/).filter((w) => w.length > 0);
+
+      for (const word of words) {
+        const lw = word.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        const synonymKey = Object.keys(SYNONYMS).find(
+          (k) => k.normalize("NFD").replace(/[\u0300-\u036f]/g, "") === lw
+        );
+        const alternatives = synonymKey ? [word, ...SYNONYMS[synonymKey]] : [word];
+        const conditions = [];
+
+        for (const alt of alternatives) {
+          const p = `%${alt}%`;
+          conditions.push(
+            `s.title ILIKE $${paramCount}`,
+            `s.description ILIKE $${paramCount}`,
+            `COALESCE(c.name, s.category) ILIKE $${paramCount}`,
+            `s.subcategory ILIKE $${paramCount}`,
+            `s.city ILIKE $${paramCount}`,
+            `s.location ILIKE $${paramCount}`
+          );
+          params.push(p);
+          paramCount++;
+        }
+        query += ` AND (${conditions.join(" OR ")})`;
+      }
+    }
+
+    // Relevance score: rank title matches higher than description/category
+    let hasSearch = !!(search && search.trim());
+    let relevanceExpr = "s.created_at";
+    if (hasSearch) {
+      const scoreParam = `%${search.trim()}%`;
+      relevanceExpr = `(
+        CASE WHEN s.title ILIKE $${paramCount} THEN 100 ELSE 0 END +
+        CASE WHEN s.title ILIKE $${paramCount + 1} THEN 60 ELSE 0 END +
+        CASE WHEN COALESCE(c.name, s.category) ILIKE $${paramCount} THEN 30 ELSE 0 END +
+        CASE WHEN s.subcategory ILIKE $${paramCount} THEN 20 ELSE 0 END +
+        CASE WHEN s.description ILIKE $${paramCount} THEN 10 ELSE 0 END
+      )`;
+      params.push(scoreParam, `${search.trim()}%`);
+      paramCount += 2;
     }
 
     const lat = parseFloat(userLat);
@@ -148,28 +227,27 @@ export const getAllServices = async (req, res) => {
     const km  = parseFloat(radius) || 50;
 
     if (!isNaN(lat) && !isNaN(lng)) {
-      // Filter to listings within `km` radius that have coordinates, then sort by distance
+      const distExpr = `(6371 * acos(
+          cos(radians($${paramCount})) * cos(radians(s.latitude)) *
+          cos(radians(s.longitude) - radians($${paramCount + 1})) +
+          sin(radians($${paramCount})) * sin(radians(s.latitude))
+        ))`;
       query += `
         AND s.latitude IS NOT NULL AND s.longitude IS NOT NULL
-        AND (6371 * acos(
-          cos(radians($${paramCount})) * cos(radians(s.latitude)) *
-          cos(radians(s.longitude) - radians($${paramCount + 1})) +
-          sin(radians($${paramCount})) * sin(radians(s.latitude))
-        )) <= $${paramCount + 2}
-        ORDER BY (6371 * acos(
-          cos(radians($${paramCount})) * cos(radians(s.latitude)) *
-          cos(radians(s.longitude) - radians($${paramCount + 1})) +
-          sin(radians($${paramCount})) * sin(radians(s.latitude))
-        )) ASC
+        AND ${distExpr} <= $${paramCount + 2}
+        ORDER BY ${hasSearch ? `${relevanceExpr} DESC,` : ""} ${distExpr} ASC
       `;
       params.push(lat, lng, km);
     } else {
-      query += ` ORDER BY s.created_at DESC`;
+      query += hasSearch
+        ? ` ORDER BY ${relevanceExpr} DESC, s.created_at DESC`
+        : ` ORDER BY s.created_at DESC`;
     }
 
     const result = await pool.query(query, params);
     res.json(result.rows);
   } catch (err) {
+    console.error("[getAllServices] error:", err.message, err.stack);
     return res.status(500).json({ message: "Server error while fetching services" });
   }
 };

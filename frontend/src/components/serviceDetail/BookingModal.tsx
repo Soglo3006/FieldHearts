@@ -1,8 +1,7 @@
 "use client";
 import { useTranslation } from "react-i18next";
 import { useScrollLock } from "@/hooks/useScrollLock";
-import { useClientTax } from "@/hooks/useClientTax";
-import { formatTaxRate } from "@/lib/taxes";
+import { getTaxRate, getTaxLabel, formatTaxRate } from "@/lib/taxes";
 import { Button } from "@/components/ui/button";
 import { CheckCircle, X } from "lucide-react";
 
@@ -13,6 +12,7 @@ interface Props {
   price: number;
   serviceTitle: string;
   providerFirstName: string;
+  workerProvince?: string | null;
   onNoteChange: (v: string) => void;
   onSubmit: () => void;
   onClose: () => void;
@@ -20,11 +20,12 @@ interface Props {
 }
 
 export default function BookingModal({
-  state, note, errorMsg, price, serviceTitle, providerFirstName,
+  state, note, errorMsg, price, serviceTitle, providerFirstName, workerProvince,
   onNoteChange, onSubmit, onClose, onMessageProvider,
 }: Props) {
   const { t, i18n } = useTranslation();
-  const { taxRate, taxLabel, loading: taxLoading } = useClientTax(i18n.language ?? "fr");
+  const taxRate = getTaxRate(workerProvince ?? "QC");
+  const taxLabel = getTaxLabel(workerProvince ?? "QC", i18n.language?.startsWith("fr") ? "fr" : "en");
   useScrollLock(true);
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -72,7 +73,6 @@ export default function BookingModal({
                 const taxes           = price * taxRate;
                 const total           = price + buyerCommission + taxes;
                 const fmt = (n: number) => n.toFixed(2);
-                const skeletonCls = "h-3.5 rounded bg-gray-200 animate-pulse";
                 return (
                   <div className="space-y-1.5 text-sm">
                     <div className="flex justify-between">
@@ -85,23 +85,14 @@ export default function BookingModal({
                     </div>
                     <div className="flex justify-between">
                       <div>
-                        <div className="text-gray-500">{t("serviceDetail.taxes")} {!taxLoading && `(${formatTaxRate(taxRate)}%)`}</div>
-                        {taxLoading
-                          ? <div className={`${skeletonCls} w-28 mt-1`} />
-                          : <div className="text-xs text-gray-400">{taxLabel}</div>
-                        }
+                        <div className="text-gray-500">{t("serviceDetail.taxes")} ({formatTaxRate(taxRate)}%)</div>
+                        <div className="text-xs text-gray-400">{taxLabel}</div>
                       </div>
-                      {taxLoading
-                        ? <div className={`${skeletonCls} w-12 self-center`} />
-                        : <span className="text-gray-700">{fmt(taxes)} $</span>
-                      }
+                      <span className="text-gray-700">{fmt(taxes)} $</span>
                     </div>
                     <div className="flex justify-between font-bold border-t border-gray-200 pt-2">
                       <span>{t("serviceDetail.total")}</span>
-                      {taxLoading
-                        ? <div className={`${skeletonCls} w-16`} />
-                        : <span className="text-green-700">{fmt(total)} $</span>
-                      }
+                      <span className="text-green-700">{fmt(total)} $</span>
                     </div>
                   </div>
                 );

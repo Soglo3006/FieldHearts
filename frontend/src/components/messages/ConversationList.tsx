@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Search } from 'lucide-react';
+import { Search, SquarePen } from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -42,6 +42,8 @@ interface ConversationListProps {
   onChatSelect: (chatId: string) => void;
   currentUserId: string | null;
   loading?: boolean;
+  onNewConversation?: () => void;
+  newConversationMode?: boolean;
 }
 
 function ConversationItem({
@@ -176,6 +178,8 @@ export function ConversationList({
   onChatSelect,
   currentUserId,
   loading,
+  onNewConversation,
+  newConversationMode,
 }: ConversationListProps) {
   const { t } = useTranslation();
   const [filter, setFilter] = useState<string>('all');
@@ -233,7 +237,19 @@ export function ConversationList({
       {/* Title + Filter Select sticky */}
       <div className="sticky top-[72px] z-10 px-4 py-3 border-b bg-white">
         <div className="flex items-center justify-between gap-3">
-          <h2 className="font-semibold text-gray-900 whitespace-nowrap">{t("messages.title")}</h2>
+          <div className="flex items-center gap-2">
+            <h2 className="font-semibold text-gray-900 whitespace-nowrap">{t("messages.title")}</h2>
+            {onNewConversation && (
+              <button
+                type="button"
+                onClick={onNewConversation}
+                className="cursor-pointer p-1.5 rounded-full hover:bg-gray-100 text-gray-500 hover:text-gray-800 transition-colors"
+                title={t("messages.newConversation")}
+              >
+                <SquarePen className="h-4 w-4" />
+              </button>
+            )}
+          </div>
           <Select value={filter} onValueChange={setFilter}>
             <SelectTrigger className="w-[140px] h-9 cursor-pointer">
               <SelectValue />
@@ -249,6 +265,20 @@ export function ConversationList({
 
       {/* Conversations list */}
       <ScrollArea className="flex-1 min-h-0">
+        {/* "Nouveau message" item pinned at top when composing */}
+        {newConversationMode && (
+          <div className="p-4 border-b bg-green-50 border-l-4 border-l-green-700">
+            <div className="flex items-center gap-3">
+              <div className="h-12 w-12 rounded-full bg-green-700 flex items-center justify-center shrink-0">
+                <SquarePen className="h-5 w-5 text-white" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-green-800">{t("messages.newConversation")}</p>
+                <p className="text-xs text-green-600">{t("messages.searchPeople")}</p>
+              </div>
+            </div>
+          </div>
+        )}
         {loading ? (
           <div className="divide-y">
             {Array.from({ length: 6 }).map((_, i) => (
@@ -277,7 +307,7 @@ export function ConversationList({
             <ConversationItem
               key={chat.id}
               chat={chat}
-              isActive={chat.id === activeChatId}
+              isActive={!newConversationMode && chat.id === activeChatId}
               currentUserId={currentUserId}
               onSelect={() => onChatSelect(chat.id)}
               now={now}

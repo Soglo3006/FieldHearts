@@ -10,7 +10,7 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { ConversationList } from '@/components/messages/ConversationList';
 import { MessageThread } from '@/components/messages/MessageThread';
 import { ProfileSidebar } from '@/components/messages/ProfileSidebar';
-import { WifiOff } from 'lucide-react';
+import { WifiOff, X } from 'lucide-react';
 import { Spinner } from "@/components/ui/Spinner";
 import { useMessageReactions } from '@/hooks/useMessageReactions';
 import { useDeleteMessage } from '@/hooks/useDeleteMessage';
@@ -37,7 +37,7 @@ function MessagesContent() {
   const chatIdFromUrl = searchParams.get('chat');
   const router = useRouter();
 
-  const { chats, loading: chatsLoading, clearUnreadCount, archiveChat, removeChat, updateLastMessage } = useChats();
+  const { chats, loading: chatsLoading, clearUnreadCount, archiveChat, removeChat, updateLastMessage, refreshChats } = useChats();
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [messageInput, setMessageInput] = useState('');
@@ -56,6 +56,14 @@ function MessagesContent() {
   const [replyingTo, setReplyingTo] = useState<{
     id: string; content: string; user_id: string; sender_name?: string;
   } | null>(null);
+
+  // New conversation mode
+  const [newConversationMode, setNewConversationMode] = useState(false);
+  const [newConvSearch, setNewConvSearch] = useState('');
+  const [newConvResults, setNewConvResults] = useState<{
+    id: string; full_name?: string; company_name?: string; account_type?: string; avatar_url?: string | null;
+  }[]>([]);
+  const [newConvSearching, setNewConvSearching] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isMobile, setIsMobile] = useState(false);
@@ -239,6 +247,10 @@ function MessagesContent() {
   };
 
   const handleChatSelect = (chatId: string) => {
+    // Always exit new conversation mode when selecting a chat
+    setNewConversationMode(false);
+    setNewConvSearch('');
+    setNewConvResults([]);
     if (chatId === activeChatId) { setShowMobileChat(true); return; }
     setIsBlocked(false); setIsBlockedByOther(false); setIsMuted(false);
     setBlockCheckLoading(true);
@@ -265,6 +277,41 @@ function MessagesContent() {
   };
 
   const handleBackToList = () => { setShowMobileChat(false); setShowMobileSidebar(false); setShowSettings(false); router.replace('/messages'); };
+
+  // Search users for new conversation
+  useEffect(() => {
+    if (!newConversationMode) return;
+    if (!newConvSearch.trim()) { setNewConvResults([]); setNewConvSearching(false); return; }
+    let cancelled = false;
+    setNewConvSearching(true);
+    const timer = setTimeout(async () => {
+      const q = `%${newConvSearch.trim()}%`;
+      const { data } = await supabase
+        .from('profiles')
+        .select('id, full_name, company_name, account_type, avatar_url')
+        .or(`full_name.ilike.${q},company_name.ilike.${q}`)
+        .neq('id', user?.id ?? '')
+        .limit(20);
+      if (!cancelled) {
+        setNewConvResults(data ?? []);
+        setNewConvSearching(false);
+      }
+    }, 300);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [newConvSearch, newConversationMode, user?.id]);
+
+  const handleSelectNewConvUser = async (otherUserId: string) => {
+    const { getOrCreateDirectChat } = await import('@/lib/chatUtils');
+    const chatId = await getOrCreateDirectChat(otherUserId);
+    if (chatId) {
+      setNewConversationMode(false);
+      setNewConvSearch('');
+      setNewConvResults([]);
+      // Refresh chats list so the new chat room appears, then navigate into it
+      await refreshChats();
+      handleChatSelect(chatId);
+    }
+  };
 
   const scrollToMessage = (messageId: string) => {
     const element = document.getElementById(`message-${messageId}`);
@@ -316,16 +363,88 @@ function MessagesContent() {
                   onChatSelect={handleChatSelect}
                   currentUserId={user?.id || null}
                   loading={chatsLoading}
+                  onNewConversation={() => { setNewConversationMode(true); setNewConvSearch(''); setNewConvResults([]); if (isMobile) setShowMobileChat(true); }}
+                  newConversationMode={newConversationMode}
                 />
               </div>
 
               {/* Colonne 2 : Zone de messages */}
               <div className={`${(isLargeScreen || (isMobile ? showMobileChat : true)) && (!showMobileSidebar || isLargeScreen) ? 'flex' : 'hidden'} flex-1 min-w-0 flex-col bg-white min-h-0 max-h-full overflow-hidden`}>
-                {activeChat ? (
+                {newConversationMode ? (
+                  <>
+                    {/* "À :" row — aligned with left sidebar search bar height */}
+                    <div className="flex items-center gap-2 px-4 border-b shrink-0 h-[73px]">
+                      <span className="text-sm font-semibold text-gray-500 shrink-0">{t("messages.to")} :</span>
+                      <input
+                        autoFocus
+                        type="text"
+                        value={newConvSearch}
+                        onChange={(e) => setNewConvSearch(e.target.value)}
+                        placeholder={t("messages.searchPeople")}
+                        className="flex-1 text-sm outline-none placeholder-gray-400 bg-transparent"
+                      />
+                      {newConvSearch ? (
+                        <button type="button" onClick={() => setNewConvSearch('')} className="cursor-pointer text-gray-400 hover:text-gray-600 shrink-0">
+                          <X className="h-4 w-4" />
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => { setNewConversationMode(false); setNewConvSearch(''); setNewConvResults([]); if (isMobile) setShowMobileChat(false); }}
+                          className="cursor-pointer text-gray-400 hover:text-gray-600 shrink-0"
+                          aria-label="Cancel"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
+                    {/* Contacts / results */}
+                    <div className="flex-1 overflow-y-auto">
+                      {newConvSearching ? (
+                        <div className="flex justify-center py-8"><Spinner size="md" /></div>
+                      ) : newConvSearch.trim() && newConvResults.length === 0 ? (
+                        <div className="py-8 text-center text-gray-400 text-sm">{t("messages.noUsersFound")}</div>
+                      ) : (
+                        <>
+                          {/* Section header */}
+                          <p className="px-4 pt-4 pb-2 text-xs font-semibold text-gray-400 uppercase tracking-wide">
+                            {newConvSearch.trim() ? t("messages.results") : t("messages.suggestedContacts")}
+                          </p>
+                          {/* Show existing contacts when not searching, search results when searching */}
+                          {(newConvSearch.trim() ? newConvResults : chats.filter(c => !c.is_archived).map(c => c.other_user).filter(Boolean)).map((u) => {
+                            if (!u) return null;
+                            const displayName = (u as { account_type?: string; company_name?: string; full_name?: string; id?: string; avatar_url?: string | null }).account_type === 'company'
+                              ? (u as { company_name?: string }).company_name || ''
+                              : (u as { full_name?: string }).full_name || '';
+                            const uid = (u as { id?: string }).id || '';
+                            const avatar = (u as { avatar_url?: string | null }).avatar_url;
+                            return (
+                              <div
+                                key={uid}
+                                onClick={() => handleSelectNewConvUser(uid)}
+                                className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 cursor-pointer"
+                              >
+                                <div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center shrink-0 overflow-hidden">
+                                  {avatar ? (
+                                    <img src={avatar} alt={displayName} className="h-10 w-10 object-cover rounded-full" />
+                                  ) : (
+                                    <span className="text-green-800 font-semibold text-sm">{displayName.charAt(0).toUpperCase()}</span>
+                                  )}
+                                </div>
+                                <span className="font-medium text-gray-900 text-sm">{displayName}</span>
+                              </div>
+                            );
+                          })}
+                        </>
+                      )}
+                    </div>
+                  </>
+                ) : activeChat ? (
                   <>
                     <ChatHeader
                       otherUser={activeChat.other_user}
                       isOtherOnline={isOtherOnline}
+                      isSwitching={isSwitching}
                       showSettings={showSettings}
                       showMobileSidebar={showMobileSidebar}
                       isLargeScreen={isLargeScreen}
@@ -412,7 +531,7 @@ function MessagesContent() {
               </div>
 
               {/* Colonne 3 : Panneau About */}
-              <div className={`${isLargeScreen || showMobileSidebar ? 'flex' : 'hidden'} ${isLargeScreen ? 'w-72 shrink-0' : 'flex-1'} border-l bg-white min-h-0`}>
+              <div className={`${(isLargeScreen || showMobileSidebar) && !newConversationMode ? 'flex' : 'hidden'} ${isLargeScreen ? 'w-72 shrink-0' : 'flex-1'} border-l bg-white min-h-0`}>
                 {showSettings ? (
                   <ConversationSettings
                     messages={messages}

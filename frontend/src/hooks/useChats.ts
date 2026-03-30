@@ -33,13 +33,13 @@ export function useChats() {
   const userIdRef = useRef(user?.id);
   useEffect(() => { userIdRef.current = user?.id; }, [user?.id]);
 
-  const fetchChats = useCallback(async () => {
+  const fetchChats = useCallback(async (silent = false) => {
     if (!user?.id) {
       setChats([]);
       setLoading(false);
       return;
     }
-    setLoading(true);
+    if (!silent) setLoading(true);
     try {
       const { data: chatRoomMembers, error: membersError } = await supabase
         .from('chat_room_member')
@@ -207,6 +207,16 @@ export function useChats() {
       )
       .on(
         'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'chat_room_member' },
+        (payload) => {
+          const inserted = payload.new as { user_id: string; chat_room_id: string };
+          if (inserted.user_id === userIdRef.current) {
+            fetchChats();
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'chat_room_member' },
         (payload) => {
           const updated = payload.new as { user_id: string; chat_room_id: string; is_deleted?: boolean };
@@ -270,5 +280,5 @@ export function useChats() {
     );
   }, []);
 
-  return { chats, loading, clearUnreadCount, archiveChat, removeChat, updateLastMessage };
+  return { chats, loading, clearUnreadCount, archiveChat, removeChat, updateLastMessage, refreshChats: () => fetchChats(true) };
 }

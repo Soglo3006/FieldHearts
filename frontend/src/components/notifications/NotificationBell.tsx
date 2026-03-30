@@ -161,7 +161,7 @@ export default function NotificationBell({ data }: { data?: NotifHookData }) {
   };
 
   return (
-    <DropdownMenu open={open} onOpenChange={setOpen}>
+    <DropdownMenu open={open} onOpenChange={setOpen} modal={false}>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" size="icon" className="relative cursor-pointer hover:bg-gray-100">
           <Bell className="h-5 w-5 text-gray-700" />

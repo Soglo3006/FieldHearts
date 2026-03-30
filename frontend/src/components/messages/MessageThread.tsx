@@ -88,6 +88,7 @@ export function MessageThread({
   isTyping, hasMore, loadingMore, loadMore,
 }: MessageThreadProps) {
   const { t, i18n } = useTranslation();
+  const SCROLL_TO_BOTTOM_THRESHOLD = 160;
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const prevMessagesLength = useRef(0);
   const isInitialLoad = useRef(true);
@@ -132,11 +133,25 @@ export function MessageThread({
   const scrollViewportRef = useRef<HTMLDivElement | null>(null);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
 
+  const updateScrollToBottomVisibility = () => {
+    const viewport = scrollViewportRef.current;
+    if (!viewport) {
+      setShowScrollToBottom(false);
+      return;
+    }
+
+    const remainingDistance = viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight;
+    const hasEnoughScrollableContent = viewport.scrollHeight - viewport.clientHeight > SCROLL_TO_BOTTOM_THRESHOLD;
+
+    setShowScrollToBottom(hasEnoughScrollableContent && remainingDistance > SCROLL_TO_BOTTOM_THRESHOLD);
+  };
+
   const scrollToBottom = (behavior: ScrollBehavior = "smooth") => {
     const viewport = scrollViewportRef.current;
     if (!viewport) return;
     if (behavior === "instant") { viewport.scrollTop = viewport.scrollHeight; }
     else { viewport.scrollTo({ top: viewport.scrollHeight, behavior }); }
+    requestAnimationFrame(() => updateScrollToBottomVisibility());
   };
 
   useLayoutEffect(() => {
@@ -181,8 +196,7 @@ export function MessageThread({
     const el = scrollViewportRef.current;
     if (!el) return;
     const onScroll = () => {
-      const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
-      setShowScrollToBottom(!atBottom);
+      updateScrollToBottomVisibility();
       if (el.scrollTop < 80 && hasMoreRef.current && !loadingMoreRef.current) {
         isPrependingRef.current = true;
         prevScrollHeightRef.current = el.scrollHeight;
@@ -194,6 +208,10 @@ export function MessageThread({
     onScroll();
     return () => el.removeEventListener("scroll", onScroll);
   }, []);
+
+  useEffect(() => {
+    updateScrollToBottomVisibility();
+  }, [messages.length, loading]);
 
   useEffect(() => {
     const prevLen = prevMessagesLength.current;
@@ -312,6 +330,7 @@ export function MessageThread({
         <button
           onClick={() => scrollToBottom("smooth")}
           className="absolute bottom-2 left-1/2 z-50 -translate-x-1/2 h-11 w-11 rounded-full bg-green-700 cursor-pointer text-white shadow-lg flex items-center justify-center transition-all duration-300 animate-in fade-in zoom-in-95"
+          title={t("messages.scrollToBottom", { defaultValue: "Go to latest messages" })}
         >
           <ArrowDown className="h-5 w-5" />
         </button>

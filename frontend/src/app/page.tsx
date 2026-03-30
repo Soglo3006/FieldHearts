@@ -145,10 +145,10 @@ export default function HomePage() {
           fetch(`${API_URL}/services`),
           fetch(`${API_URL}/services/category-counts`),
         ]);
-        const data: Listing[] = await servicesRes.json();
-        const counts: { category_name: string; count: number }[] = await countsRes.json();
+        const data = await servicesRes.json();
+        const counts = await countsRes.json();
 
-        setListings(data);
+        setListings(Array.isArray(data) ? data : []);
 
         // Sort categories by real count from backend
         const countMap: Record<string, number> = {};

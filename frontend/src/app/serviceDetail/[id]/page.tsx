@@ -339,6 +339,7 @@ export default function ServiceDetailPage() {
           price={price}
           serviceTitle={service.title}
           providerFirstName={providerFirstName}
+          workerProvince={service.owner_province}
           onNoteChange={setBookingNote}
           onSubmit={submitBooking}
           onClose={() => setShowBookingModal(false)}

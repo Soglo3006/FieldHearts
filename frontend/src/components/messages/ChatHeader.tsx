@@ -21,10 +21,11 @@ interface Props {
   isLargeScreen: boolean;
   onBack: () => void;
   onToggleInfo: () => void;
+  isSwitching?: boolean;
 }
 
 export function ChatHeader({
-  otherUser, isOtherOnline, showSettings, showMobileSidebar, isLargeScreen, onBack, onToggleInfo,
+  otherUser, isOtherOnline, showSettings, showMobileSidebar, isLargeScreen, onBack, onToggleInfo, isSwitching,
 }: Props) {
   const { t } = useTranslation();
   const displayName =
@@ -38,6 +39,16 @@ export function ChatHeader({
         <Button variant="ghost" size="icon" className="md:hidden shrink-0 cursor-pointer" onClick={onBack}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
+        {isSwitching ? (
+          /* Skeleton while switching chats */
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            <div className="h-10 w-10 rounded-full bg-gray-200 animate-pulse shrink-0" />
+            <div className="space-y-1.5 flex-1 min-w-0">
+              <div className="h-3.5 bg-gray-200 animate-pulse rounded w-32" />
+              <div className="h-3 bg-gray-100 animate-pulse rounded w-16" />
+            </div>
+          </div>
+        ) : (
         <Link href={`/profile/${otherUser?.id}`} className="flex items-center gap-3 hover:opacity-80 transition-opacity min-w-0">
           <div className="relative">
             <Avatar key={otherUser?.id} className="h-10 w-10 shrink-0">
@@ -64,6 +75,7 @@ export function ChatHeader({
             </p>
           </div>
         </Link>
+        )}
       </div>
 
       <div className="flex items-center gap-1 shrink-0">

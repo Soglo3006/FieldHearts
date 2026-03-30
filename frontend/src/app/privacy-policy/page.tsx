@@ -207,9 +207,9 @@ export default function PrivacyPolicyPage() {
             {isFr ? "9. Contact" : "9. Contact"}
           </h2>
           <p className="mb-3">{isFr ? "Pour toute question concernant cette politique, contactez-nous :" : "For any questions regarding this policy, contact us:"}</p>
-          <div className="bg-gray-50 rounded-xl p-5 border border-gray-200">
+          <div className="space-y-1">
             <p className="font-semibold text-gray-900">Uneden</p>
-            <p className="text-gray-600">391 Sauvé Street, Repentigny, Quebec, Canada</p>
+            <p className="font-semibold text-gray-900">391 Sauvé Street, Repentigny, Quebec, Canada</p>
           </div>
         </section>
 

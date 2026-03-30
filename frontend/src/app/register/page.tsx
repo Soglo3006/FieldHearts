@@ -246,7 +246,7 @@ export default function RegisterPage() {
 
       {/* Footer links */}
       <div className="mt-8 flex flex-wrap items-center justify-center gap-4 text-xs text-gray-400">
-        <Link href="/privacy" className="hover:text-gray-600 hover:underline">{t("footer.privacyPolicy")}</Link>
+        <Link href="/privacy-policy" className="hover:text-gray-600 hover:underline">{t("footer.privacyPolicy")}</Link>
         <span>·</span>
         <Link href="/terms" className="hover:text-gray-600 hover:underline">{t("footer.termsOfUse")}</Link>
         <span>·</span>

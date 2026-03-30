@@ -283,7 +283,7 @@ export default function LoginPage() {
 
         {/* Footer */}
         <div className="mt-8 flex flex-wrap items-center justify-center gap-4 text-xs text-gray-400">
-          <Link href="/privacy" className="hover:text-gray-600 hover:underline">
+          <Link href="/privacy-policy" className="hover:text-gray-600 hover:underline">
             {t("footer.privacyPolicy")}
           </Link>
           <span>·</span>

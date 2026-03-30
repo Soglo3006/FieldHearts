@@ -367,9 +367,9 @@ export default function PaymentTermsPage() {
             {isFr ? "17. Contact" : "17. Contact"}
           </h2>
           <p className="mb-3">{isFr ? "Pour toute question, contactez-nous :" : "For any questions, contact us:"}</p>
-          <div className="bg-gray-50 rounded-xl p-5 border border-gray-200">
+          <div className="space-y-1">
             <p className="font-semibold text-gray-900">Uneden</p>
-            <p className="text-gray-600">391 Sauvé Street, Repentigny, Quebec, Canada</p>
+            <p className="font-semibold text-gray-900">391 Sauvé Street, Repentigny, Quebec, Canada</p>
           </div>
         </section>
 

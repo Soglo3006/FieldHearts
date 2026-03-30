@@ -26,6 +26,8 @@ interface BookingBase {
   modified_fields?: string[] | null;
   cancel_requested_by?: string | null;
   cancel_reason?: string | null;
+  tax_rate?: number | null;
+  worker_province?: string | null;
 }
 
 export interface ReceivedBooking extends BookingBase {

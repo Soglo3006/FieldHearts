@@ -417,7 +417,7 @@
     "budget": "Budget",
     "platformFee": "Platform Fee",
     "buyerCommission": "Buyer commission (5%)",
-    "taxes": "Taxes (15%)",
+    "taxes": "Taxes",
     "total": "Total",
     "describeRequest": "Describe your request",
     "optional": "(optional)",

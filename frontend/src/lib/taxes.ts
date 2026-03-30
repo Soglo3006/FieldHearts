@@ -63,6 +63,10 @@ export function getTaxRate(province: string): number {
   return PROVINCE_TAXES[code]?.rate ?? PROVINCE_TAXES.QC.rate;
 }
 
+export function formatTaxRate(rate: number): string {
+  return parseFloat((rate * 100).toFixed(3)).toString();
+}
+
 export function getTaxLabel(province: string, lang: string): string {
   const code = normalizeProvince(province);
   const tax = PROVINCE_TAXES[code] ?? PROVINCE_TAXES.QC;

@@ -225,6 +225,7 @@ export const getServiceById = async (req, res) => {
           u.id AS owner_id,
           u.avatar AS owner_avatar,
           u.account_type AS owner_account_type,
+          u.province AS owner_province,
           c.name AS category_name,
           c.image_url AS category_image_url
        FROM services s

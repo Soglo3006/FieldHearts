@@ -1,7 +1,7 @@
 "use client";
 import { useTranslation } from "react-i18next";
 import Link from "next/link";
-import { useClientTax } from "@/hooks/useClientTax";
+import { formatTaxRate, getTaxRate, getTaxLabel } from "@/lib/taxes";
 import { Button } from "@/components/ui/button";
 import { Clock, Globe, CheckCircle } from "lucide-react";
 
@@ -9,6 +9,7 @@ interface Props {
   serviceType: "offer" | "looking";
   price: number;
   ownerId: string;
+  workerProvince?: string | null;
   providerFirstName: string;
   availability: string | null;
   language: string | null;
@@ -20,13 +21,15 @@ interface Props {
 }
 
 export default function BookingSidebar({
-  serviceType, price, ownerId, providerFirstName,
+  serviceType, price, ownerId, workerProvince, providerFirstName,
   availability, language, mobility,
   existingBookingStatus, contactLoading,
   onBookingRequest, onContact,
 }: Props) {
   const { t, i18n } = useTranslation();
-  const { taxRate, taxLabel, loading: taxLoading } = useClientTax(i18n.language ?? "fr");
+  const taxRate = getTaxRate(workerProvince ?? "QC");
+  const taxLabel = getTaxLabel(workerProvince ?? "QC", i18n.language ?? "fr");
+  const taxLoading = false;
   return (
     <>
       {/* Booking card */}
@@ -53,7 +56,7 @@ export default function BookingSidebar({
               </div>
               <div className="flex justify-between">
                 <div>
-                  <div className="text-gray-500">{t("serviceDetail.taxes")}</div>
+                  <div className="text-gray-500">{t("serviceDetail.taxes")} {!taxLoading && `(${formatTaxRate(taxRate)}%)`}</div>
                   {taxLoading
                     ? <div className={`${skeletonCls} w-28 mt-1`} />
                     : <div className="text-xs text-gray-400">{taxLabel}</div>

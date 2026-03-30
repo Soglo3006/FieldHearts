@@ -10,6 +10,7 @@ const LIBRARIES: Libraries = ["places"];
 
 export interface AddressResult {
   adresse: string;
+  fullAddress: string;
   ville: string;
   province: string;
   postalCode: string;
@@ -103,7 +104,7 @@ function AddressInput({ value, onChange, onSelect, placeholder, className, id }:
                   const country = extractComponent(components, "country", true);
                   const adresse = [streetNumber, route].filter(Boolean).join(" ");
 
-                  onSelect({ adresse, ville: city, province, postalCode, country });
+                  onSelect({ adresse, fullAddress: description, ville: city, province, postalCode, country });
                 } catch {
                   // keep raw description if geocoding fails
                 }

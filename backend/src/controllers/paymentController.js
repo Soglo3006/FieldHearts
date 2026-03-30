@@ -216,7 +216,7 @@ export const createCheckoutSession = async (req, res) => {
     // Fetch booking + service + worker info
     const booking = await pool.query(
       `SELECT b.*, s.title, s.price, s.image_url,
-              u.email AS worker_email
+              u.email AS worker_email, u.province AS worker_province
        FROM bookings b
        JOIN services s ON b.service_id = s.id
        JOIN users u ON b.worker_id = u.id
@@ -242,26 +242,14 @@ export const createCheckoutSession = async (req, res) => {
       return res.status(400).json({ message: "This booking has already been paid" });
     }
 
-    // Fetch client's province for tax calculation
-    const clientProfile = await pool.query(
-      "SELECT province FROM users WHERE id = $1",
-      [clientId]
-    );
-    const province = clientProfile.rows[0]?.province;
-    if (!province) {
-      return res.status(400).json({
-        message: "Please complete your profile with your province before paying.",
-        code: "MISSING_PROVINCE",
-      });
-    }
-
-    // Use custom_price if worker adjusted it, otherwise the original service price
+    // Use tax_rate stored on booking at creation (worker's province rate)
     const effectivePrice       = Number(b.custom_price ?? b.price);
     const servicePriceCents    = Math.round(effectivePrice * 100);
     const buyerCommissionCents = Math.round(servicePriceCents * BUYER_COMMISSION_RATE);
-    const taxRate              = getTaxRate(province);
+    const taxRate              = b.tax_rate ? Number(b.tax_rate) : getTaxRate(b.worker_province);
     const taxesCents           = Math.round(servicePriceCents * taxRate);
     const totalCents           = servicePriceCents + buyerCommissionCents + taxesCents;
+    const province             = b.worker_province ?? "QC";
 
     // Create Checkout Session — funds go directly to platform account
     const session = await stripe.checkout.sessions.create({

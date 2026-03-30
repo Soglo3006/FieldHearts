@@ -7,7 +7,7 @@ import { SentBooking, BookingStatus, STATUS_CONFIG, BOOKING_GROUPS, formatDate }
 import { type BookingDetail } from "./BookingDetailModal";
 import PayNowButton from "./PayNowButton";
 import { useTranslation } from "react-i18next";
-import { useClientTax } from "@/hooks/useClientTax";
+import { getTaxRate } from "@/lib/taxes";
 
 function StatusBadge({ status }: { status: BookingStatus }) {
   const c = STATUS_CONFIG[status] ?? STATUS_CONFIG.pending;
@@ -56,8 +56,7 @@ export default function SentBookingsList({
   bookings, updating, chatLoading, accessToken,
   onUpdateStatus, onMarkCompleted, onMessage, onReview, onDispute, onCardClick,
 }: Props) {
-  const { t, i18n } = useTranslation();
-  const { taxRate, loading: taxLoading } = useClientTax(i18n.language ?? "fr");
+  const { t } = useTranslation();
   return (
     <div className="space-y-8">
       {BOOKING_GROUPS
@@ -116,10 +115,9 @@ export default function SentBookingsList({
                         </Link>
                       </p>
 
-                      {taxLoading
-  ? <div className="h-5 w-24 rounded bg-gray-200 animate-pulse mb-1" />
-  : <p className="text-green-700 font-bold text-lg mb-1">{(Number(b.custom_price ?? b.price) * (1 + 0.05 + taxRate)).toFixed(2)} $</p>
-}
+                      <p className="text-green-700 font-bold text-lg mb-1">
+                        {(Number(b.custom_price ?? b.price) * (1 + 0.05 + (b.tax_rate ? Number(b.tax_rate) : getTaxRate(b.worker_province ?? "QC")))).toFixed(2)} $
+                      </p>
 
                       {b.service_location && (
                         <div className="flex items-center text-xs text-gray-500 mb-1">

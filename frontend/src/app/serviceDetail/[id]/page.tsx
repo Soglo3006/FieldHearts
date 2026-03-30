@@ -298,6 +298,7 @@ export default function ServiceDetailPage() {
                 serviceType={service.type}
                 price={price}
                 ownerId={service.owner_id}
+                workerProvince={service.owner_province}
                 providerFirstName={providerFirstName}
                 availability={service.availability}
                 language={service.language}

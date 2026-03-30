@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { CheckCircle, AlertCircle, MapPin, Calendar, CreditCard, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { useTranslation } from "react-i18next";
-import { useClientTax } from "@/hooks/useClientTax";
+import { getTaxLabel, formatTaxRate, getTaxRate } from "@/lib/taxes";
 
 interface Booking {
   id: string;
@@ -16,6 +16,8 @@ interface Booking {
   payment_status: string;
   price: number;
   custom_price: number | null;
+  tax_rate: number | null;
+  worker_province: string | null;
   service_id: string;
   worker_id: string;
   created_at: string;
@@ -32,7 +34,6 @@ export default function PaymentPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { t, i18n } = useTranslation();
-  const { taxRate, taxLabel, loading: taxLoading, missingProvince } = useClientTax(i18n.language ?? "fr");
   const wasCancelled = searchParams.get("cancelled") === "true";
 
   const [booking, setBooking] = useState<Booking | null>(null);
@@ -79,7 +80,7 @@ export default function PaymentPage() {
     }
   };
 
-  if (loading || taxLoading) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <Spinner size="lg" />
@@ -117,6 +118,8 @@ export default function PaymentPage() {
   }
 
   const price = Number(booking.custom_price ?? booking.price);
+  const taxRate = booking.tax_rate ? Number(booking.tax_rate) : getTaxRate(booking.worker_province ?? "QC");
+  const taxLabel = getTaxLabel(booking.worker_province ?? "QC", i18n.language ?? "fr");
   const buyerCommission = price * 0.05;
   const taxes = price * taxRate;
   const total = price + buyerCommission + taxes;
@@ -143,20 +146,6 @@ export default function PaymentPage() {
           </div>
         )}
 
-        {/* Missing province warning */}
-        {missingProvince && (
-          <div className="flex items-start gap-2 bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 mb-5 text-sm">
-            <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
-            <span>
-              {i18n.language?.startsWith("fr")
-                ? "Veuillez compléter votre profil avec votre province avant de payer. "
-                : "Please complete your profile with your province before paying. "}
-              <Link href="/profile/edit" className="underline font-medium">
-                {i18n.language?.startsWith("fr") ? "Compléter mon profil" : "Complete my profile"}
-              </Link>
-            </span>
-          </div>
-        )}
 
         {/* Booking summary card */}
         <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden mb-5">
@@ -188,14 +177,14 @@ export default function PaymentPage() {
               </div>
               <div className="flex justify-between text-gray-500">
                 <div>
-                  <div>{t("payment.taxes")}</div>
+                  <div>{t("payment.taxes")} ({formatTaxRate(taxRate)}%)</div>
                   <div className="text-xs text-gray-400">{taxLabel}</div>
                 </div>
                 <span>{fmt(taxes)} $</span>
               </div>
               <div className="flex justify-between font-bold text-base border-t border-gray-100 pt-2 mt-1">
                 <span>{t("payment.total")}</span>
-                <span className="text-green-700">{fmt(total)} $ CAD</span>
+                <span className="text-green-700">{fmt(total)} $</span>
               </div>
             </div>
           </div>
@@ -212,7 +201,7 @@ export default function PaymentPage() {
         {/* Pay button */}
         <Button
           onClick={handlePay}
-          disabled={paying || missingProvince}
+          disabled={paying}
           className="w-full h-14 text-base font-semibold bg-green-700 hover:bg-green-800 text-white rounded-xl disabled:opacity-50"
         >
           {paying ? (

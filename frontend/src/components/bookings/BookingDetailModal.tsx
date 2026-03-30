@@ -14,7 +14,7 @@ import DisputeThread from "@/components/bookings/DisputeThread";
 import WorkerCustomizeSection from "./WorkerCustomizeSection";
 import BookingDetailFooter from "./BookingDetailFooter";
 import { useTranslation } from "react-i18next";
-import { getTaxRate, getTaxLabel } from "@/lib/taxes";
+import { getTaxRate, getTaxLabel, formatTaxRate } from "@/lib/taxes";
 
 type BookingStatus = "pending" | "accepted" | "active" | "completed" | "cancelled" | "rejected";
 
@@ -240,8 +240,8 @@ export default function BookingDetailModal({
                 const origBase = Number(booking.price);
                 const fmt = (n: number) => n.toFixed(2);
 
-                const taxRate         = getTaxRate(booking.client_province ?? "QC");
-                const taxLabel        = getTaxLabel(booking.client_province ?? "QC", i18n.language ?? "fr");
+                const taxRate         = booking.tax_rate ? Number(booking.tax_rate) : getTaxRate(booking.worker_province ?? booking.client_province ?? "QC");
+                const taxLabel        = getTaxLabel(booking.worker_province ?? booking.client_province ?? "QC", i18n.language ?? "fr");
                 const buyerCommission = base * 0.05;
                 const taxes           = base * taxRate;
                 const totalPaid       = base + buyerCommission + taxes;
@@ -272,7 +272,7 @@ export default function BookingDetailModal({
                             </div>
                             <div className="flex justify-between text-gray-500">
                               <div>
-                                <div>{t("serviceDetail.taxes")}</div>
+                                <div>{t("serviceDetail.taxes")} ({formatTaxRate(taxRate)}%)</div>
                                 <div className="text-[11px] text-gray-400">{taxLabel}</div>
                               </div>
                               <span>{fmt(taxes)} $</span>
@@ -280,7 +280,7 @@ export default function BookingDetailModal({
                             <Separator />
                             <div className="flex justify-between font-bold text-base">
                               <span>{t("serviceDetail.total")}</span>
-                              <span className="text-gray-900">{fmt(totalPaid)} $ CAD</span>
+                              <span className="text-gray-900">{fmt(totalPaid)} $</span>
                             </div>
                           </CardContent>
                         </Card>
@@ -302,7 +302,7 @@ export default function BookingDetailModal({
                             <Separator />
                             <div className="flex justify-between font-bold text-base">
                               <span className="text-gray-900">{t("bookings.youWillReceive")}</span>
-                              <span className="text-green-600">{fmt(workerReceives)} $ CAD</span>
+                              <span className="text-green-600">{fmt(workerReceives)} $</span>
                             </div>
                           </CardContent>
                         </Card>
@@ -332,7 +332,7 @@ export default function BookingDetailModal({
                         </div>
                         <div className="flex justify-between text-gray-500">
                           <div>
-                            <div>{t("serviceDetail.taxes")}</div>
+                            <div>{t("serviceDetail.taxes")} ({formatTaxRate(taxRate)}%)</div>
                             <div className="text-[11px] text-gray-400">{taxLabel}</div>
                           </div>
                           <span>{fmt(taxes)} $</span>
@@ -340,7 +340,7 @@ export default function BookingDetailModal({
                         <Separator />
                         <div className="flex justify-between font-bold text-base">
                           <span>{t("serviceDetail.total")}</span>
-                          <span className="text-gray-900">{fmt(totalPaid)} $ CAD</span>
+                          <span className="text-gray-900">{fmt(totalPaid)} $</span>
                         </div>
                       </CardContent>
                     </Card>
@@ -373,7 +373,7 @@ export default function BookingDetailModal({
                           </div>
                           <div className="flex justify-between text-gray-500">
                             <div>
-                              <div>{t("serviceDetail.taxes")}</div>
+                              <div>{t("serviceDetail.taxes")} ({formatTaxRate(taxRate)}%)</div>
                               <div className="text-[11px] text-gray-400">{taxLabel}</div>
                             </div>
                             <span>{fmt(taxes)} $</span>
@@ -381,7 +381,7 @@ export default function BookingDetailModal({
                           <Separator />
                           <div className="flex justify-between font-bold text-base">
                             <span>{t("serviceDetail.total")}</span>
-                            <span className="text-gray-900">{fmt(totalPaid)} $ CAD</span>
+                            <span className="text-gray-900">{fmt(totalPaid)} $</span>
                           </div>
                         </CardContent>
                       </Card>
@@ -435,8 +435,8 @@ export default function BookingDetailModal({
                       </div>
                       <div className="flex justify-between text-gray-500">
                         <div>
-                          <div>{t("serviceDetail.taxes")}</div>
-                          <div className="text-[11px] text-gray-400">TPS (5%) + TVQ (9.975%)</div>
+                          <div>{t("serviceDetail.taxes")} ({formatTaxRate(taxRate)}%)</div>
+                          <div className="text-[11px] text-gray-400">{taxLabel}</div>
                         </div>
                         <span>{fmt(taxes)} $</span>
                       </div>

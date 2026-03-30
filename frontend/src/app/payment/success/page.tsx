@@ -8,11 +8,14 @@ import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { useTranslation } from "react-i18next";
+import { getTaxRate, getTaxLabel, formatTaxRate } from "@/lib/taxes";
 
 interface Booking {
   id: string;
   price: number;
   custom_price: number | null;
+  tax_rate: number | null;
+  worker_province: string | null;
   title: string;
   image_url: string | null;
   service_location: string | null;
@@ -102,11 +105,11 @@ export default function PaymentSuccessPage() {
               <div className="mt-4 pt-4 border-t border-gray-200 space-y-1.5 text-sm">
                 {(() => {
                   const price = Number(booking.custom_price ?? booking.price);
+                  const taxRate = booking.tax_rate ? Number(booking.tax_rate) : getTaxRate(booking.worker_province ?? "QC");
+                  const taxLabel = getTaxLabel(booking.worker_province ?? "QC", i18n.language ?? "fr");
                   const buyerCommission = price * 0.05;
-                  const gst             = price * 0.05;
-                  const qst             = price * 0.09975;
-                  const taxes           = gst + qst;
-                  const total = price * 1.19975;
+                  const taxes = price * taxRate;
+                  const total = price + buyerCommission + taxes;
                   const fmt = (n: number) => n.toFixed(2);
                   return (
                     <>
@@ -120,14 +123,14 @@ export default function PaymentSuccessPage() {
                       </div>
                       <div className="flex justify-between text-gray-400">
                         <div>
-                          <div>{t("payment.taxes")}</div>
-                          <div className="text-xs text-gray-300">{t("payment.taxDetail")}</div>
+                          <div>{t("payment.taxes")} ({formatTaxRate(taxRate)}%)</div>
+                          <div className="text-xs text-gray-300">{taxLabel}</div>
                         </div>
                         <span>{fmt(taxes)} $</span>
                       </div>
                       <div className="flex justify-between font-bold text-base border-t border-gray-200 pt-2.5 mt-1">
                         <span>{t("payment.amountPaid")}</span>
-                        <span className="text-green-700">{fmt(total)} $ CAD</span>
+                        <span className="text-green-700">{fmt(total)} $</span>
                       </div>
                     </>
                   );

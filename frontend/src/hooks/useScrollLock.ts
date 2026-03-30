@@ -3,10 +3,24 @@ import { useEffect } from "react";
 export function useScrollLock(active: boolean) {
   useEffect(() => {
     if (!active) return;
-    const original = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+
+    const scrollY = window.scrollY;
+
+    Object.assign(document.body.style, {
+      overflow: "hidden",
+      position: "fixed",
+      top: `-${scrollY}px`,
+      width: "100%",
+    });
+
     return () => {
-      document.body.style.overflow = original;
+      Object.assign(document.body.style, {
+        overflow: "",
+        position: "",
+        top: "",
+        width: "",
+      });
+      window.scrollTo(0, scrollY);
     };
   }, [active]);
 }

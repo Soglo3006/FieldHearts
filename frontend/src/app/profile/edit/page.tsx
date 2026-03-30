@@ -59,6 +59,7 @@ export default function EditProfilePage() {
 
   useEffect(() => {
     if (!session?.access_token) return;
+    if (initialData !== null) return; // already loaded — don't overwrite user's edits on token refresh
     const fetchProfile = async () => {
       try {
         setLoading(true);
@@ -96,7 +97,7 @@ export default function EditProfilePage() {
       }
     };
     fetchProfile();
-  }, [session?.access_token]);
+  }, [session?.access_token, initialData, t]);
 
   const patch = (update: Partial<FormData>) => setFormData((p) => ({ ...p, ...update }));
 

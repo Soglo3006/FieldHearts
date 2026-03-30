@@ -2,6 +2,7 @@
 import { useTranslation } from "react-i18next";
 import { useScrollLock } from "@/hooks/useScrollLock";
 import { useClientTax } from "@/hooks/useClientTax";
+import { formatTaxRate } from "@/lib/taxes";
 import { Button } from "@/components/ui/button";
 import { CheckCircle, X } from "lucide-react";
 
@@ -84,7 +85,7 @@ export default function BookingModal({
                     </div>
                     <div className="flex justify-between">
                       <div>
-                        <div className="text-gray-500">{t("serviceDetail.taxes")}</div>
+                        <div className="text-gray-500">{t("serviceDetail.taxes")} {!taxLoading && `(${formatTaxRate(taxRate)}%)`}</div>
                         {taxLoading
                           ? <div className={`${skeletonCls} w-28 mt-1`} />
                           : <div className="text-xs text-gray-400">{taxLabel}</div>

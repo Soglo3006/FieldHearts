@@ -4,6 +4,25 @@ import { pushNewBooking, pushBookingStatus } from "../services/pushService.js";
 import stripe from "../config/stripe.js";
 import { createLocalizedNotification, shouldSendEmail } from "../services/notificationService.js";
 
+const PROVINCE_TAX_RATES = {
+  AB: 0.05, BC: 0.12, MB: 0.12, NB: 0.15, NL: 0.15, NS: 0.15,
+  NT: 0.05, NU: 0.05, ON: 0.13, PE: 0.15, QC: 0.14975, SK: 0.11, YT: 0.05,
+};
+const PROVINCE_NAME_TO_CODE = {
+  "alberta": "AB", "british columbia": "BC", "colombie-britannique": "BC",
+  "manitoba": "MB", "new brunswick": "NB", "nouveau-brunswick": "NB",
+  "newfoundland and labrador": "NL", "nova scotia": "NS", "northwest territories": "NT",
+  "nunavut": "NU", "ontario": "ON", "prince edward island": "PE",
+  "quebec": "QC", "québec": "QC", "saskatchewan": "SK", "yukon": "YT",
+};
+function getWorkerTaxRate(province) {
+  if (!province) return PROVINCE_TAX_RATES.QC;
+  const code = PROVINCE_TAX_RATES[province.toUpperCase()] !== undefined
+    ? province.toUpperCase()
+    : PROVINCE_NAME_TO_CODE[province.toLowerCase()];
+  return PROVINCE_TAX_RATES[code] ?? PROVINCE_TAX_RATES.QC;
+}
+
 export const createBooking = async (req, res) => {
   try {
     const { errors, data } = (await import("../utils/validate.js")).validateInput(req.body, {
@@ -18,7 +37,7 @@ export const createBooking = async (req, res) => {
     const { service_id, client_description } = data;
 
     const service = await pool.query(
-      "SELECT s.*, u.email as worker_email, CASE WHEN u.account_type = 'company' THEN u.company_name ELSE u.full_name END as worker_name FROM services s JOIN users u ON s.user_id = u.id WHERE s.id = $1",
+      "SELECT s.*, u.email as worker_email, u.province as owner_province, CASE WHEN u.account_type = 'company' THEN u.company_name ELSE u.full_name END as worker_name FROM services s JOIN users u ON s.user_id = u.id WHERE s.id = $1",
       [service_id]
     );
 
@@ -60,11 +79,15 @@ export const createBooking = async (req, res) => {
     );
     const clientName = applicant.rows[0].display_name;
 
+    // Tax rate based on the worker's province (where service is provided)
+    const workerProvince = isLooking ? null : s.owner_province;
+    const tax_rate = getWorkerTaxRate(workerProvince);
+
     const result = await pool.query(
-      `INSERT INTO bookings (service_id, client_id, worker_id, status, client_description)
-       VALUES ($1, $2, $3, 'pending', $4)
+      `INSERT INTO bookings (service_id, client_id, worker_id, status, client_description, tax_rate)
+       VALUES ($1, $2, $3, 'pending', $4, $5)
        RETURNING *`,
-      [service_id, client_id, worker_id, client_description || null]
+      [service_id, client_id, worker_id, client_description || null, tax_rate]
     );
 
     const booking = result.rows[0];
@@ -339,7 +362,8 @@ export const markCompleted = async (req, res) => {
 
       // Both confirmed — send completion emails to both
       const effectivePrice = Number(b.custom_price ?? b.price);
-      const totalPaid = (effectivePrice * 1.19975).toFixed(2);
+      const taxRate = b.tax_rate ? Number(b.tax_rate) : getWorkerTaxRate(b.worker_province);
+      const totalPaid = (effectivePrice * (1 + 0.05 + taxRate)).toFixed(2);
       const workerReceives = (effectivePrice * 0.80).toFixed(2);
       sendEmail(b.client_email, "jobCompleted", [b.client_name, b.title, b.worker_name, totalPaid, id, "client"]);
       sendEmail(b.worker_email, "jobCompleted", [b.worker_name, b.title, b.client_name, workerReceives, id, "worker"]);
@@ -527,6 +551,7 @@ export const getBookingById = async (req, res) => {
               CASE WHEN uw.account_type = 'company' THEN uw.company_name ELSE uw.full_name END AS worker_name,
               CASE WHEN uc.account_type = 'company' THEN uc.company_name ELSE uc.full_name END AS client_name,
               uc.province AS client_province,
+              uw.province AS worker_province,
               EXISTS(SELECT 1 FROM reviews WHERE booking_id = b.id AND reviewer_id = $2) AS has_reviewed,
               EXISTS(SELECT 1 FROM disputes WHERE booking_id = b.id) AS has_dispute,
               b.payment_status, b.completed_by_worker, b.completed_by_client,

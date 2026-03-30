@@ -121,7 +121,7 @@ export const exportTransactions = async (req, res) => {
          TO_CHAR(t.created_at AT TIME ZONE 'America/Toronto', 'YYYY-MM-DD') AS "Date",
          TO_CHAR(t.created_at AT TIME ZONE 'America/Toronto', 'HH24:MI:SS') AS "Heure",
          'CA'                                                              AS "Pays",
-         'QC'                                                              AS "Province",
+         COALESCE(b.worker_province, 'QC')                                AS "Province",
          t.booking_id                                                      AS "ID Réservation",
          CASE t.type WHEN 'debit' THEN 'Paiement client' ELSE 'Crédit prestataire' END AS "Type",
          COALESCE(p.full_name, p.company_name, 'Unknown')                 AS "Utilisateur",
@@ -129,10 +129,9 @@ export const exportTransactions = async (req, res) => {
          t.listing_title                                                   AS "Titre du service",
          COALESCE(b.custom_price, b.price)                                  AS "Prix de base (CAD)",
          ROUND(COALESCE(b.custom_price, b.price) * 0.05, 2)              AS "Commission acheteur 5% (CAD)",
-         ROUND(COALESCE(b.custom_price, b.price) * 0.05, 2)              AS "TPS 5% (CAD)",
-         ROUND(COALESCE(b.custom_price, b.price) * 0.09975, 2)           AS "TVQ 9.975% (CAD)",
-         ROUND(COALESCE(b.custom_price, b.price) * 0.14975, 2)           AS "Total taxes (CAD)",
-         ROUND(COALESCE(b.custom_price, b.price) * 1.19975, 2)           AS "Total facturé au client (CAD)",
+         COALESCE(b.tax_rate, 0.14975) * 100                              AS "Taux de taxes (%)",
+         ROUND(COALESCE(b.custom_price, b.price) * COALESCE(b.tax_rate, 0.14975), 2) AS "Total taxes (CAD)",
+         ROUND(COALESCE(b.custom_price, b.price) * (1 + 0.05 + COALESCE(b.tax_rate, 0.14975)), 2) AS "Total facturé au client (CAD)",
          ROUND(COALESCE(b.custom_price, b.price) * 0.20, 2)              AS "Commission plateforme 20% (CAD)",
          ROUND(COALESCE(b.custom_price, b.price) * 0.80, 2)              AS "Versement prestataire 80% (CAD)",
          t.amount                                                          AS "Montant transaction (CAD)",
@@ -163,8 +162,7 @@ export const exportTransactions = async (req, res) => {
       { wch: 28 }, // Titre du service
       { wch: 18 }, // Prix de base
       { wch: 24 }, // Commission acheteur
-      { wch: 12 }, // TPS
-      { wch: 16 }, // TVQ
+      { wch: 16 }, // Taux de taxes
       { wch: 16 }, // Total taxes
       { wch: 26 }, // Total facturé
       { wch: 28 }, // Commission plateforme

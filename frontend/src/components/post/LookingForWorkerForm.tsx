@@ -4,15 +4,13 @@ import { useTranslation } from "react-i18next";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import ImageUploader from "@/components/ui/ImageUploader";
+import MultiImageUploader from "@/components/ui/MultiImageUploader";
 import LocationAutocomplete, { type LocationDetails } from "@/components/post/LocationAutocomplete";
 import CategorySubcategoryFields from "@/components/post/CategorySubcategoryFields";
 import AvailabilityLanguageMobilityFields from "@/components/post/AvailabilityLanguageMobilityFields";
 import OneTimeCheckbox from "@/components/post/OneTimeCheckbox";
 import FormSubmitButton from "@/components/post/FormSubmitButton";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
+import PostSelect from "@/components/post/PostSelect";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -32,6 +30,10 @@ export default function LookingForWorkerForm({ onSuccess }: Props) {
   const { t } = useTranslation();
   const { session } = useAuth();
   const router = useRouter();
+  const urgencyOptions = urgencyLevels.map((level) => ({
+    value: level.value,
+    label: t(level.labelKey),
+  }));
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -46,7 +48,7 @@ export default function LookingForWorkerForm({ onSuccess }: Props) {
   const [language, setLanguage] = useState("");
   const [mobility, setMobility] = useState("");
   const [duration, setDuration] = useState("");
-  const [image, setImage] = useState<string | null>(null);
+  const [images, setImages] = useState<string[]>([]);
   const [isOneTime, setIsOneTime] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
@@ -92,7 +94,8 @@ export default function LookingForWorkerForm({ onSuccess }: Props) {
           mobility,
           duration,
           urgency,
-          image_url: image,
+          image_url: images[0] ?? null,
+          image_urls: images,
           is_one_time: isOneTime,
         }),
       });
@@ -178,18 +181,12 @@ export default function LookingForWorkerForm({ onSuccess }: Props) {
 
       <div className="space-y-2">
         <Label className="text-base font-medium text-gray-900">{t("post.urgencyLevel")}</Label>
-        <Select value={urgency} onValueChange={setUrgency}>
-          <SelectTrigger className="h-12 cursor-pointer">
-            <SelectValue placeholder={t("post.selectUrgency")} />
-          </SelectTrigger>
-          <SelectContent>
-            {urgencyLevels.map((level) => (
-              <SelectItem key={level.value} value={level.value} className="cursor-pointer">
-                {t(level.labelKey)}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <PostSelect
+          value={urgency}
+          onValueChange={setUrgency}
+          placeholder={t("post.selectUrgency")}
+          options={urgencyOptions}
+        />
       </div>
 
       <CategorySubcategoryFields
@@ -224,12 +221,7 @@ export default function LookingForWorkerForm({ onSuccess }: Props) {
 
       <div className="space-y-2">
         <Label className="text-base font-medium text-gray-900">{t("post.uploadImage")}</Label>
-        <ImageUploader
-          currentImage={image}
-          onImageChange={setImage}
-          label={t("post.uploadJobImage")}
-          aspectRatio={16 / 9}
-        />
+        <MultiImageUploader images={images} onChange={setImages} aspectRatio={16 / 9} />
       </div>
 
       <OneTimeCheckbox id="jobIsOneTime" checked={isOneTime} onChange={setIsOneTime} />

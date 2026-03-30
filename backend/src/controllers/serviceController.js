@@ -34,8 +34,15 @@ export const createService = async (req, res) => {
       duration,
       urgency,
       image_url,
+      image_urls,
       is_one_time,
     } = { ...req.body, ...data };
+
+    // Resolve canonical image list: prefer image_urls array, fall back to single image_url
+    const resolvedImageUrls = Array.isArray(image_urls) && image_urls.length > 0
+      ? image_urls
+      : (image_url ? [image_url] : []);
+    const resolvedImageUrl = resolvedImageUrls[0] ?? null;
 
     // Créer le service
     const result = await pool.query(
@@ -43,8 +50,8 @@ export const createService = async (req, res) => {
         user_id, type, title, description, category, category_id, subcategory,
         price, location, address, latitude, longitude, city,
         poster_type, availability,
-        language, mobility, duration, urgency, image_url, is_one_time
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
+        language, mobility, duration, urgency, image_url, image_urls, is_one_time
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
       RETURNING *`,
       [
         req.user.id,
@@ -66,7 +73,8 @@ export const createService = async (req, res) => {
         mobility || null,
         duration || null,
         urgency || null,
-        image_url || null,
+        resolvedImageUrl,
+        resolvedImageUrls,
         is_one_time === true || is_one_time === "true" ? true : false,
       ]
     );
@@ -331,7 +339,7 @@ export const updateService = async (req, res) => {
       title, description, category, category_id, subcategory,
       price, location, address, latitude, longitude, city,
       poster_type, availability, language,
-      mobility, duration, urgency, image_url, is_one_time,
+      mobility, duration, urgency, image_url, image_urls, is_one_time,
     } = req.body;
 
     const check = await pool.query(
@@ -344,6 +352,19 @@ export const updateService = async (req, res) => {
     }
 
     const existing = check.rows[0];
+
+    // Resolve canonical image list for update
+    let updResolvedUrls, updResolvedUrl;
+    if (image_urls !== undefined) {
+      updResolvedUrls = Array.isArray(image_urls) ? image_urls : [];
+      updResolvedUrl = updResolvedUrls[0] ?? null;
+    } else if (image_url !== undefined) {
+      updResolvedUrl = image_url;
+      updResolvedUrls = image_url ? [image_url] : [];
+    } else {
+      updResolvedUrl = existing.image_url;
+      updResolvedUrls = existing.image_urls || [];
+    }
 
     const updated = await pool.query(
       `UPDATE services
@@ -365,8 +386,9 @@ export const updateService = async (req, res) => {
            duration     = $16,
            urgency      = $17,
            image_url    = $18,
-           is_one_time  = $19
-       WHERE id = $20
+           image_urls   = $19,
+           is_one_time  = $20
+       WHERE id = $21
        RETURNING *`,
       [
         title        !== undefined ? title        : existing.title,
@@ -386,7 +408,8 @@ export const updateService = async (req, res) => {
         mobility     !== undefined ? mobility     : existing.mobility,
         duration     !== undefined ? duration     : existing.duration,
         urgency      !== undefined ? urgency      : existing.urgency,
-        image_url    !== undefined ? image_url    : existing.image_url,
+        updResolvedUrl,
+        updResolvedUrls,
         is_one_time  !== undefined ? (is_one_time === true || is_one_time === "true") : existing.is_one_time,
         id,
       ]

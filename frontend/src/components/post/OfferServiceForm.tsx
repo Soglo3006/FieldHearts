@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import ImageUploader from "@/components/ui/ImageUploader";
+import MultiImageUploader from "@/components/ui/MultiImageUploader";
 import LocationAutocomplete, { type LocationDetails } from "@/components/post/LocationAutocomplete";
 import CategorySubcategoryFields from "@/components/post/CategorySubcategoryFields";
 import AvailabilityLanguageMobilityFields from "@/components/post/AvailabilityLanguageMobilityFields";
@@ -35,7 +35,7 @@ export default function OfferServiceForm({ onSuccess }: Props) {
   const [language, setLanguage] = useState("");
   const [mobility, setMobility] = useState("");
   const [duration, setDuration] = useState("");
-  const [image, setImage] = useState<string | null>(null);
+  const [images, setImages] = useState<string[]>([]);
   const [isOneTime, setIsOneTime] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
@@ -80,7 +80,8 @@ export default function OfferServiceForm({ onSuccess }: Props) {
           language,
           mobility,
           duration,
-          image_url: image,
+          image_url: images[0] ?? null,
+          image_urls: images,
           is_one_time: isOneTime,
         }),
       });
@@ -196,12 +197,7 @@ export default function OfferServiceForm({ onSuccess }: Props) {
 
       <div className="space-y-2">
         <Label className="text-base font-medium text-gray-900">{t("post.uploadImage")}</Label>
-        <ImageUploader
-          currentImage={image}
-          onImageChange={setImage}
-          label={t("post.uploadServiceImage")}
-          aspectRatio={16 / 9}
-        />
+        <MultiImageUploader images={images} onChange={setImages} aspectRatio={16 / 9} />
       </div>
 
       <OneTimeCheckbox id="serviceIsOneTime" checked={isOneTime} onChange={setIsOneTime} />

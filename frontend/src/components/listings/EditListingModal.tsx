@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import ImageUploader from "@/components/ui/ImageUploader";
+import MultiImageUploader from "@/components/ui/MultiImageUploader";
 import LocationAutocomplete, { type LocationDetails } from "@/components/post/LocationAutocomplete";
 import {
   Select,
@@ -46,6 +46,7 @@ export interface Service {
   duration: string | null;
   urgency: string | null;
   image_url: string | null;
+  image_urls?: string[] | null;
   is_one_time?: boolean;
 }
 
@@ -75,7 +76,9 @@ export default function EditListingModal({ service, accessToken, onClose, onSave
   const [mobility, setMobility] = useState(service.mobility ?? "");
   const [duration, setDuration] = useState(service.duration ?? "");
   const [urgency, setUrgency] = useState(service.urgency ?? "");
-  const [imageUrl, setImageUrl] = useState<string | null>(service.image_url);
+  const [images, setImages] = useState<string[]>(
+    service.image_urls?.length ? service.image_urls : service.image_url ? [service.image_url] : []
+  );
   const [isOneTime, setIsOneTime] = useState(service.is_one_time ?? false);
 
   const [saving, setSaving] = useState(false);
@@ -125,7 +128,8 @@ export default function EditListingModal({ service, accessToken, onClose, onSave
             mobility: mobility || null,
             duration: duration || null,
             urgency: urgency || null,
-            image_url: imageUrl,
+            image_url: images[0] ?? null,
+            image_urls: images,
             is_one_time: isOneTime,
           }),
         }
@@ -359,15 +363,10 @@ export default function EditListingModal({ service, accessToken, onClose, onSave
             />
           </div>
 
-          {/* Image */}
+          {/* Images */}
           <div className="space-y-2">
-            <Label className="text-base font-medium text-gray-900">Image (optional)</Label>
-            <ImageUploader
-              currentImage={imageUrl}
-              onImageChange={setImageUrl}
-              label="Upload Image"
-              aspectRatio={16 / 9}
-            />
+            <Label className="text-base font-medium text-gray-900">Photos (optionnel)</Label>
+            <MultiImageUploader images={images} onChange={setImages} aspectRatio={16 / 9} />
           </div>
 
           {/* One-time listing */}

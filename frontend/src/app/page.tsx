@@ -60,6 +60,11 @@ interface Listing {
   type?: "offer" | "looking";
 }
 
+interface CategoryCount {
+  category_name: string;
+  count: number;
+}
+
 function ListingCard({ listing, t }: { listing: Listing; t: (key: string, opts?: Record<string, unknown>) => string }) {
   return (
     <Link href={`/serviceDetail/${listing.id}`}>
@@ -146,13 +151,15 @@ export default function HomePage() {
           fetch(`${API_URL}/services/category-counts`),
         ]);
         const data = await servicesRes.json();
-        const counts = await countsRes.json();
+        const counts: CategoryCount[] = await countsRes.json();
 
         setListings(Array.isArray(data) ? data : []);
 
         // Sort categories by real count from backend
         const countMap: Record<string, number> = {};
-        counts.forEach((c) => { countMap[c.category_name] = c.count; });
+        (Array.isArray(counts) ? counts : []).forEach((countItem) => {
+          countMap[countItem.category_name] = countItem.count;
+        });
         const sorted = [...categories].sort(
           (a, b) => (countMap[b.name] || 0) - (countMap[a.name] || 0)
         );
@@ -169,7 +176,7 @@ export default function HomePage() {
     fetchListings();
   }, []);
 
-  // Géolocalisation — réagit aussi aux changements via l'icône 🔒 du navigateur
+  // Géolocalisation 
   useEffect(() => {
     if (!navigator.geolocation) {
       setLocationGranted(false);

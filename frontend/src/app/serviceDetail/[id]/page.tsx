@@ -40,6 +40,7 @@ interface Service {
   duration: string | null;
   urgency: string | null;
   image_url: string | null;
+  image_urls?: string[] | null;
   created_at: string;
   owner_name: string;
   owner_id: string;
@@ -272,7 +273,10 @@ export default function ServiceDetailPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-8 lg:items-start">
           {/* Main content */}
           <section className="lg:col-span-2 space-y-6 order-1">
-            <ServiceHero imageUrl={service.image_url} title={service.title} />
+            <ServiceHero
+              images={service.image_urls?.length ? service.image_urls : service.image_url ? [service.image_url] : []}
+              title={service.title}
+            />
             <ServiceTitleCard
               service={service}
               price={price}

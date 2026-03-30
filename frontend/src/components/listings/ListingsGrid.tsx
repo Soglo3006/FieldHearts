@@ -20,6 +20,7 @@ interface ApiService {
   city?: string | null;
   created_at: string;
   image_url: string | null;
+  image_urls?: string[] | null;
   category_name: string | null;
   subcategory: string | null;
   type?: string;
@@ -185,13 +186,24 @@ export default function ListingsGrid({ filters }: { filters?: ListingsFilters })
             <Link key={s.id} href={`/serviceDetail/${s.id}`} className="block group">
               <div className="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white hover:shadow-md transition-shadow flex flex-col">
                 <AspectRatio ratio={16 / 9}>
-                  {s.image_url ? (
-                    <img src={s.image_url} alt={s.title} className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="w-full h-full bg-gray-100 flex items-center justify-center">
-                      <Grid3x3 className="h-10 w-10 text-gray-300" />
-                    </div>
-                  )}
+                  {(() => {
+                    const thumb = s.image_urls?.[0] ?? s.image_url;
+                    const extra = (s.image_urls?.length ?? 0) > 1 ? s.image_urls!.length : 0;
+                    return thumb ? (
+                      <div className="relative w-full h-full">
+                        <img src={thumb} alt={s.title} className="w-full h-full object-cover" />
+                        {extra > 1 && (
+                          <span className="absolute bottom-1.5 right-1.5 bg-black/55 text-white text-[10px] px-1.5 py-0.5 rounded-full font-medium">
+                            +{extra - 1}
+                          </span>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="w-full h-full bg-gray-100 flex items-center justify-center">
+                        <Grid3x3 className="h-10 w-10 text-gray-300" />
+                      </div>
+                    );
+                  })()}
                 </AspectRatio>
 
                 <div className="p-3 flex flex-col flex-1">

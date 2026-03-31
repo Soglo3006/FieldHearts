@@ -4,12 +4,6 @@ import { useTranslation } from "react-i18next";
 import Image from "next/image";
 import { useAuth } from "@/contexts/AuthContext";
 
-const stats = [
-  { value: "Canada", labelEn: "Based in", labelFr: "Basé au" },
-  { value: "2025", labelEn: "Founded", labelFr: "Fondé en" },
-  { value: "QC", labelEn: "Home province", labelFr: "Province d'origine" },
-];
-
 export default function AboutPage() {
   const { i18n } = useTranslation();
   const { session, loading } = useAuth();
@@ -57,31 +51,14 @@ export default function AboutPage() {
           </p>
           <h1 className="text-4xl sm:text-5xl font-bold text-white max-w-3xl mx-auto leading-tight mb-6">
             {isFr
-              ? "Chacun a une compétence. Chacun peut gagner sa vie."
-              : "Everyone has a skill. Everyone can earn."}
+              ? "Trouvez des services locaux ou gagnez de l'argent avec vos compétences."
+              : "The easiest way to find local services or earn money with your skills."}
           </h1>
           <p className="text-green-100 text-base max-w-2xl mx-auto">
             {isFr
-              ? "Nous connectons les personnes qui ont besoin d'aide avec celles qui ont les compétences pour l'offrir, dans un espace local, sécurisé et équitable."
-              : "We connect people who need help with people who have the skills to offer it, in a local, safe, and fair environment."}
+              ? "Nous mettons en relation les personnes qui recherchent des services avec celles qui ont les compétences pour les fournir."
+              : "We connect people looking for services with people who have the skills to provide it."}
           </p>
-          <p className="text-green-200 text-sm max-w-2xl mx-auto mt-4 font-medium">
-            {isFr
-              ? "Une place de marché communautaire où chacun peut offrir ou trouver des services locaux facilement et en confiance."
-              : "A community-powered marketplace where anyone can offer or hire local services safely and easily."}
-          </p>
-        </div>
-      </div>
-
-      {/* Stats bar */}
-      <div className="bg-green-800">
-        <div className="max-w-4xl mx-auto px-4 py-6 grid grid-cols-3 divide-x divide-green-700">
-          {stats.map((s) => (
-            <div key={s.value} className="text-center px-4">
-              <p className="text-white font-bold text-xl">{s.value}</p>
-              <p className="text-green-300 text-xs mt-0.5">{isFr ? s.labelFr : s.labelEn}</p>
-            </div>
-          ))}
         </div>
       </div>
 
@@ -184,8 +161,17 @@ export default function AboutPage() {
             {/* Georges */}
             <div className="bg-gray-50 rounded-2xl overflow-hidden border border-gray-200">
               <div className="relative aspect-4/3 overflow-hidden bg-gray-200">
-                {/* Replace with: <img src="/team/georges.jpg" ... /> once photo is added */}
-                <div className="w-full h-full flex items-center justify-center bg-green-900/10">
+                <img
+                  src="/team/george.png"
+                  alt="Georges Rychel Moung"
+                  className="w-full h-full object-cover object-top"
+                  onError={(e) => {
+                    const t = e.currentTarget;
+                    t.style.display = "none";
+                    t.nextElementSibling?.removeAttribute("style");
+                  }}
+                />
+                <div className="absolute inset-0 hidden h-full w-full items-center justify-center bg-green-900/10">
                   <div className="text-center">
                     <div className="w-24 h-24 rounded-full bg-green-200 mx-auto mb-3 flex items-center justify-center text-4xl">
                       GR

@@ -1,5 +1,6 @@
 "use client";
 import { useTranslation } from "react-i18next";
+import LegalSidebarNav from "@/components/legal/LegalSidebarNav";
 
 const sections = [
   { id: "commitment", en: "1. Our Commitment", fr: "1. Notre engagement" },
@@ -24,10 +25,16 @@ export default function TrustSafetyPage() {
   };
 
   return (
-    <div className="max-w-3xl mx-auto px-4 sm:px-6 py-12">
+    <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6">
 
-      {/* Header */}
-      <div className="mb-10">
+      <div className="grid gap-10 lg:grid-cols-[16rem_1px_minmax(0,1fr)] lg:items-start">
+        <LegalSidebarNav sections={sections} isFr={isFr} onNavigate={scrollTo} />
+
+        <div className="hidden self-stretch bg-gray-200 lg:block" aria-hidden="true" />
+
+        <div>
+          {/* Header */}
+          <div className="mb-10">
         <h1 className="text-4xl font-bold text-gray-900 mb-3">
           {isFr ? "Confiance et sécurité" : "Trust & Safety"}
         </h1>
@@ -37,31 +44,10 @@ export default function TrustSafetyPage() {
             ? "Chez Uneden, notre objectif est de créer une plateforme sûre et fiable où les utilisateurs peuvent se connecter, collaborer et réaliser des services en toute confiance."
             : "At Uneden, our goal is to create a safe and reliable platform where users can connect, collaborate, and complete services with confidence."}
         </p>
-      </div>
+          </div>
 
-      {/* Table of Contents */}
-      <div className="mb-12">
-        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4">
-          {isFr ? "Table des matières" : "Table of Contents"}
-        </p>
-        <ol className="space-y-2">
-          {sections.map((s) => (
-            <li key={s.id}>
-              <button
-                onClick={() => scrollTo(s.id)}
-                type="button"
-                className="cursor-pointer text-sm text-green-700 hover:text-green-900 hover:underline text-left"
-              >
-                {isFr ? s.fr : s.en}
-              </button>
-            </li>
-          ))}
-        </ol>
-        <div className="mt-6 border-t border-gray-200" />
-      </div>
-
-      {/* Sections */}
-      <div className="space-y-12 text-gray-700 text-sm leading-relaxed">
+          {/* Sections */}
+          <div className="space-y-12 text-gray-700 text-sm leading-relaxed">
 
         <section id="commitment">
           <h2 className="text-xl font-bold text-gray-900 mb-4">
@@ -104,7 +90,7 @@ export default function TrustSafetyPage() {
           </ul>
           <p className="mt-3 text-gray-600">
             {isFr
-              ? <>Des remboursements peuvent être accordés jusqu'à <span className="font-semibold text-gray-900">50 %</span> du montant de la transaction, selon la situation.</>
+              ? <>Des remboursements peuvent être accordés jusqu&apos;à <span className="font-semibold text-gray-900">50 %</span> du montant de la transaction, selon la situation.</>
               : <>Refunds may be issued up to <span className="font-semibold text-gray-900">50%</span> of the transaction amount, depending on the situation.</>}
           </p>
         </section>
@@ -143,7 +129,7 @@ export default function TrustSafetyPage() {
             <li><span className="font-semibold text-gray-900">{isFr ? "Leur localisation précise" : "Their precise location"}</span></li>
             <li><span className="font-semibold text-gray-900">{isFr ? "Ou une zone générale" : "Or a general area"}</span></li>
           </ul>
-          <p className="mt-3">{isFr ? <>Nous recommandons d'utiliser une <span className="font-semibold text-gray-900">localisation approximative</span> si vous préférez plus de confidentialité.</> : <>We recommend using an <span className="font-semibold text-gray-900">approximate location</span> if you prefer increased privacy.</>}</p>
+          <p className="mt-3">{isFr ? <>Nous recommandons d&apos;utiliser une <span className="font-semibold text-gray-900">localisation approximative</span> si vous préférez plus de confidentialité.</> : <>We recommend using an <span className="font-semibold text-gray-900">approximate location</span> if you prefer increased privacy.</>}</p>
         </section>
 
         <section id="prohibited">
@@ -202,13 +188,15 @@ export default function TrustSafetyPage() {
             {isFr ? "11. Contact" : "11. Contact"}
           </h2>
           <p className="mb-3">{isFr ? "Pour toute question, contactez-nous :" : "For any questions, contact us:"}</p>
-          <div className="bg-gray-50 rounded-xl p-5 border border-gray-200">
+          <div className="space-y-1">
             <p className="font-semibold text-gray-900">Uneden</p>
-            <p className="text-gray-600">391 Sauvé Street, Repentigny, Quebec, Canada</p>
+            <p className="font-semibold text-gray-900">391 Sauvé Street, Repentigny, Quebec, Canada</p>
           </div>
         </section>
 
       </div>
+      </div>
+    </div>
     </div>
   );
 }

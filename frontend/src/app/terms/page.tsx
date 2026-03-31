@@ -1,5 +1,6 @@
 "use client";
 import { useTranslation } from "react-i18next";
+import LegalSidebarNav from "@/components/legal/LegalSidebarNav";
 
 const sections = [
   { id: "nature", en: "1. Nature of the Platform", fr: "1. Nature de la plateforme" },
@@ -29,10 +30,16 @@ export default function TermsOfServicePage() {
   };
 
   return (
-    <div className="max-w-3xl mx-auto px-4 sm:px-6 py-12">
+    <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6">
 
-      {/* Header */}
-      <div className="mb-10">
+      <div className="grid gap-10 lg:grid-cols-[16rem_1px_minmax(0,1fr)] lg:items-start">
+        <LegalSidebarNav sections={sections} isFr={isFr} onNavigate={scrollTo} />
+
+        <div className="hidden self-stretch bg-gray-200 lg:block" aria-hidden="true" />
+
+        <div>
+          {/* Header */}
+          <div className="mb-10">
         <h1 className="text-4xl font-bold text-gray-900 mb-3">
           {isFr ? "Conditions d'utilisation" : "Terms of Service"}
         </h1>
@@ -42,31 +49,10 @@ export default function TermsOfServicePage() {
             ? <>En utilisant Uneden, vous <span className="font-semibold text-gray-900">acceptez</span> les présentes conditions d&apos;utilisation. Veuillez les lire attentivement avant d&apos;utiliser la plateforme.</>
             : <>By using Uneden, you <span className="font-semibold text-gray-900">agree</span> to these Terms of Service. Please read them carefully before using the platform.</>}
         </p>
-      </div>
+          </div>
 
-      {/* Table of Contents */}
-      <div className="mb-12">
-        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4">
-          {isFr ? "Table des matières" : "Table of Contents"}
-        </p>
-        <ol className="space-y-2">
-          {sections.map((s) => (
-            <li key={s.id}>
-              <button
-                onClick={() => scrollTo(s.id)}
-                type="button"
-                className="cursor-pointer text-sm text-green-700 hover:text-green-900 hover:underline text-left"
-              >
-                {isFr ? s.fr : s.en}
-              </button>
-            </li>
-          ))}
-        </ol>
-        <div className="mt-6 border-t border-gray-200" />
-      </div>
-
-      {/* Sections */}
-      <div className="space-y-12 text-gray-700 text-sm leading-relaxed">
+          {/* Sections */}
+          <div className="space-y-12 text-gray-700 text-sm leading-relaxed">
 
         <section id="nature">
           <h2 className="text-xl font-bold text-gray-900 mb-4">
@@ -266,6 +252,8 @@ export default function TermsOfServicePage() {
           </div>
         </section>
 
+      </div>
+      </div>
       </div>
     </div>
   );

@@ -158,10 +158,10 @@ export default function EditListingModal({ service, accessToken, onClose, onSave
   const selectedCat = categories.find((c) => c.name === category);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[92vh] flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-center justify-center overscroll-none bg-black/50 p-4">
+      <div className="flex max-h-[92vh] w-full max-w-2xl flex-col rounded-2xl bg-white shadow-xl">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
+        <div className="flex shrink-0 items-center justify-between border-b border-gray-100 px-6 py-4">
           <div>
             <h2 className="text-lg font-semibold text-gray-900">Edit Listing</h2>
             <p className="text-xs text-gray-500 mt-0.5">
@@ -174,7 +174,7 @@ export default function EditListingModal({ service, accessToken, onClose, onSave
         </div>
 
         {/* Body — scrollable */}
-        <div className="overflow-y-auto flex-1 px-6 py-5 space-y-6">
+        <div className="flex-1 space-y-6 overflow-y-auto overscroll-contain px-6 py-5">
           {error && (
             <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
               {error}
@@ -408,7 +408,7 @@ export default function EditListingModal({ service, accessToken, onClose, onSave
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-3 flex-shrink-0">
+        <div className="flex shrink-0 justify-end gap-3 border-t border-gray-100 px-6 py-4">
           <Button variant="outline" onClick={onClose} disabled={saving}>Cancel</Button>
           <Button
             className="bg-green-700 hover:bg-green-800 text-white min-w-32"

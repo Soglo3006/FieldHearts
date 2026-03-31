@@ -67,8 +67,8 @@ interface CategoryCount {
 
 function ListingCard({ listing, t }: { listing: Listing; t: (key: string, opts?: Record<string, unknown>) => string }) {
   return (
-    <Link href={`/serviceDetail/${listing.id}`}>
-      <div className="border rounded-xl shadow-sm bg-white flex flex-col overflow-hidden hover:shadow-md transition-shadow cursor-pointer">
+    <Link href={`/serviceDetail/${listing.id}`} className="block h-full group">
+      <div className="h-full border rounded-xl shadow-sm bg-white flex flex-col overflow-hidden hover:shadow-md transition-shadow cursor-pointer">
         <AspectRatio ratio={16 / 9}>
           {listing.image_url ? (
             <img
@@ -82,9 +82,9 @@ function ListingCard({ listing, t }: { listing: Listing; t: (key: string, opts?:
             </div>
           )}
         </AspectRatio>
-        <div className="p-3 flex flex-col gap-1">
+        <div className="p-3 flex flex-1 flex-col gap-1">
           <div className="flex items-start gap-2">
-            <h3 className="font-semibold flex-1">{listing.title}</h3>
+            <h3 className="flex-1 line-clamp-1 text-sm font-semibold transition-colors group-hover:text-green-700">{listing.title}</h3>
             {listing.type === "looking" ? (
               <span className="bg-blue-100 text-blue-700 text-xs font-semibold px-2 py-0.5 rounded-full shrink-0">{t("listings.looking")}</span>
             ) : (
@@ -297,7 +297,7 @@ export default function HomePage() {
                       key={category.name}
                       href={`/listings?category=${encodeURIComponent(category.name)}`}
                     >
-                      <div className="relative w-full aspect-[4/3] rounded-xl overflow-hidden cursor-pointer group">
+                      <div className="relative w-full aspect-4/3 rounded-xl overflow-hidden cursor-pointer group">
                         <img
                           src={category.image}
                           alt={category.name}

@@ -3,6 +3,7 @@
 import { useTranslation } from "react-i18next";
 import { Search, User, Settings, LogOut, Building2, List, Wallet, X, CalendarDays, Menu, Heart, MessageCircle, MessageSquareText, Bell, ChevronLeft, ChevronDown, Check, Trash2, Loader2, ShieldCheck } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import {
   DropdownMenu,
@@ -31,7 +32,6 @@ import { useUnreadBookings } from "@/hooks/useUnreadBookings";
 import { useUnreadMessages } from "@/hooks/useUnreadMessages";
 import { useNotifications } from "@/hooks/useNotifications";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
-import { useScrollLock } from "@/hooks/useScrollLock";
 import { useWalletBadge } from "@/hooks/useWalletBadge";
 import { formatTranslatedCategoryTrail, categories, toCategoryKey } from "@/lib/categories";
 import frLocale from "@/locales/fr.json";
@@ -277,8 +277,6 @@ export default function Header() {
   const handleSignOut = async () => {
     await signOut();
   };
-
-  useScrollLock(showSettings);
 
   const { unseenCount } = useUnreadBookings();
   const { unreadCount: unreadMessages } = useUnreadMessages();
@@ -787,20 +785,20 @@ export default function Header() {
           </SheetContent>
         </Sheet>
 
-        {/* Settings modal */}
-        {showSettings && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex justify-center items-center z-50">
-            <div
-              className="w-full max-w-3xl max-h-[95vh] sm:max-h-[90vh] bg-white rounded-xl shadow-xl overflow-hidden overflow-y-auto animate-in fade-in duration-200 mx-2 sm:mx-4"
-              ref={settingsScrollRef}
-            >
+        <Dialog open={showSettings} onOpenChange={setShowSettings}>
+          <DialogContent
+            showCloseButton={false}
+            className="mx-2 h-[94vh] w-[calc(100%-1rem)] max-w-6xl overflow-hidden border-0 p-0 sm:mx-4 sm:h-[90vh] sm:w-full sm:rounded-xl"
+          >
+            <DialogTitle className="sr-only">{t("settings.title")}</DialogTitle>
+            <div ref={settingsScrollRef} className="h-full overflow-y-auto">
               <SettingsPage
                 onClose={() => setShowSettings(false)}
                 scrollRef={settingsScrollRef}
               />
             </div>
-          </div>
-        )}
+          </DialogContent>
+        </Dialog>
 
         <SupportModal open={showSupport} onClose={() => setShowSupport(false)} />
       </div>

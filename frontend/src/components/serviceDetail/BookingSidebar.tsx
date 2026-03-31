@@ -116,10 +116,10 @@ export default function BookingSidebar({
           {availability && (
             <div className="flex items-center justify-between py-3 border-b border-gray-100">
               <div className="flex items-center gap-2">
-                <Clock className="h-5 w-5 text-blue-500" />
+                <Clock className="h-5 w-5 text-green-600" />
                 <span className="text-sm text-gray-600">{t("serviceDetail.availability")}</span>
               </div>
-              <span className="font-semibold text-gray-900 text-sm text-right max-w-[130px] truncate">
+              <span className="max-w-32.5 truncate text-right text-sm font-semibold text-gray-900">
                 {availability}
               </span>
             </div>
@@ -127,7 +127,7 @@ export default function BookingSidebar({
           {language && (
             <div className="flex items-center justify-between py-3 border-b border-gray-100">
               <div className="flex items-center gap-2">
-                <Globe className="h-5 w-5 text-green-500" />
+                <Globe className="h-5 w-5 text-green-600" />
                 <span className="text-sm text-gray-600">{t("serviceDetail.language")}</span>
               </div>
               <span className="font-semibold text-gray-900 text-sm">{language}</span>
@@ -136,7 +136,7 @@ export default function BookingSidebar({
           {mobility && (
             <div className="flex items-center justify-between py-3">
               <div className="flex items-center gap-2">
-                <CheckCircle className="h-5 w-5 text-green-500" />
+                <CheckCircle className="h-5 w-5 text-green-600" />
                 <span className="text-sm text-gray-600">{t("serviceDetail.mobile")}</span>
               </div>
               <span className="font-semibold text-gray-900 text-sm">{mobility}</span>

@@ -1,5 +1,6 @@
 "use client";
 import { useTranslation } from "react-i18next";
+import LegalSidebarNav from "@/components/legal/LegalSidebarNav";
 
 const sections = [
   { id: "info-collect", label: "1. Information We Collect", labelFr: "1. Informations collectées" },
@@ -22,10 +23,16 @@ export default function PrivacyPolicyPage() {
   };
 
   return (
-    <div className="max-w-3xl mx-auto px-4 sm:px-6 py-12">
+    <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6">
 
-      {/* Header */}
-      <div className="mb-10">
+      <div className="grid gap-10 lg:grid-cols-[16rem_1px_minmax(0,1fr)] lg:items-start">
+        <LegalSidebarNav sections={sections} isFr={isFr} onNavigate={scrollTo} />
+
+        <div className="hidden self-stretch bg-gray-200 lg:block" aria-hidden="true" />
+
+        <div>
+          {/* Header */}
+          <div className="mb-10">
         <h1 className="text-4xl font-bold text-gray-900 mb-3">
           {isFr ? "Politique de confidentialité" : "Privacy Policy"}
         </h1>
@@ -35,31 +42,10 @@ export default function PrivacyPolicyPage() {
             ? <>Uneden (« nous », « notre ») exploite une plateforme numérique qui met en relation les utilisateurs avec des prestataires de services locaux. Cette politique de confidentialité explique comment nous <span className="font-semibold text-gray-900">collectons</span>, <span className="font-semibold text-gray-900">utilisons</span>, <span className="font-semibold text-gray-900">stockons</span> et <span className="font-semibold text-gray-900">partageons</span> vos informations personnelles.</>
             : <>Uneden (&quot;we&quot;, &quot;our&quot;, &quot;us&quot;) operates a digital platform that connects users with local service providers. This Privacy Policy explains how we <span className="font-semibold text-gray-900">collect</span>, <span className="font-semibold text-gray-900">use</span>, <span className="font-semibold text-gray-900">store</span>, and <span className="font-semibold text-gray-900">share</span> your personal information.</>}
         </p>
-      </div>
+          </div>
 
-      {/* Table of Contents */}
-      <div className="mb-12">
-        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4">
-          {isFr ? "Table des matières" : "Table of Contents"}
-        </p>
-        <ol className="space-y-2">
-          {sections.map((s) => (
-            <li key={s.id}>
-              <button
-                onClick={() => scrollTo(s.id)}
-                type="button"
-                className="cursor-pointer text-sm text-green-700 hover:text-green-900 hover:underline text-left"
-              >
-                {isFr ? s.labelFr : s.label}
-              </button>
-            </li>
-          ))}
-        </ol>
-        <div className="mt-6 border-t border-gray-200" />
-      </div>
-
-      {/* Sections */}
-      <div className="space-y-12 text-gray-700 text-sm leading-relaxed">
+          {/* Sections */}
+          <div className="space-y-12 text-gray-700 text-sm leading-relaxed">
 
         <section id="info-collect">
           <h2 className="text-xl font-bold text-gray-900 mb-4">
@@ -213,7 +199,9 @@ export default function PrivacyPolicyPage() {
           </div>
         </section>
 
+          </div>
         </div>
+      </div>
     </div>
   );
 }

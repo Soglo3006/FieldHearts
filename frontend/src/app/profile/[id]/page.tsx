@@ -20,6 +20,7 @@ import BlockedBanner from "@/components/profile/BlockedBanner";
 import { toast } from "sonner";
 import { type Service as Listing } from "@/components/listings/EditListingModal";
 import { Spinner } from "@/components/ui/Spinner";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 
 interface ProfileUser {
   account_type?: string;
@@ -128,9 +129,9 @@ export default function UserProfilePage() {
   }, [user, profileId, isOwner]);
 
   useEffect(() => {
-    document.body.style.overflow = (showSettings || showEllipsis) ? "hidden" : "auto";
+    document.body.style.overflow = showEllipsis ? "hidden" : "auto";
     return () => { document.body.style.overflow = "auto"; };
-  }, [showSettings, showEllipsis]);
+  }, [showEllipsis]);
 
   if (loading || isLoggingOut) {
     return (
@@ -244,18 +245,21 @@ export default function UserProfilePage() {
         </div>
       </main>
 
-      {showSettings && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex justify-center items-end sm:items-center z-50" onClick={() => setShowSettings(false)}>
+      <Dialog open={showSettings} onOpenChange={setShowSettings}>
+        <DialogContent
+          showCloseButton={false}
+          className="bottom-0 left-0 top-auto mx-0 h-[88dvh] w-full translate-x-0 translate-y-0 overflow-hidden rounded-t-2xl border-0 p-0 sm:top-[50%] sm:left-[50%] sm:h-[90vh] sm:max-w-6xl sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-xl"
+        >
+          <DialogTitle className="sr-only">{t("settings.title")}</DialogTitle>
           <div
-            className="w-full sm:max-w-3xl max-h-[88dvh] sm:max-h-[90vh] bg-white rounded-t-2xl sm:rounded-xl shadow-xl overflow-y-auto animate-in slide-in-from-bottom sm:zoom-in-95 duration-200"
             ref={settingsScrollRef}
-            onClick={(e) => e.stopPropagation()}
+            className="h-full overflow-y-auto"
             {...makeSwipeHandlers(() => setShowSettings(false))}
           >
             <SettingsPage onClose={() => setShowSettings(false)} scrollRef={settingsScrollRef} />
           </div>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
 
       {showEllipsis && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex justify-center items-end sm:items-center z-50" onClick={() => setShowEllipsis(false)}>
@@ -265,13 +269,20 @@ export default function UserProfilePage() {
         </div>
       )}
 
-      {showRatings && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex justify-center items-end sm:items-center z-50" onClick={() => setShowRatings(false)}>
-          <div className="w-full sm:max-w-3xl max-h-[88dvh] sm:max-h-[90vh] bg-white rounded-t-2xl sm:rounded-xl shadow-xl overflow-y-auto animate-in slide-in-from-bottom sm:zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()} {...makeSwipeHandlers(() => setShowRatings(false))}>
+      <Dialog open={showRatings} onOpenChange={setShowRatings}>
+        <DialogContent
+          showCloseButton={false}
+          className="bottom-0 left-0 top-auto mx-0 h-[88dvh] w-full translate-x-0 translate-y-0 overflow-hidden rounded-t-2xl border-0 p-0 sm:top-[50%] sm:left-[50%] sm:h-[90vh] sm:max-w-5xl sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-xl"
+        >
+          <DialogTitle className="sr-only">{t("profile.allRatings", "All Ratings")}</DialogTitle>
+          <div
+            className="h-full overflow-y-auto"
+            {...makeSwipeHandlers(() => setShowRatings(false))}
+          >
             <RatingsPage onClose={() => setShowRatings(false)} profileId={profileId} displayName={displayName} />
           </div>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

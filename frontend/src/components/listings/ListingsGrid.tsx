@@ -10,7 +10,6 @@ import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import AdBanner from "@/components/AdBanner";
 import { formatTranslatedCategoryTrail, categories, toCategoryKey } from "@/lib/categories";
-import frLocale from "@/locales/fr.json";
 
 interface ApiService {
   id: string;
@@ -28,6 +27,8 @@ interface ApiService {
 
 export interface ListingsFilters {
   search?: string;
+  categories?: string[];
+  subcategories?: string[];
   category?: string;
   subcategory?: string;
   location?: string;
@@ -71,27 +72,14 @@ export default function ListingsGrid({ filters }: { filters?: ListingsFilters })
 
     const fetchListings = async () => {
       try {
-        // Translate category/subcategory to French before sending to API
-        // (DB stores category names in French)
-        const frCats = frLocale.categories as Record<string, string>;
-        const toApiCategoryName = (name: string) => {
-          const cat = categories.find((c) => c.name === name);
-          if (cat) return frCats[toCategoryKey(cat.name)] ?? name;
-          return name;
-        };
-        const toApiSubcategoryName = (catName: string, subName: string) => {
-          const cat = categories.find((c) => c.name === catName);
-          if (cat) {
-            const sub = cat.subcategories?.find((s) => s === subName);
-            if (sub) return frCats[`${toCategoryKey(cat.name)}_${toCategoryKey(sub)}`] ?? subName;
-          }
-          return subName;
-        };
+        // DB now stores category names in English — send as-is
 
         const params = new URLSearchParams();
         if (filters?.search)                               params.set("search", filters.search);
-        if (filters?.category)                             params.set("categoryName", toApiCategoryName(filters.category));
-        if (filters?.subcategory)                          params.set("subcategory", toApiSubcategoryName(filters.category ?? "", filters.subcategory));
+        if (filters?.categories?.length)                   params.set("categoryName", filters.categories.join(","));
+        else if (filters?.category)                        params.set("categoryName", filters.category);
+        if (filters?.subcategories?.length)                params.set("subcategory", filters.subcategories.join(","));
+        else if (filters?.subcategory)                     params.set("subcategory", filters.subcategory);
         if (filters?.location)                             params.set("location", filters.location);
         if (filters?.minPrice && filters.minPrice > 0)     params.set("minPrice", String(filters.minPrice));
         if (filters?.maxPrice && filters.maxPrice < 1000)  params.set("maxPrice", String(filters.maxPrice));
@@ -116,6 +104,8 @@ export default function ListingsGrid({ filters }: { filters?: ListingsFilters })
     return () => controller.abort();
   }, [
     filters?.search,
+    filters?.categories,
+    filters?.subcategories,
     filters?.category,
     filters?.subcategory,
     filters?.location,
@@ -212,9 +202,9 @@ export default function ListingsGrid({ filters }: { filters?: ListingsFilters })
                       {s.title}
                     </h3>
                     {s.type === "looking" ? (
-                      <Badge className="bg-blue-100 text-blue-700 text-xs flex-shrink-0 border-0">{t("listings.looking")}</Badge>
+                      <Badge className="shrink-0 border-0 bg-blue-100 text-xs text-blue-700">{t("listings.looking")}</Badge>
                     ) : (
-                      <Badge className="bg-green-100 text-green-700 text-xs flex-shrink-0 border-0">{t("listings.offering")}</Badge>
+                      <Badge className="shrink-0 border-0 bg-green-100 text-xs text-green-700">{t("listings.offering")}</Badge>
                     )}
                   </div>
 
@@ -228,10 +218,10 @@ export default function ListingsGrid({ filters }: { filters?: ListingsFilters })
 
                   <div className="flex items-center justify-between text-xs text-gray-500 mt-auto">
                     <div className="flex items-center gap-1 min-w-0">
-                      <MapPin className="h-3 w-3 flex-shrink-0" />
+                      <MapPin className="h-3 w-3 shrink-0" />
                       <span className="line-clamp-1">{s.city ?? s.location}</span>
                     </div>
-                    <div className="flex items-center gap-1 flex-shrink-0 ml-2">
+                    <div className="ml-2 flex shrink-0 items-center gap-1">
                       <Clock className="h-3 w-3" />
                       <span>{formatRelativeDate(s.created_at, t)}</span>
                     </div>

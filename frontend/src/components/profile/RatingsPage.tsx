@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import { Star, X } from "lucide-react";
 import { Spinner } from "@/components/ui/Spinner";
 import { useTranslation } from "react-i18next";
@@ -64,7 +65,7 @@ export default function RatingsPage({ onClose, profileId, displayName }: Ratings
   const paginatedReviews = reviews.slice((currentPage - 1) * REVIEWS_PER_PAGE, currentPage * REVIEWS_PER_PAGE);
 
   return (
-    <div className="flex flex-col bg-white rounded-xl overflow-hidden max-h-[90vh]">
+    <div className="flex min-h-full flex-col bg-white">
 
       {/* Header */}
       <div className="flex items-start justify-between px-6 py-5 border-b shrink-0">
@@ -72,13 +73,17 @@ export default function RatingsPage({ onClose, profileId, displayName }: Ratings
           <h2 className="text-xl font-bold text-gray-900">{t("profile.ratingsAndReviews", "Ratings & Reviews")}</h2>
           <p className="text-sm text-gray-500 mt-0.5">{displayName}</p>
         </div>
-        <button
+        <Button
           type="button"
+          variant="ghost"
+          size="icon"
           onClick={onClose}
-          className="text-gray-400 hover:text-gray-700 transition-colors cursor-pointer mt-0.5"
+          className="mt-0.5 cursor-pointer text-gray-400 hover:text-gray-700"
+          aria-label="Close ratings"
+          title="Close ratings"
         >
           <X className="h-5 w-5" />
-        </button>
+        </Button>
       </div>
 
       {/* Body */}
@@ -119,12 +124,11 @@ export default function RatingsPage({ onClose, profileId, displayName }: Ratings
                   <div key={star} className="flex items-center gap-2">
                     <span className="text-xs text-gray-500 w-3 shrink-0">{star}</span>
                     <Star className="h-3 w-3 fill-yellow-400 text-yellow-400 shrink-0" />
-                    <div className="flex-1 bg-gray-200 rounded-full h-1.5">
-                      <div
-                        className="bg-yellow-400 h-1.5 rounded-full transition-all"
-                        style={{ width: `${percent}%` }}
-                      />
-                    </div>
+                    <progress
+                      className="h-1.5 w-full overflow-hidden rounded-full [&::-webkit-progress-bar]:bg-gray-200 [&::-webkit-progress-value]:bg-yellow-400 [&::-moz-progress-bar]:bg-yellow-400"
+                      value={percent}
+                      max={100}
+                    />
                     <span className="text-xs text-gray-400 w-3 text-right shrink-0">{count}</span>
                   </div>
                 );
@@ -163,36 +167,42 @@ export default function RatingsPage({ onClose, profileId, displayName }: Ratings
             {/* Pagination */}
             {totalPages > 1 && (
               <div className="shrink-0 flex items-center justify-center gap-1.5 px-6 py-3 border-t bg-white">
-                <button
+                <Button
                   type="button"
+                  variant="ghost"
+                  size="sm"
                   onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                   disabled={currentPage === 1}
-                  className="px-3 py-1.5 rounded-lg text-xs font-medium text-gray-600 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
+                  className="cursor-pointer px-3 text-xs font-medium text-gray-600"
                 >
                   ←
-                </button>
+                </Button>
                 {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                  <button
+                  <Button
                     key={page}
                     type="button"
                     onClick={() => setCurrentPage(page)}
-                    className={`w-8 h-8 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
+                    size="icon"
+                    variant={currentPage === page ? "default" : "ghost"}
+                    className={`h-8 w-8 cursor-pointer text-xs font-medium ${
                       currentPage === page
-                        ? "bg-green-700 text-white"
+                        ? "bg-green-700 text-white hover:bg-green-800"
                         : "text-gray-600 hover:bg-gray-100"
                     }`}
                   >
                     {page}
-                  </button>
+                  </Button>
                 ))}
-                <button
+                <Button
                   type="button"
+                  variant="ghost"
+                  size="sm"
                   onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                   disabled={currentPage === totalPages}
-                  className="px-3 py-1.5 rounded-lg text-xs font-medium text-gray-600 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
+                  className="cursor-pointer px-3 text-xs font-medium text-gray-600"
                 >
                   →
-                </button>
+                </Button>
               </div>
             )}
           </div>

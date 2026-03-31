@@ -91,6 +91,14 @@ export const createService = async (req, res) => {
 export const getAllServices = async (req, res) => {
   try {
     const { category, location, minPrice, maxPrice, search, categoryName, subcategory, type, userLat, userLng, radius } = req.query;
+    const categoryNames = String(categoryName || "")
+      .split(",")
+      .map((value) => value.trim())
+      .filter(Boolean);
+    const subcategories = String(subcategory || "")
+      .split(",")
+      .map((value) => value.trim())
+      .filter(Boolean);
 
     let query = `
       SELECT
@@ -111,16 +119,26 @@ export const getAllServices = async (req, res) => {
       paramCount++;
     }
 
-    if (categoryName) {
-      query += ` AND (c.name ILIKE $${paramCount} OR s.category ILIKE $${paramCount})`;
-      params.push(`%${categoryName}%`);
-      paramCount++;
+    if (categoryNames.length > 0) {
+      const categoryClauses = categoryNames.map((name) => {
+        const clause = `(c.name ILIKE $${paramCount} OR s.category ILIKE $${paramCount})`;
+        params.push(`%${name}%`);
+        paramCount++;
+        return clause;
+      });
+
+      query += ` AND (${categoryClauses.join(" OR ")})`;
     }
 
-    if (subcategory) {
-      query += ` AND s.subcategory ILIKE $${paramCount}`;
-      params.push(`%${subcategory}%`);
-      paramCount++;
+    if (subcategories.length > 0) {
+      const subcategoryClauses = subcategories.map((name) => {
+        const clause = `s.subcategory ILIKE $${paramCount}`;
+        params.push(`%${name}%`);
+        paramCount++;
+        return clause;
+      });
+
+      query += ` AND (${subcategoryClauses.join(" OR ")})`;
     }
 
     if (type && (type === "offer" || type === "looking")) {

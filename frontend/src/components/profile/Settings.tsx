@@ -90,17 +90,30 @@ export default function SettingsPage({ onClose, scrollRef }: { onClose: () => vo
   };
 
   useEffect(() => {
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), 12000);
+    let isActive = true;
+
     const fetchAll = async () => {
-      if (!session?.access_token) { setLoading(false); return; }
+      if (!session?.access_token) {
+        if (isActive) setLoading(false);
+        return;
+      }
+
       try {
         const [profileRes, settingsRes] = await Promise.all([
           fetch(`${process.env.NEXT_PUBLIC_API_URL}/profiles/me`, {
             headers: { Authorization: `Bearer ${session.access_token}` },
+            signal: controller.signal,
           }),
           fetch(`${process.env.NEXT_PUBLIC_API_URL}/profiles/settings`, {
             headers: { Authorization: `Bearer ${session.access_token}` },
+            signal: controller.signal,
           }),
         ]);
+
+        if (!isActive) return;
+
         if (profileRes.ok) {
           const data = await profileRes.json();
           setProfileData(data);
@@ -112,24 +125,37 @@ export default function SettingsPage({ onClose, scrollRef }: { onClose: () => vo
         }
         fetch(`${process.env.NEXT_PUBLIC_API_URL}/notifications/preferences`, {
           headers: { Authorization: `Bearer ${session.access_token}` },
+          signal: controller.signal,
         }).then(r => r.ok ? r.json() : null).then(data => {
-          if (data) setEmailPrefs(data);
+          if (isActive && data) setEmailPrefs(data);
         }).catch(() => {});
         const { data: { user: supabaseUser } } = await supabase.auth.getUser();
-        if (supabaseUser?.identities) setConnectedAccounts(supabaseUser.identities);
+        if (isActive && supabaseUser?.identities) setConnectedAccounts(supabaseUser.identities);
 
         // Fetch Stripe Connect status
         fetch(`${process.env.NEXT_PUBLIC_API_URL}/payments/connect/status`, {
           headers: { Authorization: `Bearer ${session.access_token}` },
+          signal: controller.signal,
         }).then(r => r.ok ? r.json() : null).then(data => {
-          if (data) setStripeStatus(data);
+          if (isActive && data) setStripeStatus(data);
         }).catch(() => {});
       } catch (error) {
+        if (!isActive) return;
       } finally {
-        setLoading(false);
+        if (isActive) {
+          window.clearTimeout(timeoutId);
+          setLoading(false);
+        }
       }
     };
+
     fetchAll();
+
+    return () => {
+      isActive = false;
+      window.clearTimeout(timeoutId);
+      controller.abort();
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session?.access_token]);
 
@@ -198,24 +224,24 @@ export default function SettingsPage({ onClose, scrollRef }: { onClose: () => vo
 
   if (loading) {
     return (
-      <div className="bg-gray-50 flex items-center justify-center min-h-100">
+      <div className="flex min-h-full items-center justify-center bg-gray-50">
         <Spinner size="xl" />
       </div>
     );
   }
 
   return (
-    <div className="bg-gray-50">
+    <div className="min-h-full w-full bg-gray-50">
       {/* Header */}
       <div className="bg-white border-b relative">
         {/* Bottom-sheet handle (mobile only) */}
         <div className="flex justify-center pt-3 pb-1 sm:hidden">
           <div className="w-10 h-1 rounded-full bg-gray-300" />
         </div>
-        <button onClick={onClose} className="absolute top-2 right-2 sm:top-3 sm:right-3 p-2 rounded-full hover:bg-gray-100 text-gray-500 hover:text-gray-900 cursor-pointer leading-none touch-manipulation">
+        <button aria-label="Close settings" title="Close settings" onClick={onClose} className="absolute top-2 right-2 sm:top-3 sm:right-3 p-2 rounded-full hover:bg-gray-100 text-gray-500 hover:text-gray-900 cursor-pointer leading-none touch-manipulation">
           <X className="h-5 w-5" />
         </button>
-        <div className="max-w-5xl mx-auto px-4 sm:px-4 py-3 sm:py-6 pr-12">
+        <div className="w-full px-6 py-3 pr-14 sm:px-8 sm:py-6">
           <h1 className="text-xl sm:text-3xl font-bold text-gray-900">{t("settings.title")}</h1>
           <p className="text-gray-600 mt-1 text-sm sm:text-base">
             {isPerson ? t("settings.manageAccount") : t("settings.manageCompany")}
@@ -223,7 +249,7 @@ export default function SettingsPage({ onClose, scrollRef }: { onClose: () => vo
         </div>
       </div>
 
-      <div className="max-w-5xl mx-auto px-3 sm:px-4 py-4 sm:py-8">
+      <div className="w-full px-4 py-4 sm:px-8 sm:py-8">
         <div className="grid gap-4 sm:gap-6">
 
           {/* Profile Information */}

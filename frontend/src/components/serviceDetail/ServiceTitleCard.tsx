@@ -104,9 +104,9 @@ export default function ServiceTitleCard({
         </div>
 
         {/* Provider mini-card */}
-        <div className="md:w-48 w-full flex-shrink-0">
-          <Link href={`/profile/${service.owner_id}`}>
-            <div className="text-center p-4 bg-gray-50 rounded-xl border border-gray-100 hover:border-green-200 transition-colors cursor-pointer">
+        <div className="w-full shrink-0 md:w-48">
+          <div className="text-center p-4 bg-gray-50 rounded-xl border border-gray-100">
+            <Link href={`/profile/${service.owner_id}`} className="group block">
               <Avatar className="w-16 h-16 mx-auto mb-3">
                 {service.owner_avatar && (
                   <AvatarImage src={service.owner_avatar} alt={service.owner_name} />
@@ -115,14 +115,17 @@ export default function ServiceTitleCard({
                   {service.owner_name?.charAt(0)?.toUpperCase() ?? "?"}
                 </AvatarFallback>
               </Avatar>
-              <div className="font-semibold text-gray-900 text-sm leading-tight">{service.owner_name}</div>
-              <div className="mt-2">
-                <span className="underline text-green-700 hover:text-green-800 text-sm">
-                  {t("profile.viewAllListingsCount", { count: providerListingCount })}
-                </span>
-              </div>
+            </Link>
+            <div className="font-semibold text-gray-900 text-sm leading-tight">{service.owner_name}</div>
+            <div className="mt-2">
+              <Link
+                href={`/profile/${service.owner_id}/listings`}
+                className="text-sm text-green-700 underline hover:text-green-800"
+              >
+                {t("profile.viewAllListingsCount", { count: providerListingCount })}
+              </Link>
             </div>
-          </Link>
+          </div>
         </div>
       </div>
 
@@ -147,19 +150,19 @@ export default function ServiceTitleCard({
             )}
             {service.language && (
               <div className="flex items-center gap-2 text-sm text-gray-700">
-                <Globe className="h-4 w-4 text-blue-500 shrink-0" />
+                <Globe className="h-4 w-4 shrink-0 text-green-600" />
                 <span><span className="font-medium">{t("serviceDetail.language")}:</span> {service.language}</span>
               </div>
             )}
             {service.mobility && (
               <div className="flex items-center gap-2 text-sm text-gray-700">
-                <Truck className="h-4 w-4 text-orange-500 shrink-0" />
+                <Truck className="h-4 w-4 shrink-0 text-green-600" />
                 <span><span className="font-medium">{t("serviceDetail.mobility")}:</span> {service.mobility}</span>
               </div>
             )}
             {service.urgency && (
               <div className="flex items-center gap-2 text-sm text-gray-700">
-                <Zap className="h-4 w-4 text-yellow-500 shrink-0" />
+                <Zap className="h-4 w-4 shrink-0 text-green-600" />
                 <span><span className="font-medium">{t("serviceDetail.urgency")}:</span> {service.urgency}</span>
               </div>
             )}

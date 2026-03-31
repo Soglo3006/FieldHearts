@@ -1,32 +1,54 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { Slider } from "@/components/ui/slider";
 import { ChevronDown, ChevronRight, X, SlidersHorizontal } from "lucide-react";
 import CityAutocomplete from "@/components/ui/CityAutocomplete";
-import { categories, toCategoryKey } from "@/lib/categories";
+import { categories } from "@/lib/categories";
 import ListingsGrid from "@/components/listings/ListingsGrid";
 import { Spinner } from "@/components/ui/Spinner";
 import AdBanner from "@/components/AdBanner";
 
 const toKey = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
+const FILTER_KEY_SEPARATOR = "::";
+
+const parseFilterList = (value: string | null) =>
+  (value ?? "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+const encodeSubcategoryFilter = (category: string, subcategory: string) => `${category}${FILTER_KEY_SEPARATOR}${subcategory}`;
+const decodeSubcategoryFilter = (value: string) => {
+  const [category, ...subcategoryParts] = value.split(FILTER_KEY_SEPARATOR);
+  return {
+    category,
+    subcategory: subcategoryParts.join(FILTER_KEY_SEPARATOR),
+  };
+};
 
 // ── Inner component (needs useSearchParams inside Suspense) ──────────────────
 function ListingsContent({ username }: { username?: string }) {
   const { t } = useTranslation();
   const searchParams = useSearchParams();
+  const initialCategories = parseFilterList(searchParams.get("category"));
+  const initialSubcategories = parseFilterList(searchParams.get("subcategory")).map((subcategory) => {
+    const matchingCategory = initialCategories.find((category) =>
+      categories.find((cat) => cat.name === category)?.subcategories?.includes(subcategory)
+    );
+
+    return matchingCategory ? encodeSubcategoryFilter(matchingCategory, subcategory) : subcategory;
+  });
 
   const [search, setSearch] = useState(searchParams.get("search") ?? "");
-  const [selectedCategory, setSelectedCategory] = useState(searchParams.get("category") ?? "");
-  const [selectedSubcategory, setSelectedSubcategory] = useState(searchParams.get("subcategory") ?? "");
+  const [selectedCategories, setSelectedCategories] = useState<string[]>(initialCategories);
+  const [selectedSubcategories, setSelectedSubcategories] = useState<string[]>(initialSubcategories);
   const [location, setLocation] = useState(searchParams.get("location") ?? "");
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 1000]);
   const [serviceType, setServiceType] = useState(searchParams.get("type") ?? "all");
-  const [expandedCategories, setExpandedCategories] = useState<string[]>(
-    searchParams.get("category") ? [searchParams.get("category")!] : []
-  );
+  const [expandedCategories, setExpandedCategories] = useState<string[]>(initialCategories);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
 
   // Debounced values — prevent API call on every keystroke/drag
@@ -36,21 +58,33 @@ function ListingsContent({ username }: { username?: string }) {
 
   // Sync all filters from URL when CategoryNav or header search navigates here
   const urlSearch = searchParams.get("search") ?? "";
-  const urlCategory = searchParams.get("category") ?? "";
-  const urlSubcategory = searchParams.get("subcategory") ?? "";
+  const urlCategoryParam = searchParams.get("category") ?? "";
+  const urlSubcategoryParam = searchParams.get("subcategory") ?? "";
+  const urlCategories = useMemo(() => parseFilterList(urlCategoryParam), [urlCategoryParam]);
+  const urlSubcategories = useMemo(
+    () =>
+      parseFilterList(urlSubcategoryParam).map((subcategory) => {
+        const matchingCategory = urlCategories.find((category) =>
+          categories.find((cat) => cat.name === category)?.subcategories?.includes(subcategory)
+        );
+
+        return matchingCategory ? encodeSubcategoryFilter(matchingCategory, subcategory) : subcategory;
+      }),
+    [urlCategories, urlSubcategoryParam]
+  );
   const urlType = searchParams.get("type") ?? "all";
   useEffect(() => {
     setSearch(urlSearch);
     setDebouncedSearch(urlSearch);
-  }, [urlSearch]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [urlSearch]);
   useEffect(() => {
-    setSelectedCategory(urlCategory);
-    setSelectedSubcategory(urlSubcategory);
-    if (urlCategory) setExpandedCategories([urlCategory]);
-  }, [urlCategory, urlSubcategory]); // eslint-disable-line react-hooks/exhaustive-deps
+    setSelectedCategories(urlCategories);
+    setSelectedSubcategories(urlSubcategories);
+    if (urlCategories.length > 0) setExpandedCategories(urlCategories);
+  }, [urlCategories, urlSubcategories]);
   useEffect(() => {
     setServiceType(urlType);
-  }, [urlType]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [urlType]);
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(search), 400);
@@ -73,19 +107,45 @@ function ListingsContent({ username }: { username?: string }) {
     );
 
   const selectCategory = (name: string) => {
-    setSelectedCategory(name);
-    setSelectedSubcategory("");
+    setSelectedCategories((prev) => {
+      if (prev.includes(name)) {
+        setSelectedSubcategories((current) =>
+          current.filter((value) => decodeSubcategoryFilter(value).category !== name)
+        );
+        return prev.filter((category) => category !== name);
+      }
+
+      return [...prev, name];
+    });
   };
 
   const selectSubcategory = (cat: string, sub: string) => {
-    setSelectedCategory(cat);
-    setSelectedSubcategory(sub);
+    const encoded = encodeSubcategoryFilter(cat, sub);
+
+    setSelectedCategories((prev) => (prev.includes(cat) ? prev : [...prev, cat]));
+    setExpandedCategories((prev) => (prev.includes(cat) ? prev : [...prev, cat]));
+    setSelectedSubcategories((prev) =>
+      prev.includes(encoded)
+        ? prev.filter((value) => value !== encoded)
+        : [...prev, encoded]
+    );
+  };
+
+  const clearCategory = (category: string) => {
+    setSelectedCategories((prev) => prev.filter((value) => value !== category));
+    setSelectedSubcategories((prev) =>
+      prev.filter((value) => decodeSubcategoryFilter(value).category !== category)
+    );
+  };
+
+  const clearSubcategory = (encoded: string) => {
+    setSelectedSubcategories((prev) => prev.filter((value) => value !== encoded));
   };
 
   const clearFilters = () => {
     setSearch("");
-    setSelectedCategory("");
-    setSelectedSubcategory("");
+    setSelectedCategories([]);
+    setSelectedSubcategories([]);
     setLocation("");
     setPriceRange([0, 1000]);
     setServiceType("all");
@@ -94,8 +154,18 @@ function ListingsContent({ username }: { username?: string }) {
 
   const activeChips = [
     debouncedSearch && { label: `"${debouncedSearch}"`, clear: () => setSearch("") },
-    selectedCategory && !selectedSubcategory && { label: t(`categories.${toKey(selectedCategory)}`, { defaultValue: selectedCategory }), clear: () => setSelectedCategory("") },
-    selectedSubcategory && { label: t(`categories.${toKey(selectedCategory)}_${toKey(selectedSubcategory)}`, { defaultValue: selectedSubcategory }), clear: () => setSelectedSubcategory("") },
+    ...selectedCategories.map((category) => ({
+      label: t(`categories.${toKey(category)}`, { defaultValue: category }),
+      clear: () => clearCategory(category),
+    })),
+    ...selectedSubcategories.map((encoded) => {
+      const { category, subcategory } = decodeSubcategoryFilter(encoded);
+
+      return {
+        label: t(`categories.${toKey(category)}_${toKey(subcategory)}`, { defaultValue: subcategory }),
+        clear: () => clearSubcategory(encoded),
+      };
+    }),
     debouncedLocation && { label: ` ${debouncedLocation}`, clear: () => setLocation("") },
     serviceType !== "all" && { label: serviceType === "offer" ? t("listings.offering") : t("listings.looking"), clear: () => setServiceType("all") },
     (debouncedPrice[0] > 0 || debouncedPrice[1] < 1000) && {
@@ -105,7 +175,7 @@ function ListingsContent({ username }: { username?: string }) {
   ].filter(Boolean) as { label: string; clear: () => void }[];
 
   return (
-    <div className="max-w-7xl mx-auto p-5">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
       {/* ── Mobile filter toggle ── */}
       <div className="flex items-center gap-2 mb-4 lg:hidden">
         <button
@@ -129,6 +199,7 @@ function ListingsContent({ username }: { username?: string }) {
               >
                 {label}
                 <button onClick={clear} className="cursor-pointer ml-1 hover:text-green-900">
+                  <span className="sr-only">{t("listings.clear")}</span>
                   <X className="h-3 w-3" />
                 </button>
               </span>
@@ -137,14 +208,19 @@ function ListingsContent({ username }: { username?: string }) {
         )}
       </div>
 
-      <div className="flex flex-col lg:flex-row gap-6">
+      <div className="flex flex-col gap-8 lg:flex-row lg:items-start">
         {/* ── Filter sidebar ── */}
-        <aside className={`w-full lg:w-1/4 lg:sticky lg:top-24 lg:self-start lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto ${showMobileFilters ? "block" : "hidden"} lg:block`}>
-          <div className="border border-gray-200 rounded-xl p-4 space-y-5">
+        <aside className={`w-full lg:w-1/4 lg:self-start ${showMobileFilters ? "block" : "hidden"} lg:block`}>
+          <div className="border border-gray-200 rounded-xl p-4 space-y-5 lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto">
             {/* Mobile close button */}
             <div className="flex items-center justify-between lg:hidden">
               <span className="text-sm font-semibold text-gray-900">{t("listings.filters")}</span>
-              <button onClick={() => setShowMobileFilters(false)} className="cursor-pointer p-1 rounded hover:bg-gray-100">
+              <button
+                onClick={() => setShowMobileFilters(false)}
+                className="cursor-pointer p-1 rounded hover:bg-gray-100"
+                title={t("common.close", { defaultValue: "Close" })}
+                aria-label={t("common.close", { defaultValue: "Close" })}
+              >
                 <X className="h-4 w-4 text-gray-500" />
               </button>
             </div>
@@ -191,9 +267,9 @@ function ListingsContent({ username }: { username?: string }) {
             <div>
               <div className="flex items-center justify-between mb-2">
                 <h3 className="text-sm font-semibold text-gray-900">{t("listings.category")}</h3>
-                {selectedCategory && (
+                {selectedCategories.length > 0 && (
                   <button
-                    onClick={() => { setSelectedCategory(""); setSelectedSubcategory(""); }}
+                    onClick={() => { setSelectedCategories([]); setSelectedSubcategories([]); }}
                     className="cursor-pointer text-xs text-green-700 underline"
                   >
                     {t("listings.clear")}
@@ -202,7 +278,7 @@ function ListingsContent({ username }: { username?: string }) {
               </div>
               <div className="space-y-0.5">
                 {categories.map((cat) => {
-                  const isSelected = selectedCategory === cat.name && !selectedSubcategory;
+                  const isSelected = selectedCategories.includes(cat.name);
                   const isExpanded = expandedCategories.includes(cat.name);
                   return (
                     <div key={cat.name}>
@@ -214,7 +290,7 @@ function ListingsContent({ username }: { username?: string }) {
                         {/* Category name — selects the filter */}
                         <button
                           onClick={() => selectCategory(cat.name)}
-                          className={`cursor-pointer flex-1 text-left py-2 pl-2 font-${isSelected ? "semibold" : "normal"}`}
+                          className={`cursor-pointer flex-1 py-2 pl-2 text-left ${isSelected ? "font-semibold" : "font-normal"}`}
                         >
                           {t(`categories.${toKey(cat.name)}`, { defaultValue: cat.name })}
                         </button>
@@ -234,17 +310,23 @@ function ListingsContent({ username }: { username?: string }) {
                       {isExpanded && (
                         <div className="ml-3 pl-3 border-l-2 border-gray-100 space-y-0.5 mb-1">
                           {cat.subcategories?.map((sub) => (
+                            (() => {
+                              const encoded = encodeSubcategoryFilter(cat.name, sub);
+
+                              return (
                             <button
-                              key={sub}
+                              key={encoded}
                               onClick={() => selectSubcategory(cat.name, sub)}
                               className={`cursor-pointer block w-full text-left py-1.5 px-2 rounded text-xs transition-colors ${
-                                selectedSubcategory === sub
+                                selectedSubcategories.includes(encoded)
                                   ? "text-green-800 bg-green-50 font-semibold"
                                   : "text-gray-600 hover:text-green-700 hover:bg-green-50"
                               }`}
                             >
                               {t(`categories.${toKey(cat.name)}_${toKey(sub)}`, { defaultValue: sub })}
                             </button>
+                              );
+                            })()
                           ))}
                         </div>
                       )}
@@ -277,7 +359,7 @@ function ListingsContent({ username }: { username?: string }) {
                 onValueChange={(v) => setPriceRange(v as [number, number])}
                 max={1000}
                 step={5}
-                className="w-full [&_[data-slot=slider-track]]:bg-gray-300 [&_[data-slot=slider-range]]:bg-green-700 [&_[data-slot=slider-thumb]]:border-green-800 [&_[data-slot=slider-thumb]]:bg-white cursor-pointer"
+                className="w-full cursor-pointer **:data-[slot=slider-track]:bg-gray-300 **:data-[slot=slider-range]:bg-green-700 **:data-[slot=slider-thumb]:border-green-800 **:data-[slot=slider-thumb]:bg-white"
               />
             </div>
 
@@ -287,11 +369,11 @@ function ListingsContent({ username }: { username?: string }) {
         </aside>
 
         {/* ── Results ── */}
-        <div className="w-full lg:w-3/4 space-y-4">
+        <div className="w-full lg:w-3/4">
 
           {/* Active filter chips — hidden on mobile (shown in the top bar instead) */}
           {activeChips.length > 0 && (
-            <div className="hidden lg:flex flex-wrap gap-2">
+            <div className="mb-4 hidden flex-wrap gap-2 lg:flex">
               {activeChips.map(({ label, clear }) => (
                 <span
                   key={label}
@@ -299,6 +381,7 @@ function ListingsContent({ username }: { username?: string }) {
                 >
                   {label}
                   <button onClick={clear} className="cursor-pointer ml-1 hover:text-green-900">
+                    <span className="sr-only">{t("listings.clear")}</span>
                     <X className="h-3 w-3" />
                   </button>
                 </span>
@@ -309,8 +392,8 @@ function ListingsContent({ username }: { username?: string }) {
           <ListingsGrid
             filters={{
               search: debouncedSearch,
-              category: selectedCategory,
-              subcategory: selectedSubcategory,
+              categories: selectedCategories,
+              subcategories: selectedSubcategories.map((value) => decodeSubcategoryFilter(value).subcategory || value),
               location: debouncedLocation,
               minPrice: debouncedPrice[0],
               maxPrice: debouncedPrice[1],
@@ -326,7 +409,6 @@ function ListingsContent({ username }: { username?: string }) {
 
 // ── Page wrapper ─────────────────────────────────────────────────────────────
 export default function ListingsPage({ username }: { username?: string }) {
-  const { t } = useTranslation();
   return (
     <div className="bg-white min-h-screen text-black">
       {/* Ad banner */}

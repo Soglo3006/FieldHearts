@@ -5,6 +5,7 @@ import { useScrollLock } from "@/hooks/useScrollLock";
 import { useTranslation } from 'react-i18next';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
 import { Star } from 'lucide-react';
 import { useState, useEffect } from 'react';
@@ -130,7 +131,7 @@ export function ProfileSidebar({ otherUser, onClose, onOpenSettings, isBlocked, 
   return (
     <div className="w-full border-l bg-gray-50 flex flex-col h-full overflow-hidden">
       {/* Header */}
-      <div className="shrink-0 px-4 bg-gray-50 border-b h-[73px] flex items-center justify-between">
+      <div className="flex h-18.25 shrink-0 items-center justify-between border-b bg-gray-50 px-4">
         {onClose ? (
           <Button variant="ghost" size="icon" onClick={onClose} className="cursor-pointer">
             <X className="h-5 w-5" />
@@ -321,17 +322,23 @@ export function ProfileSidebar({ otherUser, onClose, onOpenSettings, isBlocked, 
       </div>
 
       {/* Ratings modal */}
-      {showRatings && otherUser.id && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex justify-center items-center z-50">
-          <div className="w-full max-w-3xl max-h-[90vh] bg-white rounded-xl shadow-xl overflow-y-auto">
-            <RatingsPage
-              onClose={() => setShowRatings(false)}
-              profileId={otherUser.id}
-              displayName={displayName}
-            />
-          </div>
-        </div>
-      )}
+      <Dialog open={showRatings && !!otherUser.id} onOpenChange={setShowRatings}>
+        <DialogContent
+          showCloseButton={false}
+          className="mx-2 h-[92vh] w-[calc(100%-1rem)] max-w-5xl overflow-hidden border-0 p-0 sm:mx-4 sm:h-[90vh] sm:w-full sm:rounded-xl"
+        >
+          <DialogTitle className="sr-only">{t("profile.allRatings", "All Ratings")}</DialogTitle>
+          {otherUser.id ? (
+            <div className="h-full overflow-y-auto">
+              <RatingsPage
+                onClose={() => setShowRatings(false)}
+                profileId={otherUser.id}
+                displayName={displayName}
+              />
+            </div>
+          ) : null}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

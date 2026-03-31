@@ -1,5 +1,6 @@
 "use client";
 import { useTranslation } from "react-i18next";
+import LegalSidebarNav from "@/components/legal/LegalSidebarNav";
 
 const sections = [
   { id: "nature", en: "1. Nature of Payments", fr: "1. Nature des paiements" },
@@ -30,10 +31,16 @@ export default function PaymentTermsPage() {
   };
 
   return (
-    <div className="max-w-3xl mx-auto px-4 sm:px-6 py-12">
+    <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6">
 
-      {/* Header */}
-      <div className="mb-10">
+      <div className="grid gap-10 lg:grid-cols-[16rem_1px_minmax(0,1fr)] lg:items-start">
+        <LegalSidebarNav sections={sections} isFr={isFr} onNavigate={scrollTo} />
+
+        <div className="hidden self-stretch bg-gray-200 lg:block" aria-hidden="true" />
+
+        <div>
+          {/* Header */}
+          <div className="mb-10">
         <h1 className="text-4xl font-bold text-gray-900 mb-3">
           {isFr ? "Conditions de paiement" : "Payment Terms"}
         </h1>
@@ -43,31 +50,10 @@ export default function PaymentTermsPage() {
             ? "Les présentes conditions de paiement régissent toutes les transactions financières effectuées sur la plateforme Uneden. En utilisant Uneden, vous acceptez ces conditions."
             : "These Payment Terms govern all financial transactions conducted on the Uneden platform. By using Uneden, you agree to these Payment Terms."}
         </p>
-      </div>
+          </div>
 
-      {/* Table of Contents */}
-      <div className="mb-12">
-        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4">
-          {isFr ? "Table des matières" : "Table of Contents"}
-        </p>
-        <ol className="space-y-2">
-          {sections.map((s) => (
-            <li key={s.id}>
-              <button
-                onClick={() => scrollTo(s.id)}
-                type="button"
-                className="cursor-pointer text-sm text-green-700 hover:text-green-900 hover:underline text-left"
-              >
-                {isFr ? s.fr : s.en}
-              </button>
-            </li>
-          ))}
-        </ol>
-        <div className="mt-6 border-t border-gray-200" />
-      </div>
-
-      {/* Sections */}
-      <div className="space-y-12 text-gray-700 text-sm leading-relaxed">
+          {/* Sections */}
+          <div className="space-y-12 text-gray-700 text-sm leading-relaxed">
 
         <section id="nature">
           <h2 className="text-xl font-bold text-gray-900 mb-4">
@@ -374,6 +360,8 @@ export default function PaymentTermsPage() {
         </section>
 
       </div>
+      </div>
+    </div>
     </div>
   );
 }

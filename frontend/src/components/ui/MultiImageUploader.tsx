@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { Upload, Trash2, GripVertical } from "lucide-react";
+import { Upload, Trash2, Star, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Cropper, { type Area } from "react-easy-crop";
 import getCroppedImg from "@/utils/cropImage";
@@ -22,8 +22,9 @@ export default function MultiImageUploader({ images, onChange, aspectRatio = 16 
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
+  const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  useScrollLock(showCropper);
+  useScrollLock(showCropper || previewIndex !== null);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -62,6 +63,16 @@ export default function MultiImageUploader({ images, onChange, aspectRatio = 16 
 
   const removeImage = (index: number) => {
     onChange(images.filter((_, i) => i !== index));
+    if (previewIndex === index) setPreviewIndex(null);
+  };
+
+  const setCover = (index: number) => {
+    if (index === 0) return;
+    const reordered = [...images];
+    const [picked] = reordered.splice(index, 1);
+    reordered.unshift(picked);
+    onChange(reordered);
+    setPreviewIndex(0);
   };
 
   const canAdd = images.length < MAX_IMAGES;
@@ -74,16 +85,21 @@ export default function MultiImageUploader({ images, onChange, aspectRatio = 16 
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             {images.map((src, i) => (
               <div key={i} className="relative aspect-video rounded-lg overflow-hidden border bg-gray-100 group">
-                <img src={src} alt={`Photo ${i + 1}`} className="w-full h-full object-cover" />
+                <img
+                  src={src}
+                  alt={`Photo ${i + 1}`}
+                  className="w-full h-full object-cover cursor-pointer"
+                  onClick={() => setPreviewIndex(i)}
+                />
                 {/* Cover badge on first */}
                 {i === 0 && (
-                  <span className="absolute bottom-1.5 left-1.5 text-[10px] bg-black/60 text-white px-1.5 py-0.5 rounded font-medium">
+                  <span className="absolute bottom-1.5 left-1.5 text-[10px] bg-black/60 text-white px-1.5 py-0.5 rounded font-medium pointer-events-none">
                     Couverture
                   </span>
                 )}
                 <button
                   type="button"
-                  onClick={() => removeImage(i)}
+                  onClick={(e) => { e.stopPropagation(); removeImage(i); }}
                   className="cursor-pointer absolute top-1.5 right-1.5 bg-red-600 text-white p-1.5 rounded-full shadow opacity-0 group-hover:opacity-100 transition-opacity"
                 >
                   <Trash2 className="w-3 h-3" />
@@ -118,6 +134,58 @@ export default function MultiImageUploader({ images, onChange, aspectRatio = 16 
           <p className="text-xs text-gray-400 text-center">{MAX_IMAGES} photos maximum atteint</p>
         )}
       </div>
+
+      {/* Preview modal */}
+      {previewIndex !== null && images[previewIndex] && (
+        <div className="fixed inset-0 z-[100] bg-black/80 flex flex-col items-center justify-center p-4" onClick={() => setPreviewIndex(null)}>
+          <div className="relative w-full max-w-lg" onClick={(e) => e.stopPropagation()}>
+            {/* Close */}
+            <button
+              type="button"
+              aria-label="Fermer"
+              onClick={() => setPreviewIndex(null)}
+              className="absolute -top-10 right-0 text-white/70 hover:text-white cursor-pointer"
+            >
+              <X className="h-6 w-6" />
+            </button>
+
+            {/* Image */}
+            <img
+              src={images[previewIndex]}
+              alt={`Photo ${previewIndex + 1}`}
+              className="w-full rounded-xl object-contain max-h-[65vh]"
+            />
+
+            {/* Actions */}
+            <div className="flex gap-3 mt-3">
+              {previewIndex !== 0 && (
+                <button
+                  type="button"
+                  onClick={() => setCover(previewIndex)}
+                  className="cursor-pointer flex-1 flex items-center justify-center gap-2 bg-green-700 hover:bg-green-800 text-white text-sm font-semibold py-2.5 rounded-xl transition-colors"
+                >
+                  <Star className="h-4 w-4" />
+                  Définir comme couverture
+                </button>
+              )}
+              {previewIndex === 0 && (
+                <div className="flex-1 flex items-center justify-center gap-2 bg-green-100 text-green-800 text-sm font-semibold py-2.5 rounded-xl">
+                  <Star className="h-4 w-4 fill-green-600 text-green-600" />
+                  Image de couverture
+                </div>
+              )}
+              <button
+                type="button"
+                aria-label="Supprimer"
+                onClick={() => { removeImage(previewIndex); }}
+                className="cursor-pointer flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Cropper modal */}
       {showCropper && imageToCrop && (

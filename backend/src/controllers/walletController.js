@@ -30,9 +30,12 @@ export const getWallet = async (req, res) => {
     const wallet = result.rows[0] ?? { balance: 0, total_earned: 0, total_spent: 0 };
 
     // ── Payout breakdown ──────────────────────────────────────────────────────
-    const eligibilityCutoff = subtractBusinessDays(new Date(), MIN_BUSINESS_DAYS);
+    // Dispute window: 3 calendar days after completion
+    // After 3 days with no open dispute → available for payout
+    const disputeWindowDays = 3;
+    const disputeCutoff = new Date(Date.now() - disputeWindowDays * 24 * 60 * 60 * 1000);
 
-    // Available for payout: completed credits older than 5 business days
+    // Available for payout: completed > 3 days ago AND no open dispute
     const availableResult = await pool.query(
       `SELECT COALESCE(SUM(t.amount), 0) AS total
        FROM transactions t
@@ -42,11 +45,12 @@ export const getWallet = async (req, res) => {
          AND t.type = 'credit'
          AND b.status = 'completed'
          AND b.payment_status = 'paid'
-         AND t.created_at <= $2`,
-      [userId, eligibilityCutoff.toISOString()]
+         AND b.completed_at <= $2
+         AND NOT EXISTS (SELECT 1 FROM disputes d WHERE d.booking_id = b.id AND d.status = 'open')`,
+      [userId, disputeCutoff.toISOString()]
     );
 
-    // Pending: completed credits newer than 5 business days
+    // Pending: completed within last 3 days OR has an open dispute
     const pendingResult = await pool.query(
       `SELECT COALESCE(SUM(t.amount), 0) AS total
        FROM transactions t
@@ -56,8 +60,11 @@ export const getWallet = async (req, res) => {
          AND t.type = 'credit'
          AND b.status = 'completed'
          AND b.payment_status = 'paid'
-         AND t.created_at > $2`,
-      [userId, eligibilityCutoff.toISOString()]
+         AND (
+           b.completed_at > $2
+           OR EXISTS (SELECT 1 FROM disputes d WHERE d.booking_id = b.id AND d.status = 'open')
+         )`,
+      [userId, disputeCutoff.toISOString()]
     );
 
     const availableForPayout = Number(availableResult.rows[0]?.total ?? 0);

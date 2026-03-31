@@ -36,6 +36,7 @@ export const createService = async (req, res) => {
       image_url,
       image_urls,
       is_one_time,
+      hide_exact_location,
     } = { ...req.body, ...data };
 
     // Resolve canonical image list: prefer image_urls array, fall back to single image_url
@@ -50,8 +51,8 @@ export const createService = async (req, res) => {
         user_id, type, title, description, category, category_id, subcategory,
         price, location, address, latitude, longitude, city,
         poster_type, availability,
-        language, mobility, duration, urgency, image_url, image_urls, is_one_time
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
+        language, mobility, duration, urgency, image_url, image_urls, is_one_time, hide_exact_location
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
       RETURNING *`,
       [
         req.user.id,
@@ -76,6 +77,7 @@ export const createService = async (req, res) => {
         resolvedImageUrl,
         resolvedImageUrls,
         is_one_time === true || is_one_time === "true" ? true : false,
+        hide_exact_location === true || hide_exact_location === "true" ? true : false,
       ]
     );
 
@@ -339,7 +341,7 @@ export const updateService = async (req, res) => {
       title, description, category, category_id, subcategory,
       price, location, address, latitude, longitude, city,
       poster_type, availability, language,
-      mobility, duration, urgency, image_url, image_urls, is_one_time,
+      mobility, duration, urgency, image_url, image_urls, is_one_time, hide_exact_location,
     } = req.body;
 
     const check = await pool.query(
@@ -386,9 +388,10 @@ export const updateService = async (req, res) => {
            duration     = $16,
            urgency      = $17,
            image_url    = $18,
-           image_urls   = $19,
-           is_one_time  = $20
-       WHERE id = $21
+           image_urls          = $19,
+           is_one_time         = $20,
+           hide_exact_location = $21
+       WHERE id = $22
        RETURNING *`,
       [
         title        !== undefined ? title        : existing.title,
@@ -410,7 +413,8 @@ export const updateService = async (req, res) => {
         urgency      !== undefined ? urgency      : existing.urgency,
         updResolvedUrl,
         updResolvedUrls,
-        is_one_time  !== undefined ? (is_one_time === true || is_one_time === "true") : existing.is_one_time,
+        is_one_time          !== undefined ? (is_one_time === true || is_one_time === "true") : existing.is_one_time,
+        hide_exact_location  !== undefined ? (hide_exact_location === true || hide_exact_location === "true") : existing.hide_exact_location,
         id,
       ]
     );

@@ -257,6 +257,11 @@
   "wallet": {
     "title": "Wallet",
     "availableBalance": "Available Balance",
+    "approvedAmount": "Approved",
+    "approvedAmountDesc": "No dispute possible — available for withdrawal",
+    "pendingAmountLabel": "Pending",
+    "pendingAmountDesc": "Can still be disputed (3-day window)",
+    "totalBalance": "Total",
     "totalEarned": "Total Earned",
     "totalSpent": "Total Spent",
     "transactionHistory": "Transaction History",
@@ -276,7 +281,7 @@
     "availableForPayout": "Available for payout",
     "platformCommission20": "Platform commission (20%)",
     "youWillReceive": "You will receive",
-    "pendingInfo": "${{amount}} pending — received less than 5 business days ago, will be included in the next payout cycle.",
+    "pendingInfo": "${{amount}} pending — these funds can still be disputed within 3 days of service completion.",
     "nextPayoutDate": "Next payout date",
     "browseListings": "Browse listings",
     "withdraw": "Withdraw",
@@ -380,6 +385,8 @@
     "successJobDesc": "Your job request is now live and visible to everyone.",
     "viewMyPost": "View My Post",
     "backToHome": "Back to Home",
+    "hideExactLocation": "Hide exact location",
+    "hideExactLocationDesc": "Only a general area will be shown on the map. The exact address remains private.",
     "oneTimeListing": "One-time listing",
     "oneTimeListingDesc": "Once a request is accepted, this listing will be hidden and all other pending requests will be automatically declined.",
     "typeOfPoster": "Type of Poster",
@@ -480,7 +487,9 @@
     "viewAllMyListings": "View All My Listings",
     "approximateLocation": "Approximate Location",
     "approximateLocationDesc": "This shows an approximate area to protect privacy.",
-    "openInGoogleMaps": "Open in Google Maps"
+    "openInGoogleMaps": "Open in Google Maps",
+    "byContinuing": "By continuing, you agree to our",
+    "paymentTerms": "Payment Terms"
   },
   "profile": {
     "editProfile": "Edit Profile",

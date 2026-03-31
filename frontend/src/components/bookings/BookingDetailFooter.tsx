@@ -193,12 +193,19 @@ export default function BookingDetailFooter({
       )}
 
       {/* Dispute */}
-      {(booking.status === "active" || booking.status === "completed") && !booking.has_dispute && (
-        <Button variant="outline" className="w-full text-red-600 border-red-200 hover:bg-red-50 h-10 gap-2"
-          onClick={() => { onOpenDispute(booking.id, booking.title); onClose(); }}>
-          <AlertTriangle className="h-4 w-4" /> Open Dispute
-        </Button>
-      )}
+      {(booking.status === "active" || booking.status === "completed") && !booking.has_dispute && (() => {
+        const DISPUTE_DAYS = 3;
+        const disputeExpired = booking.status === "completed" && booking.completed_at
+          ? (Date.now() - new Date(booking.completed_at).getTime()) > DISPUTE_DAYS * 24 * 60 * 60 * 1000
+          : false;
+        if (disputeExpired) return null;
+        return (
+          <Button variant="outline" className="w-full text-red-600 border-red-200 hover:bg-red-50 h-10 gap-2"
+            onClick={() => { onOpenDispute(booking.id, booking.title); onClose(); }}>
+            <AlertTriangle className="h-4 w-4" /> Open Dispute
+          </Button>
+        );
+      })()}
 
       {/* Review */}
       {booking.status === "completed" && !booking.has_reviewed && (

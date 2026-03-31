@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useScrollLock } from "@/hooks/useScrollLock";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import {
   X, MapPin, CalendarDays, Tag, CheckCircle, CreditCard, FileText, Grid3x3,
-  TrendingDown, TrendingUp,
+  TrendingDown, TrendingUp, ChevronLeft, ChevronRight, AlertTriangle,
 } from "lucide-react";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import DisputeThread from "@/components/bookings/DisputeThread";
@@ -28,6 +28,7 @@ export interface BookingDetail {
   title: string;
   price: string | number;
   image_url: string | null;
+  image_urls?: string[] | null;
   category: string | null;
   service_location: string | null;
   client_description: string | null;
@@ -43,6 +44,7 @@ export interface BookingDetail {
   modified_fields?: string[] | null;
   cancel_requested_by?: string | null;
   cancel_reason?: string | null;
+  completed_at?: string | null;
   client_name?: string;
   worker_name?: string;
   service_type?: "offer" | "looking";
@@ -71,9 +73,9 @@ const STATUS_BADGE: Record<BookingStatus, string> = {
   rejected:  "bg-red-100 text-red-700 border-red-200",
 };
 
-function formatDate(dateStr: string) {
+function formatDate(dateStr: string, lang: string) {
   try {
-    return new Date(dateStr).toLocaleDateString("en-CA", {
+    return new Date(dateStr).toLocaleDateString(lang.startsWith("fr") ? "fr-CA" : "en-CA", {
       weekday: "long", month: "long", day: "numeric", year: "numeric",
     });
   } catch { return dateStr; }
@@ -172,6 +174,11 @@ export default function BookingDetailModal({
     onUpdated(booking.id, data);
   };
 
+  const images = booking.image_urls?.length ? booking.image_urls : booking.image_url ? [booking.image_url] : [];
+  const [imgIndex, setImgIndex] = useState(0);
+  const prevImg = useCallback(() => setImgIndex((i) => (i - 1 + images.length) % images.length), [images.length]);
+  const nextImg = useCallback(() => setImgIndex((i) => (i + 1) % images.length), [images.length]);
+
   const currentUserId = userRole === "worker" ? booking.worker_id : booking.client_id;
   const otherUserName = userRole === "worker" ? (booking.client_name ?? t("bookings.clientLabel")) : (booking.worker_name ?? t("bookings.providerLabel"));
   const otherUserId = userRole === "worker" ? booking.client_id : booking.worker_id;
@@ -210,8 +217,41 @@ export default function BookingDetailModal({
         {/* Scrollable body */}
         <div className="overflow-y-auto flex-1">
           <AspectRatio ratio={16 / 9}>
-            {booking.image_url ? (
-              <img src={booking.image_url} alt={booking.title} className="w-full h-full object-cover" />
+            {images.length > 0 ? (
+              <div className="relative w-full h-full">
+                <img src={images[imgIndex]} alt={booking.title} className="w-full h-full object-cover" />
+                {images.length > 1 && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={prevImg}
+                      className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 text-white rounded-full p-1 transition-colors"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={nextImg}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 text-white rounded-full p-1 transition-colors"
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </button>
+                    <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1.5">
+                      {images.map((_, i) => (
+                        <button
+                          key={i}
+                          type="button"
+                          onClick={() => setImgIndex(i)}
+                          className={`h-1.5 rounded-full transition-all ${i === imgIndex ? "w-4 bg-white" : "w-1.5 bg-white/50"}`}
+                        />
+                      ))}
+                    </div>
+                    <span className="absolute top-2 right-2 bg-black/50 text-white text-[10px] px-1.5 py-0.5 rounded-full">
+                      {imgIndex + 1} / {images.length}
+                    </span>
+                  </>
+                )}
+              </div>
             ) : (
               <div className="w-full h-full bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
                 <Grid3x3 className="h-10 w-10 text-gray-300" />
@@ -512,7 +552,7 @@ export default function BookingDetailModal({
 
             <div className="flex items-center gap-1.5 text-xs text-gray-400">
               <CalendarDays className="h-3.5 w-3.5" />
-              {t("bookings.requestedOn")} {formatDate(booking.created_at)}
+              {t("bookings.requestedOn")} {formatDate(booking.created_at, i18n.language ?? "fr")}
             </div>
 
             {booking.status === "accepted" && userRole === "worker" && (
@@ -533,6 +573,30 @@ export default function BookingDetailModal({
                 </div>
               </div>
             )}
+
+            {booking.status === "completed" && (() => {
+              const DISPUTE_DAYS = 3;
+              if (!booking.completed_at) return null;
+              const completedMs = new Date(booking.completed_at).getTime();
+              const deadlineMs = completedMs + DISPUTE_DAYS * 24 * 60 * 60 * 1000;
+              const remainingMs = deadlineMs - Date.now();
+              const remainingHours = Math.ceil(remainingMs / (1000 * 60 * 60));
+              const remainingDays = Math.ceil(remainingMs / (1000 * 60 * 60 * 24));
+              if (remainingMs <= 0) return null;
+              return (
+                <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-xs text-amber-800 space-y-1">
+                  <div className="flex items-center gap-1.5 font-semibold">
+                    <AlertTriangle className="h-3.5 w-3.5" />
+                    {i18n.language?.startsWith("fr") ? "Fenêtre de litige" : "Dispute window"}
+                  </div>
+                  <p>
+                    {i18n.language?.startsWith("fr")
+                      ? `Vous pouvez ouvrir un litige encore ${remainingDays > 1 ? `${remainingDays} jours` : `${remainingHours} heure${remainingHours > 1 ? "s" : ""}`}. Remboursement max : 50 %.`
+                      : `You can open a dispute for ${remainingDays > 1 ? `${remainingDays} more days` : `${remainingHours} more hour${remainingHours > 1 ? "s" : ""}`}. Max refund: 50%.`}
+                  </p>
+                </div>
+              );
+            })()}
 
             {booking.has_dispute && (
               <DisputeThread bookingId={booking.id} currentUserId={currentUserId} accessToken={accessToken} />

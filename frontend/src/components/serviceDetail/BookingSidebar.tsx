@@ -101,6 +101,12 @@ export default function BookingSidebar({
             {contactLoading ? t("serviceDetail.openingChat") : t("serviceDetail.contact", { name: providerFirstName })}
           </Button>
         </div>
+        <p className="text-center text-xs text-gray-400 mt-3">
+          {t("serviceDetail.byContinuing")}{" "}
+          <Link href="/payment-terms" className="text-green-700 hover:underline">
+            {t("serviceDetail.paymentTerms")}
+          </Link>
+        </p>
       </div>
 
       {/* Provider info card */}

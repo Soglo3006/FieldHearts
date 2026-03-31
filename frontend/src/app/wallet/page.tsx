@@ -323,20 +323,42 @@ export default function WalletPage() {
           </div>
         )}
 
-        {/* Stats cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
-          {/* Balance — full width on mobile */}
-          <Card className="col-span-2 sm:col-span-1 border-green-200 bg-gradient-to-br from-green-700 to-green-800 text-white shadow-md">
-            <CardContent className="pt-4 pb-4 px-5 sm:pt-5 sm:pb-5">
-              <p className="text-xs text-green-200 font-medium uppercase tracking-wide mb-1">
-                {t("wallet.availableBalance")}
-              </p>
-              <p className="text-3xl font-extrabold tracking-tight">
-                {fmt(wallet?.balance ?? 0)}&nbsp;$
-              </p>
-            </CardContent>
-          </Card>
+        {/* Balance breakdown card */}
+        <Card className="shadow-md overflow-hidden border-green-100">
+          <CardContent className="p-0">
+            {/* Top: total */}
+            <div className="bg-gradient-to-br from-green-700 to-green-800 px-5 py-4 flex items-center justify-between">
+              <div>
+                <p className="text-xs text-green-200 font-medium uppercase tracking-wide">{t("wallet.totalBalance")}</p>
+                <p className="text-3xl font-extrabold tracking-tight text-white mt-0.5">
+                  {fmt((wallet?.available_for_payout ?? 0) + (wallet?.pending_amount ?? 0))}&nbsp;$
+                </p>
+              </div>
+            </div>
+            {/* Bottom: approved + pending */}
+            <div className="grid grid-cols-2 divide-x divide-gray-100">
+              <div className="px-5 py-4">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <div className="h-2 w-2 rounded-full bg-green-500" />
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{t("wallet.approvedAmount")}</p>
+                </div>
+                <p className="text-xl font-bold text-green-700">{fmt(wallet?.available_for_payout ?? 0)}&nbsp;$</p>
+                <p className="text-[11px] text-gray-400 mt-1">{t("wallet.approvedAmountDesc")}</p>
+              </div>
+              <div className="px-5 py-4">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <div className="h-2 w-2 rounded-full bg-amber-400" />
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{t("wallet.pendingAmountLabel")}</p>
+                </div>
+                <p className="text-xl font-bold text-amber-600">{fmt(wallet?.pending_amount ?? 0)}&nbsp;$</p>
+                <p className="text-[11px] text-gray-400 mt-1">{t("wallet.pendingAmountDesc")}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
+        {/* Stats cards */}
+        <div className="grid grid-cols-2 gap-3 sm:gap-4">
           {/* Earned */}
           <Card className="shadow-sm">
             <CardContent className="pt-4 pb-4 px-4 sm:pt-5 sm:pb-5 sm:px-5 flex items-center gap-3">

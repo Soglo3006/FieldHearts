@@ -125,7 +125,7 @@ export const getMyBookings = async (req, res) => {
     //   offer listing  → you are the client (you booked someone's offer)
     //   looking listing → you are the worker (you applied to someone's search)
     const result = await pool.query(
-      `SELECT b.*, s.title, s.price, s.image_url, s.category, s.location AS service_location,
+      `SELECT b.*, s.title, s.price, s.image_url, s.image_urls, s.category, s.location AS service_location,
               s.is_one_time, s.type AS service_type,
               -- worker_name = the OTHER person you're dealing with
               CASE
@@ -136,7 +136,7 @@ export const getMyBookings = async (req, res) => {
               EXISTS(SELECT 1 FROM disputes WHERE booking_id = b.id) AS has_dispute,
               b.payment_status, b.completed_by_worker, b.completed_by_client,
               b.worker_note, b.custom_price, b.last_modified_at, b.modified_fields,
-              b.cancel_requested_by, b.cancel_reason
+              b.cancel_requested_by, b.cancel_reason, b.completed_at
        FROM bookings b
        JOIN services s ON b.service_id = s.id
        JOIN users u ON b.worker_id = u.id
@@ -159,7 +159,7 @@ export const getReceivedBookings = async (req, res) => {
     //   offer listing  → you are the worker (someone booked your offer)
     //   looking listing → you are the client (someone applied to your search)
     const result = await pool.query(
-      `SELECT b.*, s.title, s.price, s.image_url, s.category, s.location AS service_location,
+      `SELECT b.*, s.title, s.price, s.image_url, s.image_urls, s.category, s.location AS service_location,
               s.is_one_time, s.type AS service_type,
               -- client_name = the OTHER person who initiated the booking
               CASE
@@ -170,7 +170,7 @@ export const getReceivedBookings = async (req, res) => {
               EXISTS(SELECT 1 FROM disputes WHERE booking_id = b.id) AS has_dispute,
               b.payment_status, b.completed_by_worker, b.completed_by_client,
               b.worker_note, b.custom_price, b.last_modified_at, b.modified_fields,
-              b.cancel_requested_by, b.cancel_reason
+              b.cancel_requested_by, b.cancel_reason, b.completed_at
        FROM bookings b
        JOIN services s ON b.service_id = s.id
        JOIN users uc ON b.client_id = uc.id
@@ -336,7 +336,7 @@ export const markCompleted = async (req, res) => {
     // Atomic UPDATE: only succeeds if BOTH flags are true AND status is still 'active'
     // This prevents double finalization if two requests arrive simultaneously
     const finalizeResult = await pool.query(
-      `UPDATE bookings SET status = 'completed'
+      `UPDATE bookings SET status = 'completed', completed_at = NOW()
        WHERE id = $1 AND status = 'active' AND completed_by_worker = true AND completed_by_client = true
        RETURNING *`,
       [id]
@@ -546,7 +546,7 @@ export const getBookingById = async (req, res) => {
   try {
     const { id } = req.params;
     const result = await pool.query(
-      `SELECT b.*, s.title, s.price, s.image_url, s.category, s.location AS service_location,
+      `SELECT b.*, s.title, s.price, s.image_url, s.image_urls, s.category, s.location AS service_location,
               s.is_one_time, s.type AS service_type,
               CASE WHEN uw.account_type = 'company' THEN uw.company_name ELSE uw.full_name END AS worker_name,
               CASE WHEN uc.account_type = 'company' THEN uc.company_name ELSE uc.full_name END AS client_name,
@@ -556,7 +556,7 @@ export const getBookingById = async (req, res) => {
               EXISTS(SELECT 1 FROM disputes WHERE booking_id = b.id) AS has_dispute,
               b.payment_status, b.completed_by_worker, b.completed_by_client,
               b.worker_note, b.custom_price, b.last_modified_at, b.modified_fields,
-              b.cancel_requested_by, b.cancel_reason
+              b.cancel_requested_by, b.cancel_reason, b.completed_at
        FROM bookings b
        JOIN services s ON b.service_id = s.id
        JOIN users uw ON b.worker_id = uw.id

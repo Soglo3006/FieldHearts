@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { CreditCard, Loader2 } from "lucide-react";
+import Link from "next/link";
 
 interface Props {
   bookingId: string;
@@ -51,6 +52,10 @@ export default function PayNowButton({ bookingId, accessToken, fullWidth }: Prop
         {loading ? "Redirecting…" : "Pay Now"}
       </Button>
       {error && <p className="text-xs text-red-600">{error}</p>}
+      <p className="text-center text-xs text-gray-400">
+        By paying you agree to our{" "}
+        <Link href="/payment-terms" className="text-green-700 hover:underline">Payment Terms</Link>
+      </p>
     </div>
   );
 }

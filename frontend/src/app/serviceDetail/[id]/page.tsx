@@ -51,6 +51,7 @@ interface Service {
   faq?: Array<{ question: string; answer: string }> | string | null;
   favorites_count?: number;
   is_one_time?: boolean;
+  hide_exact_location?: boolean;
 }
 
 interface SimilarService {
@@ -355,7 +356,12 @@ export default function ServiceDetailPage() {
       )}
 
       {isMapOpen && (
-        <LocationMapModal location={service.city ?? service.location} lat={service.latitude} lng={service.longitude} onClose={() => setIsMapOpen(false)} />
+        <LocationMapModal
+          location={service.city ?? service.location}
+          lat={service.hide_exact_location ? null : service.latitude}
+          lng={service.hide_exact_location ? null : service.longitude}
+          onClose={() => setIsMapOpen(false)}
+        />
       )}
     </div>
   );

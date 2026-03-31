@@ -48,6 +48,7 @@ export interface Service {
   image_url: string | null;
   image_urls?: string[] | null;
   is_one_time?: boolean;
+  hide_exact_location?: boolean;
 }
 
 interface Props {
@@ -80,6 +81,7 @@ export default function EditListingModal({ service, accessToken, onClose, onSave
     service.image_urls?.length ? service.image_urls : service.image_url ? [service.image_url] : []
   );
   const [isOneTime, setIsOneTime] = useState(service.is_one_time ?? false);
+  const [hideExactLocation, setHideExactLocation] = useState(service.hide_exact_location ?? false);
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -131,6 +133,7 @@ export default function EditListingModal({ service, accessToken, onClose, onSave
             image_url: images[0] ?? null,
             image_urls: images,
             is_one_time: isOneTime,
+            hide_exact_location: hideExactLocation,
           }),
         }
       );
@@ -165,7 +168,7 @@ export default function EditListingModal({ service, accessToken, onClose, onSave
               {isOffer ? "Offer a Service" : "Looking for a Worker"}
             </p>
           </div>
-          <button onClick={onClose} className="cursor-pointer text-gray-400 hover:text-gray-600 transition-colors">
+          <button type="button" aria-label="Close" onClick={onClose} className="cursor-pointer text-gray-400 hover:text-gray-600 transition-colors">
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -367,6 +370,23 @@ export default function EditListingModal({ service, accessToken, onClose, onSave
           <div className="space-y-2">
             <Label className="text-base font-medium text-gray-900">Photos (optionnel)</Label>
             <MultiImageUploader images={images} onChange={setImages} aspectRatio={16 / 9} />
+          </div>
+
+          {/* Hide exact location */}
+          <div className="flex items-start gap-3 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+            <input
+              type="checkbox"
+              id="editHideLocation"
+              checked={hideExactLocation}
+              onChange={(e) => setHideExactLocation(e.target.checked)}
+              className="mt-0.5 h-4 w-4 rounded border-gray-300 text-green-600 cursor-pointer"
+            />
+            <label htmlFor="editHideLocation" className="cursor-pointer">
+              <span className="text-sm font-medium text-gray-800">Hide exact location</span>
+              <p className="text-xs text-gray-500 mt-0.5">
+                Only a general area will be shown on the map. The exact address remains private.
+              </p>
+            </label>
           </div>
 
           {/* One-time listing */}

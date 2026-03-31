@@ -253,6 +253,11 @@
   "wallet": {
     "title": "Portefeuille",
     "availableBalance": "Solde disponible",
+    "approvedAmount": "Approuvé",
+    "approvedAmountDesc": "Aucun litige possible — disponible au retrait",
+    "pendingAmountLabel": "En attente",
+    "pendingAmountDesc": "Peut encore faire l'objet d'un litige (fenêtre de 3 jours)",
+    "totalBalance": "Total",
     "totalEarned": "Total gagné",
     "totalSpent": "Total dépensé",
     "transactionHistory": "Historique des transactions",
@@ -272,7 +277,7 @@
     "availableForPayout": "Disponible pour versement",
     "platformCommission20": "Commission plateforme (20%)",
     "youWillReceive": "Vous recevrez",
-    "pendingInfo": "${{amount}} en attente — reçu il y a moins de 5 jours ouvrables, sera versé lors du prochain cycle.",
+    "pendingInfo": "${{amount}} en attente — ces fonds peuvent encore faire l'objet d'un litige dans les 3 jours suivant la complétion du service.",
     "nextPayoutDate": "Date du prochain versement",
     "browseListings": "Parcourir les annonces",
     "withdraw": "Retirer",
@@ -376,6 +381,8 @@
     "successJobDesc": "Votre demande est maintenant en ligne et visible par tous.",
     "viewMyPost": "Voir mon annonce",
     "backToHome": "Retour à l'accueil",
+    "hideExactLocation": "Masquer l'adresse exacte",
+    "hideExactLocationDesc": "Seule une zone approximative sera affichée sur la carte. L'adresse exacte reste privée.",
     "oneTimeListing": "Annonce unique",
     "oneTimeListingDesc": "Une fois qu'une demande est acceptée, cette annonce sera masquée et toutes les autres demandes en attente seront automatiquement refusées.",
     "typeOfPoster": "Type d'affichant",
@@ -476,7 +483,9 @@
     "viewAllMyListings": "Voir toutes mes annonces",
     "approximateLocation": "Emplacement approximatif",
     "approximateLocationDesc": "Ceci montre une zone approximative pour protéger la vie privée.",
-    "openInGoogleMaps": "Ouvrir dans Google Maps"
+    "openInGoogleMaps": "Ouvrir dans Google Maps",
+    "byContinuing": "En continuant, vous acceptez nos",
+    "paymentTerms": "Conditions de paiement"
   },
   "profile": {
     "editProfile": "Modifier le profil",

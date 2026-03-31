@@ -4,6 +4,7 @@ import { useScrollLock } from "@/hooks/useScrollLock";
 import { getTaxRate, getTaxLabel, formatTaxRate } from "@/lib/taxes";
 import { Button } from "@/components/ui/button";
 import { CheckCircle, X } from "lucide-react";
+import Link from "next/link";
 
 interface Props {
   state: "idle" | "loading" | "success" | "error";
@@ -139,6 +140,12 @@ export default function BookingModal({
                 {t("serviceDetail.cancel")}
               </Button>
             </div>
+            <p className="text-center text-xs text-gray-400 mt-3">
+              {t("serviceDetail.byContinuing")}{" "}
+              <Link href="/payment-terms" className="text-green-700 hover:underline">
+                {t("serviceDetail.paymentTerms")}
+              </Link>
+            </p>
           </>
         )}
       </div>

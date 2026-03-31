@@ -10,6 +10,7 @@ interface BookingBase {
   title: string;
   price: string | number;
   image_url: string | null;
+  image_urls?: string[] | null;
   category: string | null;
   service_location: string | null;
   has_reviewed: boolean;
@@ -28,6 +29,7 @@ interface BookingBase {
   cancel_reason?: string | null;
   tax_rate?: number | null;
   worker_province?: string | null;
+  completed_at?: string | null;
 }
 
 export interface ReceivedBooking extends BookingBase {

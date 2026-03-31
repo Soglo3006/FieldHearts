@@ -127,8 +127,13 @@ export default function OpenDisputeModal({
 
         {/* Body */}
         <div className="px-6 py-5 space-y-4">
-          <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-800">
-            Describe the issue clearly. Both parties will be able to respond. Our team will review and close the complaint.
+          <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-800 space-y-1.5">
+            <p>Describe the issue clearly. Both parties will be able to respond. Our team will review and resolve the complaint.</p>
+            <ul className="list-disc list-inside text-xs text-red-700 space-y-0.5">
+              <li>Disputes must be opened within <span className="font-semibold">3 days</span> of service completion</li>
+              <li>Maximum refund: <span className="font-semibold">50%</span> of the transaction value</li>
+              <li>The remaining 50% is allocated to the service provider</li>
+            </ul>
           </div>
 
           {error && (

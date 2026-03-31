@@ -37,6 +37,7 @@ export default function OfferServiceForm({ onSuccess }: Props) {
   const [duration, setDuration] = useState("");
   const [images, setImages] = useState<string[]>([]);
   const [isOneTime, setIsOneTime] = useState(false);
+  const [hideExactLocation, setHideExactLocation] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   const isValid =
@@ -83,6 +84,7 @@ export default function OfferServiceForm({ onSuccess }: Props) {
           image_url: images[0] ?? null,
           image_urls: images,
           is_one_time: isOneTime,
+          hide_exact_location: hideExactLocation,
         }),
       });
       if (!res.ok) {
@@ -163,6 +165,20 @@ export default function OfferServiceForm({ onSuccess }: Props) {
           placeholder={t("post.locationPlaceholder")}
           required
         />
+      </div>
+
+      <div className="flex items-start gap-3 px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg">
+        <input
+          type="checkbox"
+          id="offerHideLocation"
+          checked={hideExactLocation}
+          onChange={(e) => setHideExactLocation(e.target.checked)}
+          className="mt-0.5 h-4 w-4 rounded border-gray-300 text-green-600 cursor-pointer"
+        />
+        <label htmlFor="offerHideLocation" className="cursor-pointer">
+          <span className="text-sm font-medium text-gray-800">{t("post.hideExactLocation")}</span>
+          <p className="text-xs text-gray-500 mt-0.5">{t("post.hideExactLocationDesc")}</p>
+        </label>
       </div>
 
       <CategorySubcategoryFields

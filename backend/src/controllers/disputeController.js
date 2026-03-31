@@ -17,6 +17,14 @@ export const CreateDispute = async (req, res) => {
         if (b.client_id !== req.user.id && b.worker_id !== req.user.id) {
             return res.status(403).json({ message: "You are not part of this booking" });
         }
+
+        // Dispute only allowed within 3 days of completion
+        if (b.status === "completed" && b.completed_at) {
+            const daysSinceCompletion = (Date.now() - new Date(b.completed_at).getTime()) / (1000 * 60 * 60 * 24);
+            if (daysSinceCompletion > 3) {
+                return res.status(400).json({ message: "The 3-day dispute window has expired for this booking." });
+            }
+        }
         const allowed = ["open", "resolved", "rejected"];
         if (!allowed.includes(status)) {
         return res.status(400).json({ message: "Invalid dispute status" });

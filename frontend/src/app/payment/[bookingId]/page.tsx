@@ -11,6 +11,7 @@ import Link from "next/link";
 import { useTranslation } from "react-i18next";
 import { getTaxLabel, formatTaxRate, getTaxRate } from "@/lib/taxes";
 import { getIntlLocale } from "@/lib/locale";
+import BillingAddressSelector, { type BillingAddress } from "@/components/payment/BillingAddressSelector";
 
 interface Booking {
   id: string;
@@ -20,6 +21,7 @@ interface Booking {
   custom_price: number | null;
   tax_rate: number | null;
   worker_province: string | null;
+  client_province: string | null;
   service_id: string;
   worker_id: string;
   created_at: string;
@@ -45,21 +47,70 @@ export default function PaymentPage() {
   const [paying, setPaying] = useState(false);
   const [error, setError] = useState("");
 
+  // Billing addresses
+  const [billingAddresses, setBillingAddresses] = useState<BillingAddress[]>([]);
+  const [selectedAddress, setSelectedAddress] = useState<BillingAddress | null>(null);
+  const [billingConfirmed, setBillingConfirmed] = useState(false);
+
   useEffect(() => {
     if (!session?.access_token || !bookingId) return;
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/bookings/${bookingId}`, {
-      headers: { Authorization: `Bearer ${session.access_token}` },
-    })
-      .then((r) => r.json())
-      .then((data) => {
-        setBooking(data);
+    Promise.all([
+      fetch(`${process.env.NEXT_PUBLIC_API_URL}/bookings/${bookingId}`, {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      }).then((r) => r.json()),
+      fetch(`${process.env.NEXT_PUBLIC_API_URL}/billing-addresses`, {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      }).then((r) => r.json()),
+    ])
+      .then(([bookingData, addressData]) => {
+        setBooking(bookingData);
+        const addresses: BillingAddress[] = Array.isArray(addressData) ? addressData : [];
+        setBillingAddresses(addresses);
+        const defaultAddr = addresses.find((a) => a.is_default) ?? addresses[0] ?? null;
+        setSelectedAddress(defaultAddr);
         setLoading(false);
       })
       .catch(() => setLoading(false));
   }, [bookingId, session?.access_token]);
 
+  const handleAddAddress = async (data: Omit<BillingAddress, "id" | "is_default">) => {
+    if (!session?.access_token) return;
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/billing-addresses`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify(data),
+    });
+    const newAddr: BillingAddress = await res.json();
+    if (res.ok) {
+      setBillingAddresses((prev) => [...prev, newAddr]);
+      setSelectedAddress(newAddr);
+    }
+  };
+
+  const handleDeleteAddress = async (id: string) => {
+    if (!session?.access_token) return;
+    await fetch(`${process.env.NEXT_PUBLIC_API_URL}/billing-addresses/${id}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    });
+    setBillingAddresses((prev) => {
+      const updated = prev.filter((a) => a.id !== id);
+      if (selectedAddress?.id === id) {
+        setSelectedAddress(updated[0] ?? null);
+      }
+      return updated;
+    });
+  };
+
   const handlePay = async () => {
     if (!session?.access_token) return;
+    if (!billingConfirmed) {
+      setError(t("payment.mustConfirmBilling"));
+      return;
+    }
     setPaying(true);
     setError("");
     try {
@@ -69,7 +120,11 @@ export default function PaymentPage() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${session.access_token}`,
         },
-        body: JSON.stringify({ booking_id: bookingId, locale: checkoutLocale }),
+        body: JSON.stringify({
+          booking_id: bookingId,
+          locale: checkoutLocale,
+          billing_province: selectedAddress?.province ?? null,
+        }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -121,9 +176,11 @@ export default function PaymentPage() {
     );
   }
 
+  // Use selected billing address province for live tax recalculation
+  const billingProvince = selectedAddress?.province ?? booking.client_province ?? "QC";
   const price = Number(booking.custom_price ?? booking.price);
-  const taxRate = booking.tax_rate ? Number(booking.tax_rate) : getTaxRate(booking.worker_province ?? "QC");
-  const taxLabel = getTaxLabel(booking.worker_province ?? "QC", i18n.language ?? "fr");
+  const taxRate = getTaxRate(billingProvince);
+  const taxLabel = getTaxLabel(billingProvince, i18n.language ?? "fr");
   const buyerCommission = price * 0.05;
   const taxes = price * taxRate;
   const total = price + buyerCommission + taxes;
@@ -149,7 +206,6 @@ export default function PaymentPage() {
             {t("payment.cancelledNotice")}
           </div>
         )}
-
 
         {/* Booking summary card */}
         <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden mb-5">
@@ -178,7 +234,10 @@ export default function PaymentPage() {
                 <span className="font-medium text-gray-900">{fmt(price)} $</span>
               </div>
               <div className="flex justify-between text-gray-500">
-                <span>{t("payment.buyerCommission")}</span>
+                <div>
+                  <div>{t("payment.buyerCommission")}</div>
+                  <div className="text-xs text-red-400">{t("payment.nonRefundable")}</div>
+                </div>
                 <span>{fmt(buyerCommission)} $</span>
               </div>
               <div className="flex justify-between text-gray-500">
@@ -196,6 +255,31 @@ export default function PaymentPage() {
           </div>
         </div>
 
+        {/* Billing address */}
+        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 mb-5">
+          <BillingAddressSelector
+            addresses={billingAddresses}
+            selectedId={selectedAddress?.id ?? null}
+            onSelect={(addr) => { setSelectedAddress(addr); setBillingConfirmed(false); }}
+            onAdd={handleAddAddress}
+            onDelete={handleDeleteAddress}
+            accessToken={session?.access_token ?? ""}
+          />
+        </div>
+
+        {/* Billing accuracy confirmation */}
+        <label className="flex items-start gap-3 cursor-pointer mb-5 select-none">
+          <input
+            type="checkbox"
+            checked={billingConfirmed}
+            onChange={(e) => { setBillingConfirmed(e.target.checked); if (e.target.checked) setError(""); }}
+            className="mt-0.5 h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500 shrink-0 cursor-pointer"
+          />
+          <span className="text-xs text-gray-600 leading-relaxed">
+            {t("payment.confirmBillingAccuracy")}
+          </span>
+        </label>
+
         {/* Error */}
         {error && (
           <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 mb-4 text-sm">
@@ -207,7 +291,7 @@ export default function PaymentPage() {
         {/* Pay button */}
         <Button
           onClick={handlePay}
-          disabled={paying}
+          disabled={paying || !billingConfirmed || !selectedAddress}
           className="w-full h-14 text-base font-semibold bg-green-700 hover:bg-green-800 text-white rounded-xl disabled:opacity-50"
         >
           {paying ? (

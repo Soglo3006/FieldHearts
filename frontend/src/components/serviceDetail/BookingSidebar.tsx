@@ -1,7 +1,8 @@
 "use client";
 import { useTranslation } from "react-i18next";
 import Link from "next/link";
-import { formatTaxRate, getTaxRate, getTaxLabel } from "@/lib/taxes";
+import { formatTaxRate } from "@/lib/taxes";
+import { useClientTax } from "@/hooks/useClientTax";
 import { Button } from "@/components/ui/button";
 import { Clock, Globe, CheckCircle } from "lucide-react";
 
@@ -27,9 +28,7 @@ export default function BookingSidebar({
   onBookingRequest, onContact,
 }: Props) {
   const { t, i18n } = useTranslation();
-  const taxRate = getTaxRate(workerProvince ?? "QC");
-  const taxLabel = getTaxLabel(workerProvince ?? "QC", i18n.language ?? "fr");
-  const taxLoading = false;
+  const { taxRate, taxLabel, loading: taxLoading } = useClientTax(i18n.language ?? "fr");
   return (
     <>
       {/* Booking card */}

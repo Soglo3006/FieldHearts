@@ -1,7 +1,8 @@
 "use client";
 import { useTranslation } from "react-i18next";
 import { useScrollLock } from "@/hooks/useScrollLock";
-import { getTaxRate, getTaxLabel, formatTaxRate } from "@/lib/taxes";
+import { formatTaxRate } from "@/lib/taxes";
+import { useClientTax } from "@/hooks/useClientTax";
 import { Button } from "@/components/ui/button";
 import { CheckCircle, X } from "lucide-react";
 import Link from "next/link";
@@ -26,8 +27,7 @@ export default function BookingModal({
   onNoteChange, onSubmit, onClose, onMessageProvider,
 }: Props) {
   const { t, i18n } = useTranslation();
-  const taxRate = getTaxRate(workerProvince ?? "QC");
-  const taxLabel = getTaxLabel(workerProvince ?? "QC", getLanguageCode(i18n.language));
+  const { taxRate, taxLabel } = useClientTax(getLanguageCode(i18n.language));
   useScrollLock(true);
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">

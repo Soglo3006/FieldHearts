@@ -29,6 +29,7 @@ interface BookingBase {
   cancel_reason?: string | null;
   tax_rate?: number | null;
   worker_province?: string | null;
+  client_province?: string | null;
   completed_at?: string | null;
 }
 

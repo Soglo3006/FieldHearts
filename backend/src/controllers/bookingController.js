@@ -79,9 +79,10 @@ export const createBooking = async (req, res) => {
     );
     const clientName = applicant.rows[0].display_name;
 
-    // Tax rate based on the worker's province (where service is provided)
-    const workerProvince = isLooking ? null : s.owner_province;
-    const tax_rate = getWorkerTaxRate(workerProvince);
+    // Tax rate based on the client's (buyer's) province
+    const clientResult = await pool.query("SELECT province FROM users WHERE id = $1", [client_id]);
+    const clientProvince = clientResult.rows[0]?.province ?? null;
+    const tax_rate = getWorkerTaxRate(clientProvince);
 
     const result = await pool.query(
       `INSERT INTO bookings (service_id, client_id, worker_id, status, client_description, tax_rate)
@@ -297,7 +298,8 @@ export const markCompleted = async (req, res) => {
               CASE WHEN cw.account_type = 'company' THEN cw.company_name ELSE cw.full_name END AS worker_name,
               CASE WHEN cc.account_type = 'company' THEN cc.company_name ELSE cc.full_name END AS client_name,
               cw.id AS worker_user_id, cc.id AS client_user_id,
-              cw.email AS worker_email, cc.email AS client_email
+              cw.email AS worker_email, cc.email AS client_email,
+              cc.province AS client_province
        FROM bookings b
        JOIN services s ON b.service_id = s.id
        JOIN users cw ON b.worker_id = cw.id
@@ -367,7 +369,7 @@ export const markCompleted = async (req, res) => {
 
       // Both confirmed — send completion emails to both
       const effectivePrice = Number(b.custom_price ?? b.price);
-      const taxRate = b.tax_rate ? Number(b.tax_rate) : getWorkerTaxRate(b.worker_province);
+      const taxRate = b.tax_rate ? Number(b.tax_rate) : getWorkerTaxRate(b.client_province);
       const totalPaid = (effectivePrice * (1 + 0.05 + taxRate)).toFixed(2);
       const workerReceives = (effectivePrice * 0.80).toFixed(2);
       sendEmail(b.client_email, "jobCompleted", [b.client_name, b.title, b.worker_name, totalPaid, id, "client"]);

@@ -90,7 +90,7 @@ export const createService = async (req, res) => {
 
 export const getAllServices = async (req, res) => {
   try {
-    const { category, location, minPrice, maxPrice, search, categoryName, subcategory, type, userLat, userLng, radius, limit } = req.query;
+    const { category, location, minPrice, maxPrice, search, categoryName, subcategory, type, userLat, userLng, radius, limit, page } = req.query;
     const categoryNames = String(categoryName || "")
       .split(",")
       .map((value) => value.trim())
@@ -100,11 +100,17 @@ export const getAllServices = async (req, res) => {
       .map((value) => value.trim())
       .filter(Boolean);
 
+    const isPaginated = !!page;
+    const parsedPage  = Math.max(1, parseInt(page, 10) || 1);
+    const parsedLimit = Math.max(1, parseInt(limit, 10) || 12);
+    const offset      = (parsedPage - 1) * parsedLimit;
+
     let query = `
       SELECT
         s.*,
         COALESCE(c.name, s.category) AS category_name,
         c.image_url AS category_image_url
+        ${isPaginated ? ", COUNT(*) OVER() AS total_count" : ""}
       FROM services s
       LEFT JOIN categories c ON c.id = s.category_id
       WHERE s.is_active = true
@@ -272,15 +278,29 @@ export const getAllServices = async (req, res) => {
         : ` ORDER BY s.created_at DESC`;
     }
 
-    if (limit) {
-      const parsedLimit = parseInt(limit, 10);
-      if (!isNaN(parsedLimit) && parsedLimit > 0) {
+    if (isPaginated) {
+      query += ` LIMIT $${paramCount} OFFSET $${paramCount + 1}`;
+      params.push(parsedLimit, offset);
+    } else if (limit) {
+      const limitOnly = parseInt(limit, 10);
+      if (!isNaN(limitOnly) && limitOnly > 0) {
         query += ` LIMIT $${paramCount}`;
-        params.push(parsedLimit);
+        params.push(limitOnly);
       }
     }
 
     const result = await pool.query(query, params);
+
+    if (isPaginated) {
+      const total = parseInt(result.rows[0]?.total_count ?? "0", 10);
+      return res.json({
+        data: result.rows,
+        total,
+        page: parsedPage,
+        totalPages: Math.ceil(total / parsedLimit),
+      });
+    }
+
     res.json(result.rows);
   } catch (err) {
     console.error("[getAllServices] error:", err.message, err.stack);

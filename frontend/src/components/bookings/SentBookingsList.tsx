@@ -117,7 +117,7 @@ export default function SentBookingsList({
                       </p>
 
                       <p className="text-green-700 font-bold text-lg mb-1">
-                        {(Number(b.custom_price ?? b.price) * (1 + 0.05 + (b.tax_rate ? Number(b.tax_rate) : getTaxRate(b.worker_province ?? "QC")))).toFixed(2)} $
+                        {(Number(b.custom_price ?? b.price) * (1 + 0.05 + (b.tax_rate ? Number(b.tax_rate) : getTaxRate(b.client_province ?? "QC")))).toFixed(2)} $
                       </p>
 
                       {b.service_location && (

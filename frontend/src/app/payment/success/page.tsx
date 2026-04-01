@@ -18,6 +18,7 @@ interface Booking {
   custom_price: number | null;
   tax_rate: number | null;
   worker_province: string | null;
+  client_province: string | null;
   title: string;
   image_url: string | null;
   service_location: string | null;
@@ -108,8 +109,8 @@ export default function PaymentSuccessPage() {
               <div className="mt-4 pt-4 border-t border-gray-200 space-y-1.5 text-sm">
                 {(() => {
                   const price = Number(booking.custom_price ?? booking.price);
-                  const taxRate = booking.tax_rate ? Number(booking.tax_rate) : getTaxRate(booking.worker_province ?? "QC");
-                  const taxLabel = getTaxLabel(booking.worker_province ?? "QC", i18n.language ?? "fr");
+                  const taxRate = booking.tax_rate ? Number(booking.tax_rate) : getTaxRate(booking.client_province ?? "QC");
+                  const taxLabel = getTaxLabel(booking.client_province ?? "QC", i18n.language ?? "fr");
                   const buyerCommission = price * 0.05;
                   const taxes = price * taxRate;
                   const total = price + buyerCommission + taxes;

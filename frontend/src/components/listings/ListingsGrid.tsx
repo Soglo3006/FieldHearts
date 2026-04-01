@@ -64,45 +64,12 @@ export default function ListingsGrid({ filters }: { filters?: ListingsFilters })
   const [listings, setListings] = useState<ApiService[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
+  const [totalListings, setTotalListings] = useState(0);
   const gridTopRef = useRef<HTMLDivElement>(null);
 
+  // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
-    setLoading(true);
-    const controller = new AbortController();
-
-    const fetchListings = async () => {
-      try {
-        // DB now stores category names in English — send as-is
-
-        const params = new URLSearchParams();
-        if (filters?.search)                               params.set("search", filters.search);
-        if (filters?.categories?.length)                   params.set("categoryName", filters.categories.join(","));
-        else if (filters?.category)                        params.set("categoryName", filters.category);
-        if (filters?.subcategories?.length)                params.set("subcategory", filters.subcategories.join(","));
-        else if (filters?.subcategory)                     params.set("subcategory", filters.subcategory);
-        if (filters?.location)                             params.set("location", filters.location);
-        if (filters?.minPrice && filters.minPrice > 0)     params.set("minPrice", String(filters.minPrice));
-        if (filters?.maxPrice && filters.maxPrice < 1000)  params.set("maxPrice", String(filters.maxPrice));
-        if (filters?.serviceType && filters.serviceType !== "all") params.set("type", filters.serviceType);
-        if (filters?.username)                                      params.set("username", filters.username);
-
-        const query = params.toString();
-        const url = `${process.env.NEXT_PUBLIC_API_URL}/services${query ? `?${query}` : ""}`;
-        const res = await fetch(url, { signal: controller.signal });
-        const data = res.ok ? await res.json() : [];
-        setListings(Array.isArray(data) ? data : []);
-        setLoading(false);
-      } catch (e) {
-        if ((e as Error).name !== "AbortError") {
-          setListings([]);
-          setLoading(false);
-        }
-      }
-    };
-
-    fetchListings();
-    return () => controller.abort();
   }, [
     filters?.search,
     filters?.categories,
@@ -116,9 +83,64 @@ export default function ListingsGrid({ filters }: { filters?: ListingsFilters })
     filters?.username,
   ]);
 
-  const totalPages = Math.ceil(listings.length / LISTINGS_PER_PAGE);
-  const startIndex = (currentPage - 1) * LISTINGS_PER_PAGE;
-  const currentListings = listings.slice(startIndex, startIndex + LISTINGS_PER_PAGE);
+  useEffect(() => {
+    setLoading(true);
+    const controller = new AbortController();
+
+    const fetchListings = async () => {
+      try {
+        const params = new URLSearchParams();
+        if (filters?.search)                               params.set("search", filters.search);
+        if (filters?.categories?.length)                   params.set("categoryName", filters.categories.join(","));
+        else if (filters?.category)                        params.set("categoryName", filters.category);
+        if (filters?.subcategories?.length)                params.set("subcategory", filters.subcategories.join(","));
+        else if (filters?.subcategory)                     params.set("subcategory", filters.subcategory);
+        if (filters?.location)                             params.set("location", filters.location);
+        if (filters?.minPrice && filters.minPrice > 0)     params.set("minPrice", String(filters.minPrice));
+        if (filters?.maxPrice && filters.maxPrice < 1000)  params.set("maxPrice", String(filters.maxPrice));
+        if (filters?.serviceType && filters.serviceType !== "all") params.set("type", filters.serviceType);
+        if (filters?.username)                                      params.set("username", filters.username);
+        params.set("page", String(currentPage));
+        params.set("limit", String(LISTINGS_PER_PAGE));
+
+        const url = `${process.env.NEXT_PUBLIC_API_URL}/services?${params.toString()}`;
+        const res = await fetch(url, { signal: controller.signal });
+        if (res.ok) {
+          const json = await res.json();
+          setListings(Array.isArray(json.data) ? json.data : []);
+          setTotalListings(typeof json.total === "number" ? json.total : 0);
+        } else {
+          setListings([]);
+          setTotalListings(0);
+        }
+        setLoading(false);
+      } catch (e) {
+        if ((e as Error).name !== "AbortError") {
+          setListings([]);
+          setTotalListings(0);
+          setLoading(false);
+        }
+      }
+    };
+
+    fetchListings();
+    return () => controller.abort();
+  }, [
+    currentPage,
+    filters?.search,
+    filters?.categories,
+    filters?.subcategories,
+    filters?.category,
+    filters?.subcategory,
+    filters?.location,
+    filters?.minPrice,
+    filters?.maxPrice,
+    filters?.serviceType,
+    filters?.username,
+  ]);
+
+  const totalPages = Math.ceil(totalListings / LISTINGS_PER_PAGE);
+  const currentListings = listings;
 
   const handlePageChange = (newPage: number) => {
     setCurrentPage(newPage);

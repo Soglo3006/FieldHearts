@@ -285,8 +285,8 @@ export default function BookingDetailModal({
                 const origBase = Number(booking.price);
                 const fmt = (n: number) => n.toFixed(2);
 
-                const taxRate         = booking.tax_rate ? Number(booking.tax_rate) : getTaxRate(booking.worker_province ?? booking.client_province ?? "QC");
-                const taxLabel        = getTaxLabel(booking.worker_province ?? booking.client_province ?? "QC", i18n.language ?? "fr");
+                const taxRate         = booking.tax_rate ? Number(booking.tax_rate) : getTaxRate(booking.client_province ?? "QC");
+                const taxLabel        = getTaxLabel(booking.client_province ?? "QC", i18n.language ?? "fr");
                 const buyerCommission = base * 0.05;
                 const taxes           = base * taxRate;
                 const totalPaid       = base + buyerCommission + taxes;

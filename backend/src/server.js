@@ -18,6 +18,7 @@ import walletRoutes from './routes/walletRoutes.js';
 import notificationRoutes from './routes/notificationRoutes.js';
 import metricsRoutes from './routes/metricsRoutes.js';
 import favoriteRoutes from './routes/favoriteRoutes.js';
+import billingAddressRoutes from './routes/billingAddressRoutes.js';
 import pool from './config/db.js';
 import { startMessageReminderJob } from './jobs/messageReminderJob.js';
 import { startHealthMonitorJob } from './jobs/healthMonitorJob.js';
@@ -102,6 +103,7 @@ app.use('/api/wallet', generalLimiter, walletRoutes);
 app.use('/api/notifications', generalLimiter, notificationRoutes);
 app.use('/api/admin/metrics', generalLimiter, metricsRoutes);
 app.use('/api/favorites', generalLimiter, favoriteRoutes);
+app.use('/api/billing-addresses', generalLimiter, billingAddressRoutes);
 app.use('/api/health', healthRoutes);
 
 // Sentry error handler — must be after all routes

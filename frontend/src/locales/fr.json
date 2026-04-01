@@ -1992,6 +1992,7 @@
     "confirmedDesc": "Votre réservation est maintenant active. Le prestataire a été notifié.",
     "servicePrice": "Prix du service",
     "buyerCommission": "Commission acheteur (5%)",
+    "nonRefundable": "* Non remboursable",
     "taxes": "Taxes",
     "billingProvince": "Province de facturation",
     "amountPaid": "Montant payé",
@@ -2008,6 +2009,22 @@
     "bookedOn": "Réservé le {{date}}",
     "redirectingToStripe": "Redirection vers Stripe...",
     "payAmount": "Payer {{amount}} $ CAD",
-    "securedByStripe": "Sécurisé par Stripe — vos coordonnées bancaires ne sont jamais stockées sur nos serveurs."
+    "securedByStripe": "Sécurisé par Stripe — vos coordonnées bancaires ne sont jamais stockées sur nos serveurs.",
+    "billingAddress": "Adresse de facturation",
+    "billingAddressDesc": "Le taux de taxe est déterminé par la province de votre adresse de facturation.",
+    "addBillingAddress": "Ajouter une adresse",
+    "editBillingAddress": "Modifier",
+    "deleteBillingAddress": "Supprimer",
+    "billingAddressLabel": "Étiquette (ex. Domicile, Travail)",
+    "billingAddressLine1": "Adresse",
+    "billingAddressCity": "Ville",
+    "billingAddressProvince": "Province",
+    "billingAddressPostal": "Code postal",
+    "billingAddressSave": "Enregistrer",
+    "billingAddressCancel": "Annuler",
+    "billingAddressDefault": "Par défaut",
+    "billingAddressMaxReached": "Vous pouvez enregistrer jusqu'à 2 adresses de facturation.",
+    "confirmBillingAccuracy": "Je confirme que l'adresse de facturation fournie est exacte. Si des informations incorrectes sont fournies, toute divergence fiscale est de la seule responsabilité du titulaire du compte.",
+    "mustConfirmBilling": "Veuillez confirmer que votre adresse de facturation est exacte avant de continuer."
   }
 }

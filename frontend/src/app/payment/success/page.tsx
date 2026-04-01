@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { useTranslation } from "react-i18next";
 import { getTaxRate, getTaxLabel, formatTaxRate } from "@/lib/taxes";
+import { getIntlLocale } from "@/lib/locale";
 
 interface Booking {
   id: string;
@@ -28,6 +29,7 @@ export default function PaymentSuccessPage() {
   const bookingId = searchParams.get("booking_id");
   const { session } = useAuth();
   const { t, i18n } = useTranslation();
+  const bookingLocale = getIntlLocale(i18n.language, { fr: 'fr-CA', en: 'en-CA' });
   const [booking, setBooking] = useState<Booking | null>(null);
 
   useEffect(() => {
@@ -99,7 +101,7 @@ export default function PaymentSuccessPage() {
                 )}
                 <div className="flex items-center gap-2">
                   <Calendar className="h-4 w-4 text-gray-400 shrink-0" />
-                  <span>{new Date(booking.created_at).toLocaleDateString(i18n.language?.startsWith("fr") ? "fr-CA" : "en-CA")}</span>
+                  <span>{new Date(booking.created_at).toLocaleDateString(bookingLocale)}</span>
                 </div>
               </div>
               <div className="mt-4 pt-4 border-t border-gray-200 space-y-1.5 text-sm">

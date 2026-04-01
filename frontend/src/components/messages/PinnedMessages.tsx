@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Pin, ChevronDown, Mic } from 'lucide-react';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
@@ -30,6 +31,7 @@ export function PinnedMessages({
   onMessageClick, 
   onUnpin 
 }: PinnedMessagesProps) {
+  const { t, i18n } = useTranslation();
   const [modalOpen, setModalOpen] = useState(false);
 
   if (pinnedMessages.length === 0) return null;
@@ -37,12 +39,12 @@ export function PinnedMessages({
   const lastPinned = pinnedMessages[pinnedMessages.length - 1];
 
   const getPreview = (content: string) => {
-    if (content.includes('[AUDIO:')) return 'Message vocal';
+    if (content.includes('[AUDIO:')) return t('messages.voiceMessage');
     if (content.includes('[FILE:')) {
       const match = content.match(/\[FILE:(.*?)\]/);
       const url = match ? match[1] : '';
       const isImage = /\.(jpg|jpeg|png|gif|webp)(\?.*)?$/i.test(url);
-      return isImage ? 'Image' : 'Fichier';
+      return isImage ? t('messages.photo') : t('messages.file');
     }
     return content.replace(/\[FILE:.*?\]/g, '').trim();
   };
@@ -52,7 +54,7 @@ export function PinnedMessages({
       return (
         <div className="flex items-center gap-2 text-sm text-gray-600">
           <Mic className="h-4 w-4 text-green-700 shrink-0" />
-          <span>Message vocal</span>
+          <span>{t('messages.voiceMessage')}</span>
         </div>
       );
     }
@@ -67,7 +69,7 @@ export function PinnedMessages({
             <div className="inline-flex max-w-full overflow-hidden rounded-lg border border-gray-100 bg-transparent">
               <Image
                 src={url}
-                alt="Image épinglée"
+                alt={t('messages.pinnedImageAlt')}
                 width={320}
                 height={320}
                 unoptimized
@@ -79,13 +81,13 @@ export function PinnedMessages({
           </div>
         );
       }
-      return <p className="text-sm text-gray-600 line-clamp-2">{text || 'Fichier'}</p>;
+      return <p className="text-sm text-gray-600 line-clamp-2">{text || t('messages.file')}</p>;
     }
     return <p className="text-sm text-gray-600 line-clamp-2">{content}</p>;
   };
 
   const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString('fr-FR', {
+    return new Date(dateStr).toLocaleDateString(i18n.language || undefined, {
       day: 'numeric',
       month: 'short',
     });
@@ -104,7 +106,7 @@ export function PinnedMessages({
           }}
         >
           <p className="text-xs font-semibold text-green-800">
-            {lastPinned.sender_name || 'Utilisateur'}
+            {lastPinned.sender_name || t('messages.user')}
           </p>
           <p className="text-sm text-gray-600 truncate">
             {getPreview(lastPinned.content)}
@@ -132,7 +134,7 @@ export function PinnedMessages({
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              Messages épinglés ({pinnedMessages.length})
+              {t('messages.pinnedMessages')} ({pinnedMessages.length})
             </DialogTitle>
           </DialogHeader>
 
@@ -144,7 +146,7 @@ export function PinnedMessages({
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between mb-1">
                         <span className="text-xs font-semibold text-gray-700">
-                          {message.sender_name || 'Utilisateur'}
+                          {message.sender_name || t('messages.user')}
                         </span>
                         <span className="text-xs text-gray-400">
                           {formatDate(message.created_at)}
@@ -164,7 +166,7 @@ export function PinnedMessages({
                       }}
                       className="flex items-center gap-1.5 text-xs text-green-700 hover:text-green-900 cursor-pointer font-medium"
                     >
-                      Voir dans la discussion
+                      {t('messages.viewInConversation')}
                     </button>
                     <span className="text-gray-300">•</span>
                     <button

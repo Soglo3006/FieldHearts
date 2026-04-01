@@ -7,7 +7,6 @@ export function useDeleteMessage() {
         .from('messages')
         .update({ 
             deleted_at: new Date().toISOString(),
-            content: 'Message supprimé',
             reactions: [], 
         })
         .eq('id', messageId);

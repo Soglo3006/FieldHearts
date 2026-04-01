@@ -5,6 +5,7 @@ import { getTaxRate, getTaxLabel, formatTaxRate } from "@/lib/taxes";
 import { Button } from "@/components/ui/button";
 import { CheckCircle, X } from "lucide-react";
 import Link from "next/link";
+import { getLanguageCode } from "@/lib/locale";
 
 interface Props {
   state: "idle" | "loading" | "success" | "error";
@@ -26,7 +27,7 @@ export default function BookingModal({
 }: Props) {
   const { t, i18n } = useTranslation();
   const taxRate = getTaxRate(workerProvince ?? "QC");
-  const taxLabel = getTaxLabel(workerProvince ?? "QC", i18n.language?.startsWith("fr") ? "fr" : "en");
+  const taxLabel = getTaxLabel(workerProvince ?? "QC", getLanguageCode(i18n.language));
   useScrollLock(true);
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">

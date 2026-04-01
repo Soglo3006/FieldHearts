@@ -247,7 +247,12 @@
     "dispute": "Dispute",
     "disputeOpen": "Dispute ouverte",
     "disputePaused": "Un litige est ouvert. Les actions de fin de travail et d'annulation sont suspendues pendant l'examen du dossier.",
+    "disputeWindowTitle": "Fenêtre de litige",
     "disputeWindowNotice": "Vous pouvez encore ouvrir un litige pendant {{time}}. Les remboursements, crédits ou ajustements sont examinés au cas par cas.",
+    "remainingDays_one": "{{count}} jour restant",
+    "remainingDays_other": "{{count}} jours restants",
+    "remainingHours_one": "{{count}} heure restante",
+    "remainingHours_other": "{{count}} heures restantes",
     "disputeInProgress": "Réservation en cours d'examen pour litige",
     "message": "Message",
     "provider": "Prestataire :",
@@ -913,7 +918,12 @@
     "bankReceiveTitle": "Recevez vos paiements",
     "bankReceiveDesc": "Connectez votre compte bancaire pour recevoir vos versements directement, de façon sécurisée via Stripe.",
     "bankConnectBtn": "Connecter mon compte",
-    "bankSecuredBy": "Sécurisé par Stripe"
+    "bankSecuredBy": "Sécurisé par Stripe",
+    "contactSectionTitle": "Contact",
+    "emailLabel": "Courriel",
+    "phoneLabel": "Téléphone",
+    "addressLabel": "Adresse",
+    "avatarAlt": "Avatar du profil"
   },
   "messages": {
     "title": "Messages",
@@ -962,6 +972,8 @@
     "noMessagesYet": "Aucun message pour l'instant",
     "sentVoiceMessage": "Vous avez envoyé un message vocal",
     "sentVoiceMessageOther": "{{name}} a envoyé un message vocal",
+    "youPrefix": "Vous",
+    "someone": "Quelqu’un",
     "photo": "Photo",
     "file": "Fichier",
     "replyingTo": "Répondre à {{name}}",
@@ -982,6 +994,15 @@
     "failedToSend": "Échec de l'envoi du message",
     "failedToSendVoice": "Échec de l'envoi du message vocal",
     "microphoneNotAccessible": "Microphone non accessible",
+    "blockedByYouNotice": "Vous avez bloqué ce compte. Cette personne ne peut plus vous envoyer de messages.",
+    "blockedByOtherNotice": "Vous ne pouvez plus envoyer de messages à cette personne.",
+    "sendingImage": "Envoi de l'image...",
+    "loadingImage": "Chargement de l'image...",
+    "unableToLoadImage": "Impossible de charger l'image",
+    "openFile": "Ouvrir",
+    "viewInConversation": "Voir dans la discussion",
+    "pinnedImageAlt": "Image épinglée",
+    "editPlaceholder": "Modifier le message...",
     "selectConversation": "Sélectionnez une conversation pour voir les détails du profil",
     "selectConversationTitle": "Sélectionnez une conversation",
     "selectConversationStart": "Choisissez une conversation à gauche pour commencer à échanger",
@@ -1032,6 +1053,11 @@
     "minCharsRequired": "Entrez au moins 2 caractères",
     "inProgress": "En cours...",
     "sending": "Envoi...",
+    "sent": "Envoyé",
+    "readAt": "Lu à {{time}}",
+    "previousImage": "Image précédente",
+    "nextImage": "Image suivante",
+    "viewImage": "Voir l'image {{number}}",
     "inbox": "Messagerie",
     "noNewMessages": "Aucun nouveau message",
     "seeAllInbox": "Voir toute la messagerie",
@@ -1251,7 +1277,13 @@
     "confirm": "Bloquer l'utilisateur",
     "blocking": "Blocage...",
     "blocked": "Utilisateur bloqué",
-    "error": "Échec du blocage"
+    "error": "Échec du blocage",
+    "blockedDescription": "{{name}} a été bloqué. Cette personne ne pourra plus vous contacter ni voir votre profil.",
+    "consequencesTitle": "Lorsque vous bloquez cet utilisateur :",
+    "consequenceContact": "Cette personne ne pourra plus vous contacter",
+    "consequenceListings": "Vous ne verrez plus ses annonces ni ses publications",
+    "consequenceNoNotification": "Cette personne ne sera pas avertie que vous l'avez bloquée",
+    "consequenceUnblockLater": "Vous pourrez la débloquer plus tard dans les paramètres"
   },
   "auth": {
     "verifyEmail": "Vérifiez votre courriel",
@@ -1272,7 +1304,10 @@
     "sendResetLink": "Envoyer le lien",
     "sending": "Envoi...",
     "resetSent": "Lien envoyé ! Vérifiez votre courriel.",
+    "resetSentTo": "Nous avons envoyé un lien de réinitialisation du mot de passe à {{email}}.",
+    "checkSpamHint": "Vérifiez votre dossier de courriers indésirables si vous ne le voyez pas.",
     "resetError": "Échec de l'envoi du lien.",
+    "emailPlaceholder": "vous@exemple.com",
     "passwordUpdatedSuccess": "Mot de passe mis à jour !",
     "redirectingToLogin": "Redirection vers la connexion...",
     "linkExpired": "Lien expiré",
@@ -1379,6 +1414,533 @@
     "custom_local_services_hair_beauty": "Coiffure & Beauté",
     "custom_local_services_makeup_services": "Maquillage"
   },
+  "aboutPage": {
+    "eyebrow": "À propos de nous",
+    "heroImageAlt": "Travailleur avec une perceuse et un casque",
+    "heroTitle": "Trouvez des services locaux ou gagnez de l'argent avec vos compétences.",
+    "heroSubtitle": "Nous mettons en relation les personnes qui recherchent des services avec celles qui ont les compétences pour les fournir.",
+    "missionCards": [
+      {
+        "title": "Notre mission",
+        "text": "Donner du pouvoir à chaque communauté en rendant les services locaux accessibles, sécuritaires et équitables."
+      },
+      {
+        "title": "Notre communauté",
+        "text": "Un espace de confiance avec des avis transparents, des paiements séquestrés sécurisés et un jumelage local."
+      },
+      {
+        "title": "Notre vision",
+        "text": "Renforcer les économies locales, nourrir la confiance mutuelle et rendre le travail utile accessible à tous."
+      }
+    ],
+    "whoWeAre": {
+      "title": "Qui sommes-nous ?",
+      "paragraph": "Uneden est une plateforme canadienne fièrement basée au Québec, construite avec la vision de connecter les gens à travers de vraies compétences et un travail significatif. Nous croyons que chacun a quelque chose de précieux à offrir, et notre mission est de faciliter la recherche d'opportunités, le soutien aux communautés locales et la création de son propre chemin vers la réussite.",
+      "imageAlt": "Équipe Uneden"
+    },
+    "whatDrivesUs": {
+      "title": "Ce qui nous anime",
+      "paragraph": "En réunissant clients et prestataires dans un espace de confiance, Uneden libère le potentiel des talents locaux et de l'expertise du quotidien. Nous sommes portés par l'idée que le travail doit être accessible, flexible et équitable, en donnant aux gens de tout le Canada les moyens de grandir, de collaborer et de construire des communautés plus solides ensemble.",
+      "imageAlt": "Communauté locale"
+    },
+    "team": {
+      "eyebrow": "L'équipe fondatrice",
+      "title": "Les visages derrière Uneden",
+      "photoComingSoon": "Photo à venir",
+      "readMore": "Lire plus",
+      "showLess": "Voir moins",
+      "georges": {
+        "role": "Co-fondateur, Président & CEO",
+        "bio": "Georges Rychel Moung est le co-fondateur, Président et CEO d'Uneden, animé par une passion profonde pour la technologie et son potentiel à transformer le quotidien. Après avoir obtenu un diplôme d'études collégiales en génie logiciel, il a poursuivi ses études en informatique, développant à la fois une expertise technique et une solide compréhension du marché du travail en évolution. C'est au cours de ce parcours qu'il a constaté un fossé croissant : alors que le travail indépendant numérique se développait à l'échelle mondiale, de nombreuses compétences pratiques essentielles restaient exclues de ces opportunités. Avec Uneden, sa mission est de connecter les communautés à de véritables opportunités, en commençant par le Canada."
+      },
+      "alexandre": {
+        "role": "Co-fondateur & Directeur Technique (CTO)",
+        "bio": "Alexandre Soglo Booh Louha est le co-fondateur et Directeur Technique d'Uneden, technologiste passionné avec une solide formation en informatique de l'Université de Montréal. Dès le départ, il a démontré à la fois une excellence technique et un esprit entrepreneurial, toujours animé par l'ambition de construire des solutions à fort impact. En tant que force technique derrière Uneden, Alexandre a conçu et développé la plateforme de A à Z, transformant une vision en réalité. Si Georges a posé les fondations et la direction du projet, Alexandre en a construit l'architecture qui lui donne vie. Ensemble, ils forment un duo complémentaire, alliant stratégie et exécution pour bâtir une plateforme évolutive et innovante pour l'avenir du travail local."
+      }
+    },
+    "cta": {
+      "title": "Prêt à rejoindre la communauté ?",
+      "description": "Que vous cherchiez de l'aide ou que vous ayez des compétences à offrir, Uneden est fait pour vous.",
+      "button": "Commencer maintenant"
+    }
+  },
+  "payNowButton": {
+    "redirecting": "Redirection...",
+    "startError": "Impossible de démarrer le paiement",
+    "networkError": "Erreur réseau. Veuillez réessayer.",
+    "agreement": "En payant, vous acceptez nos"
+  },
+  "errorPage": {
+    "title": "Une erreur est survenue",
+    "description": "Une erreur inattendue s'est produite. Veuillez réessayer ou revenir à la page d'accueil.",
+    "tryAgain": "Réessayer",
+    "goHome": "Retour à l'accueil"
+  },
+  "legalNav": {
+    "tableOfContents": "Table des matières"
+  },
+  "contactPage": {
+    "heroTitle": "Tout ce dont vous avez besoin pour trouver ou offrir des services locaux",
+    "heroSubtitle": "Contactez notre équipe — nous sommes là pour vous aider et répondons généralement dans les 24–48 heures.",
+    "addressLabel": "Adresse",
+    "addressValue": "391 Rue Sauve, Repentigny, QC, Canada",
+    "successTitle": "Message envoyé !",
+    "successMessage": "Merci de nous avoir contactés. Nous vous répondrons dans les 24–48 heures.",
+    "sendAnother": "Envoyer un autre message",
+    "formTitle": "Contactez-nous",
+    "formSubtitle": "Remplissez le formulaire et nous vous répondrons rapidement.",
+    "firstNameLabel": "Prénom",
+    "firstNamePlaceholder": "Jean",
+    "lastNameLabel": "Nom",
+    "lastNamePlaceholder": "Dupont",
+    "emailLabel": "Adresse e-mail",
+    "emailPlaceholder": "jean@exemple.com",
+    "subjectLabel": "Sujet",
+    "subjectPlaceholder": "Choisir un sujet...",
+    "messageLabel": "Comment pouvons-nous vous aider ?",
+    "messagePlaceholder": "Donnez-nous plus de détails sur votre question ou problème...",
+    "submit": "Nous contacter",
+    "error": "Une erreur est survenue. Veuillez réessayer.",
+    "privacyNotice": "En soumettant ce formulaire, vous acceptez notre <link>politique de confidentialité</link>.",
+    "subjects": [
+      { "value": "account", "label": "Problème de compte" },
+      { "value": "payment", "label": "Problème de paiement" },
+      { "value": "dispute", "label": "Litige" },
+      { "value": "listing", "label": "Problème d'annonce" },
+      { "value": "safety", "label": "Signalement de sécurité" },
+      { "value": "partnership", "label": "Partenariat" },
+      { "value": "other", "label": "Autre" }
+    ],
+    "features": [
+      {
+        "title": "Services locaux au Canada",
+        "desc": "Nous connectons les gens de votre communauté avec des prestataires de services de confiance près de chez vous."
+      },
+      {
+        "title": "Paiements 100 % sécurisés",
+        "desc": "Votre argent est protégé jusqu'à la fin du travail grâce à notre système de séquestre."
+      },
+      {
+        "title": "Une communauté bienveillante",
+        "desc": "Des milliers de personnes utilisent Uneden pour trouver de l'aide et partager leurs compétences."
+      }
+    ]
+  },
+  "privacyPolicyPage": {
+    "title": "Politique de confidentialité",
+    "lastUpdatedLabel": "Dernière mise à jour : ",
+    "lastUpdatedValue": "Mars 2026",
+    "intro": "Uneden (« nous », « notre ») exploite une plateforme numérique qui met en relation les utilisateurs avec des prestataires de services locaux. Cette politique de confidentialité explique comment nous <strong>collectons</strong>, <strong>utilisons</strong>, <strong>stockons</strong> et <strong>partageons</strong> vos informations personnelles.",
+    "sections": {
+      "infoCollect": {
+        "title": "1. Informations collectées",
+        "intro": "Nous pouvons collecter les types d'informations suivants :",
+        "personalInfoTitle": "a. Informations personnelles",
+        "personalInfoItems": ["Nom, adresse e-mail, informations de profil", "Photo de profil, biographie, descriptions de services", "Données de localisation (précises ou approximatives, selon le choix de l'utilisateur)"],
+        "accountDataTitle": "b. Données de compte et d'authentification",
+        "accountDataItems": ["Identifiants de connexion", "Données de connexion tierces (Google, Facebook)"],
+        "transactionDataTitle": "c. Données de transaction et financières",
+        "transactionDataItems": ["Informations de paiement (traitées par des tiers comme Stripe)", "Soldes du portefeuille (approuvé, en attente, total)", "Historique des transactions"],
+        "usageDataTitle": "d. Données d'utilisation",
+        "usageDataItems": ["Adresse IP", "Informations sur l'appareil et le navigateur", "Pages visitées et interactions"],
+        "cookiesTitle": "e. Cookies et technologies de suivi",
+        "cookiesIntro": "Nous utilisons des cookies et technologies similaires pour :",
+        "cookiesItems": ["Améliorer l'expérience utilisateur", "Analyser l'utilisation", "Alimenter les algorithmes de recherche et de recommandation"]
+      },
+      "howUse": {
+        "title": "2. Utilisation de vos informations",
+        "intro": "Nous utilisons vos informations pour :",
+        "items": ["Fournir et exploiter la plateforme", "Mettre en relation les utilisateurs avec des services pertinents", "Traiter les paiements et gérer les portefeuilles", "Envoyer des notifications et des e-mails promotionnels", "Améliorer nos services et algorithmes", "Prévenir la fraude et assurer la sécurité"]
+      },
+      "sharing": {
+        "title": "3. Partage des informations",
+        "intro": "Nous pouvons partager vos données avec :",
+        "items": ["Processeurs de paiement (ex. : Stripe)", "Fournisseurs d'authentification (Google, Facebook)", "Partenaires d'analyse et de publicité (ex. : Google Ads)", "Autorités légales si requis"],
+        "note": "Nous pouvons également partager des données avec des <strong>tiers</strong> à des fins commerciales ou opérationnelles."
+      },
+      "emails": {
+        "title": "4. Emails et communications",
+        "intro": "En utilisant Uneden, vous acceptez de recevoir :",
+        "items": ["Notifications liées aux services", "Mises à jour des transactions", "E-mails promotionnels"],
+        "note": "Vous pouvez vous désabonner des e-mails promotionnels <strong>à tout moment</strong>."
+      },
+      "storage": {
+        "title": "5. Stockage et sécurité des données",
+        "intro": "Nous prenons des mesures raisonnables pour protéger vos données. Cependant :",
+        "itemOne": "Aucun système n'est sécurisé à <strong>100 %</strong>",
+        "itemTwo": "Vous utilisez la plateforme <strong>à vos propres risques</strong>",
+        "note": "Vous pouvez demander la <strong>suppression de votre compte et de vos données</strong> en nous contactant."
+      },
+      "location": {
+        "title": "6. Données de localisation",
+        "intro": "Les utilisateurs peuvent choisir d'afficher :",
+        "items": ["Leur localisation précise", "Une zone approximative"],
+        "note": "Ces informations sont utilisées pour mettre en relation les services à proximité."
+      },
+      "thirdParty": {
+        "title": "7. Services tiers",
+        "intro": "Nous utilisons des services tiers notamment :",
+        "items": ["Stripe (paiements)", "Google / Facebook (authentification)", "Google Ads (publicité)", "Supabase (base de données et stockage)", "Vercel (hébergement)"],
+        "note": "Ces services ont leurs propres <strong>politiques de confidentialité</strong>."
+      },
+      "changes": {
+        "title": "8. Modifications de cette politique",
+        "paragraph": "Nous nous réservons le droit de modifier cette politique de confidentialité <strong>à tout moment</strong>, <strong>sans préavis</strong>. Nous vous encourageons à consulter régulièrement cette page pour rester informé des mises à jour."
+      },
+      "contact": {
+        "title": "9. Contact",
+        "intro": "Pour toute question concernant cette politique, contactez-nous :",
+        "name": "Uneden",
+        "address": "391 Rue Sauve, Repentigny, Quebec, Canada"
+      }
+    }
+  },
+  "trustSafetyPage": {
+    "title": "Confiance et sécurité",
+    "lastUpdatedLabel": "Dernière mise à jour : ",
+    "lastUpdatedValue": "Mars 2026",
+    "intro": "Chez Uneden, notre objectif est de créer une plateforme sûre et fiable où les utilisateurs peuvent se connecter, collaborer et réaliser des services en toute confiance.",
+    "sections": {
+      "commitment": {
+        "title": "1. Notre engagement",
+        "intro": "Uneden est conçu pour :",
+        "items": ["Fournir une plateforme sécurisée pour les transactions grâce à un système de séquestre", "Permettre des interactions transparentes via les profils, les avis et la messagerie", "Offrir un processus structuré de résolution des litiges"],
+        "note": "Nous nous engageons à améliorer continuellement la sécurité et la confiance sur notre plateforme."
+      },
+      "payments": {
+        "title": "2. Paiements sécurisés",
+        "intro": "Tous les paiements sont traités via la plateforme et conservés en sécurité jusqu'à la réalisation du service ou la résolution d'un litige.",
+        "items": ["Les paiements sont effectués à l'avance et conservés en séquestre", "Les fonds sont libérés une fois le service terminé ou après résolution d'un litige"],
+        "warning": "Nous déconseillons fortement aux utilisateurs d'effectuer des paiements en dehors de la plateforme."
+      },
+      "disputes": {
+        "title": "3. Litiges et résolution",
+        "intro": "En cas de problème :",
+        "itemOne": "Les utilisateurs disposent de <strong>3 jours</strong> après la réalisation du service pour ouvrir un litige",
+        "itemTwo": "Les deux parties peuvent fournir des preuves (messages, photos, etc.)",
+        "itemThree": "Uneden examine le dossier et détermine une issue",
+        "note": "Des remboursements peuvent être accordés jusqu'à <strong>50 %</strong> du montant de la transaction, selon la situation."
+      },
+      "reviews": {
+        "title": "4. Avis et réputation",
+        "intro": "La confiance se construit par la transparence :",
+        "items": ["Les utilisateurs peuvent laisser des avis après chaque transaction", "Les avis aident les autres à prendre des décisions éclairées", "Nous encourageons des retours honnêtes et respectueux"]
+      },
+      "responsibility": {
+        "title": "5. Responsabilité des utilisateurs",
+        "intro": "Pour garantir une expérience sûre, les utilisateurs devraient :",
+        "itemOne": "Examiner attentivement les profils, notes et travaux antérieurs avant de réserver",
+        "itemTwo": "Communiquer clairement via la plateforme",
+        "itemThree": "Éviter de partager des <strong>informations personnelles sensibles</strong>",
+        "itemFour": "Faire preuve de prudence lors de rencontres <strong>en personne</strong>"
+      },
+      "location": {
+        "title": "6. Localisation et confidentialité",
+        "intro": "Les utilisateurs peuvent choisir d'afficher :",
+        "items": ["Leur localisation précise", "Ou une zone générale"],
+        "note": "Nous recommandons d'utiliser une <strong>localisation approximative</strong> si vous préférez plus de confidentialité."
+      },
+      "prohibited": {
+        "title": "7. Comportements interdits",
+        "intro": "Les comportements suivants sont strictement interdits :",
+        "items": ["Fraude, arnaques ou annonces trompeuses", "Harcèlement, langage abusif ou menaces", "Contournement du système de paiement de la plateforme", "Publication de faux avis ou usurpation d'identité"],
+        "note": "Les violations peuvent entraîner la <strong>suspension</strong> ou la <strong>suppression du compte</strong>."
+      },
+      "reporting": {
+        "title": "8. Signalement",
+        "intro": "Si vous rencontrez un comportement suspect ou dangereux :",
+        "items": ["Signalez-le directement via la plateforme", "Fournissez autant de détails que possible", "Notre équipe examinera les signalements et prendra les mesures appropriées"]
+      },
+      "disclaimer": {
+        "title": "9. Limitation de responsabilité",
+        "intro": "Uneden est une plateforme qui met en relation des utilisateurs et ne fournit pas les services listés. Nous ne sommes pas responsables de :",
+        "items": ["La qualité ou le résultat des services", "La conduite des utilisateurs", "Tout dommage ou perte résultant des interactions"],
+        "note": "Les utilisateurs interagissent entre eux à leurs propres risques."
+      },
+      "improvement": {
+        "title": "10. Amélioration continue",
+        "intro": "Nous nous engageons à améliorer les fonctionnalités de sécurité au fil du temps, notamment :",
+        "items": ["Des systèmes de vérification améliorés", "De meilleurs outils de résolution des litiges", "Une détection améliorée des fraudes"]
+      },
+      "contact": {
+        "title": "11. Contact",
+        "intro": "Pour toute question, contactez-nous :",
+        "name": "Uneden",
+        "address": "391 Rue Sauve, Repentigny, Quebec, Canada"
+      }
+    }
+  },
+  "termsPage": {
+    "title": "Conditions d'utilisation",
+    "lastUpdatedLabel": "Dernière mise à jour : ",
+    "lastUpdatedValue": "Avril 2026",
+    "intro": "En utilisant Uneden, vous <strong>acceptez</strong> les présentes conditions d'utilisation. Veuillez les lire attentivement avant d'utiliser la plateforme.",
+    "sections": {
+      "nature": {
+        "title": "1. Nature de la plateforme",
+        "items": [
+          "Uneden est une place de marché technologique mettant en relation des utilisateurs et facilitant les échanges, les réservations et les paiements sur la plateforme.",
+          "Nous ne fournissons pas nous-mêmes les services affichés et nous n'agissons pas comme employeur, entrepreneur, assureur, garant ou conseiller professionnel des utilisateurs."
+        ]
+      },
+      "responsibilities": {
+        "title": "2. Responsabilités des utilisateurs",
+        "intro": "Les utilisateurs s'engagent à :",
+        "itemOne": "Fournir des informations exactes, à jour et complètes",
+        "itemTwo": "Respecter les autres utilisateurs et utiliser la plateforme de bonne foi",
+        "itemThree": "Clarifier l'étendue, les délais et les conditions pratiques avant le début du travail",
+        "note": "Les utilisateurs demeurent responsables de vérifier la crédibilité, la conformité et la pertinence des autres parties avant de s'engager."
+      },
+      "payments": {
+        "title": "3. Paiements et frais",
+        "buyerFeesTitle": "a. Frais acheteur",
+        "buyerFeeItem": "Une commission de <strong>5 %</strong> est généralement ajoutée à chaque transaction",
+        "buyerFeeNote": "Des taxes applicables ainsi que certains frais de traitement tiers peuvent aussi s'appliquer selon le contexte de la transaction.",
+        "escrowTitle": "b. Système de séquestre (escrow)",
+        "escrowItems": [
+          "Les paiements sont généralement retenus jusqu'à la réalisation du service, à une autre résolution de la réservation ou au traitement d'un litige.",
+          "Les utilisateurs ne doivent pas détourner hors de la plateforme une transaction initiée sur Uneden pour éviter les frais, protections ou vérifications de la plateforme."
+        ]
+      },
+      "wallet": {
+        "title": "4. Système de portefeuille",
+        "intro": "Chaque utilisateur dispose d'un portefeuille pouvant contenir :",
+        "pendingLabel": "Solde en attente",
+        "pendingDesc": "montants pouvant encore être examinés, retenus ou contestés",
+        "approvedLabel": "Solde approuvé",
+        "approvedDesc": "montants généralement admissibles au retrait",
+        "otherLabel": "Autres ajustements",
+        "otherDesc": "réserves, corrections, renversements ou retenues pouvant être appliqués si nécessaire"
+      },
+      "withdrawals": {
+        "title": "5. Retraits",
+        "itemOne": "Seuls les soldes approuvés sont généralement admissibles au retrait.",
+        "itemTwo": "Les retraits sont généralement disponibles tous les <strong>14 jours</strong>, et de nouveaux comptes peuvent être soumis à une période d'attente initiale.",
+        "itemThree": "Une commission de retrait de <strong>20 %</strong> peut s'appliquer, en plus de certains frais bancaires, de versement ou de conformité lorsqu'ils doivent être déduits."
+      },
+      "disputes": {
+        "title": "6. Litiges et remboursements",
+        "itemOne": "Avant le début du travail, certaines réservations peuvent être annulées directement. Une réservation en cours peut cependant être redirigée vers un litige au lieu d'être annulée automatiquement.",
+        "itemTwo": "Pour une réservation terminée, un litige doit généralement être ouvert dans les <strong>3 jours</strong> suivant la fin, sauf décision différente d'Uneden.",
+        "itemThree": "Après examen, un remboursement, un crédit, un renversement partiel ou aucun ajustement peut être accordé selon les informations disponibles.",
+        "refundPolicyTitle": "Politique de remboursement",
+        "refundPolicyItems": [
+          "Les décisions sont prises au cas par cas selon les messages, preuves, délais et données disponibles sur la plateforme.",
+          "Les frais de transaction, frais de prestataire de paiement, taxes ou montants administratifs peuvent demeurer non remboursables et être déduits lorsqu'applicable.",
+          "Uneden peut suspendre le déblocage des fonds, demander des preuves complémentaires et rendre une décision finale de plateforme."
+        ]
+      },
+      "partial": {
+        "title": "7. Paiements partiels",
+        "paragraph": "Certains services peuvent nécessiter des dépôts, des matériaux, des achats personnalisés, des déplacements ou d'autres coûts préapprouvés. Ces conditions doivent être clairement convenues entre les utilisateurs avant le début du travail."
+      },
+      "reviews": {
+        "title": "8. Avis et évaluations",
+        "items": [
+          "Les utilisateurs peuvent laisser des avis et échanger des messages liés à l'activité sur la plateforme.",
+          "Uneden peut modérer, retirer ou conserver certains contenus lorsque cela est nécessaire pour la sécurité, l'application des règles ou la conformité légale."
+        ]
+      },
+      "advertising": {
+        "title": "9. Publicité",
+        "items": [
+          "La plateforme peut afficher des annonces, placements commandités ou outils promotionnels payants, maintenant ou à l'avenir.",
+          "Des fonctionnalités promotionnelles additionnelles peuvent être introduites avec des règles spécifiques lorsqu'elles seront lancées."
+        ]
+      },
+      "liability": {
+        "title": "10. Limitation de responsabilité",
+        "intro": "Dans la mesure permise par la loi, Uneden n'est pas responsable de :",
+        "items": [
+          "La qualité, l'exécution ou les résultats des services fournis par les utilisateurs",
+          "Les dommages, retards, pertes financières, fraudes ou litiges découlant des interactions entre utilisateurs ou de systèmes tiers",
+          "Les pertes indirectes, accessoires, spéciales, consécutives ou les pertes de profits liées à l'utilisation de la plateforme"
+        ],
+        "note": "Nous agissons uniquement en tant qu'intermédiaire de plateforme."
+      },
+      "prohibited": {
+        "title": "11. Activités interdites",
+        "intro": "Les utilisateurs ne peuvent pas :",
+        "itemOne": "Commettre des fraudes, arnaques, abus de rétrofacturation ou usurpations d'identité",
+        "itemTwo": "Contourner les paiements ou protections de la plateforme",
+        "itemThree": "Publier de faux avis, harceler, menacer ou utiliser la plateforme pour des services illégaux ou interdits",
+        "note": "Les comptes peuvent être <strong>limités, suspendus ou fermés</strong> à notre discrétion."
+      },
+      "financialRisks": {
+        "title": "12. Risques financiers et de paiement",
+        "intro": "Les utilisateurs reconnaissent que :",
+        "itemOne": "Les paiements et versements peuvent être traités par des <strong>prestataires tiers</strong> soumis à leurs propres règles.",
+        "itemTwo": "Des <strong>délais, retenues, réserves ou corrections</strong> peuvent survenir pour des raisons opérationnelles, de conformité ou de risque.",
+        "itemThree": "Les soldes des portefeuilles et les montants à payer ou verser peuvent être ajustés conformément aux <strong>règles de la plateforme</strong>."
+      },
+      "safety": {
+        "title": "13. Avertissement de sécurité",
+        "intro": "Les utilisateurs devraient :",
+        "itemOne": "Vérifier les prestataires, clients et informations de réservation",
+        "itemTwo": "Éviter les transactions non sécurisées ou hors plateforme",
+        "itemThree": "Faire preuve de prudence dans les interactions et signaler rapidement toute situation risquée"
+      },
+      "modifications": {
+        "title": "14. Modifications",
+        "paragraph": "Nous pouvons modifier ces conditions <strong>de temps à autre</strong>. L'utilisation continue d'Uneden après mise à jour signifie que vous acceptez la version révisée dans la mesure permise par la loi."
+      },
+      "governingLaw": {
+        "title": "15. Droit applicable",
+        "intro": "Les présentes conditions sont régies par les lois applicables de :",
+        "itemOne": "La province de Québec",
+        "itemTwo": "Canada"
+      },
+      "contact": {
+        "title": "16. Contact",
+        "intro": "Pour toute question, contactez-nous :",
+        "name": "Uneden",
+        "address": "391 Rue Sauve, Repentigny, Quebec, Canada"
+      }
+    }
+  },
+  "paymentTermsPage": {
+    "title": "Conditions de paiement",
+    "lastUpdatedLabel": "Dernière mise à jour : ",
+    "lastUpdatedValue": "Avril 2026",
+    "intro": "Les présentes conditions de paiement régissent toutes les transactions financières effectuées sur la plateforme Uneden. En utilisant Uneden, vous acceptez ces conditions de paiement.",
+    "sections": {
+      "nature": {
+        "title": "1. Nature des paiements",
+        "items": [
+          "Uneden est une plateforme qui facilite les transactions entre utilisateurs sans être elle-même le fournisseur direct des services.",
+          "Les paiements, retenues, déblocages, ajustements et versements peuvent être gérés via la plateforme et ses prestataires de paiement."
+        ]
+      },
+      "process": {
+        "title": "2. Processus de paiement",
+        "itemOne": "Les clients paient généralement les services d'avance via la plateforme.",
+        "itemTwo": "Les paiements peuvent être retenus jusqu'à :",
+        "subitems": [
+          "La réalisation du service",
+          "Une autre résolution de la réservation",
+          "La fin d'un litige ou d'un examen de risque"
+        ],
+        "note": "Il est strictement interdit de détourner hors plateforme une transaction initiée sur Uneden pour éviter les frais, protections ou vérifications."
+      },
+      "buyerFees": {
+        "title": "3. Frais acheteur",
+        "intro": "En plus du prix du service :",
+        "itemOne": "Des frais de service de <strong>5 %</strong> sont généralement appliqués à chaque transaction",
+        "itemTwo": "Les taxes applicables et certains frais de traitement tiers peuvent aussi être ajoutés selon le contexte.",
+        "calculationTitle": "Exemple de calcul",
+        "calcServiceLabel": "Service",
+        "calcFeeLabel": "Frais acheteur (5 %)",
+        "calcTaxesLabel": "Taxes et autres frais applicables",
+        "calcVariableLabel": "Variables",
+        "calcTotalLabel": "Total",
+        "calcTotalValue": "$105 + charges variables"
+      },
+      "wallet": {
+        "title": "4. Système de portefeuille",
+        "intro": "Chaque utilisateur dispose d'un portefeuille numérique pouvant inclure :",
+        "pendingLabel": "Solde en attente",
+        "pendingDesc": "Fonds encore soumis à examen, retenue ou litige",
+        "approvedLabel": "Solde approuvé",
+        "approvedDesc": "Fonds généralement disponibles pour retrait",
+        "otherLabel": "Autres ajustements",
+        "otherDesc": "Réserves, corrections, retenues ou renversements appliqués si nécessaire"
+      },
+      "disputePeriod": {
+        "title": "5. Période de litige",
+        "itemOne": "Pour une réservation terminée, un litige doit généralement être ouvert dans les <strong>3 jours</strong> suivant la fin.",
+        "itemTwo": "Pendant cette période, les fonds peuvent demeurer en attente ou faire l'objet d'un examen."
+      },
+      "disputes": {
+        "title": "6. Litiges et remboursements",
+        "intro": "En cas de litige :",
+        "itemOne": "Les deux parties peuvent soumettre des preuves, messages, photos ou autres éléments utiles",
+        "itemTwo": "Une réservation en cours peut être redirigée vers un litige plutôt que d'être annulée automatiquement",
+        "itemThree": "Uneden examine le dossier et peut décider d'un remboursement, crédit, renversement partiel ou d'aucun ajustement",
+        "refundPolicyTitle": "Politique de remboursement",
+        "refundPolicyItems": [
+          "Les décisions sont prises au cas par cas selon les preuves, délais, messages et informations disponibles.",
+          "Les frais de transaction, frais de prestataire de paiement, taxes, coûts administratifs ou montants similaires peuvent demeurer non remboursables.",
+          "Uneden peut suspendre le déblocage des fonds, créer une réserve temporaire ou ajuster les montants si nécessaire."
+        ],
+        "refundPolicyNote": "Les décisions finales de plateforme peuvent être appliquées selon le dossier disponible."
+      },
+      "partial": {
+        "title": "7. Paiements partiels",
+        "paragraph": "Certains services peuvent nécessiter des dépôts, matériaux, déplacements ou autres coûts particuliers. Ces conditions doivent être clairement convenues entre les utilisateurs avant le début du travail."
+      },
+      "withdrawals": {
+        "title": "8. Retraits",
+        "itemOne": "Les retraits ne peuvent généralement être effectués que sur le <strong>solde approuvé</strong>",
+        "itemTwo": "Les retraits sont généralement disponibles une fois toutes les <strong>2 semaines (14 jours)</strong>",
+        "itemThree": "Les nouveaux utilisateurs peuvent être soumis à une période d'attente avant le <strong>premier retrait</strong>"
+      },
+      "withdrawalFees": {
+        "title": "9. Frais de retrait",
+        "itemOne": "Une commission de <strong>20 %</strong> peut être appliquée sur les retraits",
+        "itemTwo": "Des frais bancaires, de versement, de vérification ou de conformité peuvent aussi être déduits lorsqu'ils s'appliquent.",
+        "exampleTitle": "Exemple de retrait",
+        "exampleApprovedLabel": "Solde approuvé",
+        "exampleCommissionLabel": "Commission Uneden (20 %)",
+        "exampleOtherFeesLabel": "Autres frais possibles",
+        "exampleVariableLabel": "Variables",
+        "exampleReceiveLabel": "Vous recevez",
+        "exampleReceiveValue": "$80.00 moins frais variables"
+      },
+      "paymentMethods": {
+        "title": "10. Méthodes de paiement",
+        "intro": "Les paiements peuvent être traités via des fournisseurs tiers (ex. : Stripe). Les utilisateurs acceptent que :",
+        "items": [
+          "Le traitement des paiements et versements peut entraîner des frais, délais, retenues ou règles propres aux fournisseurs tiers.",
+          "Des vérifications d'identité, fiscales, bancaires ou d'entreprise peuvent être exigées avant certains paiements ou retraits."
+        ]
+      },
+      "taxes": {
+        "title": "11. Taxes",
+        "items": [
+          "Les taxes sont calculées selon la localisation, le contexte du service ou les obligations légales applicables.",
+          "Les utilisateurs demeurent responsables de leurs obligations fiscales et déclaratives applicables."
+        ]
+      },
+      "delays": {
+        "title": "12. Délais de traitement",
+        "itemOne": "Les paiements, remboursements, déblocages et retraits peuvent prendre du temps à être <strong>traités</strong>.",
+        "itemTwo": "Des délais peuvent survenir en raison des systèmes bancaires, des jours fériés, de problèmes techniques ou des <strong>vérifications de conformité</strong>."
+      },
+      "fraud": {
+        "title": "13. Fraude et abus",
+        "intro": "Uneden se réserve le droit de :",
+        "items": [
+          "Suspendre des paiements, retenir des fonds ou créer des réserves en cas de fraude, abus, activité non autorisée ou risque de rétrofacturation.",
+          "Limiter, bloquer ou fermer des comptes violant les règles de la plateforme.",
+          "Renverser certains montants ou exiger le remboursement de sommes dues à la plateforme lorsque nécessaire."
+        ]
+      },
+      "advertising": {
+        "title": "14. Publicité et futures fonctionnalités",
+        "items": [
+          "La plateforme peut inclure des publicités, placements commandités ou outils promotionnels payants.",
+          "De nouvelles fonctionnalités de paiement, promotion ou versement peuvent être introduites avec des règles additionnelles lorsqu'elles seront lancées."
+        ]
+      },
+      "changes": {
+        "title": "15. Modifications des conditions de paiement",
+        "paragraph": "Uneden se réserve le droit de modifier les présentes conditions de paiement <strong>de temps à autre</strong>. L'utilisation continue de la plateforme après l'entrée en vigueur d'une mise à jour signifie que vous acceptez la version révisée dans la mesure permise par la loi."
+      },
+      "disclaimer": {
+        "title": "16. Limitation de responsabilité",
+        "intro": "Uneden agit uniquement en tant qu'intermédiaire et n'est pas responsable de :",
+        "itemOne": "La qualité ou l'exécution des services fournis par les utilisateurs",
+        "itemTwo": "Les litiges, retards, pertes financières ou incidents liés aux interactions entre utilisateurs ou aux prestataires tiers",
+        "itemThree": "Les pertes indirectes, accessoires ou consécutives liées à l'utilisation de la plateforme"
+      },
+      "contact": {
+        "title": "17. Contact",
+        "intro": "Pour toute question, contactez-nous :",
+        "name": "Uneden",
+        "address": "391 Rue Sauve, Repentigny, Quebec, Canada"
+      }
+    }
+  },
   "common": {
     "loading": "Chargement...",
     "error": "Une erreur s'est produite",
@@ -1421,7 +1983,9 @@
     "noResults": "Aucun résultat trouvé.",
     "tryAgain": "Réessayer",
     "goBack": "Retour",
-    "more": "Plus"
+    "more": "Plus",
+    "clear": "Effacer",
+    "unknown": "Inconnu"
   },
   "payment": {
     "confirmed": "Paiement confirmé !",

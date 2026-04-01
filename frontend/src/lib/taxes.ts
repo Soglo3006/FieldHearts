@@ -1,3 +1,5 @@
+import { isFrenchLanguage } from '@/lib/locale';
+
 export interface ProvinceTax {
   rate: number;
   labelEN: string;
@@ -70,5 +72,5 @@ export function formatTaxRate(rate: number): string {
 export function getTaxLabel(province: string, lang: string): string {
   const code = normalizeProvince(province);
   const tax = PROVINCE_TAXES[code] ?? PROVINCE_TAXES.QC;
-  return lang.startsWith("fr") ? tax.labelFR : tax.labelEN;
+  return isFrenchLanguage(lang) ? tax.labelFR : tax.labelEN;
 }

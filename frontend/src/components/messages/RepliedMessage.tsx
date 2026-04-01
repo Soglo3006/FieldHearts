@@ -9,6 +9,7 @@ interface RepliedMessageProps {
     id: string;
     content: string;
     sender_name?: string;
+    deleted_at?: string | null;
   };
   onMessageClick: (messageId: string) => void;
 }
@@ -26,6 +27,18 @@ function getReplyPreview(content: string) {
 
 export function RepliedMessage({ repliedTo, onMessageClick }: RepliedMessageProps) {
   const { t } = useTranslation();
+
+  if (repliedTo.deleted_at) {
+    return (
+      <div className="border-l-4 border-green-700 bg-green-50/50 pl-3 py-2 mb-2 rounded">
+        <p className="text-xs font-semibold text-green-700 mb-1">
+          {repliedTo.sender_name || t('messages.user')}
+        </p>
+        <span className="text-sm italic text-gray-500">{t('messages.deleted')}</span>
+      </div>
+    );
+  }
+
   const preview = getReplyPreview(repliedTo.content);
 
   return (

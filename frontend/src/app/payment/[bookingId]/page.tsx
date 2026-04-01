@@ -9,6 +9,7 @@ import { CheckCircle, AlertCircle, MapPin, Calendar, CreditCard, ArrowLeft } fro
 import Link from "next/link";
 import { useTranslation } from "react-i18next";
 import { getTaxLabel, formatTaxRate, getTaxRate } from "@/lib/taxes";
+import { getIntlLocale } from "@/lib/locale";
 
 interface Booking {
   id: string;
@@ -34,6 +35,8 @@ export default function PaymentPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { t, i18n } = useTranslation();
+  const bookingLocale = getIntlLocale(i18n.language, { fr: 'fr-CA', en: 'en-CA' });
+  const checkoutLocale = getIntlLocale(i18n.language, { fr: 'fr-CA', en: 'en' });
   const wasCancelled = searchParams.get("cancelled") === "true";
 
   const [booking, setBooking] = useState<Booking | null>(null);
@@ -65,7 +68,7 @@ export default function PaymentPage() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${session.access_token}`,
         },
-        body: JSON.stringify({ booking_id: bookingId, locale: i18n.language?.startsWith("fr") ? "fr-CA" : "en" }),
+        body: JSON.stringify({ booking_id: bookingId, locale: checkoutLocale }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -162,7 +165,7 @@ export default function PaymentPage() {
               </div>
               <div className="flex items-center gap-2">
                 <Calendar className="h-4 w-4 text-gray-400 shrink-0" />
-                <span>{t("payment.bookedOn", { date: new Date(booking.created_at).toLocaleDateString(i18n.language?.startsWith("fr") ? "fr-CA" : "en-CA") })}</span>
+                <span>{t("payment.bookedOn", { date: new Date(booking.created_at).toLocaleDateString(bookingLocale) })}</span>
               </div>
             </div>
 

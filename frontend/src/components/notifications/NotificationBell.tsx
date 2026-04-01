@@ -23,6 +23,7 @@ import { useNotifications, type AppNotification } from "@/hooks/useNotifications
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
+import { getIntlLocale, getLanguageCode } from "@/lib/locale";
 
 type NotifHookData = ReturnType<typeof useNotifications>;
 
@@ -74,7 +75,7 @@ function formatTime(dateString: string, t: (key: string, opts?: any) => string, 
   if (diff < 3_600_000) return t("notifications.minutesAgo", { count: Math.floor(diff / 60_000) });
   if (diff < 86_400_000) return t("notifications.hoursAgo", { count: Math.floor(diff / 3_600_000) });
   if (diff < 7 * 86_400_000) return t("notifications.daysAgo", { count: Math.floor(diff / 86_400_000) });
-  return new Date(dateString).toLocaleDateString(lang === "fr" ? "fr-CA" : "en-CA", { month: "short", day: "numeric" });
+  return new Date(dateString).toLocaleDateString(getIntlLocale(lang, { fr: 'fr-CA', en: 'en-CA' }), { month: "short", day: "numeric" });
 }
 
 function NotifRow({
@@ -89,7 +90,7 @@ function NotifRow({
   onClick: () => void;
 }) {
   const { t, i18n } = useTranslation();
-  const lang = i18n.language?.startsWith("fr") ? "fr" : "en";
+  const lang = getLanguageCode(i18n.language);
   const cfg = TYPE_CONFIG[notif.type] ?? TYPE_CONFIG.booking_request;
   const isUnread = !notif.read_at;
 

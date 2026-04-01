@@ -208,7 +208,7 @@ export default function HomePage() {
           requestCoords();
         }
 
-        // Écoute les changements de permission (ex: via icône 🔒)
+        // Écoute les changements de permission 
         result.onchange = () => {
           if (result.state === "granted") {
             requestCoords();

@@ -18,6 +18,7 @@ import {
 import { Toggle } from "./settings/SubPageHeader";
 import ChangePasswordPage from "./settings/ChangePasswordPage";
 import BlockedUsersPage from "./settings/BlockedUsersPage";
+import { getLanguageCode } from "@/lib/locale";
 import LogoutPage from "./settings/LogoutPage";
 import DeleteAccountPage from "./settings/DeleteAccountPage";
 import { useTranslation } from "react-i18next";
@@ -66,12 +67,12 @@ export default function SettingsPage({ onClose, scrollRef }: { onClose: () => vo
   const [emailPrefs, setEmailPrefs] = useState({
     email_messages: true, email_payments: true, email_listings: true, email_complaints: true,
   });
-  const [language, setLanguage] = useState(i18n.language === "fr" ? "fr" : "en");
+  const [language, setLanguage] = useState(getLanguageCode(i18n.language));
   const [region, setRegion] = useState("CA");
 
   // Keep language select in sync if header toggle changes i18n language
   useEffect(() => {
-    setLanguage(i18n.language === "fr" ? "fr" : "en");
+    setLanguage(getLanguageCode(i18n.language));
   }, [i18n.language]);
   const [connectedAccounts, setConnectedAccounts] = useState<{ provider: string; identity_data?: { email?: string } }[]>([]);
   const [stripeStatus, setStripeStatus] = useState<{ connected: boolean; charges_enabled: boolean; details_submitted: boolean } | null>(null);

@@ -20,7 +20,7 @@ export default function StepSummary({ data, accountType }: Props) {
       <div className="space-y-6">
         <div className="flex items-center gap-4">
           <Avatar className="w-16 h-16 sm:w-24 sm:h-24">
-            {data.avatar && <AvatarImage src={data.avatar} alt="avatar" className="object-cover" />}
+            {data.avatar && <AvatarImage src={data.avatar} alt={t("onboarding.avatarAlt")} className="object-cover" />}
             <AvatarFallback className="text-2xl bg-green-100 text-green-800 font-semibold">
               {(accountType === "person" ? data.fullName : data.companyName)?.charAt(0)?.toUpperCase() ?? "?"}
             </AvatarFallback>
@@ -34,10 +34,10 @@ export default function StepSummary({ data, accountType }: Props) {
         </div>
 
         <div>
-          <h4 className="font-semibold text-gray-900 mb-2">Contact</h4>
-          <p className="text-gray-700"><strong>Email:</strong> {data.email}</p>
-          <p className="text-gray-700"><strong>Phone:</strong> {data.phone}</p>
-          <p className="text-gray-700"><strong>Address:</strong> {data.adresse}, {data.ville}, {data.province}</p>
+          <h4 className="font-semibold text-gray-900 mb-2">{t("onboarding.contactSectionTitle")}</h4>
+          <p className="text-gray-700"><strong>{t("onboarding.emailLabel")}:</strong> {data.email}</p>
+          <p className="text-gray-700"><strong>{t("onboarding.phoneLabel")}:</strong> {data.phone}</p>
+          <p className="text-gray-700"><strong>{t("onboarding.addressLabel")}:</strong> {data.adresse}, {data.ville}, {data.province}</p>
         </div>
 
         {(accountType === "person" ? (data.bio?.trim().length ?? 0) > 0 : (data.companyBio?.trim().length ?? 0) > 0) && (

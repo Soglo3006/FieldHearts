@@ -1,6 +1,7 @@
 "use client";
 import { useTranslation } from "react-i18next";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { getLanguageToggleValue } from "@/lib/locale";
 
 export default function Footer() {
   const { t, i18n } = useTranslation();
@@ -32,7 +33,7 @@ export default function Footer() {
             type="single"
             variant="outline"
             className="border-green-700"
-            value={i18n.language === "fr" ? "FR" : "EN"}
+            value={getLanguageToggleValue(i18n.language)}
             onValueChange={(val) => { if (val) { const lng = val.toLowerCase(); i18n.changeLanguage(lng); localStorage.setItem("i18nextLng", lng); } }}
           >
             <ToggleGroupItem value="FR" className="cursor-pointer text-sm px-3 h-8 text-white border-green-700 hover:bg-green-800">FR</ToggleGroupItem>

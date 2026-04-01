@@ -8,10 +8,11 @@ import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { UserPen, Building2 } from "lucide-react";
 import i18n from "@/lib/i18n";
+import { getLanguageCode } from "@/lib/locale";
 
 function LanguageToggle() {
   const { i18n: i18nInstance } = useTranslation();
-  const activeLng = i18nInstance.language?.startsWith("fr") ? "fr" : "en";
+  const activeLng = getLanguageCode(i18nInstance.language);
 
   const handleChange = (lng: string) => {
     i18n.changeLanguage(lng);

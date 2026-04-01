@@ -7,7 +7,8 @@ import { MessageReactions } from './MessageReactions';
 import { sanitizeAndFormatMessage } from '@/lib/sanitize';
 import { ImageLightbox } from './ImageLightbox';
 import { Pin, FileText, FileIcon, FileSpreadsheet, Archive, Loader2 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 function getFileIcon(filename: string) {
   const ext = filename.split('.').pop()?.toLowerCase() ?? '';
@@ -17,12 +18,12 @@ function getFileIcon(filename: string) {
   return <FileIcon className="h-6 w-6 text-blue-500 shrink-0" />;
 }
 
-function getFilename(url: string): string {
+function getFilename(url: string, fallbackLabel: string): string {
   try {
     const decoded = decodeURIComponent(url.split('?')[0]);
-    return decoded.split('/').pop() || 'Fichier';
+    return decoded.split('/').pop() || fallbackLabel;
   } catch {
-    return 'Fichier';
+    return fallbackLabel;
   }
 }
 
@@ -43,6 +44,7 @@ interface FileMessageProps {
     id: string;
     content: string;
     sender_name?: string;
+    deleted_at?: string | null;
   } | null;
   onReplyClick?: (messageId: string) => void;
   reactions?: Reaction[]; 
@@ -64,6 +66,65 @@ interface FileMessageProps {
   onReply?: () => void;
   onPin?: () => void;
   onDelete?: () => void;
+}
+
+interface ImageAttachmentProps {
+  fileUrl: string;
+  isSending: boolean;
+  altText: string;
+  sendingLabel: string;
+  loadingLabel: string;
+  failedLabel: string;
+  onOpen: () => void;
+}
+
+function ImageAttachment({
+  fileUrl,
+  isSending,
+  altText,
+  sendingLabel,
+  loadingLabel,
+  failedLabel,
+  onOpen,
+}: ImageAttachmentProps) {
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const [imageFailed, setImageFailed] = useState(false);
+
+  return (
+    <button
+      type="button"
+      className="relative block max-w-xs max-h-64 overflow-hidden rounded-xl cursor-pointer shadow-md"
+      onClick={(e) => {
+        e.stopPropagation();
+        onOpen();
+      }}
+    >
+      {(!imageLoaded || isSending) && !imageFailed && (
+        <div className="flex h-64 w-64 max-w-xs items-center justify-center rounded-xl bg-gray-100 text-gray-400">
+          <div className="flex flex-col items-center gap-2">
+            <Loader2 className="h-5 w-5 animate-spin" />
+            <span className="text-xs font-medium">
+              {isSending ? sendingLabel : loadingLabel}
+            </span>
+          </div>
+        </div>
+      )}
+
+      {imageFailed ? (
+        <div className="flex h-64 w-64 max-w-xs items-center justify-center rounded-xl bg-gray-100 px-4 text-center text-sm text-gray-500">
+          {failedLabel}
+        </div>
+      ) : (
+        <img
+          src={fileUrl}
+          alt={altText}
+          className={`max-w-xs max-h-64 rounded-xl object-cover transition-opacity ${imageLoaded && !isSending ? 'opacity-100' : 'absolute inset-0 opacity-0'} hover:opacity-90`}
+          onLoad={() => setImageLoaded(true)}
+          onError={() => setImageFailed(true)}
+        />
+      )}
+    </button>
+  );
 }
 
 export function FileMessage({
@@ -91,8 +152,10 @@ export function FileMessage({
   onPin,
   onDelete,
 }: FileMessageProps) {
+  const { t } = useTranslation();
   const keyText = `${messageId}-text`;
   const keyImage = `${messageId}-image`;
+  const fileName = getFilename(fileUrl, t('messages.file'));
 
   const actionsVisible = (key: string) =>
     !lightboxOpen && (hoveredMessageId === key || openMenuKey === key || selectedMessageKey === key);
@@ -101,13 +164,6 @@ export function FileMessage({
   const isFailed = status === 'failed';
 
   const [lightboxOpen, setLightboxOpen] = useState(false);
-  const [imageLoaded, setImageLoaded] = useState(false);
-  const [imageFailed, setImageFailed] = useState(false);
-
-  useEffect(() => {
-    setImageLoaded(false);
-    setImageFailed(false);
-  }, [fileUrl]);
 
   const clearImageInteractionState = () => {
     setHoveredMessageId(null);
@@ -166,7 +222,7 @@ export function FileMessage({
             )}
 
             <div className="flex flex-col gap-1">
-            {repliedTo && repliedTo.content !== 'Message supprimé' && text !== 'Message supprimé' && (
+            {repliedTo && !repliedTo.deleted_at && text && (
               <RepliedMessage
                 repliedTo={repliedTo}
                 onMessageClick={onReplyClick || (() => {})}
@@ -253,7 +309,7 @@ export function FileMessage({
             )}
 
             <div className="flex flex-col gap-1">
-            {repliedTo && repliedTo.content !== 'Message supprimé' && (
+            {repliedTo && !repliedTo.deleted_at && (
               <RepliedMessage
                 repliedTo={repliedTo}
                 onMessageClick={onReplyClick || (() => {})}
@@ -262,40 +318,19 @@ export function FileMessage({
 
             {/* Image avec réaction en position absolue */}
             <div className="relative">
-              <button
-                type="button"
-                className="relative block max-w-xs max-h-64 overflow-hidden rounded-xl cursor-pointer shadow-md"
-                onClick={(e) => {
-                  e.stopPropagation();
+              <ImageAttachment
+                key={fileUrl}
+                fileUrl={fileUrl}
+                isSending={isSending}
+                altText={t('messages.fileAttachment')}
+                sendingLabel={t('messages.sendingImage')}
+                loadingLabel={t('messages.loadingImage')}
+                failedLabel={t('messages.unableToLoadImage')}
+                onOpen={() => {
                   clearImageInteractionState();
                   setLightboxOpen(true);
                 }}
-              >
-                {(!imageLoaded || isSending) && !imageFailed && (
-                  <div className="flex h-64 w-64 max-w-xs items-center justify-center rounded-xl bg-gray-100 text-gray-400">
-                    <div className="flex flex-col items-center gap-2">
-                      <Loader2 className="h-5 w-5 animate-spin" />
-                      <span className="text-xs font-medium">
-                        {isSending ? 'Sending image...' : 'Loading image...'}
-                      </span>
-                    </div>
-                  </div>
-                )}
-
-                {imageFailed ? (
-                  <div className="flex h-64 w-64 max-w-xs items-center justify-center rounded-xl bg-gray-100 px-4 text-center text-sm text-gray-500">
-                    Unable to load image
-                  </div>
-                ) : (
-                  <img
-                    src={fileUrl}
-                    alt="Attachment"
-                    className={`max-w-xs max-h-64 rounded-xl object-cover transition-opacity ${imageLoaded && !isSending ? 'opacity-100' : 'absolute inset-0 opacity-0'} hover:opacity-90`}
-                    onLoad={() => setImageLoaded(true)}
-                    onError={() => setImageFailed(true)}
-                  />
-                )}
-              </button>
+              />
               {lightboxOpen && (
                 <ImageLightbox
                   imageUrl={fileUrl}
@@ -336,11 +371,11 @@ export function FileMessage({
               : 'bg-gray-50 hover:bg-gray-100 border border-gray-200'
           }`}
         >
-          {getFileIcon(getFilename(fileUrl))}
+          {getFileIcon(fileName)}
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium truncate">{getFilename(fileUrl)}</p>
+            <p className="text-sm font-medium truncate">{fileName}</p>
             <p className={`text-xs mt-0.5 ${isOwn ? 'text-green-700' : 'text-gray-400'}`}>
-              {(getFilename(fileUrl).split('.').pop() ?? '').toUpperCase()} · Ouvrir
+              {(fileName.split('.').pop() ?? '').toUpperCase()} · {t('messages.openFile')}
             </p>
           </div>
         </a>

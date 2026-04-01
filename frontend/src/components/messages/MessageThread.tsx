@@ -7,23 +7,25 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PinnedMessages } from "./PinnedMessages";
 import { MessageItem } from "./MessageItem";
+import { getIntlLocale } from "@/lib/locale";
 
 function getDateLabel(dateStr: string, t: (k: string) => string, lng: string): string {
   const date = new Date(dateStr);
   const today = new Date();
   const yesterday = new Date(today);
   yesterday.setDate(yesterday.getDate() - 1);
+  const intlLocale = getIntlLocale(lng, { fr: 'fr-CA', en: 'en-CA' });
 
   if (date.toDateString() === today.toDateString()) return t("messages.today");
   if (date.toDateString() === yesterday.toDateString()) return t("messages.yesterday");
 
   const diffDays = Math.floor((today.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
   if (diffDays < 7) {
-    const day = date.toLocaleDateString(lng, { weekday: "long" });
+    const day = date.toLocaleDateString(intlLocale, { weekday: "long" });
     return day.charAt(0).toUpperCase() + day.slice(1);
   }
   const sameYear = date.getFullYear() === today.getFullYear();
-  return date.toLocaleDateString(lng, {
+  return date.toLocaleDateString(intlLocale, {
     day: "numeric", month: "short",
     ...(sameYear ? {} : { year: "numeric" }),
   });
@@ -123,7 +125,7 @@ export function MessageThread({
   }, [loading]);
 
   const pinnedMessages = messages
-    .filter(msg => msg.pinned_at && msg.content !== "Message supprimé")
+    .filter(msg => msg.pinned_at && !msg.deleted_at)
     .sort((a, b) => new Date(a.pinned_at!).getTime() - new Date(b.pinned_at!).getTime())
     .map(msg => ({
       id: msg.id, content: msg.content, created_at: msg.created_at,

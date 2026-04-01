@@ -1,6 +1,7 @@
 "use client";
 
 import { Check, CheckCheck } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { MessageBubble } from "./MessageBubble";
@@ -8,6 +9,7 @@ import { FileMessage } from "./FileMessage";
 import { VoiceMessage } from "./VoiceMessage";
 import { MessageActions } from "./MessageActions";
 import { MessageReactions } from "./MessageReactions";
+import { getIntlLocale } from "@/lib/locale";
 
 interface MessageReaction {
   emoji: string;
@@ -76,8 +78,11 @@ export function MessageItem({
   setHoveredMessageId, setOpenMenuKey, setSelectedMessageKey,
   retryMessage, onReply, onReplyClick, onReactionToggle, onEdit, onPin, onDelete,
 }: Props) {
-  const isAudio = message.content.includes("[AUDIO:");
-  const isFile = !isAudio && message.content.includes("[FILE:");
+  const { t, i18n } = useTranslation();
+  const isDeleted = Boolean(message.deleted_at);
+  const isAudio = !isDeleted && message.content.includes("[AUDIO:");
+  const isFile = !isDeleted && !isAudio && message.content.includes("[FILE:");
+  const timeLocale = getIntlLocale(i18n.language, { fr: 'fr-FR', en: 'en-CA' });
 
   const hoverHandlers = {
     onMouseEnter: () => {
@@ -172,6 +177,7 @@ export function MessageItem({
           <MessageBubble
             messageId={message.id} content={message.content} isOwn={isOwn}
             currentUserId={currentUserId} status={message.status} editedAt={message.edited_at}
+            deletedAt={message.deleted_at}
             isPinned={!!message.pinned_at} repliedTo={message.replied_to} onReplyClick={onReplyClick}
             otherUser={otherUser} isHovered={hoveredMessageId === message.id}
             isMenuOpen={openMenuKey === message.id} isSelected={selectedMessageKey === message.id}
@@ -190,7 +196,7 @@ export function MessageItem({
 
       <div className={`flex items-center gap-2 mt-1 px-1 ${isOwn ? "justify-end" : "justify-start"}`}>
         <span className="text-xs text-gray-500">
-          {new Date(message.created_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+          {new Date(message.created_at).toLocaleTimeString(timeLocale, { hour: "2-digit", minute: "2-digit" })}
         </span>
         {isOwn && message.status !== "sending" && message.status !== "failed" && (
           <Tooltip>
@@ -202,8 +208,8 @@ export function MessageItem({
             <TooltipContent>
               <p>
                 {message.read_at
-                  ? `Lu à ${new Date(message.read_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}`
-                  : "Envoyé"}
+                  ? t('messages.readAt', { time: new Date(message.read_at).toLocaleTimeString(timeLocale, { hour: '2-digit', minute: '2-digit' }) })
+                  : t('messages.sent')}
               </p>
             </TooltipContent>
           </Tooltip>

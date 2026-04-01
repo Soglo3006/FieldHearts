@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label";
 import { RefreshCw, Scale, ExternalLink } from "lucide-react";
 import { Spinner } from "@/components/ui/Spinner";
 import { useTranslation } from "react-i18next";
+import { getIntlLocale } from "@/lib/locale";
 
 type Dispute = {
   id: string;
@@ -141,7 +142,7 @@ export default function AdminDisputesPage() {
   };
 
   const openCount = disputes.filter((d) => d.status === "open").length;
-  const locale = i18n.language?.startsWith("fr") ? "fr-CA" : "en-CA";
+  const locale = getIntlLocale(i18n.language, { fr: 'fr-CA', en: 'en-CA' });
   const getStatusLabel = (status: string) => {
     const key = status === "resolved"
       ? "resolved"

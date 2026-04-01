@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { getLanguageCodeFromAcceptLanguage, getLanguageCode } from "@/lib/locale";
 
 const COMING_SOON = process.env.NEXT_PUBLIC_COMING_SOON === "true";
 
@@ -15,11 +16,9 @@ export function middleware(request: NextRequest) {
     ALLOWED_PREFIXES.some((p) => pathname.startsWith(p));
 
   if (!allowed) {
-    const acceptLang = request.headers.get("accept-language") ?? "";
     const prefersFr =
-      pathname.startsWith("/fr") ||
-      (acceptLang.toLowerCase().startsWith("fr") &&
-        !acceptLang.toLowerCase().startsWith("en"));
+      getLanguageCode(pathname.split("/")[1]) === "fr" ||
+      getLanguageCodeFromAcceptLanguage(request.headers.get("accept-language")) === "fr";
     return NextResponse.redirect(
       new URL(prefersFr ? "/fr" : "/", request.url)
     );

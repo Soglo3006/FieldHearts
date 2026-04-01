@@ -1,27 +1,19 @@
 "use client";
 
+import { useTranslation } from "react-i18next";
+
 interface LegalSection {
   id: string;
-  label?: string;
-  labelFr?: string;
-  en?: string;
-  fr?: string;
+  label: string;
 }
 
 interface LegalSidebarNavProps {
   sections: LegalSection[];
-  isFr: boolean;
   onNavigate: (id: string) => void;
 }
 
-export default function LegalSidebarNav({ sections, isFr, onNavigate }: LegalSidebarNavProps) {
-  const getLabel = (section: LegalSection) => {
-    if (isFr) {
-      return section.labelFr ?? section.fr ?? section.label ?? section.en ?? section.id;
-    }
-
-    return section.label ?? section.en ?? section.labelFr ?? section.fr ?? section.id;
-  };
+export default function LegalSidebarNav({ sections, onNavigate }: LegalSidebarNavProps) {
+  const { t } = useTranslation();
 
   return (
     <>
@@ -35,7 +27,7 @@ export default function LegalSidebarNav({ sections, isFr, onNavigate }: LegalSid
                 onClick={() => onNavigate(section.id)}
                 className="block w-full rounded-lg px-3 py-2 text-left text-sm text-gray-600 transition-colors hover:bg-green-100 hover:text-green-800"
               >
-                {getLabel(section)}
+                {section.label}
               </button>
             ))}
           </nav>
@@ -44,7 +36,7 @@ export default function LegalSidebarNav({ sections, isFr, onNavigate }: LegalSid
 
       <div className="mb-12 lg:hidden">
         <p className="mb-4 text-xs font-semibold uppercase tracking-wider text-gray-400">
-          {isFr ? "Table des matières" : "Table of Contents"}
+          {t("legalNav.tableOfContents")}
         </p>
         <ol className="space-y-2">
           {sections.map((section) => (
@@ -54,7 +46,7 @@ export default function LegalSidebarNav({ sections, isFr, onNavigate }: LegalSid
                 onClick={() => onNavigate(section.id)}
                 className="text-left text-sm text-green-700 hover:text-green-900 hover:underline"
               >
-                {getLabel(section)}
+                {section.label}
               </button>
             </li>
           ))}

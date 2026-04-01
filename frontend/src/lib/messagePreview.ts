@@ -3,6 +3,7 @@ export interface UnreadMessagePreviewLabels {
   photo: string;
   file: string;
   voiceMessage: string;
+  deleted: string;
   fallbackSenderName: string;
   formatVoiceFromOther: (name: string) => string;
 }
@@ -12,10 +13,15 @@ export function formatUnreadMessagePreview(
   options: {
     isOwnMessage: boolean;
     senderName?: string;
+    deletedAt?: string | null;
     labels: UnreadMessagePreviewLabels;
   }
 ): string {
-  const { isOwnMessage, senderName, labels } = options;
+  const { isOwnMessage, senderName, deletedAt, labels } = options;
+
+  if (deletedAt) {
+    return isOwnMessage ? `${labels.ownPrefix}${labels.deleted}` : labels.deleted;
+  }
 
   if (content.includes('[AUDIO:')) {
     if (isOwnMessage) {

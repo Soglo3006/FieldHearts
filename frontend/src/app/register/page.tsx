@@ -21,6 +21,7 @@ import { FcGoogle } from "react-icons/fc";
 import { FaFacebookF } from "react-icons/fa";
 import { useTranslation } from "react-i18next";
 import { Spinner } from "@/components/ui/Spinner";
+import { getLanguageCode } from "@/lib/locale";
 
 export default function RegisterPage() {
   const searchParams = useSearchParams();
@@ -38,6 +39,7 @@ export default function RegisterPage() {
   const { signUpWithEmail, signInWithGoogle, signInWithFacebook } = useAuth();
   const router = useRouter();
   const { t, i18n } = useTranslation();
+  const selectedLanguage = getLanguageCode(i18n.language);
 
   useEffect(() => {
     const emailParam = searchParams.get("email");
@@ -88,14 +90,14 @@ export default function RegisterPage() {
         <button
           type="button"
           onClick={() => { i18n.changeLanguage("fr"); localStorage.setItem("i18nextLng", "fr"); }}
-          className={`px-2.5 py-1 rounded-full text-xs font-semibold transition-colors cursor-pointer ${i18n.language === "fr" ? "bg-green-700 text-white" : "text-gray-500 hover:text-gray-800"}`}
+          className={`px-2.5 py-1 rounded-full text-xs font-semibold transition-colors cursor-pointer ${selectedLanguage === "fr" ? "bg-green-700 text-white" : "text-gray-500 hover:text-gray-800"}`}
         >
           FR
         </button>
         <button
           type="button"
           onClick={() => { i18n.changeLanguage("en"); localStorage.setItem("i18nextLng", "en"); }}
-          className={`px-2.5 py-1 rounded-full text-xs font-semibold transition-colors cursor-pointer ${i18n.language === "en" ? "bg-green-700 text-white" : "text-gray-500 hover:text-gray-800"}`}
+          className={`px-2.5 py-1 rounded-full text-xs font-semibold transition-colors cursor-pointer ${selectedLanguage === "en" ? "bg-green-700 text-white" : "text-gray-500 hover:text-gray-800"}`}
         >
           EN
         </button>

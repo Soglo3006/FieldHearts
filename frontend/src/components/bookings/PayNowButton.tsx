@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { CreditCard, Loader2 } from "lucide-react";
 import Link from "next/link";
@@ -12,6 +13,7 @@ interface Props {
 }
 
 export default function PayNowButton({ bookingId, accessToken, fullWidth }: Props) {
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -29,13 +31,13 @@ export default function PayNowButton({ bookingId, accessToken, fullWidth }: Prop
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.message || "Failed to start payment");
+        setError(data.message || t("payNowButton.startError"));
         setLoading(false);
         return;
       }
       window.location.href = data.url;
     } catch {
-      setError("Network error. Please try again.");
+      setError(t("payNowButton.networkError"));
       setLoading(false);
     }
   };
@@ -49,12 +51,12 @@ export default function PayNowButton({ bookingId, accessToken, fullWidth }: Prop
         disabled={loading}
       >
         {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CreditCard className="h-3.5 w-3.5" />}
-        {loading ? "Redirecting…" : "Pay Now"}
+        {loading ? t("payNowButton.redirecting") : t("bookings.payNow")}
       </Button>
       {error && <p className="text-xs text-red-600">{error}</p>}
       <p className="text-center text-xs text-gray-400">
-        By paying you agree to our{" "}
-        <Link href="/payment-terms" className="text-green-700 hover:underline">Payment Terms</Link>
+        {t("payNowButton.agreement")} {" "}
+        <Link href="/payment-terms" className="text-green-700 hover:underline">{t("footer.paymentTerms")}</Link>
       </p>
     </div>
   );

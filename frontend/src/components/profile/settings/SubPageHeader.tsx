@@ -1,3 +1,7 @@
+"use client";
+
+import { useTranslation } from "react-i18next";
+
 interface Props {
   title: string;
   subtitle?: string | null;
@@ -6,6 +10,8 @@ interface Props {
 }
 
 export function SubPageHeader({ title, subtitle = null, onBack, onClose }: Props) {
+  const { t } = useTranslation();
+
   return (
     <div className="bg-white border-b relative">
       {/* Bottom-sheet handle (mobile only) */}
@@ -13,7 +19,7 @@ export function SubPageHeader({ title, subtitle = null, onBack, onClose }: Props
         <div className="w-10 h-1 rounded-full bg-gray-300" />
       </div>
       <button onClick={onClose} className="absolute top-3 right-4 sm:top-4 sm:right-4 text-gray-500 hover:text-gray-900 text-xl cursor-pointer leading-none">✕</button>
-      <button onClick={onBack} className="absolute top-3 left-4 sm:top-4 sm:left-4 text-gray-600 hover:text-gray-900 cursor-pointer text-sm flex items-center gap-1">← Back</button>
+      <button onClick={onBack} className="absolute top-3 left-4 sm:top-4 sm:left-4 text-gray-600 hover:text-gray-900 cursor-pointer text-sm flex items-center gap-1">← {t("common.back")}</button>
       <div className="px-4 py-3 sm:py-6 text-center">
         <h1 className="text-xl sm:text-3xl font-bold text-gray-900 mt-5 sm:mt-0">{title}</h1>
         {subtitle && <p className="text-gray-600 mt-1 text-sm sm:text-base">{subtitle}</p>}

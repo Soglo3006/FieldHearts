@@ -15,6 +15,7 @@ import WorkerCustomizeSection from "./WorkerCustomizeSection";
 import BookingDetailFooter from "./BookingDetailFooter";
 import { useTranslation } from "react-i18next";
 import { getTaxRate, getTaxLabel, formatTaxRate } from "@/lib/taxes";
+import { getIntlLocale } from "@/lib/locale";
 
 type BookingStatus = "pending" | "accepted" | "active" | "completed" | "cancelled" | "rejected";
 
@@ -75,7 +76,7 @@ const STATUS_BADGE: Record<BookingStatus, string> = {
 
 function formatDate(dateStr: string, lang: string) {
   try {
-    return new Date(dateStr).toLocaleDateString(lang.startsWith("fr") ? "fr-CA" : "en-CA", {
+    return new Date(dateStr).toLocaleDateString(getIntlLocale(lang, { fr: 'fr-CA', en: 'en-CA' }), {
       weekday: "long", month: "long", day: "numeric", year: "numeric",
     });
   } catch { return dateStr; }
@@ -220,8 +221,8 @@ export default function BookingDetailModal({
                     <button
                       type="button"
                       onClick={prevImg}
-                      aria-label={i18n.language?.startsWith("fr") ? "Image précédente" : "Previous image"}
-                      title={i18n.language?.startsWith("fr") ? "Image précédente" : "Previous image"}
+                      aria-label={t('messages.previousImage')}
+                      title={t('messages.previousImage')}
                       className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 text-white rounded-full p-1 transition-colors"
                     >
                       <ChevronLeft className="h-4 w-4" />
@@ -229,8 +230,8 @@ export default function BookingDetailModal({
                     <button
                       type="button"
                       onClick={nextImg}
-                      aria-label={i18n.language?.startsWith("fr") ? "Image suivante" : "Next image"}
-                      title={i18n.language?.startsWith("fr") ? "Image suivante" : "Next image"}
+                      aria-label={t('messages.nextImage')}
+                      title={t('messages.nextImage')}
                       className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 text-white rounded-full p-1 transition-colors"
                     >
                       <ChevronRight className="h-4 w-4" />
@@ -241,8 +242,8 @@ export default function BookingDetailModal({
                           key={i}
                           type="button"
                           onClick={() => setImgIndex(i)}
-                          aria-label={i18n.language?.startsWith("fr") ? `Voir l'image ${i + 1}` : `View image ${i + 1}`}
-                          title={i18n.language?.startsWith("fr") ? `Voir l'image ${i + 1}` : `View image ${i + 1}`}
+                          aria-label={t('messages.viewImage', { number: i + 1 })}
+                          title={t('messages.viewImage', { number: i + 1 })}
                           className={`h-1.5 rounded-full transition-all ${i === imgIndex ? "w-4 bg-white" : "w-1.5 bg-white/50"}`}
                         />
                       ))}
@@ -593,18 +594,14 @@ export default function BookingDetailModal({
               const remainingHours = Math.ceil(remainingMs / (1000 * 60 * 60));
               const remainingDays = Math.ceil(remainingMs / (1000 * 60 * 60 * 24));
               if (remainingMs <= 0) return null;
-              const remainingLabel = i18n.language?.startsWith("fr")
-                ? remainingDays > 1
-                  ? `${remainingDays} jours`
-                  : `${remainingHours} heure${remainingHours > 1 ? "s" : ""}`
-                : remainingDays > 1
-                  ? `${remainingDays} more days`
-                  : `${remainingHours} more hour${remainingHours > 1 ? "s" : ""}`;
+              const remainingLabel = remainingDays > 1
+                ? t('bookings.remainingDays', { count: remainingDays })
+                : t('bookings.remainingHours', { count: remainingHours });
               return (
                 <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-xs text-amber-800 space-y-1">
                   <div className="flex items-center gap-1.5 font-semibold">
                     <AlertTriangle className="h-3.5 w-3.5" />
-                    {i18n.language?.startsWith("fr") ? "Fenêtre de litige" : "Dispute window"}
+                    {t('bookings.disputeWindowTitle')}
                   </div>
                   <p>{t("bookings.disputeWindowNotice", { time: remainingLabel })}</p>
                 </div>

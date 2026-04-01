@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { X, Plus, Trash2 } from "lucide-react";
 import { Language, OnboardingData, languageOptions, proficiencyOptions, skillSuggestions, serviceSuggestions } from "./onboardingTypes";
+import { getLanguageCode } from "@/lib/locale";
 
 interface Props {
   data: OnboardingData;
@@ -25,7 +26,7 @@ export default function StepSkillsServices({
   onAddLanguage, onRemoveLanguage, onUpdateLanguage,
 }: Props) {
   const { t, i18n } = useTranslation();
-  const lang = i18n.language?.startsWith("fr") ? "fr" : "en";
+  const lang = getLanguageCode(i18n.language);
   const [newSkill, setNewSkill] = useState("");
   const suggestionList = accountType === "company"
     ? (serviceSuggestions[lang] ?? serviceSuggestions.fr)

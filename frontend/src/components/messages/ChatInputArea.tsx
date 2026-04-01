@@ -1,6 +1,7 @@
 "use client";
 import { Button } from "@/components/ui/button";
 import { Ban } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { ReplyPreview } from "@/components/messages/ReplyPreview";
 import { MessageInput } from "@/components/messages/MessageInput";
 
@@ -39,6 +40,8 @@ export function ChatInputArea({
   messageInput, onMessageChange, onSend, onKeyPress, onVoiceMessage,
   sending, attachedFile, attachmentPreview, onFileSelect, onRemoveAttachment, fileInputRef,
 }: Props) {
+  const { t } = useTranslation();
+
   return (
     <div className="shrink-0 pb-[env(safe-area-inset-bottom)]">
       <ReplyPreview repliedMessage={replyingTo} onCancel={onCancelReply} />
@@ -52,7 +55,7 @@ export function ChatInputArea({
           <div className="flex items-center gap-2 px-4 py-2 bg-red-50 border-b border-red-100">
             <Ban className="h-4 w-4 text-red-500 shrink-0" />
             <p className="text-sm text-red-600">
-              Vous avez bloqué ce compte. Ce compte ne peut plus vous envoyer de messages.
+              {t("messages.blockedByYouNotice")}
             </p>
           </div>
           <div className="p-4 flex justify-center">
@@ -61,7 +64,7 @@ export function ChatInputArea({
               className="border-green-700 cursor-pointer text-green-700 hover:bg-green-50"
               onClick={onUnblock}
             >
-              Débloquer {otherUserName}
+              {t("messages.unblockUser", { name: otherUserName })}
             </Button>
           </div>
         </div>
@@ -70,7 +73,7 @@ export function ChatInputArea({
           <div className="flex items-center gap-2 px-4 py-3 bg-gray-50">
             <Ban className="h-4 w-4 text-gray-400 shrink-0" />
             <p className="text-sm text-gray-500">
-              Vous ne pouvez plus envoyer de messages à cette personne.
+              {t("messages.blockedByOtherNotice")}
             </p>
           </div>
         </div>

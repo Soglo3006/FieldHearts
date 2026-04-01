@@ -40,7 +40,7 @@ export default function BlockUserPage({ profileId, displayName, onBack, onClose 
         </div>
         <h3 className="text-lg font-bold text-gray-900">{t("block.blocked")}</h3>
         <p className="text-sm text-gray-600">
-          {displayName} has been blocked. They will no longer be able to contact you or see your profile.
+          {t("block.blockedDescription", { name: displayName })}
         </p>
         <Button className="w-full bg-green-700 hover:bg-green-800 text-white cursor-pointer"
           onClick={() => { onClose(); window.location.reload(); }}>
@@ -60,12 +60,12 @@ export default function BlockUserPage({ profileId, displayName, onBack, onClose 
       </div>
 
       <div className="bg-gray-50 rounded-xl px-4 py-3 space-y-1.5">
-        <p className="text-sm font-medium text-gray-700">When you block this user:</p>
+        <p className="text-sm font-medium text-gray-700">{t("block.consequencesTitle")}</p>
         <ul className="space-y-1 text-sm text-gray-600">
-          <li className="flex items-start gap-2"><span className="text-gray-400 mt-0.5">•</span>They won't be able to contact you</li>
-          <li className="flex items-start gap-2"><span className="text-gray-400 mt-0.5">•</span>You won't see their listings or posts</li>
-          <li className="flex items-start gap-2"><span className="text-gray-400 mt-0.5">•</span>They won't be notified that you blocked them</li>
-          <li className="flex items-start gap-2"><span className="text-gray-400 mt-0.5">•</span>You can unblock them later in settings</li>
+          <li className="flex items-start gap-2"><span className="text-gray-400 mt-0.5">•</span>{t("block.consequenceContact")}</li>
+          <li className="flex items-start gap-2"><span className="text-gray-400 mt-0.5">•</span>{t("block.consequenceListings")}</li>
+          <li className="flex items-start gap-2"><span className="text-gray-400 mt-0.5">•</span>{t("block.consequenceNoNotification")}</li>
+          <li className="flex items-start gap-2"><span className="text-gray-400 mt-0.5">•</span>{t("block.consequenceUnblockLater")}</li>
         </ul>
       </div>
 

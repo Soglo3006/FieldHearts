@@ -378,7 +378,14 @@ export function useMessages(chatRoomId: string | null) {
             const next = prev.map((msg) => {
               if (msg.id === updated.id) {
                 if (updated.deleted_at) {
-                  return { ...msg, content: 'Message supprimé', deleted_at: updated.deleted_at, reactions: [] };
+                  return {
+                    ...msg,
+                    deleted_at: updated.deleted_at,
+                    edited_at: updated.edited_at,
+                    pinned_at: updated.pinned_at,
+                    reactions: [],
+                    read_at: updated.read_at,
+                  };
                 }
                 return {
                   ...msg,
@@ -394,7 +401,7 @@ export function useMessages(chatRoomId: string | null) {
                 return {
                   ...msg,
                   replied_to: msg.replied_to
-                    ? { ...msg.replied_to, deleted_at: updated.deleted_at, content: 'Message supprimé' }
+                    ? { ...msg.replied_to, deleted_at: updated.deleted_at }
                     : null,
                 };
               }

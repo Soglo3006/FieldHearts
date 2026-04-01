@@ -6,6 +6,7 @@ const labels = {
   photo: 'Photo',
   file: 'Fichier',
   voiceMessage: 'Message vocal',
+  deleted: 'Ce message a ete supprime',
   fallbackSenderName: 'Quelqu’un',
   formatVoiceFromOther: (name: string) => `${name} a envoyé un message vocal`,
 };
@@ -37,5 +38,15 @@ describe('formatUnreadMessagePreview', () => {
         labels,
       })
     ).toBe('Alex a envoyé un message vocal');
+  });
+
+  it('formats a deleted message preview', () => {
+    expect(
+      formatUnreadMessagePreview('Original content', {
+        isOwnMessage: true,
+        deletedAt: '2026-04-01T12:00:00.000Z',
+        labels,
+      })
+    ).toBe('Vous: Ce message a ete supprime');
   });
 });

@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { OnboardingData, professionSuggestions } from "./onboardingTypes";
+import { getLanguageCode } from "@/lib/locale";
 
 interface Props {
   data: OnboardingData;
@@ -15,7 +16,7 @@ interface Props {
 
 export default function StepAbout({ data, accountType, onChange }: Props) {
   const { t, i18n } = useTranslation();
-  const lang = i18n.language?.startsWith("fr") ? "fr" : "en";
+  const lang = getLanguageCode(i18n.language);
   const [professionInput, setProfessionInput] = useState(data.profession || "");
   const [showSuggestions, setShowSuggestions] = useState(false);
 

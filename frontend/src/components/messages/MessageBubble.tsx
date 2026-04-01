@@ -4,12 +4,13 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { MessageActions } from './MessageActions';
-import { Loader2, AlertCircle, RefreshCw,Check, X, Pin } from 'lucide-react';
+import { AlertCircle, RefreshCw,Check, X, Pin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { RepliedMessage } from './RepliedMessage';
 import { MessageReactions } from './MessageReactions';
 import { sanitizeAndFormatMessage } from '@/lib/sanitize';
+import { useTranslation } from 'react-i18next';
 
 interface Reaction {  
   emoji: string;
@@ -23,6 +24,7 @@ interface MessageBubbleProps {
   currentUserId: string;  
   status?: 'sending' | 'sent' | 'failed';
   editedAt?: string | null;
+  deletedAt?: string | null;
   repliedTo?: {
     id: string;
     content: string;
@@ -61,6 +63,7 @@ export function MessageBubble({
   currentUserId,  
   status = 'sent',
   editedAt,
+  deletedAt,
   isPinned,
   repliedTo,
   onReplyClick,
@@ -81,6 +84,7 @@ export function MessageBubble({
   onRetry,
   onReactionToggle,
 }: MessageBubbleProps) {
+  const { t } = useTranslation();
   const [isEditing, setIsEditing] = useState(false);
   const [editedContent, setEditedContent] = useState(content);
   const [isEmojiOpen, setIsEmojiOpen] = useState(false);
@@ -90,6 +94,7 @@ export function MessageBubble({
   const showActions = isHovered || isMenuOpen || isSelected || isEmojiOpen;
   const isSending = status === 'sending';
   const isFailed = status === 'failed';
+  const isDeleted = Boolean(deletedAt);
   const rootRef = useRef<HTMLDivElement>(null);
   const actionsRef = useRef<HTMLDivElement>(null);
 
@@ -186,7 +191,7 @@ export function MessageBubble({
     {/* Conteneur pour replied + bulle + reactions */}
     <div className="relative flex flex-col gap-1  w-fit">
       {/* Message cité */}
-      {repliedTo && repliedTo.content !== 'Message supprimé' && content !== 'Message supprimé' && (
+      {repliedTo && !repliedTo.deleted_at && !isDeleted && (
         <div className="max-w-xs md:max-w-md">
           <RepliedMessage
             repliedTo={repliedTo}
@@ -196,9 +201,9 @@ export function MessageBubble({
       )}
 
       {/* INDICATEUR "modifié" */}
-      {editedAt && content !== 'Message supprimé' && (
+      {editedAt && !isDeleted && (
         <p className={`text-xs mr-2 ${isOwn ? 'text-right text-gray-400' : 'text-left text-gray-400'}`}>
-          modifié
+          {t('messages.edited')}
         </p>
       )}
 
@@ -226,7 +231,7 @@ export function MessageBubble({
                   className={`min-h-15 text-sm resize-none ${
                     isOwn ? 'bg-green-600 text-white placeholder:text-green-200' : 'bg-white'
                   }`}
-                  placeholder="Modifier le message..."
+                  placeholder={t('messages.editPlaceholder')}
                 />
                 <div className="flex items-center gap-2">
                   <Button
@@ -236,7 +241,7 @@ export function MessageBubble({
                     onClick={handleSaveEdit}
                   >
                     <Check className="h-4 w-4 mr-1" />
-                    Enregistrer
+                    {t('common.save')}
                   </Button>
                   <Button
                     size="sm"
@@ -245,7 +250,7 @@ export function MessageBubble({
                     onClick={handleCancelEdit}
                   >
                     <X className="h-4 w-4 mr-1" />
-                    Annuler
+                    {t('common.cancel')}
                   </Button>
                 </div>
               </div>
@@ -253,8 +258,8 @@ export function MessageBubble({
               <>
                 {/* MODE LECTURE */}
                 <div className="text-sm wrap-break-word">
-                  {content === 'Message supprimé' ? (
-                    <span className="italic text-gray-400">{content}</span>
+                  {isDeleted ? (
+                    <span className="italic text-gray-400">{t('messages.deleted')}</span>
                   ) : (
                     <span 
                       dangerouslySetInnerHTML={{ 
@@ -264,7 +269,7 @@ export function MessageBubble({
                   )}
                 </div>
 
-                {isPinned && content !== 'Message supprimé' && (
+                {isPinned && !isDeleted && (
                   <div className="absolute -top-2 -right-2 rounded-full bg-white p-1 shadow-sm ring-1 ring-gray-100">
                     <Pin className="h-3 w-3 text-green-700" />
                   </div>
@@ -289,7 +294,7 @@ export function MessageBubble({
           )}
 
           {/* Boutons d'action - alignés avec la bulle */}
-        {showActions && !isSending && !isFailed && content !== 'Message supprimé' && !isEditing && (
+        {showActions && !isSending && !isFailed && !isDeleted && !isEditing && (
           <div
             ref={actionsRef}
             className={`absolute ${isOwn ? 'right-full mr-2' : 'left-full ml-2'} top-0 bottom-0 flex items-center`}
@@ -340,7 +345,7 @@ export function MessageBubble({
               </Button>
             </TooltipTrigger>
             <TooltipContent>
-              <p>Réessayer</p>
+              <p>{t('common.retry')}</p>
             </TooltipContent>
           </Tooltip>
         )}

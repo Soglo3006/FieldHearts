@@ -54,10 +54,8 @@ export default function ForgotPasswordPage() {
                 <CheckCircle className="h-12 w-12 text-green-600" />
               </div>
               <p className="text-gray-700 font-medium">{t("auth.resetSent")}</p>
-              <p className="text-sm text-gray-500">
-                We sent a password reset link to <span className="font-semibold">{email}</span>.
-                Check your spam folder if you don't see it.
-              </p>
+              <p className="text-sm text-gray-500">{t("auth.resetSentTo", { email })}</p>
+              <p className="text-sm text-gray-500">{t("auth.checkSpamHint")}</p>
               <Link href="/login">
                 <Button variant="outline" className="w-full mt-2">
                   <ArrowLeft className="h-4 w-4 mr-2" /> {t("auth.backToLogin")}
@@ -74,7 +72,7 @@ export default function ForgotPasswordPage() {
                 <Input
                   id="email"
                   type="email"
-                  placeholder="you@example.com"
+                  placeholder={t("auth.emailPlaceholder")}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required

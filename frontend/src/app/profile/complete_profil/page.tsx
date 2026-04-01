@@ -21,10 +21,11 @@ import StepSummary from "@/components/onboarding/StepSummary";
 import StepBankAccount from "@/components/onboarding/StepBankAccount";
 import { toast } from "sonner";
 import { Spinner } from "@/components/ui/Spinner";
+import { getLanguageCode } from "@/lib/locale";
 
 function LanguageToggle() {
   const { i18n: i18nInstance } = useTranslation();
-  const activeLng = i18nInstance.language?.startsWith("fr") ? "fr" : "en";
+  const activeLng = getLanguageCode(i18nInstance.language);
 
   const handleChange = (lng: string) => {
     i18n.changeLanguage(lng);

@@ -8,6 +8,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { AlertTriangle, ImagePlus, Send, X, Loader2, Lock } from "lucide-react";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
+import { getIntlLocale } from "@/lib/locale";
 
 interface Attachment { url: string; name: string; }
 
@@ -141,7 +142,7 @@ export default function DisputeThread({ bookingId, currentUserId, accessToken }:
   if (!dispute) return null;
 
   const isClosed = dispute.status !== "open";
-  const timeLocale = i18n.language?.startsWith("fr") ? "fr-FR" : "en-CA";
+  const timeLocale = getIntlLocale(i18n.language, { fr: 'fr-FR', en: 'en-CA' });
 
   return (
     <div className="border border-red-200 rounded-xl overflow-hidden bg-red-50/30">

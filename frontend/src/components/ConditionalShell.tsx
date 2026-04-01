@@ -9,6 +9,7 @@ import CategoryNav from "@/components/home/Category";
 import Footer from "@/components/home/Footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { Spinner } from "@/components/ui/Spinner";
+import { getLanguageCode } from "@/lib/locale";
 
 const AUTH_ROUTES = [
   "/login",
@@ -42,7 +43,7 @@ export default function ConditionalShell({ children }: { children: React.ReactNo
 
   useEffect(() => {
     const saved = localStorage.getItem("i18nextLng");
-    const browserLng = navigator.language?.startsWith("fr") ? "fr" : "en";
+    const browserLng = getLanguageCode(navigator.language);
     const lng = saved ?? browserLng;
     if (lng !== i18n.language) i18n.changeLanguage(lng);
   }, []);

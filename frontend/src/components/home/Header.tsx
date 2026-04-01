@@ -34,6 +34,7 @@ import { useNotifications } from "@/hooks/useNotifications";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { useWalletBadge } from "@/hooks/useWalletBadge";
 import { formatTranslatedCategoryTrail, categories, toCategoryKey } from "@/lib/categories";
+import { getLanguageCode, getLanguageToggleValue } from "@/lib/locale";
 import frLocale from "@/locales/fr.json";
 import enLocale from "@/locales/en.json";
 
@@ -288,7 +289,8 @@ export default function Header() {
   }, [showSearchDrop, searchResults.length, headerSearch]);
 
   // Category suggestions — client-side, instant
-  const lang = i18n.language?.startsWith("fr") ? "fr" : "en";
+  const lang = getLanguageCode(i18n.language);
+  const languageToggleValue = getLanguageToggleValue(i18n.language);
   const catLocale = (lang === "fr" ? frLocale : enLocale).categories as Record<string, string>;
   const categorySuggestions = headerSearch.trim().length > 0
     ? categories.flatMap((cat) => {
@@ -485,7 +487,7 @@ export default function Header() {
                 </DropdownMenuContent>
               </DropdownMenu>
 
-              <ToggleGroup type="single" variant="outline" value={i18n.language === "fr" ? "FR" : "EN"} onValueChange={(val) => { if (val) { const lng = val.toLowerCase(); i18n.changeLanguage(lng); localStorage.setItem("i18nextLng", lng); } }}>
+              <ToggleGroup type="single" variant="outline" value={languageToggleValue} onValueChange={(val) => { if (val) { const lng = val.toLowerCase(); i18n.changeLanguage(lng); localStorage.setItem("i18nextLng", lng); } }}>
                 <ToggleGroupItem value="FR" className="cursor-pointer text-xs px-2 lg:px-3 h-8">FR</ToggleGroupItem>
                 <ToggleGroupItem value="EN" className="cursor-pointer text-xs px-2 lg:px-3 h-8">EN</ToggleGroupItem>
               </ToggleGroup>
@@ -593,7 +595,7 @@ export default function Header() {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            <ToggleGroup type="single" variant="outline" value={i18n.language === "fr" ? "FR" : "EN"} onValueChange={(val) => { if (val) { const lng = val.toLowerCase(); i18n.changeLanguage(lng); localStorage.setItem("i18nextLng", lng); } }}>
+            <ToggleGroup type="single" variant="outline" value={languageToggleValue} onValueChange={(val) => { if (val) { const lng = val.toLowerCase(); i18n.changeLanguage(lng); localStorage.setItem("i18nextLng", lng); } }}>
               <ToggleGroupItem value="FR" className="cursor-pointer text-xs px-2 h-8">FR</ToggleGroupItem>
               <ToggleGroupItem value="EN" className="cursor-pointer text-xs px-2 h-8">EN</ToggleGroupItem>
             </ToggleGroup>
@@ -803,7 +805,7 @@ export default function Header() {
                 </nav>
 
                 <div className="border-t border-gray-100 px-4 py-3">
-                  <ToggleGroup type="single" variant="outline" value={i18n.language === "fr" ? "FR" : "EN"} onValueChange={(val) => { if (val) { const lng = val.toLowerCase(); i18n.changeLanguage(lng); localStorage.setItem("i18nextLng", lng); } }}>
+                  <ToggleGroup type="single" variant="outline" value={languageToggleValue} onValueChange={(val) => { if (val) { const lng = val.toLowerCase(); i18n.changeLanguage(lng); localStorage.setItem("i18nextLng", lng); } }}>
                     <ToggleGroupItem value="FR" className="cursor-pointer text-sm px-4 h-9 flex-1">FR</ToggleGroupItem>
                     <ToggleGroupItem value="EN" className="cursor-pointer text-sm px-4 h-9 flex-1">EN</ToggleGroupItem>
                   </ToggleGroup>

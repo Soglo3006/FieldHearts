@@ -15,6 +15,7 @@ interface Message {
   id: string;
   content: string;
   created_at: string;
+  deleted_at?: string | null;
   sender?: {
     full_name?: string;
     company_name?: string;
@@ -79,7 +80,7 @@ export function ConversationSettings({
         m.content &&
         !m.content.startsWith('[FILE:') &&
         !m.content.startsWith('[AUDIO:') &&
-        m.content !== 'Message supprimé' &&
+        !m.deleted_at &&
         m.content.toLowerCase().includes(searchQuery.toLowerCase())
       )
     : [];

@@ -13,6 +13,7 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ExternalLink, Grid3x3, MapPin, Settings, X } from 'lucide-react';
 import { Spinner } from "@/components/ui/Spinner";
+import AppImage from '@/components/ui/AppImage';
 import RatingsPage from '@/components/profile/RatingsPage';
 
 interface ProfileSidebarProps {
@@ -267,10 +268,12 @@ export function ProfileSidebar({ otherUser, onClose, onOpenSettings, isBlocked, 
                             <div className="border rounded-xl shadow-sm bg-white overflow-hidden hover:shadow-md transition-all cursor-pointer">
                               <div className="aspect-video w-full overflow-hidden bg-gray-100">
                                 {listing.image_url ? (
-                                  <img
+                                  <AppImage
                                     src={listing.image_url}
                                     alt={listing.title}
-                                    className="w-full h-full object-cover"
+                                    fill
+                                    sizes="(max-width: 768px) 100vw, 320px"
+                                    className="object-cover"
                                   />
                                 ) : (
                                   <div className="w-full h-full flex items-center justify-center">

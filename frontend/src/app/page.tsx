@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Grid3x3, MapPin, Clock } from "lucide-react";
 import { Spinner } from "@/components/ui/Spinner";
+import AppImage from "@/components/ui/AppImage";
 import { useTranslation } from "react-i18next";
 import AdBanner from "@/components/AdBanner";
 import { toast } from "sonner";
@@ -71,10 +72,12 @@ function ListingCard({ listing, t }: { listing: Listing; t: (key: string, opts?:
       <div className="h-full border rounded-xl shadow-sm bg-white flex flex-col overflow-hidden hover:shadow-md transition-shadow cursor-pointer">
         <AspectRatio ratio={16 / 9}>
           {listing.image_url ? (
-            <img
+            <AppImage
               src={listing.image_url}
               alt={listing.title}
-              className="w-full h-full object-cover"
+              fill
+              sizes="(max-width: 640px) 100vw, (max-width: 1280px) 50vw, 33vw"
+              className="object-cover"
             />
           ) : (
             <div className="w-full h-full bg-gray-100 flex items-center justify-center">
@@ -147,7 +150,7 @@ export default function HomePage() {
     const fetchListings = async () => {
       try {
         const [servicesRes, countsRes] = await Promise.all([
-          fetch(`${API_URL}/services`),
+          fetch(`${API_URL}/services?limit=12`),
           fetch(`${API_URL}/services/category-counts`),
         ]);
         const data = await servicesRes.json();
@@ -298,10 +301,12 @@ export default function HomePage() {
                       href={`/listings?category=${encodeURIComponent(category.name)}`}
                     >
                       <div className="relative w-full aspect-4/3 rounded-xl overflow-hidden cursor-pointer group">
-                        <img
+                        <AppImage
                           src={category.image}
                           alt={category.name}
-                          className="w-full h-full object-cover transition-transform group-hover:scale-105 duration-300"
+                          fill
+                          sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                          className="object-cover transition-transform group-hover:scale-105 duration-300"
                         />
                         <div className="absolute inset-0 bg-black/40 group-hover:bg-black/30 transition-colors" />
                         <div className="absolute inset-0 flex items-center justify-center">

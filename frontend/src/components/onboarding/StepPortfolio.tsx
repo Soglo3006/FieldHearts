@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Plus, Trash2, ImageIcon } from "lucide-react";
+import AppImage from "@/components/ui/AppImage";
 import Cropper from "react-easy-crop";
 import type { Area } from "react-easy-crop";
 import getCroppedImg from "@/utils/cropImage";
@@ -80,7 +81,7 @@ export default function StepPortfolio({ portfolio, onAdd, onRemove, onUpdate }: 
               {portfolio.map((item) => (
                 <div key={item.id} className="border border-gray-200 rounded-xl overflow-hidden">
                   <div className="relative aspect-4/3 bg-gray-100">
-                    <img src={item.image} alt={item.title || t('onboarding.portfolioItemAlt')} className="w-full h-full object-cover" />
+                    <AppImage src={item.image} alt={item.title || t('onboarding.portfolioItemAlt')} fill sizes="(max-width: 640px) 100vw, 50vw" className="object-cover" />
                     <button
                       type="button"
                       title={t('onboarding.removePortfolioItem')}

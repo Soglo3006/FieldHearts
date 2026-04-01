@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { Grid3x3 } from "lucide-react";
+import AppImage from "@/components/ui/AppImage";
 import {
   Carousel,
   CarouselContent,
@@ -52,9 +53,12 @@ export default function ServiceHero({ images, title }: Props) {
               <CarouselContent className="ml-0 h-full">
                 {validImages.map((image, imageIndex) => (
                   <CarouselItem key={`${image}-${imageIndex}`} className="pl-0 h-full">
-                    <img
+                    <AppImage
                       src={image}
                       alt={`${title} - ${imageIndex + 1}`}
+                      width={1600}
+                      height={900}
+                      sizes="(max-width: 1024px) 100vw, 66vw"
                       className="h-full w-full object-cover"
                     />
                   </CarouselItem>

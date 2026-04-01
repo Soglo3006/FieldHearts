@@ -9,6 +9,7 @@ interface UseProtectedRouteOptions {
   requireAuth?: boolean;
   requireProfileCompleted?: boolean;
   redirectTo?: string;
+  redirectAfterLogin?: string;
 }
 
 export function useProtectedRoute(options: UseProtectedRouteOptions = {}) {
@@ -16,6 +17,7 @@ export function useProtectedRoute(options: UseProtectedRouteOptions = {}) {
     requireAuth = true,
     requireProfileCompleted = false,
     redirectTo = "/login",
+    redirectAfterLogin,
   } = options;
 
   const { user, loading, isLoggingOut } = useAuth();
@@ -42,10 +44,14 @@ export function useProtectedRoute(options: UseProtectedRouteOptions = {}) {
         router.push("/admin");
       } else {
         const profileCompleted = user.user_metadata?.profile_completed;
-        router.push(profileCompleted ? "/" : "/choose_type");
+        if (!profileCompleted) {
+          router.push("/choose_type");
+        } else {
+          router.push(redirectAfterLogin ?? "/");
+        }
       }
     }
-  }, [user, loading, isLoggingOut, router, requireAuth, requireProfileCompleted, redirectTo]);
+  }, [user, loading, isLoggingOut, router, requireAuth, requireProfileCompleted, redirectTo, redirectAfterLogin]);
 
   return { user, loading };
 }

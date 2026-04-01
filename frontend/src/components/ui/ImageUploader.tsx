@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
+import AppImage from "@/components/ui/AppImage";
 import { Upload, Trash2 } from "lucide-react";
 import Cropper, { type Area } from "react-easy-crop";
 import getCroppedImg from "@/utils/cropImage";
@@ -91,10 +92,12 @@ export default function ImageUploader({
 
         {currentImage && (
         <div className="mt-3 relative aspect-video rounded-lg overflow-hidden border bg-gray-100">
-            <img
+          <AppImage
             src={currentImage}
             alt={t('common.preview')}
-            className="w-full h-full object-cover"
+          fill
+          sizes="100vw"
+          className="object-cover"
             />
 
             <button

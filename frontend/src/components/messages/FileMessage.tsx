@@ -6,6 +6,7 @@ import { RepliedMessage } from './RepliedMessage';
 import { MessageReactions } from './MessageReactions';
 import { sanitizeAndFormatMessage } from '@/lib/sanitize';
 import { ImageLightbox } from './ImageLightbox';
+import AppImage from '@/components/ui/AppImage';
 import { Pin, FileText, FileIcon, FileSpreadsheet, Archive, Loader2 } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -115,9 +116,11 @@ function ImageAttachment({
           {failedLabel}
         </div>
       ) : (
-        <img
+        <AppImage
           src={fileUrl}
           alt={altText}
+          width={256}
+          height={256}
           className={`max-w-xs max-h-64 rounded-xl object-cover transition-opacity ${imageLoaded && !isSending ? 'opacity-100' : 'absolute inset-0 opacity-0'} hover:opacity-90`}
           onLoad={() => setImageLoaded(true)}
           onError={() => setImageFailed(true)}

@@ -19,6 +19,7 @@ import { useTranslation } from "react-i18next";
 import { ArrowLeft, Loader2, Eye, EyeOff } from "lucide-react";
 import { Spinner } from "@/components/ui/Spinner";
 import { getLanguageCode } from "@/lib/locale";
+import { useSearchParams } from "next/navigation";
 
 type Step = "email" | "password" | "not-found";
 
@@ -35,7 +36,9 @@ export default function LoginPage() {
   const { signInWithEmail, signInWithGoogle, signInWithFacebook } = useAuth();
   const { t, i18n } = useTranslation();
   const selectedLanguage = getLanguageCode(i18n.language);
-  const { loading } = useProtectedRoute({ requireAuth: false });
+  const searchParams = useSearchParams();
+  const redirectAfterLogin = searchParams.get("redirect") ?? undefined;
+  const { loading } = useProtectedRoute({ requireAuth: false, redirectAfterLogin });
 
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">

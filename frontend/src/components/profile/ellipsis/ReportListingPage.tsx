@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Check } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabaseClient";
+import AppImage from "@/components/ui/AppImage";
 import { toast } from "sonner";
 
 interface Listing { id: string; title: string; price: string | number; image_url?: string | null; }
@@ -80,7 +81,7 @@ export default function ReportListingPage({ profileId, displayName, userListings
               {userListings.map((listing) => (
                 <SelectItem key={listing.id} value={listing.id} className="cursor-pointer">
                   <div className="flex items-center gap-2">
-                    {listing.image_url && <img src={listing.image_url} className="w-6 h-6 rounded object-cover" />}
+                    {listing.image_url && <AppImage src={listing.image_url} alt="" width={24} height={24} className="h-6 w-6 rounded object-cover" />}
                     <span className="truncate max-w-[250px]">{listing.title}</span>
                     <span className="text-gray-400 text-xs">${listing.price}</span>
                   </div>

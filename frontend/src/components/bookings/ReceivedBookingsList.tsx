@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
+import AppImage from "@/components/ui/AppImage";
 import { MapPin, Grid3x3, Star, AlertTriangle, CheckCircle, CreditCard } from "lucide-react";
 import { ReceivedBooking, BookingStatus, STATUS_CONFIG, BOOKING_GROUPS, formatDate } from "./bookingTypes";
 import { type BookingDetail } from "./BookingDetailModal";
@@ -85,7 +86,7 @@ export default function ReceivedBookingsList({
                     <div className="relative">
                       <AspectRatio ratio={16 / 9}>
                         {b.image_url ? (
-                          <img src={b.image_url} alt={b.title} className="w-full h-full object-cover" />
+                          <AppImage src={b.image_url} alt={b.title} fill sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw" className="object-cover" />
                         ) : (
                           <div className="w-full h-full bg-gray-100 flex items-center justify-center">
                             <Grid3x3 className="h-10 w-10 text-gray-300" />

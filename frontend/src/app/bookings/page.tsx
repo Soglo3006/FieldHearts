@@ -16,6 +16,7 @@ import ReceivedBookingsList from "@/components/bookings/ReceivedBookingsList";
 import SentBookingsList from "@/components/bookings/SentBookingsList";
 import { ReceivedBooking, SentBooking, BookingStatus } from "@/components/bookings/bookingTypes";
 import { Spinner } from "@/components/ui/Spinner";
+import AppImage from "@/components/ui/AppImage";
 import { getTaxRate } from "@/lib/taxes";
 import { getIntlLocale } from "@/lib/locale";
 
@@ -439,7 +440,7 @@ function BookingsContent() {
                       onClick={() => setDetailBooking({ booking: b as BookingDetail, role: "worker" })}
                     >
                       {b.image_url && (
-                        <img src={b.image_url} alt={b.title} className="w-14 h-14 rounded-lg object-cover shrink-0" />
+                        <AppImage src={b.image_url} alt={b.title} width={56} height={56} className="h-14 w-14 rounded-lg object-cover shrink-0" />
                       )}
                       <div className="flex-1 min-w-0">
                         <p className="font-medium text-gray-900 truncate">{b.title}</p>
@@ -466,7 +467,7 @@ function BookingsContent() {
                       onClick={() => setDetailBooking({ booking: b as BookingDetail, role: "client" })}
                     >
                       {b.image_url && (
-                        <img src={b.image_url} alt={b.title} className="w-14 h-14 rounded-lg object-cover shrink-0" />
+                        <AppImage src={b.image_url} alt={b.title} width={56} height={56} className="h-14 w-14 rounded-lg object-cover shrink-0" />
                       )}
                       <div className="flex-1 min-w-0">
                         <p className="font-medium text-gray-900 truncate">{b.title}</p>

@@ -3,6 +3,7 @@
 import { useState, useRef } from "react";
 import { Upload, Trash2, Star, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import AppImage from "@/components/ui/AppImage";
 import Cropper, { type Area } from "react-easy-crop";
 import getCroppedImg from "@/utils/cropImage";
 import { toast } from "sonner";
@@ -87,10 +88,12 @@ export default function MultiImageUploader({ images, onChange, aspectRatio = 16 
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             {images.map((src, i) => (
               <div key={i} className="relative aspect-video rounded-lg overflow-hidden border bg-gray-100 group">
-                <img
+                <AppImage
                   src={src}
                   alt={`Photo ${i + 1}`}
-                  className="w-full h-full object-cover cursor-pointer"
+                  fill
+                  sizes="(max-width: 640px) 50vw, 33vw"
+                  className="object-cover cursor-pointer"
                   onClick={() => setPreviewIndex(i)}
                 />
                 {/* Cover badge on first */}
@@ -102,6 +105,8 @@ export default function MultiImageUploader({ images, onChange, aspectRatio = 16 
                 <button
                   type="button"
                   onClick={(e) => { e.stopPropagation(); removeImage(i); }}
+                  title={t("common.delete")}
+                  aria-label={t("common.delete")}
                   className="cursor-pointer absolute top-1.5 right-1.5 bg-red-600 text-white p-1.5 rounded-full shadow opacity-0 group-hover:opacity-100 transition-opacity"
                 >
                   <Trash2 className="w-3 h-3" />
@@ -119,6 +124,8 @@ export default function MultiImageUploader({ images, onChange, aspectRatio = 16 
               type="file"
               accept="image/*"
               onChange={handleFileSelect}
+              title={t("post.addPhotos")}
+              aria-label={t("post.addPhotos")}
               className="hidden"
             />
             <Button
@@ -139,7 +146,7 @@ export default function MultiImageUploader({ images, onChange, aspectRatio = 16 
 
       {/* Preview modal */}
       {previewIndex !== null && images[previewIndex] && (
-        <div className="fixed inset-0 z-[100] bg-black/80 flex flex-col items-center justify-center p-4" onClick={() => setPreviewIndex(null)}>
+        <div className="fixed inset-0 z-100 bg-black/80 flex flex-col items-center justify-center p-4" onClick={() => setPreviewIndex(null)}>
           <div className="relative w-full max-w-lg" onClick={(e) => e.stopPropagation()}>
             {/* Close */}
             <button
@@ -152,9 +159,11 @@ export default function MultiImageUploader({ images, onChange, aspectRatio = 16 
             </button>
 
             {/* Image */}
-            <img
+            <AppImage
               src={images[previewIndex]}
               alt={`Photo ${previewIndex + 1}`}
+              width={1200}
+              height={800}
               className="w-full rounded-xl object-contain max-h-[65vh]"
             />
 
@@ -191,7 +200,7 @@ export default function MultiImageUploader({ images, onChange, aspectRatio = 16 
 
       {/* Cropper modal */}
       {showCropper && imageToCrop && (
-        <div className="fixed inset-0 z-[100] bg-black flex flex-col">
+        <div className="fixed inset-0 z-100 bg-black flex flex-col">
           <div className="shrink-0 flex items-center justify-between px-5 py-4 bg-black/80">
             <h2 className="text-white font-semibold text-base">{t("post.adjustImage")}</h2>
             <button

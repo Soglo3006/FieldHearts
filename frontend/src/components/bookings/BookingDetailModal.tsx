@@ -16,6 +16,7 @@ import BookingDetailFooter from "./BookingDetailFooter";
 import { useTranslation } from "react-i18next";
 import { getTaxRate, getTaxLabel, formatTaxRate } from "@/lib/taxes";
 import { getIntlLocale } from "@/lib/locale";
+import AppImage from "@/components/ui/AppImage";
 
 type BookingStatus = "pending" | "accepted" | "active" | "completed" | "cancelled" | "rejected";
 
@@ -215,7 +216,7 @@ export default function BookingDetailModal({
           <AspectRatio ratio={16 / 9}>
             {images.length > 0 ? (
               <div className="relative w-full h-full">
-                <img src={images[imgIndex]} alt={booking.title} className="w-full h-full object-cover" />
+                <AppImage src={images[imgIndex]} alt={booking.title} fill sizes="(max-width: 1024px) 100vw, 512px" className="object-cover" />
                 {images.length > 1 && (
                   <>
                     <button

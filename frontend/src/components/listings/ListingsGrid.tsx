@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import AdBanner from "@/components/AdBanner";
+import AppImage from "@/components/ui/AppImage";
 import { formatTranslatedCategoryTrail, categories, toCategoryKey } from "@/lib/categories";
 
 interface ApiService {
@@ -181,7 +182,7 @@ export default function ListingsGrid({ filters }: { filters?: ListingsFilters })
                     const extra = (s.image_urls?.length ?? 0) > 1 ? s.image_urls!.length : 0;
                     return thumb ? (
                       <div className="relative w-full h-full">
-                        <img src={thumb} alt={s.title} className="w-full h-full object-cover" />
+                        <AppImage src={thumb} alt={s.title} fill sizes="(max-width: 640px) 100vw, (max-width: 1280px) 50vw, 33vw" className="object-cover" />
                         {extra > 1 && (
                           <span className="absolute bottom-1.5 right-1.5 bg-black/55 text-white text-[10px] px-1.5 py-0.5 rounded-full font-medium">
                             +{extra - 1}

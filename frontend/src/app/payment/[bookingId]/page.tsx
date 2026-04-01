@@ -5,6 +5,7 @@ import { Spinner } from "@/components/ui/Spinner";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
+import AppImage from "@/components/ui/AppImage";
 import { CheckCircle, AlertCircle, MapPin, Calendar, CreditCard, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { useTranslation } from "react-i18next";
@@ -153,7 +154,9 @@ export default function PaymentPage() {
         {/* Booking summary card */}
         <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden mb-5">
           {booking.image_url && (
-            <img src={booking.image_url} alt={booking.title} className="w-full h-40 object-cover" />
+            <div className="relative h-40 w-full">
+              <AppImage src={booking.image_url} alt={booking.title} fill sizes="(max-width: 1024px) 100vw, 512px" className="object-cover" />
+            </div>
           )}
           <div className="p-5">
             <h2 className="text-lg font-semibold text-gray-900 mb-3">{booking.title}</h2>

@@ -2,6 +2,7 @@
 import { useTranslation } from "react-i18next";
 import { Card } from "@/components/ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import AppImage from "@/components/ui/AppImage";
 import { OnboardingData } from "./onboardingTypes";
 
 interface Props {
@@ -102,7 +103,7 @@ export default function StepSummary({ data, accountType }: Props) {
               {(data.portfolio ?? []).map((item) => (
                 <div key={item.id} className="border rounded-lg overflow-hidden">
                   <div className="relative aspect-square">
-                    <img src={item.image} alt={item.title} className="w-full h-full object-cover" />
+                    <AppImage src={item.image} alt={item.title} fill sizes="(max-width: 768px) 50vw, 33vw" className="object-cover" />
                   </div>
                   <p className="text-center p-2 text-sm font-medium">{item.title}</p>
                 </div>

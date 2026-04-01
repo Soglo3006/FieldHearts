@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import AppImage from '@/components/ui/AppImage';
 import { Send, X, Paperclip, Mic } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -226,7 +227,7 @@ export function MessageInput({
         <div className="mb-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
           <div className="flex items-center gap-3">
             {attachmentPreview ? (
-              <img src={attachmentPreview} alt={t('common.preview')} className="h-16 w-16 object-cover rounded" />
+              <AppImage src={attachmentPreview} alt={t('common.preview')} width={64} height={64} className="h-16 w-16 object-cover rounded" />
             ) : (
               <div className="h-16 w-16 bg-gray-200 rounded flex items-center justify-center">
                 <span className="text-xs text-gray-500">PDF</span>

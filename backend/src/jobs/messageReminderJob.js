@@ -20,12 +20,7 @@ const runReminders = async () => {
     // Find all (recipient, chat_room) pairs with old unread messages
     const { data: rows, error } = await supabase
       .from("chat_room_member")
-      .select(`
-        user_id,
-        chat_room_id,
-        last_reminder_sent_at,
-        profiles!inner ( email, full_name, company_name, account_type )
-      `)
+      .select("user_id, chat_room_id, last_reminder_sent_at")
       .or(`last_reminder_sent_at.is.null,last_reminder_sent_at.lt.${cutoff24h}`);
 
     if (error) { console.error("Reminder job - fetch error:", error.message); return; }
@@ -34,7 +29,14 @@ const runReminders = async () => {
     for (const row of rows) {
       const userId    = row.user_id;
       const chatRoomId = row.chat_room_id;
-      const profile   = row.profiles;
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("email, full_name, company_name, account_type")
+        .eq("id", userId)
+        .maybeSingle();
+
+      if (!profile) continue;
 
       // Fetch user presence separately (no FK relationship in schema)
       const { data: presenceData } = await supabase

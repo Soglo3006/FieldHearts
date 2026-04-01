@@ -2,6 +2,7 @@
 
 import { Mic, FileText } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import AppImage from '@/components/ui/AppImage';
 import { sanitizeMessage } from '@/lib/sanitize';
 
 interface RepliedMessageProps {
@@ -52,7 +53,7 @@ export function RepliedMessage({ repliedTo, onMessageClick }: RepliedMessageProp
 
       <div className="flex items-center gap-2">
         {preview.type === 'image' && (
-          <img src={preview.url} alt={t('common.preview')} className="w-10 h-10 rounded object-cover shrink-0" />
+          <AppImage src={preview.url} alt={t('common.preview')} width={40} height={40} className="h-10 w-10 rounded object-cover shrink-0" />
         )}
 
         <div className="flex-1 min-w-0 flex items-center gap-1 overflow-hidden">

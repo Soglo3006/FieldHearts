@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import AppImage from "@/components/ui/AppImage";
 import Cropper from "react-easy-crop";
 import type { Area } from "react-easy-crop";
 import getCroppedImg from "@/utils/cropImage";
@@ -93,7 +94,7 @@ export default function PortfolioModal({ open, onClose, onSave }: PortfolioModal
           ) : (
             <div className="relative mb-4">
               <div className="w-full aspect-4/3 rounded-xl overflow-hidden bg-gray-100">
-                <img src={image} alt={t("portfolioModal.previewAlt")} className="w-full h-full object-cover" />
+                <AppImage src={image} alt={t("portfolioModal.previewAlt")} fill sizes="100vw" className="object-cover" />
               </div>
               <label className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-xl cursor-pointer opacity-0 hover:opacity-100 transition-opacity">
                 <span className="text-white text-sm font-medium">{t("portfolioModal.changeImage")}</span>

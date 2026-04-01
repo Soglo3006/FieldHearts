@@ -6,6 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { CheckCircle, MapPin, Calendar } from "lucide-react";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { Button } from "@/components/ui/button";
+import AppImage from "@/components/ui/AppImage";
 import Link from "next/link";
 import { useTranslation } from "react-i18next";
 import { getTaxRate, getTaxLabel, formatTaxRate } from "@/lib/taxes";
@@ -87,7 +88,7 @@ export default function PaymentSuccessPage() {
           <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden mb-5">
             {booking.image_url && (
               <AspectRatio ratio={16 / 9}>
-                <img src={booking.image_url} alt={booking.title} className="w-full h-full object-cover" />
+                <AppImage src={booking.image_url} alt={booking.title} fill sizes="(max-width: 1024px) 100vw, 512px" className="object-cover" />
               </AspectRatio>
             )}
             <div className="p-5">

@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import AppImage from "@/components/ui/AppImage";
 import { Upload, Trash2, Camera, Plus, X } from "lucide-react";
 import Cropper from "react-easy-crop";
 import type { Area } from "react-easy-crop";
@@ -104,12 +105,14 @@ export default function EditPortfolioCard({ portfolio, isPerson, onAdd, onRemove
             {portfolio.map((item, i) => (
               <div key={i} className="relative group">
                 <div className="relative overflow-hidden rounded-lg aspect-4/3">
-                  <img src={item.image} alt={item.title} className="w-full h-full object-cover" />
+                  <AppImage src={item.image} alt={item.title} fill sizes="(max-width: 768px) 50vw, 33vw" className="object-cover" />
                   <div className="absolute inset-0 bg-opacity-0 group-hover:bg-opacity-40 transition-all duration-200" />
                   <div className="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button
                       type="button"
                       onClick={() => onRemove(item.id)}
+                      title={t("profile.deleteItem", "Supprimer")}
+                      aria-label={t("profile.deleteItem", "Supprimer")}
                       className="p-2 bg-red-500 text-white rounded-full hover:bg-red-600 cursor-pointer"
                     >
                       <Trash2 className="h-4 w-4" />
@@ -126,7 +129,7 @@ export default function EditPortfolioCard({ portfolio, isPerson, onAdd, onRemove
           className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center hover:border-green-700 transition-colors cursor-pointer group"
           onClick={() => document.getElementById("portfolio-upload")?.click()}
         >
-          <input type="file" accept="image/*" id="portfolio-upload" onChange={handleUpload} className="hidden" />
+          <input type="file" accept="image/*" id="portfolio-upload" onChange={handleUpload} title={t("profile.addPortfolioItem", "Ajouter un élément au portfolio")} aria-label={t("profile.addPortfolioItem", "Ajouter un élément au portfolio")} className="hidden" />
           <Upload className="h-12 w-12 text-gray-400 mx-auto mb-3 group-hover:text-green-600 transition-colors" />
           <h3 className="text-lg font-semibold text-gray-900 mb-1">{t("profile.uploadPortfolioImages")}</h3>
           <p className="text-gray-500 text-sm mb-4">{t("profile.clickToBrowse")}</p>
@@ -138,7 +141,7 @@ export default function EditPortfolioCard({ portfolio, isPerson, onAdd, onRemove
       </Card>
 
       {showModal && image && (
-        <div className="fixed inset-0 z-[100] bg-black flex flex-col">
+        <div className="fixed inset-0 z-100 bg-black flex flex-col">
           {/* Header */}
           <div className="shrink-0 flex items-center justify-between px-5 py-4 bg-black/80">
             <h3 className="text-white font-semibold text-base">{t("profile.addPortfolioItem")}</h3>

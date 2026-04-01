@@ -3,6 +3,7 @@ import Link from "next/link";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { MapPin, Grid3x3 } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import AppImage from "@/components/ui/AppImage";
 
 interface SimilarService {
   id: string;
@@ -31,7 +32,7 @@ export default function SimilarServices({ services }: Props) {
             <div className="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white hover:shadow-md transition-shadow">
               <AspectRatio ratio={16 / 9}>
                 {s.image_url ? (
-                  <img src={s.image_url} alt={s.title} className="w-full h-full object-cover" />
+                  <AppImage src={s.image_url} alt={s.title} fill sizes="(max-width: 640px) 100vw, 50vw" className="object-cover" />
                 ) : (
                   <div className="w-full h-full bg-gray-100 flex items-center justify-center">
                     <Grid3x3 className="h-10 w-10 text-gray-300" />

@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from '@/components/ui/button';
+import AppImage from '@/components/ui/AppImage';
 import { Plus } from 'lucide-react';
 
 interface QuickReactionsProps {
@@ -23,15 +24,20 @@ export function QuickReactions({ onEmojiSelect, onShowPicker }: QuickReactionsPr
       {QUICK_EMOJIS.map((item) => (
         <button
           key={item.code}
+          type="button"
+          title={item.emoji}
+          aria-label={item.emoji}
           className="h-10 w-10 flex items-center justify-center rounded-full transition-all hover:scale-110 active:scale-95 cursor-pointer hover:bg-green-50"
           onClick={(e) => {
             e.stopPropagation();
             onEmojiSelect(item.emoji);
           }}
         >
-          <img
+          <AppImage
             src={`https://cdn.jsdelivr.net/gh/jdecked/twemoji@latest/assets/svg/${item.code}.svg`}
             alt={item.emoji}
+            width={28}
+            height={28}
             className="w-7 h-7"
           />
         </button>

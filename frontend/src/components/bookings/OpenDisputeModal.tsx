@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/lib/supabaseClient";
+import AppImage from "@/components/ui/AppImage";
 import { X, AlertTriangle, CheckCircle, ImagePlus, Loader2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
@@ -164,7 +165,7 @@ export default function OpenDisputeModal({
             <div className="flex flex-wrap gap-2">
               {previews.map((src, i) => (
                 <div key={i} className="relative">
-                  <img src={src} alt={t("bookings.openDisputeModal.photoAlt", { number: i + 1 })} className="h-16 w-16 object-cover rounded-lg border border-gray-200" />
+                  <AppImage src={src} alt={t("bookings.openDisputeModal.photoAlt", { number: i + 1 })} width={64} height={64} className="h-16 w-16 object-cover rounded-lg border border-gray-200" />
                   <button
                     type="button"
                     aria-label={t("bookings.openDisputeModal.removePhoto")}

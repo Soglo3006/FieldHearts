@@ -90,7 +90,7 @@ export const createService = async (req, res) => {
 
 export const getAllServices = async (req, res) => {
   try {
-    const { category, location, minPrice, maxPrice, search, categoryName, subcategory, type, userLat, userLng, radius } = req.query;
+    const { category, location, minPrice, maxPrice, search, categoryName, subcategory, type, userLat, userLng, radius, limit } = req.query;
     const categoryNames = String(categoryName || "")
       .split(",")
       .map((value) => value.trim())
@@ -270,6 +270,14 @@ export const getAllServices = async (req, res) => {
       query += hasSearch
         ? ` ORDER BY ${relevanceExpr} DESC, s.created_at DESC`
         : ` ORDER BY s.created_at DESC`;
+    }
+
+    if (limit) {
+      const parsedLimit = parseInt(limit, 10);
+      if (!isNaN(parsedLimit) && parsedLimit > 0) {
+        query += ` LIMIT $${paramCount}`;
+        params.push(parsedLimit);
+      }
     }
 
     const result = await pool.query(query, params);

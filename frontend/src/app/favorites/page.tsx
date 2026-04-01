@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { Grid3x3, MapPin, HeartOff } from "lucide-react";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
+import AppImage from "@/components/ui/AppImage";
 import { useAuth } from "@/contexts/AuthContext";
 
 interface FavoriteService {
@@ -127,7 +128,7 @@ export default function FavoritesPage() {
                 <Link href={`/serviceDetail/${s.id}`} className="block">
                   <AspectRatio ratio={16 / 9}>
                     {s.image_url ? (
-                      <img src={s.image_url} alt={s.title} className="w-full h-full object-cover" />
+                      <AppImage src={s.image_url} alt={s.title} fill sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw" className="object-cover" />
                     ) : (
                       <div className="w-full h-full bg-gray-100 flex items-center justify-center">
                         <Grid3x3 className="h-12 w-12 text-gray-300" />

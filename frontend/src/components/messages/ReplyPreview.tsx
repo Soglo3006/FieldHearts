@@ -3,6 +3,7 @@
 import { X, Mic, FileText } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
+import AppImage from '@/components/ui/AppImage';
 import { sanitizeMessage } from '@/lib/sanitize';
 
 interface ReplyPreviewProps {
@@ -41,9 +42,11 @@ export function ReplyPreview({ repliedMessage, onCancel }: ReplyPreviewProps) {
 
         {/* Miniature image si applicable */}
         {preview.type === 'image' && (
-          <img
+          <AppImage
             src={preview.url}
             alt={t('common.preview')}
+            width={48}
+            height={48}
             className="w-12 h-12 rounded object-cover shrink-0"
           />
         )}

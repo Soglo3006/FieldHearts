@@ -3,6 +3,7 @@
 import { MapPin, Clock, Grid3x3 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { formatTranslatedCategoryTrail } from "@/lib/categories";
+import AppImage from "@/components/ui/AppImage";
 
 interface ListingCardProps {
     title?: string;
@@ -35,11 +36,15 @@ export default function ListingCard({
         <div className="cursor-pointer bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-200 overflow-hidden flex flex-col sm:flex-row">
         <div className="w-full h-40 sm:w-40 sm:h-full shrink-0 overflow-hidden bg-gray-100">
             {imageUrl ? (
-              <img
-                src={imageUrl}
-                alt={title}
-                className="w-full h-full object-cover"
-              />
+                            <div className="relative h-full w-full min-h-40">
+                                <AppImage
+                                    src={imageUrl}
+                                    alt={title}
+                                    fill
+                                    sizes="(max-width: 640px) 100vw, 160px"
+                                    className="object-cover"
+                                />
+                            </div>
             ) : (
               <div className="w-full h-full flex items-center justify-center">
                 <Grid3x3 className="h-10 w-10 text-gray-300" />

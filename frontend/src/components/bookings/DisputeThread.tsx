@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import AppImage from "@/components/ui/AppImage";
 import { AlertTriangle, ImagePlus, Send, X, Loader2, Lock } from "lucide-react";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
@@ -189,10 +190,12 @@ export default function DisputeThread({ bookingId, currentUserId, accessToken }:
                 {msg.attachments?.length > 0 && (
                   <div className="flex flex-wrap gap-1.5">
                     {msg.attachments.map((a, i) => (
-                      <a key={i} href={a.url} target="_blank" rel="noopener noreferrer">
-                        <img
+                      <a key={i} href={a.url} target="_blank" rel="noopener noreferrer" title={a.name} aria-label={a.name}>
+                        <AppImage
                           src={a.url}
                           alt={a.name}
+                          width={80}
+                          height={80}
                           className="h-20 w-20 object-cover rounded-lg border border-gray-200 hover:opacity-90 transition-opacity"
                         />
                       </a>
@@ -226,7 +229,7 @@ export default function DisputeThread({ bookingId, currentUserId, accessToken }:
             <div className="flex gap-2 flex-wrap">
               {previews.map((src, i) => (
                 <div key={i} className="relative">
-                  <img src={src} alt={t("disputeThread.selectedPhoto", { number: i + 1 })} className="h-16 w-16 object-cover rounded-lg border border-gray-200" />
+                  <AppImage src={src} alt={t("disputeThread.selectedPhoto", { number: i + 1 })} width={64} height={64} className="h-16 w-16 object-cover rounded-lg border border-gray-200" />
                   <button
                     onClick={() => removePhoto(i)}
                     aria-label={t("common.delete")}

@@ -16,6 +16,7 @@ import {
   CarouselNext,
   CarouselPrevious,
 } from "@/components/ui/carousel";
+import AppImage from "@/components/ui/AppImage";
 import Cropper from "react-easy-crop";
 import type { Area } from "react-easy-crop";
 import getCroppedImg from "@/utils/cropImage";
@@ -179,10 +180,12 @@ export default function ProfilePortfolio({ portfolio, isPerson, isOwner, onPortf
                 <CarouselItem key={item.id || index} className="pl-4 basis-1/2 md:basis-1/3">
                   <div className="group cursor-pointer" onClick={() => setSelected(item)}>
                     <div className="relative overflow-hidden rounded-lg aspect-4/3">
-                      <img
+                      <AppImage
                         src={item.image}
                         alt={item.title}
-                        className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
+                        fill
+                        sizes="(max-width: 768px) 50vw, 33vw"
+                        className="object-cover transition-transform duration-300 group-hover:scale-110"
                       />
                     </div>
                     <p className="text-sm font-medium text-gray-700 text-center mt-2">{item.title}</p>
@@ -219,7 +222,9 @@ export default function ProfilePortfolio({ portfolio, isPerson, isOwner, onPortf
               ✕
             </Button>
             <div className="w-full aspect-4/3 bg-gray-200">
-              <img src={selected.image} alt={selected.title} className="w-full h-full object-cover" />
+              <div className="relative h-full w-full">
+                <AppImage src={selected.image} alt={selected.title} fill sizes="100vw" className="object-cover" />
+              </div>
             </div>
             <h3 className="text-base font-semibold text-center px-4 py-3">{selected.title}</h3>
           </div>
@@ -279,7 +284,7 @@ export default function ProfilePortfolio({ portfolio, isPerson, isOwner, onPortf
                       <div key={item.id || index} className="flex flex-col gap-1.5">
                         {/* Image with delete overlay */}
                         <div className="relative rounded-lg overflow-hidden aspect-4/3 bg-gray-100 group">
-                          <img src={item.image} alt={item.title} className="w-full h-full object-cover" />
+                          <AppImage src={item.image} alt={item.title} fill sizes="(max-width: 768px) 50vw, 33vw" className="object-cover" />
                           <button
                             type="button"
                             title={t("profile.deleteItem", "Supprimer")}
@@ -324,7 +329,7 @@ export default function ProfilePortfolio({ portfolio, isPerson, isOwner, onPortf
                   ) : (
                     <div className="relative">
                       <div className="w-full aspect-4/3 rounded-xl overflow-hidden bg-gray-100">
-                        <img src={newImage} alt="preview" className="w-full h-full object-cover" />
+                        <AppImage src={newImage} alt="preview" fill sizes="100vw" className="object-cover" />
                       </div>
                       <label className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-xl cursor-pointer opacity-0 hover:opacity-100 transition-opacity">
                         <span className="text-white text-sm font-medium">

@@ -35,6 +35,7 @@ import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { useWalletBadge } from "@/hooks/useWalletBadge";
 import { formatTranslatedCategoryTrail, categories, toCategoryKey } from "@/lib/categories";
 import { getLanguageCode, getLanguageToggleValue } from "@/lib/locale";
+import AppImage from "@/components/ui/AppImage";
 import frLocale from "@/locales/fr.json";
 import enLocale from "@/locales/en.json";
 
@@ -913,7 +914,7 @@ export default function Header() {
                     className={`cursor-pointer w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors ${focusedIndex === navIdx ? "bg-gray-50" : "hover:bg-gray-50"}`}
                   >
                     {result.image_url ? (
-                      <img src={result.image_url} alt="" className="w-9 h-9 rounded-lg object-cover shrink-0" />
+                      <AppImage src={result.image_url} alt="" width={36} height={36} className="h-9 w-9 rounded-lg object-cover shrink-0" />
                     ) : (
                       <div className="w-9 h-9 rounded-lg bg-gray-100 flex items-center justify-center shrink-0 text-sm">🛠️</div>
                     )}

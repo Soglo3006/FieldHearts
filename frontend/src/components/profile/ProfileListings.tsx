@@ -10,6 +10,7 @@ import {
   Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious,
 } from "@/components/ui/carousel";
 import { Grid3x3, MapPin, ChevronLeft, ChevronRight } from "lucide-react";
+import AppImage from "@/components/ui/AppImage";
 import EditListingModal, { type Service as Listing } from "@/components/listings/EditListingModal";
 import { Spinner } from "@/components/ui/Spinner";
 
@@ -121,7 +122,7 @@ export default function ProfileListings({
       <Link href={`/serviceDetail/${listing.id}`} className="block">
         <AspectRatio ratio={16 / 9}>
           {listing.image_url ? (
-            <img src={listing.image_url} alt={listing.title} className="w-full h-full object-cover" />
+            <AppImage src={listing.image_url} alt={listing.title} fill sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw" className="object-cover" />
           ) : (
             <div className="w-full h-full bg-gray-100 flex items-center justify-center">
               <Grid3x3 className="h-12 w-12 text-gray-300" />

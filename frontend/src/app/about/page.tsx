@@ -90,10 +90,12 @@ export default function AboutPage() {
           </div>
           <div className="lg:w-1/2 w-full">
             <div className="rounded-2xl overflow-hidden bg-green-50 aspect-video flex items-center justify-center border border-green-100">
-              <img
+              <Image
                 src="https://images.unsplash.com/photo-1521737852567-6949f3f9f2b5?w=800&q=80"
                 alt={t("aboutPage.whoWeAre.imageAlt")}
-                className="w-full h-full object-cover"
+                fill
+                sizes="(max-width: 1024px) 100vw, 50vw"
+                className="object-cover"
               />
             </div>
           </div>
@@ -112,10 +114,12 @@ export default function AboutPage() {
           </div>
           <div className="lg:w-1/2 w-full">
             <div className="rounded-2xl overflow-hidden aspect-video">
-              <img
+              <Image
                 src="https://images.unsplash.com/photo-1600880292203-757bb62b4baf?w=800&q=80"
                 alt={t("aboutPage.whatDrivesUs.imageAlt")}
-                className="w-full h-full object-cover"
+                fill
+                sizes="(max-width: 1024px) 100vw, 50vw"
+                className="object-cover"
               />
             </div>
           </div>
@@ -135,10 +139,12 @@ export default function AboutPage() {
             {/* Georges */}
             <div className="bg-gray-50 rounded-2xl overflow-hidden border border-gray-200">
               <div className="relative aspect-4/3 overflow-hidden bg-gray-200">
-                <img
+                <Image
                   src="/team/george.png"
                   alt="Georges Rychel Moung"
-                  className="w-full h-full object-cover object-top"
+                  fill
+                  sizes="(max-width: 1024px) 100vw, 50vw"
+                  className="object-cover object-top"
                   onError={(e) => {
                     const t = e.currentTarget;
                     t.style.display = "none";
@@ -177,10 +183,12 @@ export default function AboutPage() {
             {/* Alexandre */}
             <div className="bg-gray-50 rounded-2xl overflow-hidden border border-gray-200">
               <div className="relative aspect-4/3 overflow-hidden bg-gray-200">
-                <img
+                <Image
                   src="/team/alexandre.jpg"
                   alt="Alexandre Soglo Booh Louha"
-                  className="w-full h-full object-cover object-top"
+                  fill
+                  sizes="(max-width: 1024px) 100vw, 50vw"
+                  className="object-cover object-top"
                   onError={(e) => {
                     const t = e.currentTarget;
                     t.style.display = "none";

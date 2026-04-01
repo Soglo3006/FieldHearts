@@ -9,10 +9,10 @@ export function useStartConversation() {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
 
-  const startConversation = async (otherUserId: string) => {
+  const startConversation = async (otherUserId: string, redirectBack?: string) => {
     if (!user) {
-      // Rediriger vers login si pas connecté
-      router.push('/login');
+      const loginUrl = redirectBack ? `/login?redirect=${encodeURIComponent(redirectBack)}` : '/login';
+      router.push(loginUrl);
       return;
     }
 

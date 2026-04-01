@@ -30,7 +30,7 @@ export default function EllipsisPage({ onClose, profileId, displayName, userList
   };
 
   return (
-    <div className="w-full bg-gray-50 flex flex-col">
+    <div className="flex min-h-full w-full flex-col bg-gray-50">
       {/* Header */}
       <div className="bg-white border-b shrink-0">
         {/* Drag handle — mobile only */}
@@ -46,6 +46,8 @@ export default function EllipsisPage({ onClose, profileId, displayName, userList
               <button
                 type="button"
                 onClick={() => setScreen("default")}
+                aria-label="Back"
+                title="Back"
                 className="flex items-center justify-center w-8 h-8 rounded-full hover:bg-gray-100 text-gray-500 hover:text-gray-900 cursor-pointer transition-colors"
               >
                 <ArrowLeft className="h-5 w-5" />
@@ -62,6 +64,8 @@ export default function EllipsisPage({ onClose, profileId, displayName, userList
           <button
             type="button"
             onClick={onClose}
+            aria-label="Close options"
+            title="Close options"
             className="w-8 h-8 shrink-0 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-500 hover:text-gray-900 cursor-pointer transition-colors"
           >
             <X className="h-5 w-5" />
@@ -70,9 +74,9 @@ export default function EllipsisPage({ onClose, profileId, displayName, userList
       </div>
 
       {/* Content */}
-      <div className="px-4 py-3 sm:py-5 max-w-xl mx-auto w-full">
+      <div className="w-full flex-1 px-4 py-3 sm:px-8 sm:py-6">
         {screen === "default" && (
-          <div className="grid gap-3">
+          <div className="mx-auto grid w-full max-w-3xl gap-3">
             <Card className="p-4">
               <div className="flex items-center gap-3 mb-3">
                 <ShieldAlert className="h-5 w-5 text-green-700 shrink-0" />

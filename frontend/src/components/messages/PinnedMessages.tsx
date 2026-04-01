@@ -64,14 +64,15 @@ export function PinnedMessages({
       if (isImage) {
         return (
           <div className="flex flex-col gap-1">
-            <div className="relative h-32 w-[200px] rounded-lg overflow-hidden">
+            <div className="inline-flex max-w-full overflow-hidden rounded-lg border border-gray-100 bg-transparent">
               <Image
                 src={url}
                 alt="Image épinglée"
-                fill
+                width={320}
+                height={320}
                 unoptimized
-                className="object-cover"
-                sizes="200px"
+                className="block h-auto max-h-64 w-auto max-w-full object-contain"
+                sizes="(max-width: 768px) 70vw, 320px"
               />
             </div>
             {text && <p className="text-sm text-gray-600">{text}</p>}

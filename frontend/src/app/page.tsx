@@ -91,7 +91,7 @@ function ListingCard({ listing, t }: { listing: Listing; t: (key: string, opts?:
               <span className="bg-green-100 text-green-700 text-xs font-semibold px-2 py-0.5 rounded-full shrink-0">{t("listings.offering")}</span>
             )}
           </div>
-          <p className="text-green-700 font-semibold">{listing.price} $</p>
+          <p className="text-green-700 font-semibold">{Number(listing.price).toFixed(2)} $</p>
           <div className="flex items-center justify-between text-xs text-gray-500 mt-auto">
             <div className="flex items-center gap-1 min-w-0">
               <MapPin className="h-3 w-3 shrink-0" />

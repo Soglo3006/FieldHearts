@@ -413,8 +413,9 @@ export function useMessages(chatRoomId: string | null) {
     };
   }, [chatRoomId]);
 
-  const sendMessage = async (content: string, repliedToMessageId?: string | null) => {
-    if (!content.trim() || !chatRoomId || !user) return;
+  const sendMessage = async (content: string, repliedToMessageId?: string | null, overrideChatRoomId?: string | null) => {
+    const targetChatRoomId = overrideChatRoomId || chatRoomId;
+    if (!content.trim() || !targetChatRoomId || !user) return;
 
     const trimmed = content.trim();
     const tempId = makeTempId();
@@ -423,7 +424,7 @@ export function useMessages(chatRoomId: string | null) {
     const optimistic: Message = {
       id: tempId,
       client_temp_id: tempId,
-      chat_room_id: chatRoomId,
+      chat_room_id: targetChatRoomId,
       user_id: user.id,
       content: trimmed,
       created_at: nowIso,
@@ -441,7 +442,7 @@ export function useMessages(chatRoomId: string | null) {
 
     setMessages((prev) => {
       const next = [...prev, optimistic];
-      messagesCacheRef.current.set(chatRoomId, next);
+      messagesCacheRef.current.set(targetChatRoomId, next);
       return next;
     });
 
@@ -449,7 +450,7 @@ export function useMessages(chatRoomId: string | null) {
 
     try {
       const { error } = await supabase.from('messages').insert({
-        chat_room_id: chatRoomId,
+        chat_room_id: targetChatRoomId,
         user_id: user.id,
         content: trimmed,
         client_temp_id: tempId,
@@ -461,7 +462,7 @@ export function useMessages(chatRoomId: string | null) {
       await supabase
         .from('chat_room_member')
         .update({ is_deleted: false })
-        .eq('chat_room_id', chatRoomId)
+        .eq('chat_room_id', targetChatRoomId)
         .neq('user_id', user.id)
         .eq('is_deleted', true);
 
@@ -469,7 +470,7 @@ export function useMessages(chatRoomId: string | null) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          chatRoomId,
+          chatRoomId: targetChatRoomId,
           senderUserId: user.id,
           messagePreview: trimmed.substring(0, 100),
         }),
@@ -478,7 +479,7 @@ export function useMessages(chatRoomId: string | null) {
     } catch (err) {
       setMessages((prev) => {
         const next = prev.map((m) => (m.id === tempId ? { ...m, status: 'failed' as const } : m));
-        messagesCacheRef.current.set(chatRoomId, next);
+        messagesCacheRef.current.set(targetChatRoomId, next);
         return next;
       });
     } finally {

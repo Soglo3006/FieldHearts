@@ -94,7 +94,7 @@ export default function ServiceTitleCard({
           )}
 
           <p className="text-3xl font-extrabold text-green-700 mt-4">
-            ${price}
+            {price.toFixed(2)} $
             {service.duration && (
               <span className="text-base font-normal text-gray-500 ml-1">
                 / {service.duration}

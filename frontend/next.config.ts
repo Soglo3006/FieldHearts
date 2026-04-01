@@ -8,6 +8,7 @@ const CSP = [
   "img-src 'self' data: https: blob: https://*.supabase.co https://images.unsplash.com https://maps.googleapis.com https://maps.gstatic.com",
   "font-src 'self' data: https://fonts.gstatic.com",
   "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://uneden.onrender.com http://localhost:5000 https://va.vercel-scripts.com https://maps.googleapis.com https://pagead2.googlesyndication.com https://googleads.g.doubleclick.net",
+  "media-src 'self' blob: https://*.supabase.co",
   "frame-src https://js.stripe.com https://www.google.com/maps/embed/",
   "object-src 'none'",
   "worker-src 'self' blob:",
@@ -18,7 +19,7 @@ const SECURITY_HEADERS = [
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "X-XSS-Protection", value: "1; mode=block" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-  { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(self)" },
+  { key: "Permissions-Policy", value: "camera=(), microphone=(self), geolocation=(self)" },
   { key: "Content-Security-Policy", value: CSP },
 ];
 

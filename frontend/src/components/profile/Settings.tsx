@@ -224,7 +224,7 @@ export default function SettingsPage({ onClose, scrollRef }: { onClose: () => vo
 
   if (loading) {
     return (
-      <div className="flex min-h-full items-center justify-center bg-gray-50">
+      <div className="flex min-h-[70vh] w-full items-center justify-center bg-gray-50">
         <Spinner size="xl" />
       </div>
     );

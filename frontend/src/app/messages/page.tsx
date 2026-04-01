@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, Suspense } from 'react';
 import { useProtectedRoute } from '@/hooks/useProtectedRoute';
+import { useAuth } from '@/contexts/AuthContext';
 import { useChats } from '@/hooks/useChats';
 import { useMessages } from '@/hooks/useMessages';
 import { useSearchParams, useRouter } from 'next/navigation';
@@ -26,12 +27,14 @@ import { useConversationActions } from '@/hooks/useConversationActions';
 import { ConversationSettings } from '@/components/messages/ConversationSettings';
 import { ChatHeader } from '@/components/messages/ChatHeader';
 import { ChatInputArea } from '@/components/messages/ChatInputArea';
+import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
 
 function MessagesContent() {
   const { t } = useTranslation();
   const { user } = useProtectedRoute({ requireAuth: true, requireProfileCompleted: true });
+  const { session } = useAuth();
 
   const searchParams = useSearchParams();
   const chatIdFromUrl = searchParams.get('chat');
@@ -64,11 +67,17 @@ function MessagesContent() {
     id: string; full_name?: string; company_name?: string; account_type?: string; avatar_url?: string | null;
   }[]>([]);
   const [newConvSearching, setNewConvSearching] = useState(false);
+  const [pendingNewConvUser, setPendingNewConvUser] = useState<{
+    id: string; full_name?: string; company_name?: string; account_type?: string; avatar_url?: string | null;
+  } | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isMobile, setIsMobile] = useState(false);
   const [isLargeScreen, setIsLargeScreen] = useState(false);
   const [isOnline, setIsOnline] = useState(true);
+  const previousChatIdRef = useRef<string | null>(null);
+  const previousSidebarChatIdRef = useRef<string | null>(null);
+  const [isProfileSidebarLoading, setIsProfileSidebarLoading] = useState(false);
 
   useEffect(() => {
     const check = () => { setIsMobile(window.innerWidth < 768); setIsLargeScreen(window.innerWidth >= 1024); };
@@ -88,16 +97,33 @@ function MessagesContent() {
 
   const { messages, loading: messagesLoading, sending, sendMessage, retryMessage, loadedChatId, hasMore, loadingMore, loadMore } = useMessages(activeChatId);
   const [isSwitching, setIsSwitching] = useState(false);
+  const [suppressThreadLoading, setSuppressThreadLoading] = useState(false);
+  const skipNextSwitchRef = useRef(false);
+  const skipNextLoadingRef = useRef(false);
   const prevChatIdRef = useRef<string | null>(null);
   useEffect(() => {
     if (activeChatId && activeChatId !== prevChatIdRef.current) {
       prevChatIdRef.current = activeChatId;
+      if (skipNextSwitchRef.current) { skipNextSwitchRef.current = false; return; }
       setIsSwitching(true);
       const t = setTimeout(() => setIsSwitching(false), 350);
       return () => clearTimeout(t);
     }
   }, [activeChatId]);
-  const isMessagesLoading = messagesLoading || loadedChatId !== activeChatId || isSwitching;
+  // Clear the skip flag once messages have loaded for this chat
+  if (skipNextLoadingRef.current && loadedChatId === activeChatId && !messagesLoading) {
+    skipNextLoadingRef.current = false;
+  }
+  useEffect(() => {
+    if (suppressThreadLoading && loadedChatId === activeChatId && !messagesLoading) {
+      setSuppressThreadLoading(false);
+    }
+  }, [activeChatId, loadedChatId, messagesLoading, suppressThreadLoading]);
+  const isMessagesLoading = skipNextLoadingRef.current
+    ? false
+    : suppressThreadLoading
+      ? false
+      : messagesLoading || loadedChatId !== activeChatId || isSwitching;
   const { toggleReaction } = useMessageReactions();
   const { deleteMessage } = useDeleteMessage();
   const { markChatAsRead } = useMarkAsRead();
@@ -106,6 +132,37 @@ function MessagesContent() {
   const { togglePin } = usePinMessage();
 
   const activeChat = chats.find(c => c.id === activeChatId);
+  const displayedConversationUser = activeChat?.other_user ?? pendingNewConvUser;
+  const isPendingConversationTransition = !!pendingNewConvUser;
+  const shouldSyncSidebarLoading = !!activeChat && !showSettings && (isLargeScreen || showMobileSidebar);
+  const isConversationShellLoading = !!activeChat
+    && !newConversationMode
+    && !isPendingConversationTransition
+    && (
+      isSwitching
+      || messagesLoading
+      || loadedChatId !== activeChatId
+      || blockCheckLoading
+      || (shouldSyncSidebarLoading && isProfileSidebarLoading)
+    );
+  useEffect(() => {
+    if (!pendingNewConvUser || !activeChat) return;
+    if (activeChat.other_user?.id !== pendingNewConvUser.id) return;
+    setPendingNewConvUser(null);
+    setNewConversationMode(false);
+    previousChatIdRef.current = null;
+  }, [activeChat, pendingNewConvUser]);
+  useEffect(() => {
+    if (!activeChat || newConversationMode || isPendingConversationTransition) {
+      previousSidebarChatIdRef.current = null;
+      setIsProfileSidebarLoading(false);
+      return;
+    }
+    if (activeChat.id !== previousSidebarChatIdRef.current) {
+      previousSidebarChatIdRef.current = activeChat.id;
+      setIsProfileSidebarLoading(true);
+    }
+  }, [activeChat?.id, newConversationMode, isPendingConversationTransition]);
   usePresence(user?.id || null);
   const { sendTyping } = useTypingIndicator(activeChatId, user?.id ?? null);
   const isTyping = useIsTyping(activeChatId, activeChat?.other_user?.id);
@@ -137,15 +194,18 @@ function MessagesContent() {
   }, [activeChatId, user?.id, messagesLoading, markChatAsRead, clearUnreadCount, markReadByLink]);
 
   useEffect(() => {
-    if (!chats.length) return;
-    if (chatIdFromUrl) { setActiveChatId(chatIdFromUrl); if (isMobile) setShowMobileChat(true); return; }
-    if (!activeChatId) {
-      const firstId = chats[0].id;
-      setActiveChatId(firstId);
-      router.replace(`/messages?chat=${firstId}`);
-      if (isMobile) setShowMobileChat(true);
-    }
-  }, [chats, chatIdFromUrl, activeChatId, isMobile, router]);
+    if (!chatIdFromUrl || chatIdFromUrl === activeChatId) return;
+    setActiveChatId(chatIdFromUrl);
+    if (isMobile) setShowMobileChat(true);
+  }, [chatIdFromUrl, activeChatId, isMobile]);
+
+  useEffect(() => {
+    if (chatIdFromUrl || activeChatId || !chats.length || newConversationMode || pendingNewConvUser) return;
+    const firstId = chats[0].id;
+    setActiveChatId(firstId);
+    router.replace(`/messages?chat=${firstId}`);
+    if (isMobile) setShowMobileChat(true);
+  }, [chats, chatIdFromUrl, activeChatId, isMobile, newConversationMode, pendingNewConvUser, router]);
 
   useEffect(() => { if (activeChatId) setShowMobileChat(true); }, [activeChatId]);
 
@@ -210,9 +270,30 @@ function MessagesContent() {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
+  const ensureChatForDraftConversation = async () => {
+    if (activeChatId) return activeChatId;
+    if (!pendingNewConvUser) return null;
+
+    const { getOrCreateDirectChat } = await import('@/lib/chatUtils');
+    const chatId = await getOrCreateDirectChat(pendingNewConvUser.id);
+    if (!chatId) return null;
+
+    await refreshChats();
+    skipNextSwitchRef.current = true;
+    skipNextLoadingRef.current = true;
+    handleChatSelect(chatId, { preservePendingUser: true });
+    return chatId;
+  };
+
   const handleSendMessage = async () => {
     if (!messageInput.trim() && !attachedFile) return;
     try {
+      const targetChatId = await ensureChatForDraftConversation();
+      if (!targetChatId) {
+        toast.error(t("messages.failedToSend"));
+        return;
+      }
+
       let fileUrl = null;
       if (attachedFile) {
         const fileExt = attachedFile.name.split('.').pop();
@@ -224,15 +305,15 @@ function MessagesContent() {
       }
       const now = new Date().toISOString();
       if (messageInput.trim() && fileUrl) {
-        await sendMessage(messageInput.trim(), replyingTo?.id || null);
-        await sendMessage(`[FILE:${fileUrl}]`, null);
-        if (activeChatId) updateLastMessage(activeChatId, `[FILE:${fileUrl}]`, user?.id || '', now);
+        await sendMessage(messageInput.trim(), replyingTo?.id || null, targetChatId);
+        await sendMessage(`[FILE:${fileUrl}]`, null, targetChatId);
+        updateLastMessage(targetChatId, `[FILE:${fileUrl}]`, user?.id || '', now);
       } else if (fileUrl) {
-        await sendMessage(`[FILE:${fileUrl}]`, replyingTo?.id || null);
-        if (activeChatId) updateLastMessage(activeChatId, `[FILE:${fileUrl}]`, user?.id || '', now);
+        await sendMessage(`[FILE:${fileUrl}]`, replyingTo?.id || null, targetChatId);
+        updateLastMessage(targetChatId, `[FILE:${fileUrl}]`, user?.id || '', now);
       } else {
-        await sendMessage(messageInput.trim(), replyingTo?.id || null);
-        if (activeChatId) updateLastMessage(activeChatId, messageInput.trim(), user?.id || '', now);
+        await sendMessage(messageInput.trim(), replyingTo?.id || null, targetChatId);
+        updateLastMessage(targetChatId, messageInput.trim(), user?.id || '', now);
       }
       setMessageInput('');
       removeAttachment();
@@ -246,9 +327,14 @@ function MessagesContent() {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(); }
   };
 
-  const handleChatSelect = (chatId: string) => {
-    // Always exit new conversation mode when selecting a chat
-    setNewConversationMode(false);
+  const handleChatSelect = (chatId: string, options?: { preserveNewConversationMode?: boolean; preservePendingUser?: boolean }) => {
+    if (!options?.preserveNewConversationMode) {
+      setNewConversationMode(false);
+      previousChatIdRef.current = null;
+    }
+    if (!options?.preservePendingUser) {
+      setPendingNewConvUser(null);
+    }
     setNewConvSearch('');
     setNewConvResults([]);
     if (chatId === activeChatId) { setShowMobileChat(true); return; }
@@ -264,19 +350,62 @@ function MessagesContent() {
 
   const handleVoiceMessage = async (audioBlob: Blob, duration: number) => {
     try {
+      const targetChatId = await ensureChatForDraftConversation();
+      if (!targetChatId) {
+        toast.error(t("messages.failedToSendVoice"));
+        return;
+      }
+
       const fileName = `${user?.id}/${Date.now()}.webm`;
       const { error: uploadError } = await supabase.storage.from('chat-attachments').upload(fileName, audioBlob, { contentType: 'audio/webm' });
       if (uploadError) throw uploadError;
       const { data } = supabase.storage.from('chat-attachments').getPublicUrl(fileName);
       const audioContent = `[AUDIO:${data.publicUrl}:${duration}]`;
-      await sendMessage(audioContent, null);
-      if (activeChatId) updateLastMessage(activeChatId, audioContent, user?.id || '', new Date().toISOString());
+      await sendMessage(audioContent, null, targetChatId);
+      updateLastMessage(targetChatId, audioContent, user?.id || '', new Date().toISOString());
     } catch {
       toast.error(t("messages.failedToSendVoice"));
     }
   };
 
   const handleBackToList = () => { setShowMobileChat(false); setShowMobileSidebar(false); setShowSettings(false); router.replace('/messages'); };
+
+  const openNewConversation = () => {
+    previousChatIdRef.current = activeChatId;
+    setNewConversationMode(true);
+    setPendingNewConvUser(null);
+    setNewConvSearch('');
+    setNewConvResults([]);
+    setNewConvSearching(false);
+    setSuppressThreadLoading(false);
+    setShowSettings(false);
+    setShowMobileSidebar(false);
+    setReplyingTo(null);
+    setActiveChatId(null);
+    router.replace('/messages');
+    if (isMobile) setShowMobileChat(true);
+  };
+
+  const cancelNewConversation = () => {
+    setNewConversationMode(false);
+    setPendingNewConvUser(null);
+    setNewConvSearch('');
+    setNewConvResults([]);
+    setNewConvSearching(false);
+    setSuppressThreadLoading(false);
+
+    const previousChatId = previousChatIdRef.current;
+    previousChatIdRef.current = null;
+
+    if (previousChatId) {
+      setActiveChatId(previousChatId);
+      router.replace(`/messages?chat=${previousChatId}`);
+      if (isMobile) setShowMobileChat(true);
+      return;
+    }
+
+    if (isMobile) setShowMobileChat(false);
+  };
 
   // Search users for new conversation
   useEffect(() => {
@@ -285,32 +414,38 @@ function MessagesContent() {
     let cancelled = false;
     setNewConvSearching(true);
     const timer = setTimeout(async () => {
-      const q = `%${newConvSearch.trim()}%`;
-      const { data } = await supabase
-        .from('profiles')
-        .select('id, full_name, company_name, account_type, avatar_url')
-        .or(`full_name.ilike.${q},company_name.ilike.${q}`)
-        .neq('id', user?.id ?? '')
-        .limit(20);
-      if (!cancelled) {
-        setNewConvResults(data ?? []);
-        setNewConvSearching(false);
+      try {
+        const res = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/profiles/search?q=${encodeURIComponent(newConvSearch.trim())}`,
+          { headers: { Authorization: `Bearer ${session?.access_token}` } }
+        );
+        if (!cancelled) {
+          const data = res.ok ? await res.json() : [];
+          setNewConvResults(data);
+          setNewConvSearching(false);
+        }
+      } catch {
+        if (!cancelled) setNewConvSearching(false);
       }
     }, 300);
     return () => { cancelled = true; clearTimeout(timer); };
-  }, [newConvSearch, newConversationMode, user?.id]);
+  }, [newConvSearch, newConversationMode, session?.access_token]);
 
-  const handleSelectNewConvUser = async (otherUserId: string) => {
-    const { getOrCreateDirectChat } = await import('@/lib/chatUtils');
-    const chatId = await getOrCreateDirectChat(otherUserId);
-    if (chatId) {
-      setNewConversationMode(false);
-      setNewConvSearch('');
-      setNewConvResults([]);
-      // Refresh chats list so the new chat room appears, then navigate into it
-      await refreshChats();
-      handleChatSelect(chatId);
+  const handleSelectNewConvUser = async (otherUserId: string, userInfo: { id: string; full_name?: string; company_name?: string; account_type?: string; avatar_url?: string | null }) => {
+    const existingChat = chats.find((chat) => chat.other_user?.id === otherUserId);
+    if (existingChat) {
+      setPendingNewConvUser(null);
+      setSuppressThreadLoading(false);
+      handleChatSelect(existingChat.id);
+      return;
     }
+
+    // Show a draft conversation shell, but don't create the real chat until first send.
+    setNewConversationMode(false);
+    setNewConvSearch('');
+    setNewConvResults([]);
+    setPendingNewConvUser(userInfo);
+    setSuppressThreadLoading(false);
   };
 
   const scrollToMessage = (messageId: string) => {
@@ -327,11 +462,11 @@ function MessagesContent() {
     setTimeout(() => element.classList.remove('bg-yellow-100'), 2000);
   };
 
-  const otherUserName = activeChat?.other_user?.account_type === 'company'
-    ? activeChat?.other_user?.company_name || ''
-    : activeChat?.other_user?.full_name || '';
+  const otherUserName = displayedConversationUser?.account_type === 'company'
+    ? displayedConversationUser?.company_name || ''
+    : displayedConversationUser?.full_name || '';
 
-  if (chatsLoading) {
+  if (chatsLoading && chats.length === 0) {
     return (
       <div className="flex-1 flex items-center justify-center bg-gray-50">
         <Spinner size="xl" />
@@ -349,7 +484,7 @@ function MessagesContent() {
           </div>
         )}
 
-        <div className="flex-1 max-w-[1600px] w-full mx-auto p-0 sm:p-5 min-h-0 flex flex-col">
+        <div className="flex-1 max-w-400 w-full mx-auto p-0 sm:p-5 min-h-0 flex flex-col">
           <div className="bg-white sm:rounded-xl shadow-sm overflow-hidden flex-1 min-h-0">
             <div className="flex h-full min-h-0 overflow-hidden">
 
@@ -363,17 +498,98 @@ function MessagesContent() {
                   onChatSelect={handleChatSelect}
                   currentUserId={user?.id || null}
                   loading={chatsLoading}
-                  onNewConversation={() => { setNewConversationMode(true); setNewConvSearch(''); setNewConvResults([]); if (isMobile) setShowMobileChat(true); }}
+                  onNewConversation={openNewConversation}
                   newConversationMode={newConversationMode}
+                  pendingUser={pendingNewConvUser}
                 />
               </div>
 
               {/* Colonne 2 : Zone de messages */}
-              <div className={`${(isLargeScreen || (isMobile ? showMobileChat : true)) && (!showMobileSidebar || isLargeScreen) ? 'flex' : 'hidden'} flex-1 min-w-0 flex-col bg-white min-h-0 max-h-full overflow-hidden`}>
-                {newConversationMode ? (
+              <div className={`${(isLargeScreen || (isMobile ? showMobileChat : true)) && (!showMobileSidebar || isLargeScreen) ? 'flex' : 'hidden'} relative flex-1 min-w-0 flex-col bg-white min-h-0 max-h-full overflow-hidden`}>
+                {isPendingConversationTransition ? (
+                  <>
+                    <ChatHeader
+                      otherUser={displayedConversationUser || undefined}
+                      isOtherOnline={false}
+                      isSwitching={false}
+                      showSettings={showSettings}
+                      showMobileSidebar={showMobileSidebar}
+                      isLargeScreen={isLargeScreen}
+                      onBack={handleBackToList}
+                      onToggleInfo={() => {
+                        if (isLargeScreen) {
+                          return;
+                        }
+                        setShowMobileSidebar(true);
+                        setShowSettings(false);
+                      }}
+                    />
+
+                    <MessageThread
+                      messages={messages}
+                      loading={false}
+                      currentUserId={user?.id || ''}
+                      otherUser={displayedConversationUser}
+                      hoveredMessageId={hoveredMessageId}
+                      setHoveredMessageId={setHoveredMessageId}
+                      openMenuKey={openMenuKey}
+                      setOpenMenuKey={setOpenMenuKey}
+                      selectedMessageKey={selectedMessageKey}
+                      setSelectedMessageKey={setSelectedMessageKey}
+                      retryMessage={retryMessage}
+                      isTyping={false}
+                      hasMore={false}
+                      loadingMore={false}
+                      loadMore={undefined}
+                      onReply={(message) => setReplyingTo({
+                        id: message.id,
+                        content: message.content,
+                        user_id: message.user_id,
+                        sender_name: message.sender?.account_type === 'company'
+                          ? message.sender.company_name
+                          : message.sender?.full_name,
+                      })}
+                      onReplyClick={scrollToMessage}
+                      onReactionToggle={async (messageId, emoji, currentReactions) => {
+                        if (!user?.id) return;
+                        await toggleReaction(messageId, emoji, user.id, currentReactions);
+                      }}
+                      onEdit={async (messageId, newContent) => {
+                        await editMessage(messageId, newContent);
+                      }}
+                      onPin={async (messageId, isPinned) => {
+                        await togglePin(messageId, isPinned);
+                      }}
+                      onDelete={async (messageId) => {
+                        await deleteMessage(messageId);
+                      }}
+                    />
+
+                    <ChatInputArea
+                      blockCheckLoading={false}
+                      isBlocked={false}
+                      isBlockedByOther={false}
+                      replyingTo={replyingTo}
+                      onCancelReply={() => setReplyingTo(null)}
+                      otherUserName={otherUserName}
+                      onUnblock={handleUnblock}
+                      messageInput={messageInput}
+                      onMessageChange={setMessageInput}
+                      onSend={handleSendMessage}
+                      onKeyPress={handleKeyPress}
+                      onVoiceMessage={handleVoiceMessage}
+                      sending={sending}
+                      attachedFile={attachedFile}
+                      attachmentPreview={attachmentPreview}
+                      onFileSelect={handleFileSelect}
+                      onRemoveAttachment={removeAttachment}
+                      fileInputRef={fileInputRef}
+                    />
+                  </>
+                ) : newConversationMode ? (
                   <>
                     {/* "À :" row — aligned with left sidebar search bar height */}
-                    <div className="flex items-center gap-2 px-4 border-b shrink-0 h-[73px]">
+                    <div className="flex items-center gap-2 px-4 border-b shrink-0 h-18.25">
                       <span className="text-sm font-semibold text-gray-500 shrink-0">{t("messages.to")} :</span>
                       <input
                         autoFocus
@@ -384,13 +600,13 @@ function MessagesContent() {
                         className="flex-1 text-sm outline-none placeholder-gray-400 bg-transparent"
                       />
                       {newConvSearch ? (
-                        <button type="button" onClick={() => setNewConvSearch('')} className="cursor-pointer text-gray-400 hover:text-gray-600 shrink-0">
+                        <button type="button" title={t("common.clear", "Clear")} onClick={() => setNewConvSearch('')} className="cursor-pointer text-gray-400 hover:text-gray-600 shrink-0">
                           <X className="h-4 w-4" />
                         </button>
                       ) : (
                         <button
                           type="button"
-                          onClick={() => { setNewConversationMode(false); setNewConvSearch(''); setNewConvResults([]); if (isMobile) setShowMobileChat(false); }}
+                          onClick={cancelNewConversation}
                           className="cursor-pointer text-gray-400 hover:text-gray-600 shrink-0"
                           aria-label="Cancel"
                         >
@@ -421,7 +637,7 @@ function MessagesContent() {
                             return (
                               <div
                                 key={uid}
-                                onClick={() => handleSelectNewConvUser(uid)}
+                                onClick={() => handleSelectNewConvUser(uid, u as { id: string; full_name?: string; company_name?: string; account_type?: string; avatar_url?: string | null })}
                                 className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 cursor-pointer"
                               >
                                 <div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center shrink-0 overflow-hidden">
@@ -528,37 +744,112 @@ function MessagesContent() {
                     </div>
                   </div>
                 )}
+
+                {isConversationShellLoading && (
+                  <div className="absolute inset-0 z-10 flex flex-col bg-white">
+                    <div className="shrink-0 border-b bg-white px-4 h-18.25 flex items-center justify-between">
+                      <div className="flex items-center gap-3 min-w-0 flex-1">
+                        <Skeleton className="h-10 w-10 rounded-full shrink-0" />
+                        <div className="space-y-2 flex-1 min-w-0">
+                          <Skeleton className="h-4 w-36 rounded" />
+                          <Skeleton className="h-3 w-20 rounded" />
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <Skeleton className="h-9 w-9 rounded-md" />
+                        <Skeleton className="h-9 w-9 rounded-md" />
+                        <Skeleton className="h-9 w-9 rounded-md" />
+                      </div>
+                    </div>
+
+                    <div className="flex-1 bg-gray-50 px-4 py-4 space-y-4 overflow-hidden">
+                      {Array.from({ length: 8 }).map((_, index) => (
+                        <div key={index} className={`flex items-end gap-2 ${index % 2 === 0 ? 'justify-start' : 'justify-end'}`}>
+                          {index % 2 === 0 ? <Skeleton className="h-8 w-8 rounded-full shrink-0" /> : null}
+                          <Skeleton className={`h-10 rounded-2xl ${index % 2 === 0 ? 'w-48' : 'w-40'}`} />
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="shrink-0 border-t bg-white px-4 py-3">
+                      <Skeleton className="h-11 w-full rounded-xl" />
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Colonne 3 : Panneau About */}
-              <div className={`${(isLargeScreen || showMobileSidebar) && !newConversationMode ? 'flex' : 'hidden'} ${isLargeScreen ? 'w-72 shrink-0' : 'flex-1'} border-l bg-white min-h-0`}>
-                {showSettings ? (
-                  <ConversationSettings
-                    messages={messages}
-                    onMessageClick={scrollToMessage}
-                    isBlocked={isBlocked}
-                    onUnblockUser={async () => { await handleUnblock(); setShowSettings(false); }}
-                    otherUser={activeChat?.other_user}
-                    onClose={() => setShowSettings(false)}
-                    backButton={!isLargeScreen}
-                    isMuted={isMuted}
-                    onToggleMute={() => actions.handleToggleMute(isMuted)}
-                    onDeleteConversation={actions.handleDeleteConversation}
-                    onBlockUser={actions.handleBlockUser}
-                    onReportUser={actions.handleReportUser}
-                    isArchived={activeChat?.is_archived || false}
-                    onArchive={actions.handleArchive}
-                  />
-                ) : (
+              <div className={`${(isLargeScreen || showMobileSidebar) && !newConversationMode ? 'flex' : 'hidden'} ${isLargeScreen ? 'w-72 shrink-0' : 'flex-1'} relative border-l bg-white min-h-0`}>
+                <div className={showSettings ? 'hidden h-full w-full min-h-0' : 'flex h-full w-full min-h-0'}>
                   <ProfileSidebar
-                    otherUser={activeChat?.other_user}
+                    otherUser={displayedConversationUser}
                     onClose={!isLargeScreen ? () => setShowMobileSidebar(false) : undefined}
-                    onOpenSettings={!isLargeScreen ? () => setShowSettings(true) : undefined}
+                    onOpenSettings={!isLargeScreen && activeChat ? () => setShowSettings(true) : undefined}
                     isBlocked={isBlocked}
                     isBlockedByOther={isBlockedByOther}
                     blockCheckLoading={blockCheckLoading}
+                    onLoadingChange={setIsProfileSidebarLoading}
                   />
-                )}
+                </div>
+
+                {showSettings ? (
+                  <div className="absolute inset-0 flex min-h-0 bg-white">
+                    <ConversationSettings
+                      messages={messages}
+                      onMessageClick={scrollToMessage}
+                      isBlocked={isBlocked}
+                      onUnblockUser={async () => { await handleUnblock(); setShowSettings(false); }}
+                      otherUser={activeChat?.other_user}
+                      onClose={() => setShowSettings(false)}
+                      backButton={!isLargeScreen}
+                      isMuted={isMuted}
+                      onToggleMute={() => actions.handleToggleMute(isMuted)}
+                      onDeleteConversation={actions.handleDeleteConversation}
+                      onBlockUser={actions.handleBlockUser}
+                      onReportUser={actions.handleReportUser}
+                      isArchived={activeChat?.is_archived || false}
+                      onArchive={actions.handleArchive}
+                    />
+                  </div>
+                ) : null}
+
+                {isConversationShellLoading && (isLargeScreen || showMobileSidebar) ? (
+                  <div className="absolute inset-0 z-10 flex flex-col border-l bg-gray-50">
+                    <div className="flex h-18.25 shrink-0 items-center justify-between border-b bg-gray-50 px-4">
+                      <Skeleton className="h-9 w-9 rounded-md" />
+                      <Skeleton className="h-5 w-24 rounded" />
+                      <Skeleton className="h-9 w-9 rounded-md" />
+                    </div>
+
+                    <div className="flex-1 min-h-0 overflow-hidden px-6 py-4 space-y-4">
+                      <div className="flex flex-col items-center gap-2">
+                        <Skeleton className="h-24 w-24 rounded-full" />
+                        <Skeleton className="h-4 w-32 rounded" />
+                        <Skeleton className="h-3 w-24 rounded" />
+                      </div>
+                      <Skeleton className="h-px w-full" />
+                      <div className="space-y-2">
+                        <Skeleton className="h-3 w-full rounded" />
+                        <Skeleton className="h-3 w-5/6 rounded" />
+                        <Skeleton className="h-3 w-2/3 rounded" />
+                      </div>
+                      <Skeleton className="h-px w-full" />
+                      {Array.from({ length: 2 }).map((_, index) => (
+                        <div key={index} className="rounded-xl border bg-white overflow-hidden">
+                          <Skeleton className="aspect-video w-full" />
+                          <div className="p-3 space-y-2">
+                            <Skeleton className="h-3 w-4/5 rounded" />
+                            <Skeleton className="h-3 w-1/3 rounded" />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="shrink-0 border-t bg-gray-50 p-4">
+                      <Skeleton className="h-10 w-full rounded-md" />
+                    </div>
+                  </div>
+                ) : null}
               </div>
 
             </div>

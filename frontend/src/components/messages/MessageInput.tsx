@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -11,7 +11,6 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import WaveSurfer from 'wavesurfer.js';
 
 interface MessageInputProps {
   value: string;
@@ -46,41 +45,65 @@ export function MessageInput({
   const [popoverOpen, setPopoverOpen] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const startTimeRef = useRef<number>(0);
   const [isPaused, setIsPaused] = useState(false);
-
   const analyserRef = useRef<AnalyserNode | null>(null);
   const animationRef = useRef<number | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const shouldSendRecordingRef = useRef(true);
   const [audioLevels, setAudioLevels] = useState<number[]>(Array(20).fill(0));
-
-    // Ajoute ces refs
-  const wavesurferRef = useRef<WaveSurfer | null>(null);
-  const waveContainerRef = useRef<HTMLDivElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
+  const levelHeightClasses = ['h-1', 'h-1.5', 'h-2', 'h-3', 'h-4', 'h-5', 'h-6', 'h-7', 'h-8'];
+
+  const getLevelHeightClass = (level: number) => {
+    const index = Math.min(levelHeightClasses.length - 1, Math.max(0, Math.round(level * (levelHeightClasses.length - 1))));
+    return levelHeightClasses[index];
+  };
+
+  const stopAnimation = () => {
+    if (animationRef.current) {
+      cancelAnimationFrame(animationRef.current);
+      animationRef.current = null;
+    }
+    setAudioLevels(Array(20).fill(0));
+  };
+
+  const cleanupRecordingResources = () => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+    stopAnimation();
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
+    if (audioContextRef.current) {
+      audioContextRef.current.close().catch(() => {});
+      audioContextRef.current = null;
+    }
+    analyserRef.current = null;
+    mediaRecorderRef.current = null;
+  };
+
+  useEffect(() => {
+    return () => {
+      cleanupRecordingResources();
+    };
+  }, []);
+
   const startRecording = async () => {
+    if (isRecording || disabled) return;
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
 
-      // Init WaveSurfer en mode microphone
-      if (waveContainerRef.current) {
-        wavesurferRef.current = WaveSurfer.create({
-          container: waveContainerRef.current,
-          waveColor: '#16a34a',
-          progressColor: '#15803d',
-          height: 32,
-          barWidth: 3,
-          barGap: 2,
-          barRadius: 3,
-          interact: false,
-          cursorWidth: 0,
-        });
-      }
-
       const mediaRecorder = new MediaRecorder(stream);
       mediaRecorderRef.current = mediaRecorder;
+      shouldSendRecordingRef.current = true;
       audioChunksRef.current = [];
       startTimeRef.current = Date.now();
       setRecordingDuration(0);
@@ -91,14 +114,15 @@ export function MessageInput({
 
       mediaRecorder.start();
       setIsRecording(true);
+      setIsPaused(false);
       setPopoverOpen(false);
 
       timerRef.current = setInterval(() => {
         setRecordingDuration(Math.floor((Date.now() - startTimeRef.current) / 1000));
       }, 1000);
 
-      // Connecte le micro à WaveSurfer via AudioContext
       const audioContext = new AudioContext();
+      audioContextRef.current = audioContext;
       const source = audioContext.createMediaStreamSource(stream);
       const analyser = audioContext.createAnalyser();
       analyser.fftSize = 128;
@@ -117,48 +141,45 @@ export function MessageInput({
       };
       drawWave();
 
-    } catch (err) {
+    } catch {
+      cleanupRecordingResources();
+      setIsRecording(false);
+      setIsPaused(false);
+      setRecordingDuration(0);
       toast.error(t("messages.microphoneNotAccessible"));
     }
-  };
-
-
-  const stopAnimation = () => {
-    if (animationRef.current) cancelAnimationFrame(animationRef.current);
-    setAudioLevels(Array(20).fill(0));
   };
 
   const stopRecording = async () => {
     if (!mediaRecorderRef.current || !isRecording) return;
 
     const duration = Math.floor((Date.now() - startTimeRef.current) / 1000);
+    const recorder = mediaRecorderRef.current;
 
-    mediaRecorderRef.current.onstop = async () => {
+    recorder.onstop = async () => {
       const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-      mediaRecorderRef.current?.stream.getTracks().forEach(t => t.stop());
-      if (duration >= 1) {
+      cleanupRecordingResources();
+      if (shouldSendRecordingRef.current && duration >= 1) {
         await onVoiceMessage?.(audioBlob, duration);
       }
     };
 
-    mediaRecorderRef.current.stop();
+    recorder.stop();
     setIsRecording(false);
     setIsPaused(false);
-    if (timerRef.current) clearInterval(timerRef.current);
     setRecordingDuration(0);
-    stopAnimation();
   };
 
   const cancelRecording = () => {
-    if (!mediaRecorderRef.current) return;
-    mediaRecorderRef.current.stream.getTracks().forEach(t => t.stop());
-    mediaRecorderRef.current = null;
+    shouldSendRecordingRef.current = false;
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stop();
+    } else {
+      cleanupRecordingResources();
+    }
     setIsRecording(false);
     setIsPaused(false);
-    if (timerRef.current) clearInterval(timerRef.current);
     setRecordingDuration(0);
-    stopAnimation();
-    
   };
 
   const formatDuration = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
@@ -167,7 +188,10 @@ export function MessageInput({
     if (!mediaRecorderRef.current || !isRecording) return;
     mediaRecorderRef.current.pause();
     setIsPaused(true);
-    if (timerRef.current) clearInterval(timerRef.current);
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
     stopAnimation();
   };
 
@@ -220,7 +244,7 @@ export function MessageInput({
       )}
 
       <div className="flex gap-3 items-center">
-        <input ref={fileInputRef} type="file" accept="image/*,.pdf" onChange={onFileSelect} className="hidden" />
+        <input ref={fileInputRef} type="file" accept="image/*,.pdf" onChange={onFileSelect} className="hidden" title={t("messages.fileAttachment")} aria-label={t("messages.fileAttachment")} />
 
         {/* Bouton + avec popover */}
         {!isRecording && (
@@ -233,6 +257,7 @@ export function MessageInput({
             <PopoverContent className="w-48 p-2" side="top" align="start">
               <div className="flex flex-col gap-1">
                 <button
+                  type="button"
                   onClick={() => { fileInputRef.current?.click(); setPopoverOpen(false); }}
                   className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 text-sm text-gray-700 w-full text-left cursor-pointer"
                 >
@@ -240,8 +265,8 @@ export function MessageInput({
                   {t("messages.fileAttachment")}
                 </button>
                 <button
-                  onMouseDown={startRecording}
-                  onTouchStart={startRecording}
+                  type="button"
+                  onClick={() => void startRecording()}
                   className="flex items-center gap-3  px-3 py-2 rounded-lg hover:bg-gray-100 text-sm text-gray-700 w-full text-left cursor-pointer"
                 >
                   <Mic className="h-4 w-4 text-gray-500" />
@@ -255,9 +280,7 @@ export function MessageInput({
         {/* Interface d'enregistrement */}
         {isRecording ? (
           <div className="flex-1 flex items-center gap-3 bg-green-50 rounded-full px-4 py-2 border border-green-200">
-            <div className="w-2 h-2 rounded-full animate-pulse shrink-0"
-              style={{ backgroundColor: isPaused ? '#f59e0b' : '#16a34a' }}
-            />
+            <div className={`w-2 h-2 rounded-full animate-pulse shrink-0 ${isPaused ? 'bg-amber-500' : 'bg-green-600'}`} />
             <span className="text-sm font-medium text-green-700 shrink-0">
               {formatDuration(recordingDuration)}
             </span>
@@ -278,7 +301,7 @@ export function MessageInput({
             </button>
           
               {/* Ondes audio avec progression style WaveSurfer */}
-              <div className="flex-1 flex items-center justify-center gap-[2px] h-8">
+              <div className="flex-1 flex items-center justify-center gap-0.5 h-8">
                 {Array.from({ length: 40 }, (_, i) => {
                   // Progression basée sur le temps (max 60s)
                   const progressRatio = Math.min(recordingDuration / 60, 1);
@@ -292,17 +315,13 @@ export function MessageInput({
                   return (
                     <div
                       key={i}
-                      className="w-[3px] rounded-full transition-all duration-75"
-                      style={{
-                        height: `${Math.max(3, level * 32)}px`,
-                        backgroundColor: isFilled ? '#15803d' : '#86efac',
-                      }}
+                      className={`w-0.75 rounded-full transition-all duration-75 ${getLevelHeightClass(level)} ${isFilled ? 'bg-green-700' : 'bg-green-300'}`}
                     />
                   );
                 })}
               </div>
 
-            <button onClick={cancelRecording} className="text-gray-400 hover:text-gray-600 shrink-0 cursor-pointer">
+            <button type="button" title={t("common.cancel", "Cancel")} aria-label={t("common.cancel", "Cancel")} onClick={cancelRecording} className="text-gray-400 hover:text-gray-600 shrink-0 cursor-pointer">
               <X className="h-4 w-4" />
             </button>
           </div>
@@ -320,8 +339,8 @@ export function MessageInput({
         {/* Bouton envoyer / stop enregistrement */}
         {isRecording ? (
           <Button
-            onMouseUp={stopRecording}
-            onTouchEnd={stopRecording}
+            type="button"
+            onClick={() => void stopRecording()}
             size="icon"
             className="bg-green-700 hover:bg-green-800 shrink-0 cursor-pointer"
           >

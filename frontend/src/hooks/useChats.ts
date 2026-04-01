@@ -158,7 +158,7 @@ export function useChats() {
             const exists = prev.some(c => c.id === msg.chat_room_id);
             // New conversation not yet in state — refetch to add it
             if (!exists) {
-              fetchChats();
+              fetchChats(true);
               return prev;
             }
             return prev
@@ -211,7 +211,7 @@ export function useChats() {
         (payload) => {
           const inserted = payload.new as { user_id: string; chat_room_id: string };
           if (inserted.user_id === userIdRef.current) {
-            fetchChats();
+            fetchChats(true);
           }
         }
       )
@@ -227,11 +227,11 @@ export function useChats() {
       )
       .subscribe((status) => {
         // Re-fetch after reconnect to recover any events missed during downtime
-        if (status === 'SUBSCRIBED') fetchChats();
+        if (status === 'SUBSCRIBED') fetchChats(true);
       });
 
     // Re-fetch when browser comes back online after being offline
-    const handleOnline = () => fetchChats();
+    const handleOnline = () => fetchChats(true);
     window.addEventListener('online', handleOnline);
 
     return () => {

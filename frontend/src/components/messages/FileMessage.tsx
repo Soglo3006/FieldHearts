@@ -6,8 +6,8 @@ import { RepliedMessage } from './RepliedMessage';
 import { MessageReactions } from './MessageReactions';
 import { sanitizeAndFormatMessage } from '@/lib/sanitize';
 import { ImageLightbox } from './ImageLightbox';
-import { Pin, FileText, FileIcon, FileSpreadsheet, Archive } from 'lucide-react';
-import { useState } from 'react';
+import { Pin, FileText, FileIcon, FileSpreadsheet, Archive, Loader2 } from 'lucide-react';
+import { useEffect, useState } from 'react';
 
 function getFileIcon(filename: string) {
   const ext = filename.split('.').pop()?.toLowerCase() ?? '';
@@ -95,12 +95,30 @@ export function FileMessage({
   const keyImage = `${messageId}-image`;
 
   const actionsVisible = (key: string) =>
-    hoveredMessageId === key || openMenuKey === key || selectedMessageKey === key;
+    !lightboxOpen && (hoveredMessageId === key || openMenuKey === key || selectedMessageKey === key);
 
   const isSending = status === 'sending';
   const isFailed = status === 'failed';
 
   const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const [imageFailed, setImageFailed] = useState(false);
+
+  useEffect(() => {
+    setImageLoaded(false);
+    setImageFailed(false);
+  }, [fileUrl]);
+
+  const clearImageInteractionState = () => {
+    setHoveredMessageId(null);
+    setOpenMenuKey(null);
+    setSelectedMessageKey(null);
+  };
+
+  const closeLightbox = () => {
+    setLightboxOpen(false);
+    clearImageInteractionState();
+  };
 
   return (
     <>
@@ -131,7 +149,7 @@ export function FileMessage({
           {/* Avatar + Bulle */}
           <div className="flex items-end gap-2">
             {!isOwn && (
-              <Avatar className="h-8 w-8 flex-shrink-0">
+              <Avatar className="h-8 w-8 shrink-0">
                 {otherUser?.avatar_url ? (
                   <AvatarImage src={otherUser.avatar_url} />
                 ) : null}
@@ -165,7 +183,7 @@ export function FileMessage({
                 }`}
               >
                 <div 
-                  className="text-sm break-words"
+                  className="text-sm wrap-break-word"
                   dangerouslySetInnerHTML={{ 
                     __html: sanitizeAndFormatMessage(text || '') 
                   }} 
@@ -218,7 +236,7 @@ export function FileMessage({
           {/* Avatar + Image */}
           <div className="flex items-end gap-2">
             {!isOwn && (
-              <Avatar className="h-8 w-8 flex-shrink-0">
+              <Avatar className="h-8 w-8 shrink-0">
                 {otherUser?.avatar_url ? (
                   <AvatarImage src={otherUser.avatar_url} />
                 ) : null}
@@ -244,25 +262,49 @@ export function FileMessage({
 
             {/* Image avec réaction en position absolue */}
             <div className="relative">
-              <img
-                src={fileUrl}
-                alt="Attachment"
-                className="max-w-xs max-h-64 rounded-xl cursor-pointer object-cover shadow-md hover:opacity-90 transition-opacity"
+              <button
+                type="button"
+                className="relative block max-w-xs max-h-64 overflow-hidden rounded-xl cursor-pointer shadow-md"
                 onClick={(e) => {
                   e.stopPropagation();
-                  if (openMenuKey === keyImage || selectedMessageKey === keyImage) return;
+                  clearImageInteractionState();
                   setLightboxOpen(true);
                 }}
-              />
+              >
+                {(!imageLoaded || isSending) && !imageFailed && (
+                  <div className="flex h-64 w-64 max-w-xs items-center justify-center rounded-xl bg-gray-100 text-gray-400">
+                    <div className="flex flex-col items-center gap-2">
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                      <span className="text-xs font-medium">
+                        {isSending ? 'Sending image...' : 'Loading image...'}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {imageFailed ? (
+                  <div className="flex h-64 w-64 max-w-xs items-center justify-center rounded-xl bg-gray-100 px-4 text-center text-sm text-gray-500">
+                    Unable to load image
+                  </div>
+                ) : (
+                  <img
+                    src={fileUrl}
+                    alt="Attachment"
+                    className={`max-w-xs max-h-64 rounded-xl object-cover transition-opacity ${imageLoaded && !isSending ? 'opacity-100' : 'absolute inset-0 opacity-0'} hover:opacity-90`}
+                    onLoad={() => setImageLoaded(true)}
+                    onError={() => setImageFailed(true)}
+                  />
+                )}
+              </button>
               {lightboxOpen && (
                 <ImageLightbox
                   imageUrl={fileUrl}
-                  onClose={() => setLightboxOpen(false)}
+                  onClose={closeLightbox}
                 />
               )}
               {isPinned && (
-                <div className={`absolute top-1 ${isOwn ? 'left-1' : 'right-1'} bg-white/80 rounded-full p-0.5`}>
-                  <Pin className="h-3 w-3 text-blue-600" />
+                <div className="absolute -top-2 -right-2 rounded-full bg-white p-1 shadow-sm ring-1 ring-gray-100">
+                  <Pin className="h-3 w-3 text-green-700" />
                 </div>
               )}
 
@@ -288,7 +330,7 @@ export function FileMessage({
           href={fileUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className={`flex items-center gap-3 p-3 rounded-xl shadow-sm max-w-[260px] ${
+          className={`flex items-center gap-3 p-3 rounded-xl shadow-sm max-w-65 ${
             isOwn
               ? 'bg-green-50 hover:bg-green-100 border border-green-200'
               : 'bg-gray-50 hover:bg-gray-100 border border-gray-200'

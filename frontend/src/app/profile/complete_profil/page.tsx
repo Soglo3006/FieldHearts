@@ -69,6 +69,13 @@ function OnboardingContent() {
 
   const stepFromUrl = searchParams.get("step") ? Number(searchParams.get("step")) : null;
 
+  useEffect(() => {
+    if (!session && !user) return;
+    if (user?.user_metadata?.profile_completed) {
+      router.replace("/");
+    }
+  }, [user, session, router]);
+
   const [currentStep, setCurrentStep] = useState(stepFromUrl ?? 1);
   const [showSuccess, setShowSuccess] = useState(false);
   const [loading, setLoading] = useState(false);

@@ -214,7 +214,7 @@ export default function ListingsGrid({ filters }: { filters?: ListingsFilters })
                     </p>
                   )}
 
-                  <p className="text-green-700 font-bold text-base mb-2">${Number(s.price).toLocaleString()}</p>
+                  <p className="text-green-700 font-bold text-base mb-2">{Number(s.price).toFixed(2)} $</p>
 
                   <div className="flex items-center justify-between text-xs text-gray-500 mt-auto">
                     <div className="flex items-center gap-1 min-w-0">

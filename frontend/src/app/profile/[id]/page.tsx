@@ -20,7 +20,6 @@ import BlockedBanner from "@/components/profile/BlockedBanner";
 import { toast } from "sonner";
 import { type Service as Listing } from "@/components/listings/EditListingModal";
 import { Spinner } from "@/components/ui/Spinner";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 
 interface ProfileUser {
   account_type?: string;
@@ -223,7 +222,27 @@ export default function UserProfilePage() {
                 languages={languages}
                 memberSince={memberSince}
               />
-              <ProfilePortfolio portfolio={portfolio} isPerson={isPerson} />
+              <ProfilePortfolio
+                portfolio={portfolio}
+                isPerson={isPerson}
+                isOwner={isOwner}
+                onPortfolioSave={async (updated) => {
+                  if (!session?.access_token) return;
+                  const meRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/profiles/me`, {
+                    headers: { Authorization: `Bearer ${session.access_token}` },
+                  });
+                  if (!meRes.ok) { toast.error(t("profile.failedUpdate", "Échec de la mise à jour")); return; }
+                  const full = await meRes.json();
+                  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/profiles/me`, {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+                    body: JSON.stringify({ ...full, portfolio: updated }),
+                  });
+                  if (!res.ok) { toast.error(t("profile.failedUpdate", "Échec de la mise à jour")); return; }
+                  setProfileUser((prev) => prev ? { ...prev, portfolio: updated } : prev);
+                  toast.success(t("profile.portfolioUpdated", "Portfolio mis à jour"));
+                }}
+              />
               <ProfileListings
                 userListings={userListings}
                 setUserListings={setUserListings}
@@ -245,21 +264,18 @@ export default function UserProfilePage() {
         </div>
       </main>
 
-      <Dialog open={showSettings} onOpenChange={setShowSettings}>
-        <DialogContent
-          showCloseButton={false}
-          className="bottom-0 left-0 top-auto mx-0 h-[88dvh] w-full translate-x-0 translate-y-0 overflow-hidden rounded-t-2xl border-0 p-0 sm:top-[50%] sm:left-[50%] sm:h-[90vh] sm:max-w-6xl sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-xl"
-        >
-          <DialogTitle className="sr-only">{t("settings.title")}</DialogTitle>
+      {showSettings && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex justify-center items-end sm:items-center z-50" onClick={() => setShowSettings(false)}>
           <div
+            className="w-full sm:max-w-3xl max-h-[88dvh] sm:max-h-[90vh] bg-white rounded-t-2xl sm:rounded-xl shadow-xl overflow-y-auto animate-in slide-in-from-bottom sm:zoom-in-95 duration-200"
             ref={settingsScrollRef}
-            className="h-full overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
             {...makeSwipeHandlers(() => setShowSettings(false))}
           >
             <SettingsPage onClose={() => setShowSettings(false)} scrollRef={settingsScrollRef} />
           </div>
-        </DialogContent>
-      </Dialog>
+        </div>
+      )}
 
       {showEllipsis && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex justify-center items-end sm:items-center z-50" onClick={() => setShowEllipsis(false)}>
@@ -269,20 +285,13 @@ export default function UserProfilePage() {
         </div>
       )}
 
-      <Dialog open={showRatings} onOpenChange={setShowRatings}>
-        <DialogContent
-          showCloseButton={false}
-          className="bottom-0 left-0 top-auto mx-0 h-[88dvh] w-full translate-x-0 translate-y-0 overflow-hidden rounded-t-2xl border-0 p-0 sm:top-[50%] sm:left-[50%] sm:h-[90vh] sm:max-w-5xl sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-xl"
-        >
-          <DialogTitle className="sr-only">{t("profile.allRatings", "All Ratings")}</DialogTitle>
-          <div
-            className="h-full overflow-y-auto"
-            {...makeSwipeHandlers(() => setShowRatings(false))}
-          >
+      {showRatings && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex justify-center items-end sm:items-center z-50" onClick={() => setShowRatings(false)}>
+          <div className="w-full sm:max-w-3xl max-h-[88dvh] sm:max-h-[90vh] bg-white rounded-t-2xl sm:rounded-xl shadow-xl overflow-y-auto animate-in slide-in-from-bottom sm:zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()} {...makeSwipeHandlers(() => setShowRatings(false))}>
             <RatingsPage onClose={() => setShowRatings(false)} profileId={profileId} displayName={displayName} />
           </div>
-        </DialogContent>
-      </Dialog>
+        </div>
+      )}
     </div>
   );
 }

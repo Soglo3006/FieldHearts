@@ -114,7 +114,8 @@
 
 @layer base {
   html {
-    overflow-y: scroll;
+    overflow-y: auto;
+    scrollbar-gutter: stable;
   }
   * {
     @apply border-border outline-ring/50;
@@ -132,7 +133,7 @@ html[data-scroll-locked],
 body[data-scroll-locked] {
   padding-right: 0px !important;
   margin-right: 0px !important;
-  overflow-y: scroll !important;
+  overflow: hidden !important;
 }
 
 
@@ -144,4 +145,8 @@ body[data-scroll-locked] {
 .no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+.scroll-lock-aware {
+  padding-right: var(--scroll-lock-padding, 0px);
 }

@@ -44,6 +44,7 @@ interface ConversationListProps {
   loading?: boolean;
   onNewConversation?: () => void;
   newConversationMode?: boolean;
+  pendingUser?: { id: string; full_name?: string; company_name?: string; account_type?: string; avatar_url?: string | null } | null;
 }
 
 function ConversationItem({
@@ -157,7 +158,7 @@ function ConversationItem({
           <div className={`flex items-center gap-1 text-sm mt-1 ${
             unreadCount > 0 ? 'font-semibold text-gray-900' : 'text-gray-500'
           }`}>
-            <span className="truncate min-w-0 flex-1 block max-w-[160px]">
+            <span className="truncate min-w-0 flex-1 block max-w-40">
               <span dangerouslySetInnerHTML={{ __html: sanitizeMessage(lastMessagePreview) }} />
             </span>
             {timeDisplay && (
@@ -180,6 +181,7 @@ export function ConversationList({
   loading,
   onNewConversation,
   newConversationMode,
+  pendingUser,
 }: ConversationListProps) {
   const { t } = useTranslation();
   const [filter, setFilter] = useState<string>('all');
@@ -191,6 +193,10 @@ export function ConversationList({
   }, []);
 
   const filteredChats = chats.filter(chat => {
+    if (pendingUser?.id && chat.other_user?.id === pendingUser.id) {
+      return false;
+    }
+
     // Filtre par recherche
     if (searchQuery.trim()) {
       const isPerson = chat.other_user?.account_type === 'person';
@@ -222,7 +228,7 @@ export function ConversationList({
   return (
     <div className="w-full md:w-64 lg:w-80 border-r flex flex-col bg-white h-full min-h-0">
       {/* Search bar sticky */}
-      <div className="sticky top-0 z-10 p-4 border-b bg-white h-[73px] flex items-center">
+      <div className="sticky top-0 z-10 p-4 border-b bg-white h-18.25 flex items-center">
         <div className="relative w-full">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
           <Input
@@ -235,7 +241,7 @@ export function ConversationList({
       </div>
 
       {/* Title + Filter Select sticky */}
-      <div className="sticky top-[72px] z-10 px-4 py-3 border-b bg-white">
+      <div className="sticky top-18 z-10 px-4 py-3 border-b bg-white">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <h2 className="font-semibold text-gray-900 whitespace-nowrap">{t("messages.title")}</h2>
@@ -251,7 +257,7 @@ export function ConversationList({
             )}
           </div>
           <Select value={filter} onValueChange={setFilter}>
-            <SelectTrigger className="w-[140px] h-9 cursor-pointer">
+            <SelectTrigger className="w-35 h-9 cursor-pointer">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -265,8 +271,30 @@ export function ConversationList({
 
       {/* Conversations list */}
       <ScrollArea className="flex-1 min-h-0">
+        {/* Pending user: selected from new conversation, waiting for chat to load */}
+        {pendingUser && (() => {
+          const name = pendingUser.account_type === 'company'
+            ? pendingUser.company_name || ''
+            : pendingUser.full_name || '';
+          return (
+            <div className="p-4 border-b bg-green-50 border-l-4 border-l-green-700">
+              <div className="flex items-center gap-3">
+                <Avatar className="h-12 w-12 border-4 border-white shadow-lg">
+                  {pendingUser.avatar_url ? <AvatarImage src={pendingUser.avatar_url} alt={name} /> : null}
+                  <AvatarFallback className="text-lg bg-green-100 text-green-800 font-semibold">
+                    {name.charAt(0).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-gray-900 truncate">{name}</p>
+                  <p className="text-sm text-gray-500 truncate">{t("messages.noMessagesYet")}</p>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
         {/* "Nouveau message" item pinned at top when composing */}
-        {newConversationMode && (
+        {newConversationMode && !pendingUser && (
           <div className="p-4 border-b bg-green-50 border-l-4 border-l-green-700">
             <div className="flex items-center gap-3">
               <div className="h-12 w-12 rounded-full bg-green-700 flex items-center justify-center shrink-0">
@@ -307,7 +335,7 @@ export function ConversationList({
             <ConversationItem
               key={chat.id}
               chat={chat}
-              isActive={!newConversationMode && chat.id === activeChatId}
+              isActive={!newConversationMode && !pendingUser && chat.id === activeChatId}
               currentUserId={currentUserId}
               onSelect={() => onChatSelect(chat.id)}
               now={now}

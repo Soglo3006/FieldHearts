@@ -28,7 +28,8 @@ function CityInput({ value, onChange, placeholder, className }: Props) {
     requestOptions: {
       types: ["(cities)"],
       componentRestrictions: { country: "ca" },
-    },
+      language: "fr",
+    } as google.maps.places.AutocompletionRequest,
   });
 
   useEffect(() => {

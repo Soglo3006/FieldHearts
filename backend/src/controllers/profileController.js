@@ -388,3 +388,23 @@ export const updateSettings = async (req, res) => {
     res.status(500).json({ message: "Server error while updating settings" });
   }
 };
+export const searchProfiles = async (req, res) => {
+  try {
+    const q = (req.query.q || '').trim();
+    if (!q) return res.json([]);
+
+    const pattern = `%${q}%`;
+    const { data, error } = await supabaseAdmin
+      .from('profiles')
+      .select('id, full_name, company_name, account_type, avatar_url')
+      .or(`full_name.ilike.${pattern},company_name.ilike.${pattern}`)
+      .neq('id', req.user.id)
+      .limit(20);
+
+    if (error) throw error;
+    res.json(data ?? []);
+  } catch (err) {
+    console.error('Error searching profiles:', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+};

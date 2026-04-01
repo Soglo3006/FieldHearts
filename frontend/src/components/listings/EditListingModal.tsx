@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useScrollLock } from "@/hooks/useScrollLock";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -17,13 +18,6 @@ import {
 } from "@/components/ui/select";
 import { categories } from "@/lib/categories";
 import { X, CheckCircle } from "lucide-react";
-
-const URGENCY_LEVELS = [
-  { value: "anytime", label: "Anytime" },
-  { value: "few-days", label: "Within a few days" },
-  { value: "today", label: "Today" },
-  { value: "urgent", label: "Urgent" },
-];
 
 export interface Service {
   id: string;
@@ -60,6 +54,8 @@ interface Props {
 
 export default function EditListingModal({ service, accessToken, onClose, onSaved }: Props) {
   useScrollLock(true);
+  const { t } = useTranslation();
+
   const [title, setTitle] = useState(service.title);
   const [description, setDescription] = useState(service.description);
   const [price, setPrice] = useState(String(service.price));
@@ -99,7 +95,7 @@ export default function EditListingModal({ service, accessToken, onClose, onSave
 
   const handleSave = async () => {
     if (!isValid) {
-      setError("Title, description, category, price, and location are required.");
+      setError(t("serviceDetail.requiredFields"));
       return;
     }
     setSaving(true);
@@ -139,7 +135,7 @@ export default function EditListingModal({ service, accessToken, onClose, onSave
       );
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        setError(data.message ?? "Failed to update. Please try again.");
+        setError(data.message ?? t("serviceDetail.failedUpdate"));
         return;
       }
       const updated = await res.json();
@@ -149,7 +145,7 @@ export default function EditListingModal({ service, accessToken, onClose, onSave
         onClose();
       }, 800);
     } catch {
-      setError("Network error. Please try again.");
+      setError(t("serviceDetail.networkError"));
     } finally {
       setSaving(false);
     }
@@ -163,12 +159,12 @@ export default function EditListingModal({ service, accessToken, onClose, onSave
         {/* Header */}
         <div className="flex shrink-0 items-center justify-between border-b border-gray-100 px-6 py-4">
           <div>
-            <h2 className="text-lg font-semibold text-gray-900">Edit Listing</h2>
+            <h2 className="text-lg font-semibold text-gray-900">{t("serviceDetail.editListing")}</h2>
             <p className="text-xs text-gray-500 mt-0.5">
-              {isOffer ? "Offer a Service" : "Looking for a Worker"}
+              {isOffer ? t("post.offerService") : t("serviceDetail.lookingForWorker")}
             </p>
           </div>
-          <button type="button" aria-label="Close" onClick={onClose} className="cursor-pointer text-gray-400 hover:text-gray-600 transition-colors">
+          <button type="button" aria-label={t("serviceDetail.close")} onClick={onClose} className="cursor-pointer text-gray-400 hover:text-gray-600 transition-colors">
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -184,12 +180,12 @@ export default function EditListingModal({ service, accessToken, onClose, onSave
           {/* Title */}
           <div className="space-y-2">
             <Label className="text-base font-medium text-gray-900">
-              {isOffer ? "Service Title" : "Job Title"} <span className="text-red-500">*</span>
+              {isOffer ? t("post.serviceTitle") : t("post.jobTitle")} <span className="text-red-500">*</span>
             </Label>
             <Input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder={isOffer ? "Ex: Professional House Cleaning" : "Ex: Need help moving furniture"}
+              placeholder={isOffer ? t("post.serviceTitlePlaceholder") : t("post.jobTitlePlaceholder")}
               className="h-12"
             />
           </div>
@@ -197,12 +193,12 @@ export default function EditListingModal({ service, accessToken, onClose, onSave
           {/* Description */}
           <div className="space-y-2">
             <Label className="text-base font-medium text-gray-900">
-              Description <span className="text-red-500">*</span>
+              {t("post.description")} <span className="text-red-500">*</span>
             </Label>
             <Textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder={isOffer ? "Describe the service you offer…" : "Describe what kind of worker you're looking for…"}
+              placeholder={isOffer ? t("post.descriptionPlaceholder") : t("post.jobDescriptionPlaceholder")}
               className="min-h-32 resize-none"
             />
           </div>
@@ -210,7 +206,7 @@ export default function EditListingModal({ service, accessToken, onClose, onSave
           {/* Price */}
           <div className="space-y-2">
             <Label className="text-base font-medium text-gray-900">
-              {isOffer ? "Price" : "Budget"} <span className="text-red-500">*</span>
+              {isOffer ? t("post.price") : t("post.budget")} <span className="text-red-500">*</span>
             </Label>
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-medium">$</span>
@@ -218,42 +214,41 @@ export default function EditListingModal({ service, accessToken, onClose, onSave
                 type="number"
                 value={price}
                 onChange={(e) => setPrice(e.target.value)}
-                placeholder="Amount"
+                placeholder={t("post.amount")}
                 min="0"
                 className="h-12 pl-8"
               />
             </div>
             {price && Number(price) <= 0 && (
-              <p className="text-red-600 text-sm">Price must be greater than zero.</p>
+              <p className="text-red-600 text-sm">{t("post.priceMustBePositive")}</p>
             )}
           </div>
 
           {/* Location */}
           <div className="space-y-2">
             <Label className="text-base font-medium text-gray-900">
-              Location <span className="text-red-500">*</span>
+              {t("post.location")} <span className="text-red-500">*</span>
             </Label>
             <LocationAutocomplete
               value={location}
               onChange={(val, details) => { setLocation(val); setLocationDetails(details ?? null); }}
-              placeholder="City, region (ex: Toronto, ON)"
+              placeholder={t("post.locationPlaceholder")}
             />
           </div>
 
           {/* Urgency — looking only */}
           {!isOffer && (
             <div className="space-y-2">
-              <Label className="text-base font-medium text-gray-900">Urgency Level</Label>
+              <Label className="text-base font-medium text-gray-900">{t("post.urgencyLevel")}</Label>
               <Select value={urgency} onValueChange={setUrgency}>
                 <SelectTrigger className="h-12 cursor-pointer">
-                  <SelectValue placeholder="Select urgency level" />
+                  <SelectValue placeholder={t("post.selectUrgency")} />
                 </SelectTrigger>
                 <SelectContent>
-                  {URGENCY_LEVELS.map((u) => (
-                    <SelectItem key={u.value} value={u.value} className="cursor-pointer">
-                      {u.label}
-                    </SelectItem>
-                  ))}
+                  <SelectItem value="anytime" className="cursor-pointer">{t("post.urgencyAnytime")}</SelectItem>
+                  <SelectItem value="few-days" className="cursor-pointer">{t("post.urgencyFewDays")}</SelectItem>
+                  <SelectItem value="today" className="cursor-pointer">{t("post.urgencyToday")}</SelectItem>
+                  <SelectItem value="urgent" className="cursor-pointer">{t("post.urgencyUrgent")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -263,11 +258,11 @@ export default function EditListingModal({ service, accessToken, onClose, onSave
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label className="text-base font-medium text-gray-900">
-                Category <span className="text-red-500">*</span>
+                {t("post.category")} <span className="text-red-500">*</span>
               </Label>
               <Select value={category} onValueChange={(v) => { setCategory(v); setSubcategory(""); }}>
                 <SelectTrigger className="h-12 cursor-pointer">
-                  <SelectValue placeholder="Select a category" />
+                  <SelectValue placeholder={t("post.selectCategory")} />
                 </SelectTrigger>
                 <SelectContent>
                   {categories.map((cat) => (
@@ -280,10 +275,10 @@ export default function EditListingModal({ service, accessToken, onClose, onSave
             </div>
 
             <div className="space-y-2">
-              <Label className="text-base font-medium text-gray-900">Subcategory</Label>
+              <Label className="text-base font-medium text-gray-900">{t("post.subcategory")}</Label>
               <Select value={subcategory} onValueChange={setSubcategory} disabled={!category}>
                 <SelectTrigger className="h-12 cursor-pointer">
-                  <SelectValue placeholder="Select a subcategory" />
+                  <SelectValue placeholder={t("post.selectSubcategory")} />
                 </SelectTrigger>
                 <SelectContent>
                   {selectedCat?.subcategories?.map((sub) => (
@@ -296,14 +291,14 @@ export default function EditListingModal({ service, accessToken, onClose, onSave
             </div>
 
             <div className="space-y-2">
-              <Label className="text-base font-medium text-gray-900">Type of Poster</Label>
+              <Label className="text-base font-medium text-gray-900">{t("post.typeOfPoster")}</Label>
               <Select value={posterType} onValueChange={setPosterType}>
                 <SelectTrigger className="h-12 cursor-pointer">
-                  <SelectValue placeholder="Individual or Company" />
+                  <SelectValue placeholder={t("post.selectPosterType")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="individual" className="cursor-pointer">Individual</SelectItem>
-                  <SelectItem value="company" className="cursor-pointer">Company</SelectItem>
+                  <SelectItem value="individual" className="cursor-pointer">{t("post.individual")}</SelectItem>
+                  <SelectItem value="company" className="cursor-pointer">{t("post.company")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -312,44 +307,44 @@ export default function EditListingModal({ service, accessToken, onClose, onSave
           {/* Availability / Language / Mobility */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
-              <Label className="text-base font-medium text-gray-900">Availability</Label>
+              <Label className="text-base font-medium text-gray-900">{t("post.availability")}</Label>
               <Select value={availability} onValueChange={setAvailability}>
                 <SelectTrigger className="h-12 cursor-pointer">
-                  <SelectValue placeholder="Select availability" />
+                  <SelectValue placeholder={t("post.selectAvailability")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="anytime" className="cursor-pointer">Anytime</SelectItem>
-                  <SelectItem value="weekends" className="cursor-pointer">Weekends</SelectItem>
-                  <SelectItem value="weekdays" className="cursor-pointer">Weekdays</SelectItem>
-                  <SelectItem value="evenings" className="cursor-pointer">Evenings</SelectItem>
+                  <SelectItem value="anytime" className="cursor-pointer">{t("post.urgencyAnytime")}</SelectItem>
+                  <SelectItem value="weekends" className="cursor-pointer">{t("post.availabilityWeekends")}</SelectItem>
+                  <SelectItem value="weekdays" className="cursor-pointer">{t("post.availabilityWeekdays")}</SelectItem>
+                  <SelectItem value="evenings" className="cursor-pointer">{t("post.availabilityEvenings")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div className="space-y-2">
-              <Label className="text-base font-medium text-gray-900">Spoken Language</Label>
+              <Label className="text-base font-medium text-gray-900">{t("post.spokenLanguage")}</Label>
               <Select value={language} onValueChange={setLanguage}>
                 <SelectTrigger className="h-12 cursor-pointer">
-                  <SelectValue placeholder="Preferred language" />
+                  <SelectValue placeholder={t("post.preferredLanguage")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="french" className="cursor-pointer">French</SelectItem>
-                  <SelectItem value="english" className="cursor-pointer">English</SelectItem>
-                  <SelectItem value="bilingual" className="cursor-pointer">Bilingual</SelectItem>
+                  <SelectItem value="french" className="cursor-pointer">{t("post.languageFrench")}</SelectItem>
+                  <SelectItem value="english" className="cursor-pointer">{t("post.languageEnglish")}</SelectItem>
+                  <SelectItem value="bilingual" className="cursor-pointer">{t("post.languageBilingual")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div className="space-y-2">
-              <Label className="text-base font-medium text-gray-900">Mobility</Label>
+              <Label className="text-base font-medium text-gray-900">{t("post.mobility")}</Label>
               <Select value={mobility} onValueChange={setMobility}>
                 <SelectTrigger className="h-12 cursor-pointer">
-                  <SelectValue placeholder="Can you travel?" />
+                  <SelectValue placeholder={t("post.canYouTravel")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="yes" className="cursor-pointer">Yes</SelectItem>
-                  <SelectItem value="no" className="cursor-pointer">No</SelectItem>
-                  <SelectItem value="limited" className="cursor-pointer">Limited distance</SelectItem>
+                  <SelectItem value="yes" className="cursor-pointer">{t("post.mobilityYes")}</SelectItem>
+                  <SelectItem value="no" className="cursor-pointer">{t("post.mobilityNo")}</SelectItem>
+                  <SelectItem value="limited" className="cursor-pointer">{t("post.mobilityLimited")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -357,18 +352,18 @@ export default function EditListingModal({ service, accessToken, onClose, onSave
 
           {/* Duration */}
           <div className="space-y-2">
-            <Label className="text-base font-medium text-gray-900">Approx. Job Duration</Label>
+            <Label className="text-base font-medium text-gray-900">{t("post.jobDuration")}</Label>
             <Input
               value={duration}
               onChange={(e) => setDuration(e.target.value)}
-              placeholder="Ex: 2 hours, 1 day, 1 week"
+              placeholder={t("post.jobDurationPlaceholder")}
               className="h-12"
             />
           </div>
 
           {/* Images */}
           <div className="space-y-2">
-            <Label className="text-base font-medium text-gray-900">Photos (optionnel)</Label>
+            <Label className="text-base font-medium text-gray-900">{t("serviceDetail.photos")}</Label>
             <MultiImageUploader images={images} onChange={setImages} aspectRatio={16 / 9} />
           </div>
 
@@ -382,10 +377,8 @@ export default function EditListingModal({ service, accessToken, onClose, onSave
               className="mt-0.5 h-4 w-4 rounded border-gray-300 text-green-600 cursor-pointer"
             />
             <label htmlFor="editHideLocation" className="cursor-pointer">
-              <span className="text-sm font-medium text-gray-800">Hide exact location</span>
-              <p className="text-xs text-gray-500 mt-0.5">
-                Only a general area will be shown on the map. The exact address remains private.
-              </p>
+              <span className="text-sm font-medium text-gray-800">{t("post.hideExactLocation")}</span>
+              <p className="text-xs text-gray-500 mt-0.5">{t("post.hideExactLocationDesc")}</p>
             </label>
           </div>
 
@@ -399,17 +392,15 @@ export default function EditListingModal({ service, accessToken, onClose, onSave
               className="mt-0.5 h-4 w-4 rounded border-gray-300 text-green-600 cursor-pointer"
             />
             <label htmlFor="editIsOneTime" className="cursor-pointer">
-              <span className="text-sm font-medium text-green-800">One-time listing</span>
-              <p className="text-xs text-green-700 mt-0.5">
-                Once a request is accepted, this listing will be hidden and all other pending requests will be automatically declined.
-              </p>
+              <span className="text-sm font-medium text-green-800">{t("post.oneTimeListing")}</span>
+              <p className="text-xs text-green-700 mt-0.5">{t("post.oneTimeListingDesc")}</p>
             </label>
           </div>
         </div>
 
         {/* Footer */}
         <div className="flex shrink-0 justify-end gap-3 border-t border-gray-100 px-6 py-4">
-          <Button variant="outline" onClick={onClose} disabled={saving}>Cancel</Button>
+          <Button variant="outline" onClick={onClose} disabled={saving}>{t("serviceDetail.cancel")}</Button>
           <Button
             className="bg-green-700 hover:bg-green-800 text-white min-w-32"
             onClick={handleSave}
@@ -417,7 +408,7 @@ export default function EditListingModal({ service, accessToken, onClose, onSave
           >
             {success ? (
               <span className="flex items-center gap-2">
-                <CheckCircle className="h-4 w-4" /> Saved!
+                <CheckCircle className="h-4 w-4" /> {t("serviceDetail.saved")}!
               </span>
             ) : saving ? (
               <span className="flex items-center gap-2">
@@ -425,9 +416,9 @@ export default function EditListingModal({ service, accessToken, onClose, onSave
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                 </svg>
-                Saving…
+                {t("profileEdit.saving")}
               </span>
-            ) : "Save Changes"}
+            ) : t("profileEdit.saveChanges")}
           </Button>
         </div>
       </div>

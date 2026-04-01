@@ -28,6 +28,7 @@ import { processAllPayouts, isPayoutDay } from './services/payoutService.js';
 dotenv.config();
 
 const app = express();
+const isProduction = process.env.NODE_ENV === "production";
 const allowedOrigins = [
   "http://localhost:3000",
   "https://uneden.ca",
@@ -36,10 +37,18 @@ const allowedOrigins = [
 ];
 // ── Rate Limiters ─────────────────────────────────────────────────────────────
 
+const shouldSkipRateLimit = (req) => {
+  if (!isProduction) return true;
+
+  const origin = req.get("origin") || "";
+  return origin.startsWith("http://localhost:") || origin.startsWith("http://127.0.0.1:");
+};
+
 // General API — 200 requests per 15 minutes per IP
 const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 200,
+  skip: shouldSkipRateLimit,
   standardHeaders: true,
   legacyHeaders: false,
   message: { message: "Too many requests, please try again later." },
@@ -49,6 +58,7 @@ const generalLimiter = rateLimit({
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 20,
+  skip: shouldSkipRateLimit,
   standardHeaders: true,
   legacyHeaders: false,
   message: { message: "Too many login attempts, please try again later." },
@@ -58,6 +68,7 @@ const authLimiter = rateLimit({
 const searchLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100,
+  skip: shouldSkipRateLimit,
   standardHeaders: true,
   legacyHeaders: false,
   message: { message: "Too many requests, please slow down." },

@@ -30,9 +30,10 @@ interface ProfileSidebarProps {
   isBlocked?: boolean;
   isBlockedByOther?: boolean;
   blockCheckLoading?: boolean;
+  onLoadingChange?: (loading: boolean) => void;
 }
 
-export function ProfileSidebar({ otherUser, onClose, onOpenSettings, isBlocked, isBlockedByOther, blockCheckLoading }: ProfileSidebarProps) {
+export function ProfileSidebar({ otherUser, onClose, onOpenSettings, isBlocked, isBlockedByOther, blockCheckLoading, onLoadingChange }: ProfileSidebarProps) {
   const { t, i18n } = useTranslation();
   useScrollLock(true);
   const [userListings, setUserListings] = useState<any[]>([]);
@@ -42,6 +43,10 @@ export function ProfileSidebar({ otherUser, onClose, onOpenSettings, isBlocked, 
   const [showRatings, setShowRatings] = useState(false);
 
   const sidebarLoading = listingsLoading || reviewsLoading || blockCheckLoading;
+
+  useEffect(() => {
+    onLoadingChange?.(!!sidebarLoading);
+  }, [onLoadingChange, sidebarLoading]);
 
   // Reset quand on change de conversation
   useEffect(() => {
@@ -324,8 +329,10 @@ export function ProfileSidebar({ otherUser, onClose, onOpenSettings, isBlocked, 
       {/* Ratings modal */}
       <Dialog open={showRatings && !!otherUser.id} onOpenChange={setShowRatings}>
         <DialogContent
+          unstyled
           showCloseButton={false}
-          className="mx-2 h-[92vh] w-[calc(100%-1rem)] max-w-5xl overflow-hidden border-0 p-0 sm:mx-4 sm:h-[90vh] sm:w-full sm:rounded-xl"
+          overlayClassName="bg-black/70 backdrop-blur-sm"
+          className="data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed top-1/2 left-1/2 z-50 h-[90vh] w-[min(96vw,64rem)] max-w-5xl -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-xl border-0 bg-white p-0 shadow-lg duration-200"
         >
           <DialogTitle className="sr-only">{t("profile.allRatings", "All Ratings")}</DialogTitle>
           {otherUser.id ? (

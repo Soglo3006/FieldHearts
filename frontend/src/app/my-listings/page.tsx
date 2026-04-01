@@ -7,10 +7,12 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
-import { Plus, Grid3x3, MapPin } from "lucide-react";
+import { Plus, Grid3x3, MapPin, ChevronLeft, ChevronRight } from "lucide-react";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import EditListingModal from "@/components/listings/EditListingModal";
 import { Spinner } from "@/components/ui/Spinner";
+
+const PAGE_SIZE = 9;
 
 interface MyService {
   id: string;
@@ -30,6 +32,65 @@ interface MyService {
   image_url: string | null;
   created_at: string;
   is_active: boolean;
+}
+
+function Pagination({ page, total, onChange }: { page: number; total: number; onChange: (p: number) => void }) {
+  const totalPages = Math.ceil(total / PAGE_SIZE);
+  if (totalPages <= 1) return null;
+
+  const pages: number[] = [];
+  const start = Math.max(1, page - 2);
+  const end = Math.min(totalPages, start + 4);
+  for (let i = start; i <= end; i++) pages.push(i);
+
+  return (
+    <div className="flex items-center justify-center gap-1 mt-6">
+      <button
+        type="button"
+        disabled={page === 1}
+        onClick={() => onChange(page - 1)}
+        className="w-8 h-8 flex items-center justify-center rounded-lg border text-gray-500 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-colors"
+      >
+        <ChevronLeft className="h-4 w-4" />
+      </button>
+
+      {start > 1 && (
+        <>
+          <button type="button" onClick={() => onChange(1)} className="w-8 h-8 flex items-center justify-center rounded-lg border text-sm hover:bg-gray-50 cursor-pointer transition-colors">1</button>
+          {start > 2 && <span className="text-gray-400 text-sm px-1">…</span>}
+        </>
+      )}
+
+      {pages.map((p) => (
+        <button
+          key={p}
+          type="button"
+          onClick={() => onChange(p)}
+          className={`w-8 h-8 flex items-center justify-center rounded-lg border text-sm cursor-pointer transition-colors ${
+            p === page ? "bg-green-700 border-green-700 text-white font-semibold" : "hover:bg-gray-50 text-gray-700"
+          }`}
+        >
+          {p}
+        </button>
+      ))}
+
+      {end < totalPages && (
+        <>
+          {end < totalPages - 1 && <span className="text-gray-400 text-sm px-1">…</span>}
+          <button type="button" onClick={() => onChange(totalPages)} className="w-8 h-8 flex items-center justify-center rounded-lg border text-sm hover:bg-gray-50 cursor-pointer transition-colors">{totalPages}</button>
+        </>
+      )}
+
+      <button
+        type="button"
+        disabled={page === totalPages}
+        onClick={() => onChange(page + 1)}
+        className="w-8 h-8 flex items-center justify-center rounded-lg border text-gray-500 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-colors"
+      >
+        <ChevronRight className="h-4 w-4" />
+      </button>
+    </div>
+  );
 }
 
 function ListingCard({
@@ -75,7 +136,7 @@ function ListingCard({
           </div>
         </div>
 
-        <p className="text-green-700 font-bold text-lg mb-2">${Number(s.price)}</p>
+        <p className="text-green-700 font-bold text-lg mb-2">{Number(s.price).toFixed(2)} $</p>
 
         <div className="flex items-center text-sm text-gray-500 mb-2">
           <MapPin className="h-4 w-4 mr-1 flex-shrink-0" />
@@ -133,6 +194,9 @@ export default function MyListingsPage() {
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [editingService, setEditingService] = useState<MyService | null>(null);
 
+  const [activePage, setActivePage] = useState(1);
+  const [historyPage, setHistoryPage] = useState(1);
+
   useEffect(() => {
     if (authLoading) return;
     if (!user) { router.push("/login"); return; }
@@ -162,6 +226,12 @@ export default function MyListingsPage() {
       setConfirmDeleteId(null);
     }
   };
+
+  const activeListings = listings.filter((s) => s.is_active);
+  const historyListings = listings.filter((s) => !s.is_active);
+
+  const pagedActive = activeListings.slice((activePage - 1) * PAGE_SIZE, activePage * PAGE_SIZE);
+  const pagedHistory = historyListings.slice((historyPage - 1) * PAGE_SIZE, historyPage * PAGE_SIZE);
 
   if (authLoading) {
     return (
@@ -209,13 +279,13 @@ export default function MyListingsPage() {
         ) : (
           <div className="space-y-10">
             {/* Active listings */}
-            {listings.filter((s) => s.is_active).length > 0 && (
+            {activeListings.length > 0 && (
               <div>
                 <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-4">
-                  {t("myListings.active")} ({listings.filter((s) => s.is_active).length})
+                  {t("myListings.active")} ({activeListings.length})
                 </h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {listings.filter((s) => s.is_active).map((s) => (
+                  {pagedActive.map((s) => (
                     <ListingCard
                       key={s.id} s={s}
                       confirmDeleteId={confirmDeleteId} deletingId={deletingId}
@@ -224,17 +294,22 @@ export default function MyListingsPage() {
                     />
                   ))}
                 </div>
+                <Pagination
+                  page={activePage}
+                  total={activeListings.length}
+                  onChange={(p) => { setActivePage(p); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+                />
               </div>
             )}
 
             {/* Historical listings */}
-            {listings.filter((s) => !s.is_active).length > 0 && (
+            {historyListings.length > 0 && (
               <div>
                 <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-4">
-                  {t("myListings.history")} ({listings.filter((s) => !s.is_active).length})
+                  {t("myListings.history")} ({historyListings.length})
                 </h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {listings.filter((s) => !s.is_active).map((s) => (
+                  {pagedHistory.map((s) => (
                     <ListingCard
                       key={s.id} s={s} historical
                       confirmDeleteId={confirmDeleteId} deletingId={deletingId}
@@ -243,6 +318,11 @@ export default function MyListingsPage() {
                     />
                   ))}
                 </div>
+                <Pagination
+                  page={historyPage}
+                  total={historyListings.length}
+                  onChange={(p) => setHistoryPage(p)}
+                />
               </div>
             )}
           </div>

@@ -9,6 +9,7 @@ interface SimilarService {
   title: string;
   price: number;
   location: string;
+  city?: string;
   image_url: string | null;
 }
 
@@ -41,11 +42,13 @@ export default function SimilarServices({ services }: Props) {
                 <p className="font-semibold text-gray-900 line-clamp-1 group-hover:text-green-700 transition-colors">
                   {s.title}
                 </p>
-                <p className="text-green-700 font-bold text-sm mt-1">${s.price}</p>
-                <p className="text-xs text-gray-500 mt-0.5 flex items-center gap-1">
-                  <MapPin className="h-3 w-3 flex-shrink-0" />
-                  {s.location}
-                </p>
+                <p className="text-green-700 font-bold text-sm mt-1">{Number(s.price).toFixed(2)} $</p>
+                {(s.location || s.city) && (
+                  <p className="text-xs text-gray-500 mt-0.5 flex items-center gap-1">
+                    <MapPin className="h-3 w-3 shrink-0" />
+                    <span className="line-clamp-1">{s.location || s.city}</span>
+                  </p>
+                )}
               </div>
             </div>
           </Link>

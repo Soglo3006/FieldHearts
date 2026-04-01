@@ -95,7 +95,7 @@ export default function UserListingsPage() {
                     )}
                   </div>
 
-                  <p className="text-green-700 font-bold text-lg mb-2">${Number(s.price)}</p>
+                  <p className="text-green-700 font-bold text-lg mb-2">{Number(s.price).toFixed(2)} $</p>
 
                   <div className="flex items-center text-sm text-gray-500 mb-2">
                     <MapPin className="h-4 w-4 mr-1 flex-shrink-0" />

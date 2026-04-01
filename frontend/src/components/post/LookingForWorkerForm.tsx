@@ -10,6 +10,7 @@ import CategorySubcategoryFields from "@/components/post/CategorySubcategoryFiel
 import AvailabilityLanguageMobilityFields from "@/components/post/AvailabilityLanguageMobilityFields";
 import OneTimeCheckbox from "@/components/post/OneTimeCheckbox";
 import FormSubmitButton from "@/components/post/FormSubmitButton";
+import PostConfirmModal from "@/components/post/PostConfirmModal";
 import PostSelect from "@/components/post/PostSelect";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
@@ -52,6 +53,7 @@ export default function LookingForWorkerForm({ onSuccess }: Props) {
   const [isOneTime, setIsOneTime] = useState(false);
   const [hideExactLocation, setHideExactLocation] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   const isValid =
     title.trim() !== "" &&
@@ -61,20 +63,24 @@ export default function LookingForWorkerForm({ onSuccess }: Props) {
     Number(budget) > 0 &&
     location.trim() !== "";
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!session?.access_token) {
       toast.error(t("post.mustBeLoggedInJob"));
       router.push("/login");
       return;
     }
+    setConfirmOpen(true);
+  };
+
+  const doSubmit = async () => {
     setSubmitting(true);
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/services`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${session.access_token}`,
+          Authorization: `Bearer ${session!.access_token}`,
         },
         body: JSON.stringify({
           type: "looking",
@@ -106,6 +112,7 @@ export default function LookingForWorkerForm({ onSuccess }: Props) {
         throw new Error(err.message || "Failed to create job request");
       }
       const data = await res.json();
+      setConfirmOpen(false);
       onSuccess(data.id);
     } catch (error: unknown) {
       toast.error(t("post.failedPostJob", { message: error instanceof Error ? error.message : String(error) }));
@@ -115,6 +122,7 @@ export default function LookingForWorkerForm({ onSuccess }: Props) {
   };
 
   return (
+    <>
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="space-y-2">
         <Label htmlFor="jobTitle" className="text-base font-medium text-gray-900">
@@ -249,5 +257,19 @@ export default function LookingForWorkerForm({ onSuccess }: Props) {
         note={t("post.jobPublicNote")}
       />
     </form>
+
+    <PostConfirmModal
+      open={confirmOpen}
+      type="looking"
+      title={title}
+      price={budget}
+      location={location}
+      category={category}
+      subcategory={subcategory}
+      submitting={submitting}
+      onConfirm={doSubmit}
+      onCancel={() => setConfirmOpen(false)}
+    />
+    </>
   );
 }

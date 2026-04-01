@@ -167,7 +167,7 @@ export function MessageBubble({
   <div className="flex items-end gap-2">
     {/* Avatar pour les messages de l'autre personne */}
     {!isOwn && (
-      <Avatar className="h-8 w-8 flex-shrink-0">
+      <Avatar className="h-8 w-8 shrink-0">
         {otherUser?.avatar_url ? (
           <AvatarImage src={otherUser.avatar_url} />
         ) : null}
@@ -223,7 +223,7 @@ export function MessageBubble({
                   value={editedContent}
                   onChange={(e) => setEditedContent(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  className={`min-h-[60px] text-sm resize-none ${
+                  className={`min-h-15 text-sm resize-none ${
                     isOwn ? 'bg-green-600 text-white placeholder:text-green-200' : 'bg-white'
                   }`}
                   placeholder="Modifier le message..."
@@ -252,7 +252,7 @@ export function MessageBubble({
             ) : (
               <>
                 {/* MODE LECTURE */}
-                <div className="text-sm break-words">
+                <div className="text-sm wrap-break-word">
                   {content === 'Message supprimé' ? (
                     <span className="italic text-gray-400">{content}</span>
                   ) : (
@@ -265,11 +265,8 @@ export function MessageBubble({
                 </div>
 
                 {isPinned && content !== 'Message supprimé' && (
-                  <div className="flex items-center gap-1 mt-1">
-                    <Pin className={`h-3 w-3 ${isOwn ? 'text-green-200' : 'text-blue-600'}`} />
-                    <span className={`text-xs ${isOwn ? 'text-green-200' : 'text-blue-600'}`}>
-                      Épinglé
-                    </span>
+                  <div className="absolute -top-2 -right-2 rounded-full bg-white p-1 shadow-sm ring-1 ring-gray-100">
+                    <Pin className="h-3 w-3 text-green-700" />
                   </div>
                 )}
 

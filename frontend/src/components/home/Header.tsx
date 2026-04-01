@@ -47,6 +47,112 @@ interface SearchResult {
   subcategory: string | null;
 }
 
+interface UserDropdownProps {
+  avatarUrl: string;
+  displayName: string | undefined;
+  fallbackInitial: string;
+  unseenCount: number;
+  profileData: { account_type?: string; full_name?: string; company_name?: string; avatar?: string; profession?: string; industry?: string; } | null;
+  isPerson: boolean;
+  isCompany: boolean;
+  user: { id: string; email?: string } | null;
+  setShowSettings: (v: boolean) => void;
+  setShowSupport: (v: boolean) => void;
+  handleSignOut: () => void;
+}
+
+function UserDropdown({ avatarUrl, displayName, fallbackInitial, unseenCount, profileData, isPerson, isCompany, user, setShowSettings, setShowSupport, handleSignOut }: UserDropdownProps) {
+  const { t } = useTranslation();
+  return (
+    <DropdownMenu modal={false}>
+      <DropdownMenuTrigger asChild>
+        <div className="relative cursor-pointer">
+          <Avatar className="h-9 w-9 lg:h-10 lg:w-10 border-4 border-white shadow-lg">
+            <AvatarImage src={avatarUrl} alt={displayName || "User"} />
+            <AvatarFallback className="text-sm bg-green-100 text-green-800 font-semibold">{fallbackInitial}</AvatarFallback>
+          </Avatar>
+          {unseenCount > 0 && (
+            <span className="absolute -top-1 -right-1 h-4 w-4 bg-red-500 rounded-full flex items-center justify-center text-[10px] font-bold text-white ring-2 ring-white">
+              {unseenCount > 9 ? "9+" : unseenCount}
+            </span>
+          )}
+        </div>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-64">
+        <div className="px-2 py-2">
+          <div className="flex items-center gap-2 mb-1">
+            <p className="text-sm font-medium">{displayName || user?.email}</p>
+          </div>
+          <p className="text-xs text-gray-500">{user?.email}</p>
+          {profileData && (
+            <p className="text-xs text-gray-400 mt-1">
+              {isPerson && profileData.profession && <span>{profileData.profession}</span>}
+              {isCompany && profileData.industry && <span>{profileData.industry}</span>}
+            </p>
+          )}
+        </div>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem asChild>
+          <Link href="/wallet" className="cursor-pointer flex items-center">
+            <Wallet className="mr-2 h-4 w-4" />
+            <span>{t("header.wallet")}</span>
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link href="/my-listings" className="cursor-pointer flex items-center">
+            <List className="mr-2 h-4 w-4" />
+            <span>{t("header.listings")}</span>
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link href="/bookings" className="cursor-pointer flex items-center">
+            <CalendarDays className="mr-2 h-4 w-4" />
+            <span>{t("header.bookings")}</span>
+            {unseenCount > 0 && (
+              <span className="ml-auto h-5 min-w-5 px-1 bg-red-500 rounded-full flex items-center justify-center text-[10px] font-bold text-white">
+                {unseenCount > 9 ? "9+" : unseenCount}
+              </span>
+            )}
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link href={`/profile/${user?.id}`} className="cursor-pointer flex items-center">
+            {isPerson ? <User className="mr-2 h-4 w-4" /> : <Building2 className="mr-2 h-4 w-4" />}
+            <span>{t("header.profile")}</span>
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <div className="cursor-pointer flex items-center" onClick={() => setShowSettings(true)}>
+            <Settings className="mr-2 h-4 w-4" />
+            <span>{t("header.settings")}</span>
+          </div>
+        </DropdownMenuItem>
+        {isAdminUser(user as Parameters<typeof isAdminUser>[0]) && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem asChild>
+              <Link href="/admin" className="cursor-pointer flex items-center text-green-700">
+                <ShieldCheck className="mr-2 h-4 w-4" />
+                <span>Admin</span>
+              </Link>
+            </DropdownMenuItem>
+          </>
+        )}
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => setShowSupport(true)} className="cursor-pointer">
+          <MessageSquareText className="mr-2 h-4 w-4" />
+          <span>{t("support.button")}</span>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer text-red-600 focus:text-red-600">
+          <LogOut className="mr-2 h-4 w-4" />
+          <span>{t("header.logOut")}</span>
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 export default function Header() {
   const { t, i18n } = useTranslation();
   const { user, signOut, session } = useAuth();
@@ -310,98 +416,9 @@ export default function Header() {
         ? t("header.hireWorker")
         : t("header.postType");
 
-  const UserDropdown = () => (
-    <DropdownMenu modal={false}>
-      <DropdownMenuTrigger asChild>
-        <div className="relative cursor-pointer">
-          <Avatar className="h-9 w-9 lg:h-10 lg:w-10 border-4 border-white shadow-lg">
-            <AvatarImage src={avatarUrl} alt={displayName || "User"} />
-            <AvatarFallback className="text-sm bg-green-100 text-green-800 font-semibold">{fallbackInitial}</AvatarFallback>
-          </Avatar>
-          {unseenCount > 0 && (
-            <span className="absolute -top-1 -right-1 h-4 w-4 bg-red-500 rounded-full flex items-center justify-center text-[10px] font-bold text-white ring-2 ring-white">
-              {unseenCount > 9 ? "9+" : unseenCount}
-            </span>
-          )}
-        </div>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-64">
-        <div className="px-2 py-2">
-          <div className="flex items-center gap-2 mb-1">
-            <p className="text-sm font-medium">{displayName || user?.email}</p>
-          </div>
-          <p className="text-xs text-gray-500">{user?.email}</p>
-          {profileData && (
-            <p className="text-xs text-gray-400 mt-1">
-              {isPerson && profileData.profession && <span>{profileData.profession}</span>}
-              {isCompany && profileData.industry && <span>{profileData.industry}</span>}
-            </p>
-          )}
-        </div>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem asChild>
-          <Link href="/wallet" className="cursor-pointer flex items-center">
-            <Wallet className="mr-2 h-4 w-4" />
-            <span>{t("header.wallet")}</span>
-          </Link>
-        </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <Link href="/my-listings" className="cursor-pointer flex items-center">
-            <List className="mr-2 h-4 w-4" />
-            <span>{t("header.listings")}</span>
-          </Link>
-        </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <Link href="/bookings" className="cursor-pointer flex items-center">
-            <CalendarDays className="mr-2 h-4 w-4" />
-            <span>{t("header.bookings")}</span>
-          {unseenCount > 0 && (
-              <span className="ml-auto h-5 min-w-5 px-1 bg-red-500 rounded-full flex items-center justify-center text-[10px] font-bold text-white">
-                {unseenCount > 9 ? "9+" : unseenCount}
-              </span>
-            )}
-          </Link>
-        </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <Link href={`/profile/${user?.id}`} className="cursor-pointer flex items-center">
-            {isPerson ? <User className="mr-2 h-4 w-4" /> : <Building2 className="mr-2 h-4 w-4" />}
-            <span>{t("header.profile")}</span>
-          </Link>
-        </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <div className="cursor-pointer flex items-center" onClick={() => setShowSettings(true)}>
-            <Settings className="mr-2 h-4 w-4" />
-            <span>{t("header.settings")}</span>
-          </div>
-        </DropdownMenuItem>
-        {isAdminUser(user) && (
-          <>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem asChild>
-              <Link href="/admin" className="cursor-pointer flex items-center text-green-700">
-                <ShieldCheck className="mr-2 h-4 w-4" />
-                <span>Admin</span>
-              </Link>
-            </DropdownMenuItem>
-          </>
-        )}
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => setShowSupport(true)} className="cursor-pointer">
-          <MessageSquareText className="mr-2 h-4 w-4" />
-          <span>{t("support.button")}</span>
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer text-red-600 focus:text-red-600">
-          <LogOut className="mr-2 h-4 w-4" />
-          <span>{t("header.logOut")}</span>
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-
   return (
     <>
-      <div className="relative z-40 w-full border-b border-gray-200 shadow-sm bg-white overflow-x-hidden">
+      <div className="relative z-40 w-full border-b border-gray-200 shadow-sm bg-white overflow-x-hidden scroll-lock-aware">
         <div className="max-w-7xl mx-auto px-4">
 
           {/* ── RANGÉE 1 : Logo + Search + actions droite ── */}
@@ -495,7 +512,19 @@ export default function Header() {
               {/* md+: avatar dropdown */}
               <div className="hidden md:flex items-center gap-2">
                 {user ? (
-                  <UserDropdown />
+                  <UserDropdown
+                    avatarUrl={avatarUrl}
+                    displayName={displayName}
+                    fallbackInitial={fallbackInitial}
+                    unseenCount={unseenCount}
+                    profileData={profileData}
+                    isPerson={isPerson}
+                    isCompany={isCompany}
+                    user={user}
+                    setShowSettings={setShowSettings}
+                    setShowSupport={setShowSupport}
+                    handleSignOut={handleSignOut}
+                  />
                 ) : (
                   <Link href="/login">
                     <Button variant="outline" size="sm" className="cursor-pointer">
@@ -787,8 +816,9 @@ export default function Header() {
 
         <Dialog open={showSettings} onOpenChange={setShowSettings}>
           <DialogContent
+            unstyled
             showCloseButton={false}
-            className="mx-2 h-[94vh] w-[calc(100%-1rem)] max-w-6xl overflow-hidden border-0 p-0 sm:mx-4 sm:h-[90vh] sm:w-full sm:rounded-xl"
+            className="data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed top-1/2 left-1/2 z-50 h-[90vh] w-[min(96vw,72rem)] max-w-6xl -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-xl border-0 bg-white p-0 shadow-lg duration-200"
           >
             <DialogTitle className="sr-only">{t("settings.title")}</DialogTitle>
             <div ref={settingsScrollRef} className="h-full overflow-y-auto">

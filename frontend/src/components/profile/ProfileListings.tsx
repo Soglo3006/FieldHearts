@@ -9,9 +9,11 @@ import { AspectRatio } from "@/components/ui/aspect-ratio";
 import {
   Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious,
 } from "@/components/ui/carousel";
-import { Grid3x3, MapPin } from "lucide-react";
+import { Grid3x3, MapPin, ChevronLeft, ChevronRight } from "lucide-react";
 import EditListingModal, { type Service as Listing } from "@/components/listings/EditListingModal";
 import { Spinner } from "@/components/ui/Spinner";
+
+const PAGE_SIZE = 9;
 
 interface Props {
   userListings: Listing[];
@@ -23,6 +25,65 @@ interface Props {
   accessToken?: string;
 }
 
+function Pagination({ page, total, onChange }: { page: number; total: number; onChange: (p: number) => void }) {
+  const totalPages = Math.ceil(total / PAGE_SIZE);
+  if (totalPages <= 1) return null;
+
+  const pages: number[] = [];
+  const start = Math.max(1, page - 2);
+  const end = Math.min(totalPages, start + 4);
+  for (let i = start; i <= end; i++) pages.push(i);
+
+  return (
+    <div className="flex items-center justify-center gap-1 mt-6">
+      <button
+        type="button"
+        disabled={page === 1}
+        onClick={() => onChange(page - 1)}
+        className="w-8 h-8 flex items-center justify-center rounded-lg border text-gray-500 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-colors"
+      >
+        <ChevronLeft className="h-4 w-4" />
+      </button>
+
+      {start > 1 && (
+        <>
+          <button type="button" onClick={() => onChange(1)} className="w-8 h-8 flex items-center justify-center rounded-lg border text-sm hover:bg-gray-50 cursor-pointer transition-colors">1</button>
+          {start > 2 && <span className="text-gray-400 text-sm px-1">…</span>}
+        </>
+      )}
+
+      {pages.map((p) => (
+        <button
+          key={p}
+          type="button"
+          onClick={() => onChange(p)}
+          className={`w-8 h-8 flex items-center justify-center rounded-lg border text-sm cursor-pointer transition-colors ${
+            p === page ? "bg-green-700 border-green-700 text-white font-semibold" : "hover:bg-gray-50 text-gray-700"
+          }`}
+        >
+          {p}
+        </button>
+      ))}
+
+      {end < totalPages && (
+        <>
+          {end < totalPages - 1 && <span className="text-gray-400 text-sm px-1">…</span>}
+          <button type="button" onClick={() => onChange(totalPages)} className="w-8 h-8 flex items-center justify-center rounded-lg border text-sm hover:bg-gray-50 cursor-pointer transition-colors">{totalPages}</button>
+        </>
+      )}
+
+      <button
+        type="button"
+        disabled={page === totalPages}
+        onClick={() => onChange(page + 1)}
+        className="w-8 h-8 flex items-center justify-center rounded-lg border text-gray-500 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-colors"
+      >
+        <ChevronRight className="h-4 w-4" />
+      </button>
+    </div>
+  );
+}
+
 export default function ProfileListings({
   userListings, setUserListings, listingsLoading,
   isOwner, isPerson, profileId, accessToken,
@@ -31,6 +92,7 @@ export default function ProfileListings({
   const [editingListing, setEditingListing] = useState<Listing | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
 
   const deleteListing = async (id: string) => {
     setDeletingId(id);
@@ -48,10 +110,90 @@ export default function ProfileListings({
     }
   };
 
+  // Use carousel for ≤9, paginated grid for >9
+  const usePagination = userListings.length > PAGE_SIZE;
+  const pagedListings = usePagination
+    ? userListings.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+    : userListings;
+
+  const ListingCardContent = (listing: Listing) => (
+    <div className="border rounded-xl shadow-sm bg-white h-full flex flex-col overflow-hidden hover:shadow-lg transition-all">
+      <Link href={`/serviceDetail/${listing.id}`} className="block">
+        <AspectRatio ratio={16 / 9}>
+          {listing.image_url ? (
+            <img src={listing.image_url} alt={listing.title} className="w-full h-full object-cover" />
+          ) : (
+            <div className="w-full h-full bg-gray-100 flex items-center justify-center">
+              <Grid3x3 className="h-12 w-12 text-gray-300" />
+            </div>
+          )}
+        </AspectRatio>
+      </Link>
+
+      <div className="p-4 flex flex-col flex-1">
+        <div className="flex items-center gap-2 mb-2">
+          <Link href={`/serviceDetail/${listing.id}`} className="flex-1">
+            <h3 className="font-semibold text-gray-900 line-clamp-1 hover:text-green-700 transition-colors">
+              {listing.title}
+            </h3>
+          </Link>
+          {listing.type === "looking" && (
+            <Badge className="bg-blue-100 text-blue-700 text-xs shrink-0 border-0">
+              {t("listings.looking")}
+            </Badge>
+          )}
+        </div>
+
+        <p className="text-green-700 font-bold text-lg mb-2">{Number(listing.price).toFixed(2)} $</p>
+
+        <div className="flex items-center text-sm text-gray-500 mb-2">
+          <MapPin className="h-4 w-4 mr-1 shrink-0" />
+          <span className="line-clamp-1">{listing.location}</span>
+        </div>
+
+        {listing.category && (
+          <p className="text-xs text-gray-500 line-clamp-1 mb-3">
+            {listing.category}{listing.subcategory && ` • ${listing.subcategory}`}
+          </p>
+        )}
+
+        {isOwner && (
+          <div className="mt-auto pt-3 border-t border-gray-100 flex gap-2">
+            <Button size="sm" variant="outline" className="gap-1.5 flex-1" onClick={() => setEditingListing(listing)}>
+              {t("common.edit")}
+            </Button>
+            {confirmDeleteId === listing.id ? (
+              <>
+                <Button
+                  size="sm"
+                  className="bg-red-600 hover:bg-red-700 text-white flex-1"
+                  onClick={() => deleteListing(listing.id)}
+                  disabled={deletingId === listing.id}
+                >
+                  {deletingId === listing.id ? "…" : t("common.confirm")}
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => setConfirmDeleteId(null)}>✕</Button>
+              </>
+            ) : (
+              <Button
+                size="sm"
+                variant="outline"
+                className="text-red-600 border-red-200 hover:bg-red-50 gap-1.5 flex-1"
+                onClick={() => setConfirmDeleteId(listing.id)}
+              >
+                {t("common.delete")}
+              </Button>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
   return (
     <>
       <Card className="p-4 sm:p-6">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
             {isPerson ? t("profile.listings") : t("profile.ourServices")}
           </h2>
@@ -70,99 +212,46 @@ export default function ProfileListings({
           </div>
         ) : userListings.length > 0 ? (
           <>
-            <Carousel opts={{ align: "start", loop: false }} className="w-full">
-              <CarouselContent className="-ml-4">
-                {userListings.map((listing) => (
-                  <CarouselItem key={listing.id} className="pl-4 md:basis-1/2 lg:basis-1/3">
-                    <div className="border rounded-xl shadow-sm bg-white h-full flex flex-col overflow-hidden hover:shadow-lg transition-all">
-                      <Link href={`/serviceDetail/${listing.id}`} className="block">
-                        <AspectRatio ratio={16 / 9}>
-                          {listing.image_url ? (
-                            <img src={listing.image_url} alt={listing.title} className="w-full h-full object-cover" />
-                          ) : (
-                            <div className="w-full h-full bg-gray-100 flex items-center justify-center">
-                              <Grid3x3 className="h-12 w-12 text-gray-300" />
-                            </div>
-                          )}
-                        </AspectRatio>
-                      </Link>
+            {usePagination ? (
+              /* — Paginated grid (>9 listings) — */
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {pagedListings.map((listing) => (
+                    <div key={listing.id}>{ListingCardContent(listing)}</div>
+                  ))}
+                </div>
+                <Pagination page={page} total={userListings.length} onChange={setPage} />
+              </>
+            ) : (
+              /* — Carousel (≤9 listings) — */
+              <>
+                <Carousel opts={{ align: "start", loop: false }} className="w-full">
+                  <CarouselContent className="-ml-4">
+                    {userListings.map((listing) => (
+                      <CarouselItem key={listing.id} className="pl-4 md:basis-1/2 lg:basis-1/3">
+                        {ListingCardContent(listing)}
+                      </CarouselItem>
+                    ))}
+                  </CarouselContent>
+                  {userListings.length > 3 && (
+                    <>
+                      <CarouselPrevious className="hidden md:flex -left-4 cursor-pointer" />
+                      <CarouselNext className="hidden md:flex -right-4 cursor-pointer" />
+                    </>
+                  )}
+                </Carousel>
 
-                      <div className="p-4 flex flex-col flex-1">
-                        <div className="flex items-center gap-2 mb-2">
-                          <Link href={`/serviceDetail/${listing.id}`} className="flex-1">
-                            <h3 className="font-semibold text-gray-900 line-clamp-1 hover:text-green-700 transition-colors">
-                              {listing.title}
-                            </h3>
-                          </Link>
-                          {listing.type === "looking" && (
-                            <Badge className="bg-blue-100 text-blue-700 text-xs shrink-0 border-0">
-                              {t("listings.looking")}
-                            </Badge>
-                          )}
-                        </div>
-
-                        <p className="text-green-700 font-bold text-lg mb-2">${listing.price}</p>
-
-                        <div className="flex items-center text-sm text-gray-500 mb-2">
-                          <MapPin className="h-4 w-4 mr-1 shrink-0" />
-                          <span className="line-clamp-1">{listing.location}</span>
-                        </div>
-
-                        {listing.category && (
-                          <p className="text-xs text-gray-500 line-clamp-1 mb-3">
-                            {listing.category}{listing.subcategory && ` • ${listing.subcategory}`}
-                          </p>
-                        )}
-
-                        {isOwner && (
-                          <div className="mt-auto pt-3 border-t border-gray-100 flex gap-2">
-                            <Button size="sm" variant="outline" className="gap-1.5 flex-1" onClick={() => setEditingListing(listing)}>
-                              {t("common.edit")}
-                            </Button>
-                            {confirmDeleteId === listing.id ? (
-                              <>
-                                <Button
-                                  size="sm"
-                                  className="bg-red-600 hover:bg-red-700 text-white flex-1"
-                                  onClick={() => deleteListing(listing.id)}
-                                  disabled={deletingId === listing.id}
-                                >
-                                  {deletingId === listing.id ? "…" : t("common.confirm")}
-                                </Button>
-                                <Button size="sm" variant="outline" onClick={() => setConfirmDeleteId(null)}>✕</Button>
-                              </>
-                            ) : (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="text-red-600 border-red-200 hover:bg-red-50 gap-1.5 flex-1"
-                                onClick={() => setConfirmDeleteId(listing.id)}
-                              >
-                                {t("common.delete")}
-                              </Button>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </CarouselItem>
-                ))}
-              </CarouselContent>
-              {userListings.length > 3 && (
-                <>
-                  <CarouselPrevious className="hidden md:flex -left-4 cursor-pointer" />
-                  <CarouselNext className="hidden md:flex -right-4 cursor-pointer" />
-                </>
-              )}
-            </Carousel>
-
-            <div className="mt-2">
-              <Link href={isOwner ? "/my-listings" : `/profile/${profileId}/listings`}>
-                <Button variant="outline" className="w-full cursor-pointer">
-                  {isOwner ? t("profile.manageListings") : t("profile.viewAllListingsCount", { count: userListings.length })}
-                </Button>
-              </Link>
-            </div>
+                {isOwner && (
+                  <div className="mt-4">
+                    <Link href="/my-listings">
+                      <Button variant="outline" className="w-full cursor-pointer">
+                        {t("profile.manageListings")}
+                      </Button>
+                    </Link>
+                  </div>
+                )}
+              </>
+            )}
           </>
         ) : (
           <div className="text-center py-12">

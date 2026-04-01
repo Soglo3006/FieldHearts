@@ -1,5 +1,8 @@
 "use client";
 
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/contexts/AuthContext";
 import { useTranslation } from "react-i18next";
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
@@ -42,6 +45,16 @@ function LanguageToggle() {
 
 export default function ChooseTypePage() {
   const { t } = useTranslation();
+  const { user, loading } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!loading && user?.user_metadata?.profile_completed) {
+      router.replace("/");
+    }
+  }, [user, loading, router]);
+
+  if (loading || user?.user_metadata?.profile_completed) return null;
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4 bg-gray-50 relative">

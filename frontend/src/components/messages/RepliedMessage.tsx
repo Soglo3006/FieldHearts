@@ -1,6 +1,6 @@
 "use client";
 
-import { Mic, FileText, Image } from 'lucide-react';
+import { Mic, FileText } from 'lucide-react';
 import { sanitizeMessage } from '@/lib/sanitize';
 
 interface RepliedMessageProps {
@@ -37,7 +37,7 @@ export function RepliedMessage({ repliedTo, onMessageClick }: RepliedMessageProp
 
       <div className="flex items-center gap-2">
         {preview.type === 'image' && (
-          <img src={preview.url} alt="Preview" className="w-10 h-10 rounded object-cover flex-shrink-0" />
+          <img src={preview.url} alt="Preview" className="w-10 h-10 rounded object-cover shrink-0" />
         )}
 
         <div className="flex-1 min-w-0 flex items-center gap-1 overflow-hidden">
@@ -45,7 +45,7 @@ export function RepliedMessage({ repliedTo, onMessageClick }: RepliedMessageProp
             <><Mic className="h-3.5 w-3.5 shrink-0 text-gray-400" /><span className="text-sm text-gray-600">Message vocal</span></>
           )}
           {preview.type === 'image' && (
-            <><Image className="h-3.5 w-3.5 shrink-0 text-gray-400" /><span className="text-sm text-gray-600">Photo</span></>
+            <span className="text-sm text-gray-600">Photo</span>
           )}
           {preview.type === 'file' && (
             <><FileText className="h-3.5 w-3.5 shrink-0 text-gray-400" /><span className="text-sm text-gray-600">Fichier</span></>

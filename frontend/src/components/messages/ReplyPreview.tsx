@@ -1,6 +1,6 @@
 "use client";
 
-import { X, Mic, FileText, Image } from 'lucide-react';
+import { X, Mic, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { sanitizeMessage } from '@/lib/sanitize';
 
@@ -34,14 +34,14 @@ export function ReplyPreview({ repliedMessage, onCancel }: ReplyPreviewProps) {
     <div className="border-t border-gray-200 bg-gray-50 px-4 py-3 overflow-hidden">
       <div className="flex items-start gap-2 min-w-0">
         {/* Barre verticale verte */}
-        <div className="w-1 bg-green-700 rounded-full self-stretch flex-shrink-0" />
+        <div className="w-1 bg-green-700 rounded-full self-stretch shrink-0" />
 
         {/* Miniature image si applicable */}
         {preview.type === 'image' && (
           <img
             src={preview.url}
             alt="Preview"
-            className="w-12 h-12 rounded object-cover flex-shrink-0"
+            className="w-12 h-12 rounded object-cover shrink-0"
           />
         )}
 
@@ -55,7 +55,7 @@ export function ReplyPreview({ repliedMessage, onCancel }: ReplyPreviewProps) {
               <><Mic className="h-3.5 w-3.5 shrink-0 text-gray-400" /><span className="text-sm text-gray-600">Message vocal</span></>
             )}
             {preview.type === 'image' && (
-              <><Image className="h-3.5 w-3.5 shrink-0 text-gray-400" /><span className="text-sm text-gray-600">Photo</span></>
+              <span className="text-sm text-gray-600">Photo</span>
             )}
             {preview.type === 'file' && (
               <><FileText className="h-3.5 w-3.5 shrink-0 text-gray-400" /><span className="text-sm text-gray-600">Fichier</span></>
@@ -74,7 +74,7 @@ export function ReplyPreview({ repliedMessage, onCancel }: ReplyPreviewProps) {
           variant="ghost"
           size="icon"
           onClick={onCancel}
-          className="h-6 w-6 text-gray-400 hover:text-gray-600 flex-shrink-0 cursor-pointer"
+          className="h-6 w-6 text-gray-400 hover:text-gray-600 shrink-0 cursor-pointer"
         >
           <X className="h-4 w-4" />
         </Button>

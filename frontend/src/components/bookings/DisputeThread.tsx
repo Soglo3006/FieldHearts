@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { AlertTriangle, ImagePlus, Send, X, Loader2, Lock } from "lucide-react";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
 
 interface Attachment { url: string; name: string; }
 
@@ -34,6 +35,7 @@ interface Props {
 }
 
 export default function DisputeThread({ bookingId, currentUserId, accessToken }: Props) {
+  const { t, i18n } = useTranslation();
   const [dispute, setDispute] = useState<Dispute | null>(null);
   const [messages, setMessages] = useState<DisputeMessage[]>([]);
   const [loading, setLoading] = useState(true);
@@ -113,7 +115,7 @@ export default function DisputeThread({ bookingId, currentUserId, accessToken }:
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        toast.error(err.message || "Failed to send message.");
+        toast.error(err.message || t("disputeThread.sendError"));
         return;
       }
       const msg = await res.json();
@@ -139,24 +141,25 @@ export default function DisputeThread({ bookingId, currentUserId, accessToken }:
   if (!dispute) return null;
 
   const isClosed = dispute.status !== "open";
+  const timeLocale = i18n.language?.startsWith("fr") ? "fr-FR" : "en-CA";
 
   return (
     <div className="border border-red-200 rounded-xl overflow-hidden bg-red-50/30">
       {/* Header */}
       <div className="flex items-center gap-2 px-4 py-3 bg-red-50 border-b border-red-200">
         <AlertTriangle className="h-4 w-4 text-red-600 shrink-0" />
-        <span className="text-sm font-semibold text-red-800">Complaint</span>
+        <span className="text-sm font-semibold text-red-800">{t("disputeThread.title")}</span>
         <span className={`ml-auto text-xs font-medium px-2 py-0.5 rounded-full ${
           isClosed ? "bg-gray-100 text-gray-500" : "bg-red-100 text-red-700"
         }`}>
-          {isClosed ? "Closed" : "Open"}
+          {isClosed ? t("disputeThread.closed") : t("disputeThread.open")}
         </span>
       </div>
 
       {/* Messages */}
       <div className="max-h-72 overflow-y-auto px-4 py-3 space-y-3">
         {messages.length === 0 && (
-          <p className="text-xs text-gray-400 text-center py-4">No messages yet.</p>
+          <p className="text-xs text-gray-400 text-center py-4">{t("disputeThread.noMessages")}</p>
         )}
         {messages.map((msg) => {
           const isOwn = msg.user_id === currentUserId;
@@ -169,9 +172,9 @@ export default function DisputeThread({ bookingId, currentUserId, accessToken }:
               </Avatar>
               <div className={`max-w-[75%] space-y-1 ${isOwn ? "items-end" : "items-start"} flex flex-col`}>
                 <span className="text-[10px] text-gray-400">
-                  {isOwn ? "You" : msg.sender_name}
+                  {isOwn ? t("disputeThread.you") : msg.sender_name}
                   {" · "}
-                  {new Date(msg.created_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+                  {new Date(msg.created_at).toLocaleTimeString(timeLocale, { hour: "2-digit", minute: "2-digit" })}
                 </span>
                 {msg.content && (
                   <div className={`text-sm px-3 py-2 rounded-2xl leading-relaxed whitespace-pre-wrap ${
@@ -205,7 +208,7 @@ export default function DisputeThread({ bookingId, currentUserId, accessToken }:
       {/* Admin resolution note */}
       {dispute.resolution && (
         <div className="mx-4 mb-3 px-3 py-2 bg-green-50 border border-green-200 rounded-lg text-xs text-green-800">
-          <span className="font-semibold">Admin decision: </span>{dispute.resolution}
+          <span className="font-semibold">{t("disputeThread.adminDecision")}</span>{dispute.resolution}
         </div>
       )}
 
@@ -213,7 +216,7 @@ export default function DisputeThread({ bookingId, currentUserId, accessToken }:
       {isClosed ? (
         <div className="flex items-center justify-center gap-2 py-3 border-t border-red-200 text-xs text-gray-400">
           <Lock className="h-3.5 w-3.5" />
-          This complaint is closed. No more messages can be sent.
+          {t("disputeThread.closedNotice")}
         </div>
       ) : (
         <div className="border-t border-red-200 px-3 py-3 space-y-2 bg-white">
@@ -222,9 +225,11 @@ export default function DisputeThread({ bookingId, currentUserId, accessToken }:
             <div className="flex gap-2 flex-wrap">
               {previews.map((src, i) => (
                 <div key={i} className="relative">
-                  <img src={src} className="h-16 w-16 object-cover rounded-lg border border-gray-200" />
+                  <img src={src} alt={t("disputeThread.selectedPhoto", { number: i + 1 })} className="h-16 w-16 object-cover rounded-lg border border-gray-200" />
                   <button
                     onClick={() => removePhoto(i)}
+                    aria-label={t("common.delete")}
+                    title={t("common.delete")}
                     className="absolute -top-1 -right-1 bg-gray-800 text-white rounded-full h-4 w-4 flex items-center justify-center"
                   >
                     <X className="h-2.5 w-2.5" />
@@ -237,8 +242,8 @@ export default function DisputeThread({ bookingId, currentUserId, accessToken }:
             <Textarea
               value={content}
               onChange={(e) => setContent(e.target.value)}
-              placeholder="Write a reply…"
-              className="resize-none min-h-[60px] text-sm flex-1"
+              placeholder={t("disputeThread.replyPlaceholder")}
+              className="resize-none min-h-15 text-sm flex-1"
               onKeyDown={(e) => {
                 if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handleSend();
               }}
@@ -250,6 +255,8 @@ export default function DisputeThread({ bookingId, currentUserId, accessToken }:
                 accept="image/*"
                 multiple
                 className="hidden"
+                aria-label={t("disputeThread.addPhotos")}
+                title={t("disputeThread.addPhotos")}
                 onChange={(e) => handlePhotos(e.target.files)}
               />
               <Button
@@ -258,7 +265,7 @@ export default function DisputeThread({ bookingId, currentUserId, accessToken }:
                 className="h-8 w-8"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={photos.length >= 4 || sending}
-                title="Add photos (max 4)"
+                title={t("disputeThread.addPhotos")}
               >
                 <ImagePlus className="h-4 w-4" />
               </Button>
@@ -272,7 +279,7 @@ export default function DisputeThread({ bookingId, currentUserId, accessToken }:
               </Button>
             </div>
           </div>
-          {uploading && <p className="text-xs text-gray-400">Uploading photos…</p>}
+          {uploading && <p className="text-xs text-gray-400">{t("disputeThread.uploadingPhotos")}</p>}
         </div>
       )}
     </div>

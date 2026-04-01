@@ -226,7 +226,7 @@ export function MessageInput({
         <div className="mb-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
           <div className="flex items-center gap-3">
             {attachmentPreview ? (
-              <img src={attachmentPreview} alt="Preview" className="h-16 w-16 object-cover rounded" />
+              <img src={attachmentPreview} alt={t('common.preview')} className="h-16 w-16 object-cover rounded" />
             ) : (
               <div className="h-16 w-16 bg-gray-200 rounded flex items-center justify-center">
                 <span className="text-xs text-gray-500">PDF</span>
@@ -236,7 +236,7 @@ export function MessageInput({
               <p className="text-sm font-medium text-gray-900 truncate">{attachedFile.name}</p>
               <p className="text-xs text-gray-500">{(attachedFile.size / 1024).toFixed(1)} KB</p>
             </div>
-            <Button variant="ghost" size="icon" onClick={onRemoveAttachment} className="text-gray-400 hover:text-red-500">
+            <Button variant="ghost" size="icon" onClick={onRemoveAttachment} title={t('common.remove')} aria-label={t('common.remove')} className="text-gray-400 hover:text-red-500">
               <X className="h-4 w-4" />
             </Button>
           </div>
@@ -321,7 +321,7 @@ export function MessageInput({
                 })}
               </div>
 
-            <button type="button" title={t("common.cancel", "Cancel")} aria-label={t("common.cancel", "Cancel")} onClick={cancelRecording} className="text-gray-400 hover:text-gray-600 shrink-0 cursor-pointer">
+            <button type="button" title={t('common.cancel')} aria-label={t('common.cancel')} onClick={cancelRecording} className="text-gray-400 hover:text-gray-600 shrink-0 cursor-pointer">
               <X className="h-4 w-4" />
             </button>
           </div>

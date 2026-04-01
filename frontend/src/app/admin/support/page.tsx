@@ -11,6 +11,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { isAdminUser } from "../../../lib/auth";
 import { RefreshCw } from "lucide-react";
 import { Spinner } from "@/components/ui/Spinner";
+import { useTranslation } from "react-i18next";
 
 type Ticket = {
   id: number;
@@ -26,6 +27,7 @@ type Ticket = {
 export default function SupportAdminPage() {
   const router = useRouter();
   const { session, user, loading } = useAuth();
+  const { t } = useTranslation();
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [ticketsLoading, setTicketsLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -104,7 +106,13 @@ export default function SupportAdminPage() {
       in_progress: "bg-yellow-100 text-yellow-700",
       closed: "bg-green-100 text-green-700",
     };
-    return <Badge className={map[s] || "bg-gray-100 text-gray-700"}>{s.replace("_", " ")}</Badge>;
+    const statusLabelMap: Record<string, string> = {
+      open: t("admin.status.open"),
+      in_progress: t("admin.status.inProgress"),
+      closed: t("admin.status.closed"),
+    };
+
+    return <Badge className={map[s] || "bg-gray-100 text-gray-700"}>{statusLabelMap[s] || s.replace("_", " ")}</Badge>;
   };
 
   const refresh = async () => {
@@ -148,7 +156,7 @@ export default function SupportAdminPage() {
       <div className="min-h-screen bg-white text-black">
         <main className="max-w-7xl mx-auto p-5">
           <Card className="p-10 text-center">
-            <p className="text-gray-600">Loading…</p>
+            <p className="text-gray-600">{t("common.loading")}</p>
           </Card>
         </main>
       </div>
@@ -161,28 +169,28 @@ export default function SupportAdminPage() {
       <main className="max-w-7xl mx-auto p-5">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Support Inbox</h1>
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-900">{t("admin.support.title")}</h1>
           </div>
           <div className="flex items-center gap-2">
-            <Input placeholder="Search subject, email, text" value={search} onChange={(e) => setSearch(e.target.value)} className="w-56" />
+            <Input placeholder={t("admin.support.searchPlaceholder")} value={search} onChange={(e) => setSearch(e.target.value)} className="w-56" />
             <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1); }}>
-              <SelectTrigger className="w-40"><SelectValue placeholder="Status" /></SelectTrigger>
+              <SelectTrigger className="w-40"><SelectValue placeholder={t("admin.support.statusPlaceholder")} /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All</SelectItem>
-                <SelectItem value="open">Open</SelectItem>
-                <SelectItem value="in_progress">In Progress</SelectItem>
-                <SelectItem value="closed">Closed</SelectItem>
+                <SelectItem value="all">{t("admin.status.all")}</SelectItem>
+                <SelectItem value="open">{t("admin.status.open")}</SelectItem>
+                <SelectItem value="in_progress">{t("admin.status.inProgress")}</SelectItem>
+                <SelectItem value="closed">{t("admin.status.closed")}</SelectItem>
               </SelectContent>
             </Select>
             <Select value={sort} onValueChange={(v) => setSort(v)}>
-              <SelectTrigger className="w-40"><SelectValue placeholder="Sort" /></SelectTrigger>
+              <SelectTrigger className="w-40"><SelectValue placeholder={t("admin.support.sortPlaceholder")} /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="newest">Newest</SelectItem>
-                <SelectItem value="oldest">Oldest</SelectItem>
+                <SelectItem value="newest">{t("admin.status.newest")}</SelectItem>
+                <SelectItem value="oldest">{t("admin.status.oldest")}</SelectItem>
               </SelectContent>
             </Select>
             <Button variant="outline" className="gap-2" onClick={refresh}>
-              <RefreshCw className="h-4 w-4" /> Refresh
+              <RefreshCw className="h-4 w-4" /> {t("admin.support.refresh")}
             </Button>
           </div>
         </div>
@@ -193,42 +201,42 @@ export default function SupportAdminPage() {
           </div>
         ) : filtered.length ? (
           <div className="space-y-4">
-            {paginated.map((t) => (
-              <Card key={t.id} className="p-4">
+            {paginated.map((ticket) => (
+              <Card key={ticket.id} className="p-4">
                 <div className="flex items-center justify-between gap-3">
-                  <div className="font-semibold text-gray-900 line-clamp-1">{t.subject || "No subject"}</div>
+                  <div className="font-semibold text-gray-900 line-clamp-1">{ticket.subject || t("admin.support.noSubject")}</div>
                   <div className="flex items-center gap-2">
-                    {statusBadge(t.status)}
-                    <div className="text-sm text-gray-500">{new Date(t.created_at).toLocaleString()}</div>
+                    {statusBadge(ticket.status)}
+                    <div className="text-sm text-gray-500">{new Date(ticket.created_at).toLocaleString()}</div>
                   </div>
                 </div>
                 <div className="text-xs text-gray-500 mt-1">
-                  From: {t.user_email || t.user_id} · Category: {t.category || "N/A"}
+                  {t("admin.support.fromLabel")} {ticket.user_email || ticket.user_id} · {t("admin.support.categoryLabel")} {ticket.category || t("admin.support.notAvailable")}
                 </div>
-                <p className="text-gray-800 mt-2 line-clamp-2">{t.description}</p>
+                <p className="text-gray-800 mt-2 line-clamp-2">{ticket.description}</p>
 
                 <div className="mt-3 flex items-center justify-end gap-2">
-                  <Button variant="outline" onClick={() => setOpenId(t.id)}>View</Button>
-                  {t.status !== "in_progress" && (
-                    <Button variant="outline" onClick={() => updateStatus(t.id, "in_progress")} disabled={updating}>Mark In Progress</Button>
+                  <Button variant="outline" onClick={() => setOpenId(ticket.id)}>{t("admin.support.view")}</Button>
+                  {ticket.status !== "in_progress" && (
+                    <Button variant="outline" onClick={() => updateStatus(ticket.id, "in_progress")} disabled={updating}>{t("admin.support.markInProgress")}</Button>
                   )}
-                  {t.status !== "closed" && (
-                    <Button className="bg-green-700 text-white hover:bg-green-800" onClick={() => updateStatus(t.id, "closed")} disabled={updating}>Close</Button>
+                  {ticket.status !== "closed" && (
+                    <Button className="bg-green-700 text-white hover:bg-green-800" onClick={() => updateStatus(ticket.id, "closed")} disabled={updating}>{t("common.close")}</Button>
                   )}
                 </div>
               </Card>
             ))}
             <div className="flex items-center justify-end gap-2 mt-4">
-              <Button variant="outline" disabled={page === 1} onClick={() => setPage(1)}>First</Button>
-              <Button variant="outline" disabled={page === 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>Prev</Button>
-              <div className="text-sm text-gray-600">Page {page} of {totalPages}</div>
-              <Button variant="outline" disabled={page === totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>Next</Button>
-              <Button variant="outline" disabled={page === totalPages} onClick={() => setPage(totalPages)}>Last</Button>
+              <Button variant="outline" disabled={page === 1} onClick={() => setPage(1)}>{t("admin.pagination.first")}</Button>
+              <Button variant="outline" disabled={page === 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>{t("admin.pagination.prev")}</Button>
+              <div className="text-sm text-gray-600">{t("admin.pagination.pageOf", { page, total: totalPages })}</div>
+              <Button variant="outline" disabled={page === totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>{t("admin.pagination.next")}</Button>
+              <Button variant="outline" disabled={page === totalPages} onClick={() => setPage(totalPages)}>{t("admin.pagination.last")}</Button>
             </div>
           </div>
         ) : (
           <Card className="p-10 text-center">
-            <p className="text-gray-600">No support messages yet.</p>
+            <p className="text-gray-600">{t("admin.support.empty")}</p>
           </Card>
         )}
       </main>
@@ -237,28 +245,28 @@ export default function SupportAdminPage() {
       <Dialog open={openId !== null} onOpenChange={(o) => setOpenId(o ? openId : null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Ticket Details</DialogTitle>
+            <DialogTitle>{t("admin.support.dialogTitle")}</DialogTitle>
           </DialogHeader>
           {openId !== null && (
             (() => {
-              const t = tickets.find((x) => x.id === openId)!;
+              const ticket = tickets.find((x) => x.id === openId)!;
               return (
                 <div className="space-y-3">
-                  <div className="text-sm text-gray-700"><span className="font-semibold">Subject:</span> {t.subject || "No subject"}</div>
-                  <div className="text-sm text-gray-700"><span className="font-semibold">From:</span> {t.user_email || t.user_id}</div>
-                  <div className="text-sm text-gray-700"><span className="font-semibold">Category:</span> {t.category || "N/A"}</div>
-                  <div className="text-sm text-gray-700"><span className="font-semibold">Created:</span> {new Date(t.created_at).toLocaleString()}</div>
-                  <div className="text-sm text-gray-700"><span className="font-semibold">Status:</span> {statusBadge(t.status)}</div>
-                  <div className="text-sm text-gray-900"><span className="font-semibold">Description:</span></div>
-                  <div className="text-gray-800 whitespace-pre-wrap border rounded p-3 bg-gray-50">{t.description}</div>
+                  <div className="text-sm text-gray-700"><span className="font-semibold">{t("admin.support.subjectLabel")}</span> {ticket.subject || t("admin.support.noSubject")}</div>
+                  <div className="text-sm text-gray-700"><span className="font-semibold">{t("admin.support.fromLabel")}</span> {ticket.user_email || ticket.user_id}</div>
+                  <div className="text-sm text-gray-700"><span className="font-semibold">{t("admin.support.categoryLabel")}</span> {ticket.category || t("admin.support.notAvailable")}</div>
+                  <div className="text-sm text-gray-700"><span className="font-semibold">{t("admin.support.createdLabel")}</span> {new Date(ticket.created_at).toLocaleString()}</div>
+                  <div className="text-sm text-gray-700"><span className="font-semibold">{t("admin.support.statusLabel")}</span> {statusBadge(ticket.status)}</div>
+                  <div className="text-sm text-gray-900"><span className="font-semibold">{t("admin.support.descriptionLabel")}</span></div>
+                  <div className="text-gray-800 whitespace-pre-wrap border rounded p-3 bg-gray-50">{ticket.description}</div>
 
                   <div className="pt-2">
-                    <Select value={t.status} onValueChange={(v) => updateStatus(t.id, v)}>
-                      <SelectTrigger className="w-40"><SelectValue placeholder="Status" /></SelectTrigger>
+                    <Select value={ticket.status} onValueChange={(v) => updateStatus(ticket.id, v)}>
+                      <SelectTrigger className="w-40"><SelectValue placeholder={t("admin.support.statusPlaceholder")} /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="open">Open</SelectItem>
-                        <SelectItem value="in_progress">In Progress</SelectItem>
-                        <SelectItem value="closed">Closed</SelectItem>
+                        <SelectItem value="open">{t("admin.status.open")}</SelectItem>
+                        <SelectItem value="in_progress">{t("admin.status.inProgress")}</SelectItem>
+                        <SelectItem value="closed">{t("admin.status.closed")}</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -267,7 +275,7 @@ export default function SupportAdminPage() {
             })()
           )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setOpenId(null)}>Close</Button>
+            <Button variant="outline" onClick={() => setOpenId(null)}>{t("common.close")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

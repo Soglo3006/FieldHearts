@@ -46,11 +46,11 @@ export default function ResetPasswordPage() {
     e.preventDefault();
     setError("");
     if (password !== confirm) {
-      setError("Passwords do not match.");
+      setError(t("auth.passwordsMismatch"));
       return;
     }
     if (password.length < 8) {
-      setError("Password must be at least 8 characters.");
+      setError(t("auth.passwordTooShort8"));
       return;
     }
     setLoading(true);
@@ -60,7 +60,7 @@ export default function ResetPasswordPage() {
       setDone(true);
       setTimeout(() => router.push("/login"), 3000);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to reset password. Try requesting a new link.");
+      setError(err instanceof Error ? err.message : t("auth.resetPasswordError"));
     } finally {
       setLoading(false);
     }
@@ -74,8 +74,8 @@ export default function ResetPasswordPage() {
             <div className="flex justify-center">
               <CheckCircle className="h-12 w-12 text-green-600" />
             </div>
-            <h2 className="text-xl font-bold text-gray-900">Password updated!</h2>
-            <p className="text-sm text-gray-500">Redirecting you to login…</p>
+            <h2 className="text-xl font-bold text-gray-900">{t("auth.passwordUpdatedSuccess")}</h2>
+            <p className="text-sm text-gray-500">{t("auth.redirectingToLogin")}</p>
           </CardContent>
         </Card>
       </div>
@@ -88,15 +88,15 @@ export default function ResetPasswordPage() {
         <Card className="w-full max-w-sm text-center">
           <CardContent className="pt-8 pb-6 space-y-4">
             <KeyRound className="h-12 w-12 text-red-400 mx-auto" />
-            <h2 className="text-xl font-bold text-gray-900">Link expired</h2>
+            <h2 className="text-xl font-bold text-gray-900">{t("auth.linkExpired")}</h2>
             <p className="text-sm text-gray-500">
-              This password reset link has expired. Please request a new one.
+              {t("auth.linkExpiredDesc")}
             </p>
             <Button
               className="w-full bg-green-800 hover:bg-green-900"
               onClick={() => router.push("/forgot-password")}
             >
-              Request a new link
+              {t("auth.requestNewLink")}
             </Button>
           </CardContent>
         </Card>
@@ -110,7 +110,7 @@ export default function ResetPasswordPage() {
         <Card className="w-full max-w-sm text-center">
           <CardContent className="pt-8 pb-6">
             <Spinner size="md" className="mx-auto mb-4" />
-            <p className="text-gray-500 text-sm">Verifying your reset link…</p>
+            <p className="text-gray-500 text-sm">{t("auth.verifyingResetLink")}</p>
           </CardContent>
         </Card>
       </div>
@@ -127,7 +127,7 @@ export default function ResetPasswordPage() {
             </div>
           </div>
           <CardTitle className="text-2xl font-bold">{t("auth.resetPassword")}</CardTitle>
-          <CardDescription>Choose a strong password for your account.</CardDescription>
+          <CardDescription>{t("auth.resetPasswordIntro")}</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -139,7 +139,7 @@ export default function ResetPasswordPage() {
               <Input
                 id="password"
                 type="password"
-                placeholder="Min. 8 characters"
+                placeholder={t("auth.newPasswordPlaceholder")}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
@@ -151,7 +151,7 @@ export default function ResetPasswordPage() {
               <Input
                 id="confirm"
                 type="password"
-                placeholder="Repeat your password"
+                placeholder={t("auth.confirmPasswordPlaceholder")}
                 value={confirm}
                 onChange={(e) => setConfirm(e.target.value)}
                 required

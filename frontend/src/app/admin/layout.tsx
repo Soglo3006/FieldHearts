@@ -6,11 +6,13 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabaseClient";
 import { LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useTranslation } from "react-i18next";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
+  const { t } = useTranslation();
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -18,8 +20,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   };
 
   const navLinks = [
-    { href: "/admin/disputes", label: "Disputes"},
-    { href: "/admin/support", label: "Support" },
+    { href: "/admin/disputes", label: t("admin.nav.disputes") },
+    { href: "/admin/support", label: t("admin.nav.support") },
   ];
 
   return (
@@ -30,7 +32,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           {/* Logo + nav */}
           <div className="flex items-center gap-6">
             <Link href="/admin" className="flex items-center gap-2 text-green-700 font-bold text-base shrink-0">
-              Admin
+              {t("admin.nav.dashboard")}
             </Link>
             <nav className="flex items-center gap-1">
               {navLinks.map(({ href, label }) => {
@@ -55,7 +57,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <span className="text-xs text-gray-500 hidden sm:block">{user?.email}</span>
             <Button variant="outline" size="sm" className="gap-2 text-gray-600" onClick={handleLogout}>
               <LogOut className="h-4 w-4" />
-              Logout
+              {t("admin.logout")}
             </Button>
           </div>
         </div>

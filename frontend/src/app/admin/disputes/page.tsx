@@ -14,6 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { RefreshCw, Scale, ExternalLink } from "lucide-react";
 import { Spinner } from "@/components/ui/Spinner";
+import { useTranslation } from "react-i18next";
 
 type Dispute = {
   id: string;
@@ -41,6 +42,7 @@ const STATUS_STYLES: Record<string, string> = {
 export default function AdminDisputesPage() {
   const router = useRouter();
   const { session, user, loading } = useAuth();
+  const { t, i18n } = useTranslation();
   const [allowed, setAllowed] = useState(false);
   const [disputes, setDisputes] = useState<Dispute[]>([]);
   const [fetching, setFetching] = useState(true);
@@ -132,13 +134,23 @@ export default function AdminDisputesPage() {
       setDisputes((prev) => prev.map((d) => (d.id === updated.id ? { ...d, status: updated.status, resolution: updated.resolution } : d)));
       setSelected(null);
     } catch {
-      setSaveError("Failed to save. Please try again.");
+      setSaveError(t("admin.disputes.saveError"));
     } finally {
       setSaving(false);
     }
   };
 
   const openCount = disputes.filter((d) => d.status === "open").length;
+  const locale = i18n.language?.startsWith("fr") ? "fr-CA" : "en-CA";
+  const getStatusLabel = (status: string) => {
+    const key = status === "resolved"
+      ? "resolved"
+      : status === "rejected"
+        ? "rejected"
+        : "open";
+
+    return t(`admin.status.${key}`);
+  };
 
   if (!allowed) {
     return (
@@ -155,38 +167,38 @@ export default function AdminDisputesPage() {
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-6">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Dispute Management</h1>
+              <h1 className="text-2xl md:text-3xl font-bold text-gray-900">{t("admin.disputes.title")}</h1>
               {openCount > 0 && (
-                <Badge className="bg-green-600 text-white">{openCount} open</Badge>
+                <Badge className="bg-green-600 text-white">{t("admin.disputes.openCount", { count: openCount })}</Badge>
               )}
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <Input
-              placeholder="Search by name, email, service…"
+              placeholder={t("admin.disputes.searchPlaceholder")}
               value={search}
               onChange={(e) => { setSearch(e.target.value); setPage(1); }}
               className="w-56 bg-white"
             />
             <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1); }}>
-              <SelectTrigger className="w-36 bg-white"><SelectValue placeholder="Status" /></SelectTrigger>
+              <SelectTrigger className="w-36 bg-white"><SelectValue placeholder={t("admin.disputes.statusPlaceholder")} /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All statuses</SelectItem>
-                <SelectItem value="open">Open</SelectItem>
-                <SelectItem value="resolved">Resolved</SelectItem>
-                <SelectItem value="rejected">Rejected</SelectItem>
+                <SelectItem value="all">{t("admin.disputes.allStatuses")}</SelectItem>
+                <SelectItem value="open">{t("admin.status.open")}</SelectItem>
+                <SelectItem value="resolved">{t("admin.status.resolved")}</SelectItem>
+                <SelectItem value="rejected">{t("admin.status.rejected")}</SelectItem>
               </SelectContent>
             </Select>
             <Select value={sort} onValueChange={setSort}>
-              <SelectTrigger className="w-36 bg-white"><SelectValue placeholder="Sort" /></SelectTrigger>
+              <SelectTrigger className="w-36 bg-white"><SelectValue placeholder={t("admin.disputes.sortPlaceholder")} /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="newest">Newest first</SelectItem>
-                <SelectItem value="oldest">Oldest first</SelectItem>
+                <SelectItem value="newest">{t("admin.disputes.newestFirst")}</SelectItem>
+                <SelectItem value="oldest">{t("admin.disputes.oldestFirst")}</SelectItem>
               </SelectContent>
             </Select>
             <Button variant="outline" className="gap-2 bg-white" onClick={fetchDisputes} disabled={fetching}>
               <RefreshCw className={`h-4 w-4 ${fetching ? "animate-spin" : ""}`} />
-              Refresh
+              {t("admin.disputes.refresh")}
             </Button>
           </div>
         </div>
@@ -194,9 +206,9 @@ export default function AdminDisputesPage() {
         {/* Stats row */}
         <div className="grid grid-cols-3 gap-3 mb-6">
           {[
-            { label: "Total", count: disputes.length, style: "bg-white border" },
-            { label: "Open", count: disputes.filter((d) => d.status === "open").length, style: "bg-green-50 border border-green-200" },
-            { label: "Resolved", count: disputes.filter((d) => d.status === "resolved").length, style: "bg-green-50 border border-green-200" },
+            { label: t("admin.disputes.total"), count: disputes.length, style: "bg-white border" },
+            { label: t("admin.status.open"), count: disputes.filter((d) => d.status === "open").length, style: "bg-green-50 border border-green-200" },
+            { label: t("admin.status.resolved"), count: disputes.filter((d) => d.status === "resolved").length, style: "bg-green-50 border border-green-200" },
           ].map(({ label, count, style }) => (
             <Card key={label} className={`p-4 text-center ${style}`}>
               <p className="text-2xl font-bold text-gray-900">{count}</p>
@@ -213,7 +225,7 @@ export default function AdminDisputesPage() {
         ) : paginated.length === 0 ? (
           <Card className="p-12 text-center">
             <Scale className="h-10 w-10 text-gray-300 mx-auto mb-3" />
-            <p className="text-gray-500">No disputes found.</p>
+            <p className="text-gray-500">{t("admin.disputes.noDisputes")}</p>
           </Card>
         ) : (
           <div className="space-y-3">
@@ -224,32 +236,32 @@ export default function AdminDisputesPage() {
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-semibold text-gray-900 truncate">{d.service_title}</span>
                       <Badge className={STATUS_STYLES[d.status] || "bg-gray-100 text-gray-700"}>
-                        {d.status}
+                        {getStatusLabel(d.status)}
                       </Badge>
                     </div>
                     <div className="text-xs text-gray-500 mt-1 space-y-0.5">
                       <p>
-                        <span className="font-medium">Client:</span> {d.client_name} ({d.client_email})
+                        <span className="font-medium">{t("admin.disputes.clientLabel")}</span> {d.client_name} ({d.client_email})
                         &nbsp;·&nbsp;
-                        <span className="font-medium">Worker:</span> {d.worker_name} ({d.worker_email})
+                        <span className="font-medium">{t("admin.disputes.workerLabel")}</span> {d.worker_name} ({d.worker_email})
                       </p>
                       <p>
-                        <span className="font-medium">Raised by:</span> {d.raised_by_name}
+                        <span className="font-medium">{t("admin.disputes.raisedByLabel")}</span> {d.raised_by_name}
                         &nbsp;·&nbsp;
-                        {new Date(d.created_at).toLocaleDateString("en-CA", { year: "numeric", month: "short", day: "numeric" })}
+                        {new Date(d.created_at).toLocaleDateString(locale, { year: "numeric", month: "short", day: "numeric" })}
                       </p>
                     </div>
                     <p className="text-sm text-gray-700 mt-2 line-clamp-2">{d.description}</p>
                     {d.resolution && (
                       <p className="text-xs text-green-700 bg-green-50 rounded px-2 py-1 mt-2">
-                        <span className="font-semibold">Resolution:</span> {d.resolution}
+                        <span className="font-semibold">{t("admin.disputes.resolutionLabel")}</span> {d.resolution}
                       </p>
                     )}
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     <Link href={`/bookings?highlight=${d.booking_id}`} target="_blank">
                       <Button variant="outline" size="sm" className="gap-1 text-xs">
-                        <ExternalLink className="h-3 w-3" /> Booking
+                        <ExternalLink className="h-3 w-3" /> {t("admin.disputes.bookingButton")}
                       </Button>
                     </Link>
                     <Button
@@ -257,7 +269,7 @@ export default function AdminDisputesPage() {
                       className="bg-green-700 hover:bg-green-800 text-white"
                       onClick={() => openDetail(d)}
                     >
-                      {d.status === "open" ? "Resolve" : "Edit"}
+                      {d.status === "open" ? t("admin.disputes.resolveButton") : t("common.edit")}
                     </Button>
                   </div>
                 </div>
@@ -266,11 +278,11 @@ export default function AdminDisputesPage() {
 
             {/* Pagination */}
             <div className="flex items-center justify-end gap-2 mt-4">
-              <Button variant="outline" size="sm" disabled={page === 1} onClick={() => setPage(1)}>First</Button>
-              <Button variant="outline" size="sm" disabled={page === 1} onClick={() => setPage((p) => p - 1)}>Prev</Button>
-              <span className="text-sm text-gray-600">Page {page} of {totalPages}</span>
-              <Button variant="outline" size="sm" disabled={page === totalPages} onClick={() => setPage((p) => p + 1)}>Next</Button>
-              <Button variant="outline" size="sm" disabled={page === totalPages} onClick={() => setPage(totalPages)}>Last</Button>
+              <Button variant="outline" size="sm" disabled={page === 1} onClick={() => setPage(1)}>{t("admin.pagination.first")}</Button>
+              <Button variant="outline" size="sm" disabled={page === 1} onClick={() => setPage((p) => p - 1)}>{t("admin.pagination.prev")}</Button>
+              <span className="text-sm text-gray-600">{t("admin.pagination.pageOf", { page, total: totalPages })}</span>
+              <Button variant="outline" size="sm" disabled={page === totalPages} onClick={() => setPage((p) => p + 1)}>{t("admin.pagination.next")}</Button>
+              <Button variant="outline" size="sm" disabled={page === totalPages} onClick={() => setPage(totalPages)}>{t("admin.pagination.last")}</Button>
             </div>
           </div>
         )}
@@ -280,45 +292,45 @@ export default function AdminDisputesPage() {
       <Dialog open={!!selected} onOpenChange={(o) => !o && setSelected(null)}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Dispute — {selected?.service_title}</DialogTitle>
+            <DialogTitle>{t("admin.disputes.dialogTitle", { title: selected?.service_title ?? "" })}</DialogTitle>
           </DialogHeader>
           {selected && (
             <div className="space-y-4 text-sm">
               <div className="grid grid-cols-2 gap-2 text-gray-600">
-                <div><span className="font-semibold">Client:</span> {selected.client_name}</div>
-                <div><span className="font-semibold">Worker:</span> {selected.worker_name}</div>
-                <div><span className="font-semibold">Raised by:</span> {selected.raised_by_name}</div>
-                <div><span className="font-semibold">Date:</span> {new Date(selected.created_at).toLocaleDateString()}</div>
+                <div><span className="font-semibold">{t("admin.disputes.clientLabel")}</span> {selected.client_name}</div>
+                <div><span className="font-semibold">{t("admin.disputes.workerLabel")}</span> {selected.worker_name}</div>
+                <div><span className="font-semibold">{t("admin.disputes.raisedByLabel")}</span> {selected.raised_by_name}</div>
+                <div><span className="font-semibold">{t("admin.disputes.dateLabel")}</span> {new Date(selected.created_at).toLocaleDateString(locale)}</div>
               </div>
 
               <div>
-                <Label className="font-semibold text-gray-800">Dispute description</Label>
+                <Label className="font-semibold text-gray-800">{t("admin.disputes.descriptionLabel")}</Label>
                 <div className="mt-1 p-3 bg-gray-50 border rounded-lg text-gray-700 whitespace-pre-wrap">
                   {selected.description}
                 </div>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="status" className="font-semibold text-gray-800">Decision</Label>
+                <Label htmlFor="status" className="font-semibold text-gray-800">{t("admin.disputes.decisionLabel")}</Label>
                 <Select value={newStatus} onValueChange={setNewStatus}>
                   <SelectTrigger id="status">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="open">Open — still reviewing</SelectItem>
-                    <SelectItem value="resolved">Resolved — in favour of one party</SelectItem>
-                    <SelectItem value="rejected">Rejected — dispute not valid</SelectItem>
+                    <SelectItem value="open">{t("admin.disputes.decisionOpen")}</SelectItem>
+                    <SelectItem value="resolved">{t("admin.disputes.decisionResolved")}</SelectItem>
+                    <SelectItem value="rejected">{t("admin.disputes.decisionRejected")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="resolution" className="font-semibold text-gray-800">
-                  Resolution notes <span className="text-gray-400 font-normal">(visible to both parties)</span>
+                  {t("admin.disputes.resolutionNotes")} <span className="text-gray-400 font-normal">({t("admin.disputes.visibleToBoth")})</span>
                 </Label>
                 <Textarea
                   id="resolution"
-                  placeholder="Explain your decision…"
+                  placeholder={t("admin.disputes.explainDecision")}
                   value={resolution}
                   onChange={(e) => setResolution(e.target.value)}
                   rows={4}
@@ -333,7 +345,7 @@ export default function AdminDisputesPage() {
                     onChange={(e) => setRefundClient(e.target.checked)}
                     className="h-4 w-4 rounded border-gray-300 text-green-700"
                   />
-                  <span className="text-sm font-medium text-gray-800">Rembourser le client</span>
+                  <span className="text-sm font-medium text-gray-800">{t("admin.disputes.refundClient")}</span>
                 </label>
               )}
 
@@ -343,13 +355,13 @@ export default function AdminDisputesPage() {
             </div>
           )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setSelected(null)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setSelected(null)}>{t("common.cancel")}</Button>
             <Button
               className="bg-green-700 hover:bg-green-800 text-white"
               onClick={handleSave}
               disabled={saving}
             >
-              {saving ? "Saving…" : "Save decision"}
+              {saving ? t("admin.disputes.saving") : t("admin.disputes.saveDecision")}
             </Button>
           </DialogFooter>
         </DialogContent>

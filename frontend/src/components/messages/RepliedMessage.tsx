@@ -1,6 +1,7 @@
 "use client";
 
 import { Mic, FileText } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { sanitizeMessage } from '@/lib/sanitize';
 
 interface RepliedMessageProps {
@@ -24,6 +25,7 @@ function getReplyPreview(content: string) {
 }
 
 export function RepliedMessage({ repliedTo, onMessageClick }: RepliedMessageProps) {
+  const { t } = useTranslation();
   const preview = getReplyPreview(repliedTo.content);
 
   return (
@@ -32,23 +34,23 @@ export function RepliedMessage({ repliedTo, onMessageClick }: RepliedMessageProp
       className="border-l-4 border-green-700 bg-green-50/50 pl-3 py-2 mb-2 rounded cursor-pointer hover:bg-green-50 transition-colors"
     >
       <p className="text-xs font-semibold text-green-700 mb-1">
-        {repliedTo.sender_name || 'Utilisateur'}
+        {repliedTo.sender_name || t('messages.user')}
       </p>
 
       <div className="flex items-center gap-2">
         {preview.type === 'image' && (
-          <img src={preview.url} alt="Preview" className="w-10 h-10 rounded object-cover shrink-0" />
+          <img src={preview.url} alt={t('common.preview')} className="w-10 h-10 rounded object-cover shrink-0" />
         )}
 
         <div className="flex-1 min-w-0 flex items-center gap-1 overflow-hidden">
           {preview.type === 'audio' && (
-            <><Mic className="h-3.5 w-3.5 shrink-0 text-gray-400" /><span className="text-sm text-gray-600">Message vocal</span></>
+            <><Mic className="h-3.5 w-3.5 shrink-0 text-gray-400" /><span className="text-sm text-gray-600">{t('messages.voiceMessage')}</span></>
           )}
           {preview.type === 'image' && (
-            <span className="text-sm text-gray-600">Photo</span>
+            <span className="text-sm text-gray-600">{t('messages.photo')}</span>
           )}
           {preview.type === 'file' && (
-            <><FileText className="h-3.5 w-3.5 shrink-0 text-gray-400" /><span className="text-sm text-gray-600">Fichier</span></>
+            <><FileText className="h-3.5 w-3.5 shrink-0 text-gray-400" /><span className="text-sm text-gray-600">{t('messages.file')}</span></>
           )}
           {preview.type === 'text' && (
             <span

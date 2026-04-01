@@ -33,7 +33,7 @@ export default function StepPortfolio({ portfolio, onAdd, onRemove, onUpdate }: 
   const handleUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (!file.type.startsWith("image/")) { toast.error("Please upload an image file."); return; }
+    if (!file.type.startsWith("image/")) { toast.error(t('onboarding.invalidImageFile')); return; }
     const reader = new FileReader();
     reader.onloadend = () => {
       setRawImage(reader.result as string);
@@ -54,7 +54,7 @@ export default function StepPortfolio({ portfolio, onAdd, onRemove, onUpdate }: 
       onAdd({ id: portfolio.length + 1, image: cropped, title: title.trim(), description: "" });
       closeModal();
     } catch {
-      toast.error("Failed to crop image.");
+      toast.error(t('onboarding.cropImageFailed'));
     }
   };
 
@@ -80,10 +80,11 @@ export default function StepPortfolio({ portfolio, onAdd, onRemove, onUpdate }: 
               {portfolio.map((item) => (
                 <div key={item.id} className="border border-gray-200 rounded-xl overflow-hidden">
                   <div className="relative aspect-4/3 bg-gray-100">
-                    <img src={item.image} alt={item.title || "Portfolio item"} className="w-full h-full object-cover" />
+                    <img src={item.image} alt={item.title || t('onboarding.portfolioItemAlt')} className="w-full h-full object-cover" />
                     <button
                       type="button"
-                      title="Remove portfolio item"
+                      title={t('onboarding.removePortfolioItem')}
+                      aria-label={t('onboarding.removePortfolioItem')}
                       onClick={() => onRemove(item.id)}
                       className="cursor-pointer absolute top-2 right-2 p-2 bg-red-500 text-white rounded-full hover:bg-red-600"
                     >
@@ -106,14 +107,14 @@ export default function StepPortfolio({ portfolio, onAdd, onRemove, onUpdate }: 
           {portfolio.length === 0 && (
             <div className="text-center py-8 border-2 border-dashed border-gray-200 rounded-xl">
               <ImageIcon className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-              <p className="text-gray-500 mb-4">No portfolio items yet</p>
+              <p className="text-gray-500 mb-4">{t('onboarding.noPortfolio')}</p>
             </div>
           )}
 
           <Button variant="outline" onClick={() => document.getElementById("portfolioInput")?.click()} className="w-full gap-2 cursor-pointer">
             <Plus className="h-4 w-4" /> {t("onboarding.addPhoto")}
           </Button>
-          <input type="file" accept="image/*" id="portfolioInput" aria-label="Upload portfolio image" className="hidden" onChange={handleUpload} />
+          <input type="file" accept="image/*" id="portfolioInput" title={t('onboarding.uploadPortfolioImage')} aria-label={t('onboarding.uploadPortfolioImage')} className="hidden" onChange={handleUpload} />
         </div>
       </Card>
 
@@ -154,7 +155,7 @@ export default function StepPortfolio({ portfolio, onAdd, onRemove, onUpdate }: 
             <div className="flex items-center gap-3 mb-4">
               <button type="button" onClick={() => setZoom((z) => Math.max(1, +(z - 0.1).toFixed(2)))}
                 className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white text-lg flex items-center justify-center shrink-0 cursor-pointer select-none">−</button>
-              <input type="range" title="Zoom" min={1} max={3} step={0.05}
+              <input type="range" title={t('profile.zoom')} min={1} max={3} step={0.05}
                 value={zoom} onChange={(e) => setZoom(Number(e.target.value))}
                 className="flex-1 h-1.5 rounded-full cursor-pointer accent-green-500" />
               <button type="button" onClick={() => setZoom((z) => Math.min(3, +(z + 0.1).toFixed(2)))}
@@ -170,7 +171,7 @@ export default function StepPortfolio({ portfolio, onAdd, onRemove, onUpdate }: 
                 onChange={(e) => { setTitle(e.target.value); setError(false); }}
                 className={`bg-white/10 border-white/20 text-white placeholder:text-white/40 focus:border-green-500 ${error ? "border-red-500" : ""}`}
               />
-              {error && <p className="text-xs text-red-400 mt-1">Please enter a title.</p>}
+              {error && <p className="text-xs text-red-400 mt-1">{t('onboarding.titleRequired')}</p>}
             </div>
 
             <Button

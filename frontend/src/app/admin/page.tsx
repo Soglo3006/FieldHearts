@@ -9,10 +9,12 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Download } from "lucide-react";
 import { Spinner } from "@/components/ui/Spinner";
+import { useTranslation } from "react-i18next";
 
 export default function AdminDashboard() {
   const router = useRouter();
   const { session, user, loading } = useAuth();
+  const { t } = useTranslation();
   const [allowed, setAllowed] = useState(false);
   const [openDisputes, setOpenDisputes] = useState<number | null>(null);
   const [openTickets, setOpenTickets] = useState<number | null>(null);
@@ -69,7 +71,7 @@ export default function AdminDashboard() {
 
   const handleTriggerPayout = async () => {
     if (!session?.access_token) return;
-    if (!window.confirm("Déclencher le versement bi-mensuel pour tous les utilisateurs éligibles ?")) return;
+    if (!window.confirm(t("admin.dashboard.payout.confirm"))) return;
     setPayoutLoading(true);
     setPayoutMessage("");
     try {
@@ -78,25 +80,25 @@ export default function AdminDashboard() {
         headers: { Authorization: `Bearer ${session.access_token}` },
       });
       if (res.ok) {
-        setPayoutMessage("Versements traités avec succès.");
+        setPayoutMessage(t("admin.dashboard.payout.success"));
       } else {
         const data = await res.json().catch(() => ({}));
-        setPayoutMessage(`Erreur : ${data.message ?? res.status}`);
+        setPayoutMessage(t("admin.dashboard.payout.errorWithReason", { reason: data.message ?? res.status }));
       }
     } catch {
-      setPayoutMessage("Erreur lors du traitement des versements.");
+      setPayoutMessage(t("admin.dashboard.payout.error"));
     } finally {
       setPayoutLoading(false);
     }
   };
 
   const EXPORT_PERIODS = [
-    { value: "2weeks",  label: "2 dernières semaines" },
-    { value: "1month",  label: "Dernier mois" },
-    { value: "3months", label: "3 derniers mois" },
-    { value: "6months", label: "6 derniers mois" },
-    { value: "1year",   label: "Dernière année" },
-    { value: "all",     label: "Toutes" },
+    { value: "2weeks", label: t("admin.dashboard.export.periods.2weeks") },
+    { value: "1month", label: t("admin.dashboard.export.periods.1month") },
+    { value: "3months", label: t("admin.dashboard.export.periods.3months") },
+    { value: "6months", label: t("admin.dashboard.export.periods.6months") },
+    { value: "1year", label: t("admin.dashboard.export.periods.1year") },
+    { value: "all", label: t("admin.dashboard.export.periods.all") },
   ];
 
   if (!allowed) {
@@ -110,18 +112,18 @@ export default function AdminDashboard() {
   const sections = [
     {
       href: "/admin/disputes",
-      label: "Disputes",
-      description: "Manage booking disputes between clients and workers.",
+      label: t("admin.dashboard.sections.disputes.label"),
+      description: t("admin.dashboard.sections.disputes.description"),
       count: openDisputes,
-      countLabel: "open",
+      countLabel: t("admin.status.openCount"),
       color: "green",
     },
     {
       href: "/admin/support",
-      label: "Support",
-      description: "View and respond to user support tickets.",
+      label: t("admin.dashboard.sections.support.label"),
+      description: t("admin.dashboard.sections.support.description"),
       count: openTickets,
-      countLabel: "open",
+      countLabel: t("admin.status.openCount"),
       color: "green",
     },
   ];
@@ -129,8 +131,8 @@ export default function AdminDashboard() {
   return (
     <div className="max-w-4xl mx-auto p-6">
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-        <p className="text-sm text-gray-500 mt-1">Overview of pending actions.</p>
+        <h1 className="text-2xl font-bold text-gray-900">{t("admin.dashboard.title")}</h1>
+        <p className="text-sm text-gray-500 mt-1">{t("admin.dashboard.subtitle")}</p>
       </div>
 
       <div className="grid sm:grid-cols-2 gap-4">
@@ -147,7 +149,7 @@ export default function AdminDashboard() {
               <h2 className="font-semibold text-gray-900 mb-1">{label}</h2>
               <p className="text-sm text-gray-500 mb-4">{description}</p>
               <div className="flex items-center gap-1 text-sm text-green-700 font-medium group-hover:gap-2 transition-all">
-                Go to {label} <ArrowRight className="h-4 w-4" />
+                {t("admin.dashboard.goToSection", { label })} <ArrowRight className="h-4 w-4" />
               </div>
             </Card>
           </Link>
@@ -159,9 +161,9 @@ export default function AdminDashboard() {
         <Card className="p-6 border">
           <div className="flex items-start gap-3 mb-4">
             <div>
-              <h2 className="font-semibold text-gray-900">Versements bi-mensuels</h2>
+              <h2 className="font-semibold text-gray-900">{t("admin.dashboard.payout.title")}</h2>
               <p className="text-sm text-gray-500 mt-0.5">
-                Déclencher manuellement le versement pour tous les utilisateurs éligibles (5+ jours ouvrables).
+                {t("admin.dashboard.payout.description")}
               </p>
             </div>
           </div>
@@ -171,7 +173,7 @@ export default function AdminDashboard() {
               disabled={payoutLoading}
               className="bg-green-700 hover:bg-green-800 text-white gap-2"
             >
-              {payoutLoading ? "Traitement..." : "Déclencher les versements"}
+              {payoutLoading ? t("admin.dashboard.payout.processing") : t("admin.dashboard.payout.trigger")}
             </Button>
             {payoutMessage && (
               <span className="text-sm font-medium text-gray-700">{payoutMessage}</span>
@@ -185,9 +187,9 @@ export default function AdminDashboard() {
         <Card className="p-6 border">
           <div className="flex items-start gap-3 mb-4">
             <div>
-              <h2 className="font-semibold text-gray-900">Export des transactions</h2>
+              <h2 className="font-semibold text-gray-900">{t("admin.dashboard.export.title")}</h2>
               <p className="text-sm text-gray-500 mt-0.5">
-                Téléchargez l'historique de toutes les transactions en CSV (pour les taxes et la comptabilité).
+                {t("admin.dashboard.export.description")}
               </p>
             </div>
           </div>
@@ -195,8 +197,8 @@ export default function AdminDashboard() {
             <select
               value={exportPeriod}
               onChange={(e) => setExportPeriod(e.target.value)}
-              title="Période d'export"
-              aria-label="Période d'export"
+              title={t("admin.dashboard.export.periodLabel")}
+              aria-label={t("admin.dashboard.export.periodLabel")}
               className="text-sm border border-gray-300 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-green-500"
             >
               {EXPORT_PERIODS.map((p) => (
@@ -209,7 +211,7 @@ export default function AdminDashboard() {
               className="bg-green-600 hover:bg-green-700 text-white gap-2"
             >
               <Download className="h-4 w-4" />
-              {exportLoading ? "Génération..." : "Télécharger CSV"}
+              {exportLoading ? t("admin.dashboard.export.generating") : t("admin.dashboard.export.download")}
             </Button>
           </div>
         </Card>
@@ -220,9 +222,9 @@ export default function AdminDashboard() {
         <Card className="p-6 border">
           <div className="flex items-start gap-3 mb-4">
             <div>
-              <h2 className="font-semibold text-gray-900">Liste d&apos;attente (Coming Soon)</h2>
+              <h2 className="font-semibold text-gray-900">{t("admin.dashboard.waitlist.title")}</h2>
               <p className="text-sm text-gray-500 mt-0.5">
-                Téléchargez les adresses courriel collectées pendant la période &quot;Coming Soon&quot;.
+                {t("admin.dashboard.waitlist.description")}
               </p>
             </div>
           </div>
@@ -247,7 +249,7 @@ export default function AdminDashboard() {
             className="bg-green-700 hover:bg-green-800 text-white gap-2"
           >
             <Download className="h-4 w-4" />
-            Télécharger la liste d&apos;attente
+            {t("admin.dashboard.waitlist.download")}
           </Button>
         </Card>
       </div>

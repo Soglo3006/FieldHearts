@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 import Image from 'next/image';
+import { useTranslation } from 'react-i18next';
 import { useScrollLock } from "@/hooks/useScrollLock";
 import { X, Download } from 'lucide-react';
 
@@ -11,6 +12,7 @@ interface ImageLightboxProps {
 }
 
 export function ImageLightbox({ imageUrl, onClose }: ImageLightboxProps) {
+  const { t } = useTranslation();
   useScrollLock(true);
 
   // Fermer avec Escape
@@ -41,7 +43,7 @@ export function ImageLightbox({ imageUrl, onClose }: ImageLightboxProps) {
     <div
       role="dialog"
       aria-modal="true"
-      aria-label="Image preview"
+      aria-label={t('messages.imagePreview')}
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/90"
       onClick={onClose}
     >
@@ -52,14 +54,14 @@ export function ImageLightbox({ imageUrl, onClose }: ImageLightboxProps) {
       >
         <button
           onClick={handleDownload}
-          aria-label="Download image"
+          aria-label={t('messages.downloadImage')}
           className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors cursor-pointer"
         >
           <Download className="h-5 w-5" />
         </button>
         <button
           onClick={onClose}
-          aria-label="Close image preview"
+          aria-label={t('common.close')}
           className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors cursor-pointer"
         >
           <X className="h-5 w-5" />
@@ -73,7 +75,7 @@ export function ImageLightbox({ imageUrl, onClose }: ImageLightboxProps) {
       >
         <Image
           src={imageUrl}
-          alt="Image"
+          alt={t('messages.imagePreview')}
           width={1600}
           height={1200}
           className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl"

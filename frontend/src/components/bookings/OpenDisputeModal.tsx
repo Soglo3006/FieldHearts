@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/lib/supabaseClient";
 import { X, AlertTriangle, CheckCircle, ImagePlus, Loader2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 interface Props {
   bookingId: string;
@@ -23,6 +24,7 @@ export default function OpenDisputeModal({
   onClose,
   onOpened,
 }: Props) {
+  const { t } = useTranslation();
   useScrollLock(true);
   const [description, setDescription] = useState("");
   const [photos, setPhotos] = useState<File[]>([]);
@@ -63,7 +65,7 @@ export default function OpenDisputeModal({
 
   const handleSubmit = async () => {
     if (!isValid) {
-      setError("Please provide a description (at least 20 characters).");
+      setError(t("bookings.openDisputeModal.descriptionTooShort"));
       return;
     }
     setSubmitting(true);
@@ -77,7 +79,7 @@ export default function OpenDisputeModal({
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        setError(data.message ?? "Failed to open dispute.");
+        setError(data.message ?? t("bookings.openDisputeModal.openFailed"));
         return;
       }
       const dispute = await res.json();
@@ -99,7 +101,7 @@ export default function OpenDisputeModal({
       setSuccess(true);
       setTimeout(() => { onOpened(bookingId); onClose(); }, 800);
     } catch {
-      setError("Network error. Please try again.");
+      setError(t("bookings.openDisputeModal.networkError"));
     } finally {
       setSubmitting(false);
       setUploading(false);
@@ -112,15 +114,15 @@ export default function OpenDisputeModal({
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+            <div className="w-9 h-9 rounded-full bg-red-100 flex items-center justify-center shrink-0">
               <AlertTriangle className="h-5 w-5 text-red-600" />
             </div>
             <div>
-              <h2 className="text-lg font-semibold text-gray-900">Open a Dispute</h2>
+              <h2 className="text-lg font-semibold text-gray-900">{t("bookings.openDisputeModal.title")}</h2>
               <p className="text-xs text-gray-500 mt-0.5 line-clamp-1">{serviceTitle}</p>
             </div>
           </div>
-          <button type="button" aria-label="Close" onClick={onClose} className="cursor-pointer text-gray-400 hover:text-gray-600 transition-colors">
+          <button type="button" aria-label={t("common.close")} onClick={onClose} className="cursor-pointer text-gray-400 hover:text-gray-600 transition-colors">
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -128,12 +130,12 @@ export default function OpenDisputeModal({
         {/* Body */}
         <div className="px-6 py-5 space-y-4">
           <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-800 space-y-1.5">
-            <p>Describe the issue clearly. Both parties can respond and our team will review the file before deciding on any refund, credit, or other adjustment.</p>
+            <p>{t("bookings.openDisputeModal.intro")}</p>
             <ul className="list-disc list-inside text-xs text-red-700 space-y-0.5">
-              <li>Completed services generally must be disputed within <span className="font-semibold">3 days</span> of completion</li>
-              <li>For in-progress bookings, opening a dispute pauses direct cancellation and routes the case for review</li>
-              <li>Transaction or payment-provider fees may remain non-refundable</li>
-              <li>Outcomes are determined case by case based on the available information</li>
+              <li>{t("bookings.openDisputeModal.ruleCompleted")}</li>
+              <li>{t("bookings.openDisputeModal.ruleInProgress")}</li>
+              <li>{t("bookings.openDisputeModal.ruleFees")}</li>
+              <li>{t("bookings.openDisputeModal.ruleCaseByCase")}</li>
             </ul>
           </div>
 
@@ -143,29 +145,29 @@ export default function OpenDisputeModal({
 
           <div className="space-y-2">
             <Label className="text-base font-medium text-gray-900">
-              Describe the issue <span className="text-red-500">*</span>
+              {t("bookings.openDisputeModal.describeLabel")} <span className="text-red-500">*</span>
             </Label>
             <Textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Explain what went wrong, what was agreed, and what outcome you're seeking…"
+              placeholder={t("bookings.openDisputeModal.describePlaceholder")}
               className="min-h-32 resize-none"
             />
             <p className={`text-xs text-right ${description.length < 20 ? "text-gray-400" : "text-green-600"}`}>
-              {description.length} / 20 minimum
+              {t("bookings.openDisputeModal.minimumCount", { count: description.length })}
             </p>
           </div>
 
           {/* Photo upload */}
           <div className="space-y-2">
-            <Label className="text-sm font-medium text-gray-700">Photos (optional, max 4)</Label>
+            <Label className="text-sm font-medium text-gray-700">{t("bookings.openDisputeModal.photosLabel")}</Label>
             <div className="flex flex-wrap gap-2">
               {previews.map((src, i) => (
                 <div key={i} className="relative">
-                  <img src={src} alt={`Photo ${i + 1}`} className="h-16 w-16 object-cover rounded-lg border border-gray-200" />
+                  <img src={src} alt={t("bookings.openDisputeModal.photoAlt", { number: i + 1 })} className="h-16 w-16 object-cover rounded-lg border border-gray-200" />
                   <button
                     type="button"
-                    aria-label="Remove photo"
+                    aria-label={t("bookings.openDisputeModal.removePhoto")}
                     onClick={() => removePhoto(i)}
                     className="absolute -top-1 -right-1 bg-gray-800 text-white rounded-full h-4 w-4 flex items-center justify-center"
                   >
@@ -176,7 +178,7 @@ export default function OpenDisputeModal({
               {photos.length < 4 && (
                 <button
                   type="button"
-                  aria-label="Add photo"
+                  aria-label={t("bookings.openDisputeModal.addPhoto")}
                   onClick={() => fileInputRef.current?.click()}
                   className="h-16 w-16 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center text-gray-400 hover:border-gray-400 hover:text-gray-500 transition-colors"
                 >
@@ -190,32 +192,32 @@ export default function OpenDisputeModal({
               accept="image/*"
               multiple
               className="hidden"
-              aria-label="Upload photos"
-              title="Upload photos"
+              aria-label={t("bookings.openDisputeModal.uploadPhotos")}
+              title={t("bookings.openDisputeModal.uploadPhotos")}
               onChange={(e) => handlePhotos(e.target.files)}
             />
           </div>
 
           {uploading && (
             <div className="flex items-center gap-2 text-sm text-gray-400">
-              <Loader2 className="h-4 w-4 animate-spin" /> Uploading photos…
+              <Loader2 className="h-4 w-4 animate-spin" /> {t("bookings.openDisputeModal.uploading")}
             </div>
           )}
         </div>
 
         {/* Footer */}
         <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-3">
-          <Button variant="outline" onClick={onClose} disabled={submitting}>Cancel</Button>
+          <Button variant="outline" onClick={onClose} disabled={submitting}>{t("common.cancel")}</Button>
           <Button
             className="bg-red-600 hover:bg-red-700 text-white min-w-36"
             onClick={handleSubmit}
             disabled={submitting || !isValid}
           >
             {success ? (
-              <span className="flex items-center gap-2"><CheckCircle className="h-4 w-4" /> Dispute Opened!</span>
+              <span className="flex items-center gap-2"><CheckCircle className="h-4 w-4" /> {t("bookings.openDisputeModal.opened")}</span>
             ) : submitting ? (
-              <span className="flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Opening…</span>
-            ) : "Open Dispute"}
+              <span className="flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> {t("bookings.openDisputeModal.opening")}</span>
+            ) : t("bookings.openDisputeModal.openButton")}
           </Button>
         </div>
       </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { X, Mic, FileText } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { sanitizeMessage } from '@/lib/sanitize';
 
@@ -26,6 +27,8 @@ function getReplyPreview(content: string) {
 }
 
 export function ReplyPreview({ repliedMessage, onCancel }: ReplyPreviewProps) {
+  const { t } = useTranslation();
+
   if (!repliedMessage) return null;
 
   const preview = getReplyPreview(repliedMessage.content);
@@ -40,7 +43,7 @@ export function ReplyPreview({ repliedMessage, onCancel }: ReplyPreviewProps) {
         {preview.type === 'image' && (
           <img
             src={preview.url}
-            alt="Preview"
+            alt={t('common.preview')}
             className="w-12 h-12 rounded object-cover shrink-0"
           />
         )}
@@ -48,17 +51,19 @@ export function ReplyPreview({ repliedMessage, onCancel }: ReplyPreviewProps) {
         {/* Contenu */}
         <div className="flex-1 min-w-0 flex flex-col gap-1">
           <p className="text-xs font-semibold text-green-700 truncate">
-            Répondre à {repliedMessage.sender_name || 'Utilisateur'}
+            {t('messages.replyingTo', {
+              name: repliedMessage.sender_name || t('messages.user'),
+            })}
           </p>
           <div className="flex items-center gap-1 overflow-hidden">
             {preview.type === 'audio' && (
-              <><Mic className="h-3.5 w-3.5 shrink-0 text-gray-400" /><span className="text-sm text-gray-600">Message vocal</span></>
+              <><Mic className="h-3.5 w-3.5 shrink-0 text-gray-400" /><span className="text-sm text-gray-600">{t('messages.voiceMessage')}</span></>
             )}
             {preview.type === 'image' && (
-              <span className="text-sm text-gray-600">Photo</span>
+              <span className="text-sm text-gray-600">{t('messages.photo')}</span>
             )}
             {preview.type === 'file' && (
-              <><FileText className="h-3.5 w-3.5 shrink-0 text-gray-400" /><span className="text-sm text-gray-600">Fichier</span></>
+              <><FileText className="h-3.5 w-3.5 shrink-0 text-gray-400" /><span className="text-sm text-gray-600">{t('messages.file')}</span></>
             )}
             {preview.type === 'text' && (
               <span
@@ -74,6 +79,8 @@ export function ReplyPreview({ repliedMessage, onCancel }: ReplyPreviewProps) {
           variant="ghost"
           size="icon"
           onClick={onCancel}
+          title={t('common.cancel')}
+          aria-label={t('common.cancel')}
           className="h-6 w-6 text-gray-400 hover:text-gray-600 shrink-0 cursor-pointer"
         >
           <X className="h-4 w-4" />

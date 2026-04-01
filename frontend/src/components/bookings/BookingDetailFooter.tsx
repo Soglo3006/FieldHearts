@@ -1,7 +1,16 @@
 "use client";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { AlertTriangle, CheckCircle, Star } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import PayNowButton from "./PayNowButton";
 import { type BookingDetail } from "./BookingDetailModal";
 
@@ -17,11 +26,9 @@ interface Props {
   accessToken: string;
   otherUserName: string;
   otherUserId: string;
-  currentUserId: string;
   onCallStatus: (status: BookingStatus) => void;
   onMarkCompleted: () => void;
   onUndoMarkCompleted: () => void;
-  onUpdated: (data: Partial<BookingDetail>) => void;
   onOpenDispute: (id: string, title: string) => void;
   onOpenReview: (id: string, name: string) => void;
   onMessage: (userId: string) => void;
@@ -30,53 +37,21 @@ interface Props {
 
 export default function BookingDetailFooter({
   booking, userRole, updating, hasMarkedDone, otherHasMarkedDone,
-  needsPayment, accessToken, otherUserName, otherUserId, currentUserId,
-  onCallStatus, onMarkCompleted, onUndoMarkCompleted, onUpdated, onOpenDispute, onOpenReview, onMessage, onClose,
+  needsPayment, accessToken, otherUserName, otherUserId,
+  onCallStatus, onMarkCompleted, onUndoMarkCompleted, onOpenDispute, onOpenReview, onMessage, onClose,
 }: Props) {
-  const [cancelMode, setCancelMode] = useState(false);
-  const [cancelReason, setCancelReason] = useState("");
+  const { t } = useTranslation();
+  const [confirmDisputeOpen, setConfirmDisputeOpen] = useState(false);
 
-  const cancelRequestedByMe = booking.cancel_requested_by === currentUserId;
-  const cancelRequestedByOther = !!booking.cancel_requested_by && !cancelRequestedByMe;
-
-  const submitCancelRequest = async () => {
-    try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/bookings/${booking.id}/cancel-request`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
-        body: JSON.stringify({ reason: cancelReason }),
-      });
-      if (!res.ok) return;
-      onUpdated(await res.json());
-      setCancelMode(false);
-    } catch { /* silent */ }
-  };
-
-  const approveCancellation = async () => {
-    try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/bookings/${booking.id}/cancel-request`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
-        body: JSON.stringify({}),
-      });
-      if (!res.ok) return;
-      onUpdated(await res.json());
-    } catch { /* silent */ }
-  };
-
-  const declineCancellation = async () => {
-    try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/bookings/${booking.id}/cancel-decline`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${accessToken}` },
-      });
-      if (!res.ok) return;
-      onUpdated(await res.json());
-    } catch { /* silent */ }
+  const openDisputeFromCancellation = () => {
+    setConfirmDisputeOpen(false);
+    onOpenDispute(booking.id, booking.title);
+    onClose();
   };
 
   return (
-    <div className="px-5 py-4 border-t border-gray-100 flex flex-col gap-2 flex-shrink-0">
+    <>
+      <div className="px-5 py-4 border-t border-gray-100 flex flex-col gap-2 shrink-0">
       {/* Pending actions — depends on service_type */}
       {booking.status === "pending" && (() => {
         const isLooking = booking.service_type === "looking";
@@ -89,10 +64,10 @@ export default function BookingDetailFooter({
           return (
             <div className="flex gap-2">
               <Button className="flex-1 bg-green-700 hover:bg-green-800 text-white h-11" onClick={() => onCallStatus("accepted")} disabled={updating}>
-                {updating ? "…" : "Accept"}
+                {updating ? "…" : t("bookings.accept")}
               </Button>
               <Button variant="outline" className="flex-1 text-red-600 border-red-200 hover:bg-red-50 h-11" onClick={() => onCallStatus("rejected")} disabled={updating}>
-                Reject
+                {t("bookings.reject")}
               </Button>
             </div>
           );
@@ -100,7 +75,7 @@ export default function BookingDetailFooter({
           // Applicant: can only cancel their request
           return (
             <Button variant="outline" className="w-full text-red-600 border-red-200 hover:bg-red-50 h-11" onClick={() => onCallStatus("cancelled")} disabled={updating}>
-              {updating ? "…" : "Cancel Request"}
+              {updating ? "…" : t("bookings.cancelRequest")}
             </Button>
           );
         }
@@ -110,7 +85,7 @@ export default function BookingDetailFooter({
       {/* Worker: accepted */}
       {userRole === "worker" && booking.status === "accepted" && (
         <Button variant="outline" className="w-full text-red-600 border-red-200 hover:bg-red-50 h-11" onClick={() => onCallStatus("cancelled")} disabled={updating}>
-          {updating ? "…" : "Cancel Booking"}
+          {updating ? "…" : t("bookings.cancelBooking")}
         </Button>
       )}
 
@@ -120,16 +95,17 @@ export default function BookingDetailFooter({
       )}
 
       {/* Active: mark done */}
-      {booking.status === "active" && !hasMarkedDone && (
+      {booking.status === "active" && !booking.has_dispute && !hasMarkedDone && (
         <Button className="w-full bg-green-700 hover:bg-green-800 text-white h-11" onClick={onMarkCompleted} disabled={updating}>
-          {updating ? "…" : userRole === "worker" ? "Mark Work Done" : "Mark Job Done"}
+          {updating ? "…" : userRole === "worker" ? t("bookings.markWorkDone") : t("bookings.markJobDone")}
         </Button>
       )}
-      {booking.status === "active" && hasMarkedDone && (
+      {booking.status === "active" && !booking.has_dispute && hasMarkedDone && (
         <div className="flex flex-col gap-1.5">
           <div className="flex items-center justify-center gap-2 text-sm text-green-700 font-medium py-1">
             <CheckCircle className="h-4 w-4" />
-            You marked done{!otherHasMarkedDone && ` — waiting for ${userRole === "worker" ? "client" : "provider"}`}
+            {t("bookings.youMarkedDone")}
+            {!otherHasMarkedDone && ` — ${userRole === "worker" ? t("bookings.waitingForClient") : t("bookings.waitingForProvider")}`}
           </div>
           {!otherHasMarkedDone && (
             <Button
@@ -139,91 +115,72 @@ export default function BookingDetailFooter({
               onClick={onUndoMarkCompleted}
               disabled={updating}
             >
-              {updating ? "…" : "Annuler ma confirmation"}
+              {updating ? "…" : t("bookings.undoConfirmation")}
             </Button>
           )}
         </div>
       )}
 
-      {/* Active: mutual cancellation */}
-      {booking.status === "active" && (
-        <>
-          {cancelRequestedByOther && (
-            <div className="border border-red-200 bg-red-50 rounded-xl px-4 py-3 space-y-2">
-              <p className="text-xs font-semibold text-red-800">The other party wants to cancel</p>
-              {booking.cancel_reason && <p className="text-xs text-red-700 italic">"{booking.cancel_reason}"</p>}
-              <p className="text-xs text-red-700">Transaction fees will not be refunded.</p>
-              <div className="flex gap-2">
-                <Button size="sm" variant="outline" className="flex-1 text-red-600 border-red-200 hover:bg-red-50" onClick={approveCancellation} disabled={updating}>
-                  {updating ? "…" : "Approve"}
-                </Button>
-                <Button size="sm" variant="outline" className="flex-1" onClick={declineCancellation} disabled={updating}>Decline</Button>
-              </div>
-            </div>
-          )}
-          {cancelRequestedByMe && (
-            <div className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-xs text-gray-600 text-center">
-              Cancellation requested — waiting for the other party to approve.
-            </div>
-          )}
-          {!booking.cancel_requested_by && !cancelMode && (
-            <Button variant="outline" className="w-full text-red-600 border-red-200 hover:bg-red-50 h-10 text-sm" onClick={() => setCancelMode(true)}>
-              Request Cancellation
-            </Button>
-          )}
-          {cancelMode && (
-            <div className="border border-red-200 bg-red-50 rounded-xl px-4 py-3 space-y-2">
-              <p className="text-xs font-semibold text-red-700">Request cancellation</p>
-              <p className="text-xs text-red-600">Transaction fees will not be refunded. Both parties must agree.</p>
-              <textarea
-                value={cancelReason} onChange={(e) => setCancelReason(e.target.value)} rows={2}
-                placeholder="Reason for cancellation…"
-                className="w-full border border-red-200 rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-red-400 bg-white"
-              />
-              <div className="flex gap-2">
-                <Button size="sm" variant="outline" className="flex-1 text-red-600 border-red-200 hover:bg-red-100"
-                  onClick={submitCancelRequest} disabled={updating || !cancelReason.trim()}>
-                  {updating ? "…" : "Send Request"}
-                </Button>
-                <Button size="sm" variant="outline" className="flex-1" onClick={() => setCancelMode(false)}>Back</Button>
-              </div>
-            </div>
-          )}
-        </>
+      {booking.status === "active" && booking.has_dispute && (
+        <div className="border border-red-200 bg-red-50 rounded-xl px-4 py-3 space-y-1">
+          <p className="text-xs font-semibold text-red-800">{t("bookings.disputeOpen")}</p>
+          <p className="text-xs text-red-700">{t("bookings.disputePaused")}</p>
+        </div>
+      )}
+
+      {booking.status === "active" && !booking.has_dispute && (
+        <Button
+          variant="outline"
+          className="w-full text-red-600 border-red-200 hover:bg-red-50 h-10 gap-2"
+          onClick={() => setConfirmDisputeOpen(true)}
+        >
+          <AlertTriangle className="h-4 w-4" /> {t("bookings.cancelBooking")}
+        </Button>
       )}
 
       {/* Dispute */}
-      {(booking.status === "active" || booking.status === "completed") && !booking.has_dispute && (() => {
-        const DISPUTE_DAYS = 3;
-        const disputeExpired = booking.status === "completed" && booking.completed_at
-          ? (Date.now() - new Date(booking.completed_at).getTime()) > DISPUTE_DAYS * 24 * 60 * 60 * 1000
-          : false;
-        if (disputeExpired) return null;
-        return (
-          <Button variant="outline" className="w-full text-red-600 border-red-200 hover:bg-red-50 h-10 gap-2"
-            onClick={() => { onOpenDispute(booking.id, booking.title); onClose(); }}>
-            <AlertTriangle className="h-4 w-4" /> Open Dispute
-          </Button>
-        );
-      })()}
+      {booking.status === "completed" && !booking.has_dispute && (
+        <Button variant="outline" className="w-full text-red-600 border-red-200 hover:bg-red-50 h-10 gap-2"
+          onClick={() => { onOpenDispute(booking.id, booking.title); onClose(); }}>
+          <AlertTriangle className="h-4 w-4" /> {t("bookings.openDispute")}
+        </Button>
+      )}
 
       {/* Review */}
       {booking.status === "completed" && !booking.has_reviewed && (
         <Button className="w-full bg-yellow-500 hover:bg-yellow-600 text-white h-10 gap-2"
           onClick={() => { onOpenReview(booking.id, otherUserName); onClose(); }}>
-          <Star className="h-4 w-4" /> Leave a Review
+          <Star className="h-4 w-4" /> {t("bookings.leaveReview")}
         </Button>
       )}
       {booking.status === "completed" && booking.has_reviewed && (
         <div className="flex items-center justify-center gap-1.5 text-sm text-gray-400 py-1">
-          <Star className="h-3.5 w-3.5 fill-yellow-400 text-yellow-400" /> Review submitted
+          <Star className="h-3.5 w-3.5 fill-yellow-400 text-yellow-400" /> {t("bookings.reviewed")}
         </div>
       )}
 
       {/* Message */}
       <Button variant="outline" className="w-full h-10 gap-2" onClick={() => { onMessage(otherUserId); onClose(); }}>
-        Message {otherUserName.split(" ")[0]}
+        {t("bookings.message")} {otherUserName.split(" ")[0]}
       </Button>
-    </div>
+      </div>
+
+      <Dialog open={confirmDisputeOpen} onOpenChange={setConfirmDisputeOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("bookings.cancelActiveBooking")}</DialogTitle>
+            <DialogDescription>{t("bookings.cancelActiveBookingPrompt")}</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmDisputeOpen(false)}>
+              {t("bookings.keepBooking")}
+            </Button>
+            <Button className="bg-red-600 hover:bg-red-700 text-white" onClick={openDisputeFromCancellation}>
+              {t("bookings.openDisputeInstead")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

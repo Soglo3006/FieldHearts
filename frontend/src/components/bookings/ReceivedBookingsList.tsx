@@ -175,7 +175,11 @@ export default function ReceivedBookingsList({
                         )}
 
                         {b.status === "active" && (
-                          isLooking ? (
+                          b.has_dispute ? (
+                            <div className="w-full rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                              {t("bookings.disputePaused")}
+                            </div>
+                          ) : isLooking ? (
                             // Looking: you are the client → confirm job is done
                             <>
                               {!b.completed_by_client ? (

@@ -169,11 +169,6 @@ export default function BookingDetailModal({
     } finally { setUpdating(false); }
   };
 
-  const handleFooterUpdated = (data: Partial<BookingDetail>) => {
-    setBooking((prev) => ({ ...prev, ...data }));
-    onUpdated(booking.id, data);
-  };
-
   const images = booking.image_urls?.length ? booking.image_urls : booking.image_url ? [booking.image_url] : [];
   const [imgIndex, setImgIndex] = useState(0);
   const prevImg = useCallback(() => setImgIndex((i) => (i - 1 + images.length) % images.length), [images.length]);
@@ -192,7 +187,7 @@ export default function BookingDetailModal({
 
       <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col z-10 overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 flex-shrink-0">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 shrink-0">
           <div className="flex items-center gap-2">
             <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${STATUS_BADGE[booking.status]}`}>
               {t(`bookings.${booking.status}`)}
@@ -225,6 +220,8 @@ export default function BookingDetailModal({
                     <button
                       type="button"
                       onClick={prevImg}
+                      aria-label={i18n.language?.startsWith("fr") ? "Image précédente" : "Previous image"}
+                      title={i18n.language?.startsWith("fr") ? "Image précédente" : "Previous image"}
                       className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 text-white rounded-full p-1 transition-colors"
                     >
                       <ChevronLeft className="h-4 w-4" />
@@ -232,6 +229,8 @@ export default function BookingDetailModal({
                     <button
                       type="button"
                       onClick={nextImg}
+                      aria-label={i18n.language?.startsWith("fr") ? "Image suivante" : "Next image"}
+                      title={i18n.language?.startsWith("fr") ? "Image suivante" : "Next image"}
                       className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 text-white rounded-full p-1 transition-colors"
                     >
                       <ChevronRight className="h-4 w-4" />
@@ -242,6 +241,8 @@ export default function BookingDetailModal({
                           key={i}
                           type="button"
                           onClick={() => setImgIndex(i)}
+                          aria-label={i18n.language?.startsWith("fr") ? `Voir l'image ${i + 1}` : `View image ${i + 1}`}
+                          title={i18n.language?.startsWith("fr") ? `Voir l'image ${i + 1}` : `View image ${i + 1}`}
                           className={`h-1.5 rounded-full transition-all ${i === imgIndex ? "w-4 bg-white" : "w-1.5 bg-white/50"}`}
                         />
                       ))}
@@ -253,7 +254,7 @@ export default function BookingDetailModal({
                 )}
               </div>
             ) : (
-              <div className="w-full h-full bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
+              <div className="w-full h-full bg-linear-to-br from-gray-50 to-gray-100 flex items-center justify-center">
                 <Grid3x3 className="h-10 w-10 text-gray-300" />
               </div>
             )}
@@ -503,7 +504,7 @@ export default function BookingDetailModal({
 
             {/* Other user */}
             <div className="flex items-center gap-3">
-              <Avatar className="h-10 w-10 flex-shrink-0">
+              <Avatar className="h-10 w-10 shrink-0">
                 <AvatarFallback className="text-sm bg-green-100 text-green-800">
                   {otherUserName.charAt(0).toUpperCase()}
                 </AvatarFallback>
@@ -560,7 +561,16 @@ export default function BookingDetailModal({
                 {t("bookings.waitingForPayment")}
               </div>
             )}
-            {booking.status === "active" && (
+            {booking.status === "active" && booking.has_dispute && (
+              <div className="bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-xs text-red-700 space-y-1">
+                <div className="flex items-center gap-1.5 font-semibold">
+                  <AlertTriangle className="h-3.5 w-3.5" />
+                  {t("bookings.disputeInProgress")}
+                </div>
+                <p>{t("bookings.disputePaused")}</p>
+              </div>
+            )}
+            {booking.status === "active" && !booking.has_dispute && (
               <div className="bg-green-50 border border-green-200 rounded-lg px-3 py-2 text-xs text-green-700 space-y-1">
                 <div className="flex items-center gap-1.5 font-medium">{t("bookings.jobInProgress")}</div>
                 <div className="flex gap-4">
@@ -583,17 +593,20 @@ export default function BookingDetailModal({
               const remainingHours = Math.ceil(remainingMs / (1000 * 60 * 60));
               const remainingDays = Math.ceil(remainingMs / (1000 * 60 * 60 * 24));
               if (remainingMs <= 0) return null;
+              const remainingLabel = i18n.language?.startsWith("fr")
+                ? remainingDays > 1
+                  ? `${remainingDays} jours`
+                  : `${remainingHours} heure${remainingHours > 1 ? "s" : ""}`
+                : remainingDays > 1
+                  ? `${remainingDays} more days`
+                  : `${remainingHours} more hour${remainingHours > 1 ? "s" : ""}`;
               return (
                 <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-xs text-amber-800 space-y-1">
                   <div className="flex items-center gap-1.5 font-semibold">
                     <AlertTriangle className="h-3.5 w-3.5" />
                     {i18n.language?.startsWith("fr") ? "Fenêtre de litige" : "Dispute window"}
                   </div>
-                  <p>
-                    {i18n.language?.startsWith("fr")
-                      ? `Vous pouvez ouvrir un litige encore ${remainingDays > 1 ? `${remainingDays} jours` : `${remainingHours} heure${remainingHours > 1 ? "s" : ""}`}. Remboursement max : 50 %.`
-                      : `You can open a dispute for ${remainingDays > 1 ? `${remainingDays} more days` : `${remainingHours} more hour${remainingHours > 1 ? "s" : ""}`}. Max refund: 50%.`}
-                  </p>
+                  <p>{t("bookings.disputeWindowNotice", { time: remainingLabel })}</p>
                 </div>
               );
             })()}
@@ -614,11 +627,9 @@ export default function BookingDetailModal({
           accessToken={accessToken}
           otherUserName={otherUserName}
           otherUserId={otherUserId}
-          currentUserId={currentUserId}
           onCallStatus={callStatus}
           onMarkCompleted={callMarkCompleted}
           onUndoMarkCompleted={callUndoMarkCompleted}
-          onUpdated={handleFooterUpdated}
           onOpenDispute={onOpenDispute}
           onOpenReview={onOpenReview}
           onMessage={onMessage}

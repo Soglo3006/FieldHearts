@@ -116,7 +116,7 @@ export default function OpenDisputeModal({
               <AlertTriangle className="h-5 w-5 text-red-600" />
             </div>
             <div>
-              <h2 className="text-lg font-semibold text-gray-900">Open a Complaint</h2>
+              <h2 className="text-lg font-semibold text-gray-900">Open a Dispute</h2>
               <p className="text-xs text-gray-500 mt-0.5 line-clamp-1">{serviceTitle}</p>
             </div>
           </div>
@@ -128,11 +128,12 @@ export default function OpenDisputeModal({
         {/* Body */}
         <div className="px-6 py-5 space-y-4">
           <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-800 space-y-1.5">
-            <p>Describe the issue clearly. Both parties will be able to respond. Our team will review and resolve the complaint.</p>
+            <p>Describe the issue clearly. Both parties can respond and our team will review the file before deciding on any refund, credit, or other adjustment.</p>
             <ul className="list-disc list-inside text-xs text-red-700 space-y-0.5">
-              <li>Disputes must be opened within <span className="font-semibold">3 days</span> of service completion</li>
-              <li>Maximum refund: <span className="font-semibold">50%</span> of the transaction value</li>
-              <li>The remaining 50% is allocated to the service provider</li>
+              <li>Completed services generally must be disputed within <span className="font-semibold">3 days</span> of completion</li>
+              <li>For in-progress bookings, opening a dispute pauses direct cancellation and routes the case for review</li>
+              <li>Transaction or payment-provider fees may remain non-refundable</li>
+              <li>Outcomes are determined case by case based on the available information</li>
             </ul>
           </div>
 
@@ -211,10 +212,10 @@ export default function OpenDisputeModal({
             disabled={submitting || !isValid}
           >
             {success ? (
-              <span className="flex items-center gap-2"><CheckCircle className="h-4 w-4" /> Complaint Opened!</span>
+              <span className="flex items-center gap-2"><CheckCircle className="h-4 w-4" /> Dispute Opened!</span>
             ) : submitting ? (
               <span className="flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Opening…</span>
-            ) : "Open Complaint"}
+            ) : "Open Dispute"}
           </Button>
         </div>
       </div>

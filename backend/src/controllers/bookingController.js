@@ -231,6 +231,11 @@ export const updateBookingStatus = async (req, res) => {
       if (b.client_id !== req.user.id && b.worker_id !== req.user.id) {
         return res.status(403).json({ message: "You are not authorized to cancel this request" });
       }
+      if (!["pending", "accepted"].includes(b.status)) {
+        return res.status(400).json({
+          message: "In-progress or completed bookings cannot be cancelled directly. Open a dispute instead.",
+        });
+      }
     }
 
     const result = await pool.query(
@@ -441,11 +446,10 @@ export const customizeBooking = async (req, res) => {
   }
 };
 
-// ─── Request cancellation (mutual for active bookings) ────────────────────────
+// ─── Direct cancellation for active bookings is deprecated in favor of disputes ─
 export const requestCancellation = async (req, res) => {
   try {
     const { id } = req.params;
-    const { reason } = req.body;
     const userId = req.user.id;
 
     const booking = await pool.query(
@@ -459,47 +463,13 @@ export const requestCancellation = async (req, res) => {
       return res.status(403).json({ message: "You are not part of this booking" });
     }
 
-    if (b.status !== "active") {
-      return res.status(400).json({ message: "Only active bookings require mutual cancellation" });
-    }
-
-    // If no cancellation requested yet, record the request
-    if (!b.cancel_requested_by) {
-      const result = await pool.query(
-        `UPDATE bookings SET cancel_requested_by = $1, cancel_reason = $2 WHERE id = $3 RETURNING *`,
-        [userId, reason || null, id]
-      );
-      // Notify the other party
-      const otherUserId = userId === b.worker_id ? b.client_id : b.worker_id;
-      createLocalizedNotification({
-        userId: otherUserId,
-        type: "booking_request",
-        link: "/bookings",
-        en: { title: "Cancellation requested", body: `The other party wants to cancel "${b.title}". Review and approve or decline.` },
-        fr: { title: "Annulation demandée", body: `L'autre partie souhaite annuler « ${b.title} ». Approuvez ou refusez.` },
+    if (b.status === "active") {
+      return res.status(400).json({
+        message: "In-progress bookings can no longer be cancelled directly. Open a dispute instead.",
       });
-      return res.json(result.rows[0]);
     }
 
-    // The OTHER party is now approving the cancellation
-    if (b.cancel_requested_by === userId) {
-      return res.status(400).json({ message: "You already requested cancellation — waiting for the other party" });
-    }
-
-    // Both agreed — cancel the booking
-    const result = await pool.query(
-      `UPDATE bookings SET status = 'cancelled', cancel_requested_by = NULL WHERE id = $1 RETURNING *`,
-      [id]
-    );
-    // Notify requester that it's approved
-    createLocalizedNotification({
-      userId: b.cancel_requested_by,
-      type: "booking_rejected",
-      link: "/bookings",
-      en: { title: "Cancellation approved", body: `The cancellation of "${b.title}" has been approved.` },
-      fr: { title: "Annulation approuvée", body: `L'annulation de « ${b.title} » a été approuvée.` },
-    });
-    res.json(result.rows[0]);
+    return res.status(400).json({ message: "Direct cancellation requests are no longer supported for this booking." });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Server error while processing cancellation" });

@@ -38,12 +38,11 @@ export default function TermsOfServicePage() {
         <div className="hidden self-stretch bg-gray-200 lg:block" aria-hidden="true" />
 
         <div>
-          {/* Header */}
           <div className="mb-10">
         <h1 className="text-4xl font-bold text-gray-900 mb-3">
           {isFr ? "Conditions d'utilisation" : "Terms of Service"}
         </h1>
-        <p className="text-gray-500 text-sm">{isFr ? "Dernière mise à jour : " : "Last Updated: "}<span className="font-semibold text-gray-900">{isFr ? "Mars 2026" : "March 2026"}</span></p>
+        <p className="text-gray-500 text-sm">{isFr ? "Dernière mise à jour : " : "Last Updated: "}<span className="font-semibold text-gray-900">{isFr ? "Avril 2026" : "April 2026"}</span></p>
         <p className="mt-4 text-gray-600 leading-relaxed">
           {isFr
             ? <>En utilisant Uneden, vous <span className="font-semibold text-gray-900">acceptez</span> les présentes conditions d&apos;utilisation. Veuillez les lire attentivement avant d&apos;utiliser la plateforme.</>
@@ -51,7 +50,6 @@ export default function TermsOfServicePage() {
         </p>
           </div>
 
-          {/* Sections */}
           <div className="space-y-12 text-gray-700 text-sm leading-relaxed">
 
         <section id="nature">
@@ -59,8 +57,8 @@ export default function TermsOfServicePage() {
             {isFr ? "1. Nature de la plateforme" : "1. Nature of the Platform"}
           </h2>
           <ul className="list-disc list-inside space-y-2 text-gray-600 ml-2">
-            <li>{isFr ? "Uneden est une place de marché mettant en relation des utilisateurs (clients et prestataires de services)." : "Uneden is a marketplace connecting users (clients and service providers)."}</li>
-            <li>{isFr ? "Nous ne fournissons pas nous-mêmes les services listés sur la plateforme." : "We do not provide the services ourselves."}</li>
+            <li>{isFr ? "Uneden est une place de marché technologique mettant en relation des utilisateurs, facilitant les échanges, les réservations et les paiements sur la plateforme." : "Uneden is a technology marketplace connecting users and facilitating communication, bookings, and payments through the platform."}</li>
+            <li>{isFr ? "Nous ne fournissons pas nous-mêmes les services affichés et nous n'agissons pas comme employeur, entrepreneur, assureur, garant ou conseiller professionnel des utilisateurs." : "We do not directly provide the listed services and we do not act as employer, contractor, insurer, guarantor, or professional advisor for users."}</li>
           </ul>
         </section>
 
@@ -70,11 +68,11 @@ export default function TermsOfServicePage() {
           </h2>
           <p className="mb-3">{isFr ? "Les utilisateurs s'engagent à :" : "Users agree to:"}</p>
           <ul className="list-disc list-inside space-y-2 text-gray-600 ml-2">
-            <li><span className="font-semibold text-gray-900">{isFr ? "Fournir des informations exactes" : "Provide accurate information"}</span></li>
-            <li><span className="font-semibold text-gray-900">{isFr ? "Respecter les autres utilisateurs" : "Respect other users"}</span></li>
-            <li><span className="font-semibold text-gray-900">{isFr ? "Livrer les services tels que convenus" : "Deliver services as agreed"}</span></li>
+            <li><span className="font-semibold text-gray-900">{isFr ? "Fournir des informations exactes, à jour et complètes" : "Provide accurate, current, and complete information"}</span></li>
+            <li><span className="font-semibold text-gray-900">{isFr ? "Respecter les autres utilisateurs et utiliser la plateforme de bonne foi" : "Respect other users and use the platform in good faith"}</span></li>
+            <li><span className="font-semibold text-gray-900">{isFr ? "Clarifier l'étendue, les délais et les conditions pratiques avant le début du travail" : "Clarify scope, timing, and practical requirements before work begins"}</span></li>
           </ul>
-          <p className="mt-3">{isFr ? "Les utilisateurs sont responsables de vérifier la crédibilité des autres avant de s'engager." : "Users are responsible for verifying the credibility of others before engaging."}</p>
+          <p className="mt-3">{isFr ? "Les utilisateurs demeurent responsables de vérifier la crédibilité, la conformité et la pertinence des autres parties avant de s'engager." : "Users remain responsible for verifying the credibility, compliance, and suitability of other parties before engaging."}</p>
         </section>
 
         <section id="payments">
@@ -85,15 +83,15 @@ export default function TermsOfServicePage() {
             <div>
               <h3 className="font-semibold text-gray-800 mb-2">{isFr ? "a. Frais acheteur" : "a. Buyer Fees"}</h3>
               <ul className="list-disc list-inside space-y-2 text-gray-600 ml-2">
-                <li>{isFr ? <>Une commission de <span className="font-semibold text-gray-900">5 %</span> est ajoutée à chaque transaction</> : <>A <span className="font-semibold text-gray-900">5%</span> commission is added to each transaction</>}</li>
-                <li>{isFr ? "Des taxes peuvent également s'appliquer selon la province de l'acheteur" : "Applicable taxes may also apply based on the buyer's province"}</li>
+                <li>{isFr ? <>Une commission de <span className="font-semibold text-gray-900">5 %</span> est généralement ajoutée à chaque transaction</> : <>A <span className="font-semibold text-gray-900">5%</span> fee is generally added to each transaction</>}</li>
+                <li>{isFr ? "Des taxes applicables ainsi que certains frais de traitement tiers peuvent aussi s'appliquer selon le contexte de la transaction." : "Applicable taxes and certain third-party processing costs may also apply depending on the transaction context."}</li>
               </ul>
             </div>
             <div>
               <h3 className="font-semibold text-gray-800 mb-2">{isFr ? "b. Système de séquestre (escrow)" : "b. Escrow System"}</h3>
               <ul className="list-disc list-inside space-y-2 text-gray-600 ml-2">
-                <li>{isFr ? <>Les paiements sont retenus jusqu&apos;à la <span className="font-semibold text-gray-900">réalisation du service</span></> : <>Payments are held until <span className="font-semibold text-gray-900">completion of the service</span></>}</li>
-                <li>{isFr ? <>Les fonds sont libérés après <span className="font-semibold text-gray-900">confirmation</span> ou <span className="font-semibold text-gray-900">résolution d&apos;un litige</span></> : <>Funds are released after <span className="font-semibold text-gray-900">confirmation</span> or <span className="font-semibold text-gray-900">dispute resolution</span></>}</li>
+                <li>{isFr ? "Les paiements sont généralement retenus jusqu'à la réalisation du service, à une autre résolution de la réservation ou au traitement d'un litige." : "Payments are generally held until service completion, another booking resolution, or dispute handling."}</li>
+                <li>{isFr ? "Les utilisateurs ne doivent pas détourner hors de la plateforme une transaction initiée sur Uneden pour éviter les frais, protections ou vérifications de la plateforme." : "Users must not move platform-originated transactions outside Uneden to avoid fees, protections, or platform review."}</li>
               </ul>
             </div>
           </div>
@@ -103,11 +101,11 @@ export default function TermsOfServicePage() {
           <h2 className="text-xl font-bold text-gray-900 mb-4">
             {isFr ? "4. Système de portefeuille" : "4. Wallet System"}
           </h2>
-          <p className="mb-3">{isFr ? "Chaque utilisateur dispose d'un portefeuille contenant :" : "Each user has a wallet with:"}</p>
+          <p className="mb-3">{isFr ? "Chaque utilisateur dispose d'un portefeuille pouvant contenir :" : "Each user has a wallet that may contain:"}</p>
           <ul className="list-disc list-inside space-y-2 text-gray-600 ml-2">
-            <li><span className="font-medium text-gray-700">{isFr ? "Solde en attente" : "Pending balance"}</span> — {isFr ? "peut encore faire l'objet d'un litige" : "can be disputed"}</li>
-            <li><span className="font-medium text-gray-700">{isFr ? "Solde approuvé" : "Approved balance"}</span> — {isFr ? "éligible au retrait" : "eligible for withdrawal"}</li>
-            <li><span className="font-medium text-gray-700">{isFr ? "Solde total" : "Total balance"}</span> — {isFr ? "somme des deux" : "sum of both"}</li>
+            <li><span className="font-medium text-gray-700">{isFr ? "Solde en attente" : "Pending balance"}</span> — {isFr ? "montants pouvant encore être examinés, retenus ou contestés" : "amounts that may still be reviewed, held, or disputed"}</li>
+            <li><span className="font-medium text-gray-700">{isFr ? "Solde approuvé" : "Approved balance"}</span> — {isFr ? "montants généralement admissibles au retrait" : "amounts generally eligible for withdrawal"}</li>
+            <li><span className="font-medium text-gray-700">{isFr ? "Autres ajustements" : "Other adjustments"}</span> — {isFr ? "réserves, corrections, renversements ou retenues pouvant être appliqués si nécessaire" : "reserves, corrections, reversals, or holds that may be applied if needed"}</li>
           </ul>
         </section>
 
@@ -116,9 +114,9 @@ export default function TermsOfServicePage() {
             {isFr ? "5. Retraits" : "5. Withdrawals"}
           </h2>
           <ul className="list-disc list-inside space-y-2 text-gray-600 ml-2">
-            <li>{isFr ? <>Les utilisateurs peuvent demander un retrait tous les <span className="font-semibold text-gray-900">14 jours</span></> : <>Users can request withdrawals every <span className="font-semibold text-gray-900">14 days</span></>}</li>
-            <li>{isFr ? <>Les nouveaux utilisateurs doivent attendre <span className="font-semibold text-gray-900">14 jours</span> après la création de leur compte avant le premier retrait</> : <>New users must wait <span className="font-semibold text-gray-900">14 days</span> after account creation before first withdrawal</>}</li>
-            <li>{isFr ? <>Une commission de retrait de <span className="font-semibold text-gray-900">20 %</span> s&apos;applique</> : <>A <span className="font-semibold text-gray-900">20%</span> withdrawal commission applies</>}</li>
+            <li>{isFr ? "Seuls les soldes approuvés sont généralement admissibles au retrait." : "Only approved balances are generally eligible for withdrawal."}</li>
+            <li>{isFr ? <>Les retraits sont généralement disponibles tous les <span className="font-semibold text-gray-900">14 jours</span>, et de nouveaux comptes peuvent être soumis à une période d&apos;attente initiale.</> : <>Withdrawals are generally available every <span className="font-semibold text-gray-900">14 days</span>, and new accounts may be subject to an initial waiting period.</>}</li>
+            <li>{isFr ? <>Une commission de retrait de <span className="font-semibold text-gray-900">20 %</span> peut s&apos;appliquer, en plus de certains frais bancaires, de versement ou de conformité lorsqu&apos;ils doivent être déduits.</> : <>A <span className="font-semibold text-gray-900">20%</span> withdrawal commission may apply, in addition to banking, payout, or compliance costs where they must be deducted.</>}</li>
           </ul>
         </section>
 
@@ -127,21 +125,17 @@ export default function TermsOfServicePage() {
             {isFr ? "6. Litiges et remboursements" : "6. Disputes & Refunds"}
           </h2>
           <ul className="list-disc list-inside space-y-2 text-gray-600 ml-2 mb-4">
-            <li>{isFr ? <>Les utilisateurs disposent de <span className="font-semibold text-gray-900">3 jours</span> pour ouvrir un litige</> : <>Users have <span className="font-semibold text-gray-900">3 days</span> to open a dispute</>}</li>
-            <li>{isFr ? "Après examen, des remboursements peuvent être accordés" : "After review, refunds may be issued"}</li>
+            <li>{isFr ? "Avant le début du travail, certaines réservations peuvent être annulées directement. Une réservation en cours peut cependant être redirigée vers un litige au lieu d'être annulée automatiquement." : "Before work begins, some bookings may be cancelled directly. An in-progress booking may instead be redirected to dispute review rather than cancelled automatically."}</li>
+            <li>{isFr ? <>Pour une réservation terminée, un litige doit généralement être ouvert dans les <span className="font-semibold text-gray-900">3 jours</span> suivant la fin, sauf décision différente d&apos;Uneden.</> : <>For a completed booking, a dispute generally must be opened within <span className="font-semibold text-gray-900">3 days</span> of completion, unless Uneden determines otherwise.</>}</li>
+            <li>{isFr ? "Après examen, un remboursement, un crédit, un renversement partiel ou aucun ajustement peut être accordé selon les informations disponibles." : "After review, a refund, credit, partial reversal, or no adjustment at all may be granted depending on the information available."}</li>
           </ul>
           <div className="mt-4">
             <p className="font-bold text-gray-900 mb-2">{isFr ? "Politique de remboursement" : "Refund Policy"}</p>
             <ul className="list-disc list-inside space-y-1 text-gray-700 ml-2">
-              <li>{isFr ? <>Remboursement maximum : <span className="font-semibold text-gray-900">50 %</span> de la valeur de la transaction</> : <>Maximum refund: <span className="font-semibold text-gray-900">50%</span> of transaction value</>}</li>
-              <li>{isFr ? <>Les <span className="font-semibold text-gray-900">50 %</span> restants sont alloués au prestataire de service</> : <>Remaining <span className="font-semibold text-gray-900">50%</span> is allocated to the service provider</>}</li>
+              <li>{isFr ? "Les décisions sont prises au cas par cas selon les messages, preuves, délais et données disponibles sur la plateforme." : "Outcomes are determined case by case based on messages, evidence, timelines, and platform records."}</li>
+              <li>{isFr ? "Les frais de transaction, frais de prestataire de paiement, taxes ou montants administratifs peuvent demeurer non remboursables et être déduits lorsqu'applicable." : "Transaction fees, payment-provider fees, taxes, or administrative amounts may remain non-refundable and may be deducted where applicable."}</li>
+              <li>{isFr ? "Uneden peut suspendre le déblocage des fonds, demander des preuves complémentaires et rendre une décision finale de plateforme." : "Uneden may pause release of funds, request additional evidence, and make a final platform decision."}</li>
             </ul>
-            <p className="text-xs text-gray-700 mt-3">
-              <span className="font-bold">{isFr ? "Exemple : " : "Example: "}</span>
-              {isFr
-                ? "Si 50 $ sont payés -> remboursement maximum = 25 $ au client, 25 $ au prestataire"
-                : "If $50 is paid -> maximum refund = $25 to client, $25 to worker"}
-            </p>
           </div>
         </section>
 
@@ -149,7 +143,7 @@ export default function TermsOfServicePage() {
           <h2 className="text-xl font-bold text-gray-900 mb-4">
             {isFr ? "7. Paiements partiels" : "7. Partial Payments"}
           </h2>
-          <p>{isFr ? "Certains services peuvent nécessiter des paiements partiels d'avance (ex. : matériaux). Ces conditions doivent être clairement convenues entre les utilisateurs." : "Some services may require partial upfront payments (e.g., materials). These conditions must be clearly agreed upon between users."}</p>
+          <p>{isFr ? "Certains services peuvent nécessiter des dépôts, des matériaux, des achats personnalisés, des déplacements ou d'autres coûts préapprouvés. Ces conditions doivent être clairement convenues entre les utilisateurs avant le début du travail." : "Some services may require deposits, materials, custom purchases, travel, or other pre-approved costs. These terms must be clearly agreed between users before work begins."}</p>
         </section>
 
         <section id="reviews">
@@ -157,8 +151,8 @@ export default function TermsOfServicePage() {
             {isFr ? "8. Avis et évaluations" : "8. Reviews & Ratings"}
           </h2>
           <ul className="list-disc list-inside space-y-2 text-gray-600 ml-2">
-            <li>{isFr ? "Les utilisateurs peuvent laisser des avis après chaque transaction" : "Users may leave reviews after transactions"}</li>
-            <li>{isFr ? "Uneden n'est pas responsable de l'exactitude des avis" : "Uneden is not responsible for the accuracy of reviews"}</li>
+            <li>{isFr ? "Les utilisateurs peuvent laisser des avis et échanger des messages liés à l'activité sur la plateforme." : "Users may leave reviews and exchange messages related to platform activity."}</li>
+            <li>{isFr ? "Uneden peut modérer, retirer ou conserver certains contenus lorsque cela est nécessaire pour la sécurité, l'application des règles ou la conformité légale." : "Uneden may moderate, remove, or retain certain content where necessary for safety, policy enforcement, or legal compliance."}</li>
           </ul>
         </section>
 
@@ -167,8 +161,8 @@ export default function TermsOfServicePage() {
             {isFr ? "9. Publicité" : "9. Advertising"}
           </h2>
           <ul className="list-disc list-inside space-y-2 text-gray-600 ml-2">
-            <li>{isFr ? "La plateforme peut afficher des annonces Google Ads" : "The platform may display Google Ads"}</li>
-            <li>{isFr ? "Des fonctionnalités de promotion payante pour les annonces peuvent être introduites à l'avenir" : "Paid promotion features for listings may be introduced in the future"}</li>
+            <li>{isFr ? "La plateforme peut afficher des annonces, placements commandités ou outils promotionnels payants, maintenant ou à l'avenir." : "The platform may display advertisements, sponsored placements, or paid promotional tools now or in the future."}</li>
+            <li>{isFr ? "Des fonctionnalités promotionnelles additionnelles peuvent être introduites avec des règles spécifiques lorsqu'elles seront lancées." : "Additional promotional features may be introduced with their own specific rules when launched."}</li>
           </ul>
         </section>
 
@@ -176,13 +170,13 @@ export default function TermsOfServicePage() {
           <h2 className="text-xl font-bold text-gray-900 mb-4">
             {isFr ? "10. Limitation de responsabilité" : "10. Liability Disclaimer"}
           </h2>
-          <p className="mb-3">{isFr ? "Uneden n'est pas responsable de :" : "Uneden is not liable for:"}</p>
+          <p className="mb-3">{isFr ? "Dans la mesure permise par la loi, Uneden n'est pas responsable de :" : "To the extent permitted by law, Uneden is not liable for:"}</p>
           <ul className="list-disc list-inside space-y-2 text-gray-600 ml-2">
-            <li>{isFr ? "La mauvaise qualité du travail effectué" : "Poor quality work"}</li>
-            <li>{isFr ? "Les dommages causés par les utilisateurs" : "Damages caused by users"}</li>
-            <li>{isFr ? "Les litiges entre utilisateurs" : "Disputes between users"}</li>
+            <li>{isFr ? "La qualité, l'exécution ou les résultats des services fournis par les utilisateurs" : "The quality, performance, or results of services provided by users"}</li>
+            <li>{isFr ? "Les dommages, retards, pertes financières, fraudes ou litiges découlant des interactions entre utilisateurs ou de systèmes tiers" : "Damages, delays, financial losses, fraud, or disputes arising from user interactions or third-party systems"}</li>
+            <li>{isFr ? "Les pertes indirectes, accessoires, spéciales, consécutives ou les pertes de profits liées à l'utilisation de la plateforme" : "Indirect, incidental, special, consequential, or lost-profit damages related to platform use"}</li>
           </ul>
-          <p className="mt-3 font-semibold text-gray-900">{isFr ? "Nous agissons uniquement en tant qu'intermédiaire." : "We act only as an intermediary."}</p>
+          <p className="mt-3 font-semibold text-gray-900">{isFr ? "Nous agissons uniquement en tant qu'intermédiaire de plateforme." : "We act only as a platform intermediary."}</p>
         </section>
 
         <section id="prohibited">
@@ -191,12 +185,11 @@ export default function TermsOfServicePage() {
           </h2>
           <p className="mb-3">{isFr ? "Les utilisateurs ne peuvent pas :" : "Users may not:"}</p>
           <ul className="list-disc list-inside space-y-2 text-gray-600 ml-2">
-            <li><span className="font-semibold text-gray-900">{isFr ? "Commettre des fraudes ou arnaques" : "Commit fraud or scams"}</span></li>
-            <li><span className="font-semibold text-gray-900">{isFr ? "Abuser de la plateforme" : "Abuse the platform"}</span></li>
-            <li><span className="font-semibold text-gray-900">{isFr ? "Contourner les systèmes de paiement" : "Circumvent payment systems"}</span></li>
-            <li><span className="font-semibold text-gray-900">{isFr ? "Publier de faux avis ou se faire passer pour quelqu'un d'autre" : "Post false reviews or impersonate others"}</span></li>
+            <li><span className="font-semibold text-gray-900">{isFr ? "Commettre des fraudes, arnaques, abus de rétrofacturation ou usurpations d'identité" : "Commit fraud, scams, chargeback abuse, or identity misuse"}</span></li>
+            <li><span className="font-semibold text-gray-900">{isFr ? "Contourner les paiements ou protections de la plateforme" : "Bypass platform payments or safeguards"}</span></li>
+            <li><span className="font-semibold text-gray-900">{isFr ? "Publier de faux avis, harceler, menacer ou utiliser la plateforme pour des services illégaux ou interdits" : "Post false reviews, harass, threaten, or use the platform for unlawful or prohibited services"}</span></li>
           </ul>
-          <p className="mt-3">{isFr ? <>Les comptes peuvent être <span className="font-semibold text-gray-900">suspendus</span> à notre discrétion.</> : <>Accounts may be <span className="font-semibold text-gray-900">suspended</span> at our discretion.</>}</p>
+          <p className="mt-3">{isFr ? <>Les comptes peuvent être <span className="font-semibold text-gray-900">limités, suspendus ou fermés</span> à notre discrétion.</> : <>Accounts may be <span className="font-semibold text-gray-900">limited, suspended, or closed</span> at our discretion.</>}</p>
         </section>
 
         <section id="financial-risks">
@@ -205,9 +198,9 @@ export default function TermsOfServicePage() {
           </h2>
           <p className="mb-3">{isFr ? "Les utilisateurs reconnaissent que :" : "Users acknowledge:"}</p>
           <ul className="list-disc list-inside space-y-2 text-gray-600 ml-2">
-            <li>{isFr ? <>Les paiements sont traités par des <span className="font-semibold text-gray-900">tiers</span></> : <>Payments are processed via <span className="font-semibold text-gray-900">third parties</span></>}</li>
-            <li>{isFr ? <>Des <span className="font-semibold text-gray-900">délais</span> ou <span className="font-semibold text-gray-900">problèmes</span> peuvent survenir</> : <><span className="font-semibold text-gray-900">Delays</span> or <span className="font-semibold text-gray-900">issues</span> may occur</>}</li>
-            <li>{isFr ? <>Les soldes des portefeuilles sont soumis aux <span className="font-semibold text-gray-900">règles de la plateforme</span></> : <>Wallet balances are subject to <span className="font-semibold text-gray-900">platform rules</span></>}</li>
+            <li>{isFr ? <>Les paiements et versements peuvent être traités par des <span className="font-semibold text-gray-900">prestataires tiers</span> soumis à leurs propres règles.</> : <>Payments and payouts may be processed by <span className="font-semibold text-gray-900">third-party providers</span> subject to their own rules.</>}</li>
+            <li>{isFr ? <>Des <span className="font-semibold text-gray-900">délais, retenues, réserves ou corrections</span> peuvent survenir pour des raisons opérationnelles, de conformité ou de risque.</> : <><span className="font-semibold text-gray-900">Delays, holds, reserves, or corrections</span> may occur for operational, compliance, or risk reasons.</>}</li>
+            <li>{isFr ? <>Les soldes des portefeuilles et les montants à payer ou verser peuvent être ajustés conformément aux <span className="font-semibold text-gray-900">règles de la plateforme</span>.</> : <>Wallet balances and payment or payout amounts may be adjusted in accordance with <span className="font-semibold text-gray-900">platform rules</span>.</>}</li>
           </ul>
         </section>
 
@@ -217,9 +210,9 @@ export default function TermsOfServicePage() {
           </h2>
           <p className="mb-3">{isFr ? "Les utilisateurs devraient :" : "Users should:"}</p>
           <ul className="list-disc list-inside space-y-2 text-gray-600 ml-2">
-            <li><span className="font-semibold text-gray-900">{isFr ? "Vérifier les prestataires de services" : "Verify service providers"}</span></li>
-            <li><span className="font-semibold text-gray-900">{isFr ? "Éviter les transactions non sécurisées" : "Avoid unsafe transactions"}</span></li>
-            <li><span className="font-semibold text-gray-900">{isFr ? "Faire preuve de prudence lors des interactions avec d'autres utilisateurs" : "Use caution when interacting with others"}</span></li>
+            <li><span className="font-semibold text-gray-900">{isFr ? "Vérifier les prestataires, clients et informations de réservation" : "Verify providers, clients, and booking details"}</span></li>
+            <li><span className="font-semibold text-gray-900">{isFr ? "Éviter les transactions non sécurisées ou hors plateforme" : "Avoid unsafe or off-platform transactions"}</span></li>
+            <li><span className="font-semibold text-gray-900">{isFr ? "Faire preuve de prudence dans les interactions et signaler rapidement toute situation risquée" : "Use caution in interactions and report risky situations promptly"}</span></li>
           </ul>
         </section>
 
@@ -227,14 +220,14 @@ export default function TermsOfServicePage() {
           <h2 className="text-xl font-bold text-gray-900 mb-4">
             {isFr ? "14. Modifications" : "14. Modifications"}
           </h2>
-          <p>{isFr ? <>Nous pouvons modifier ces conditions <span className="font-semibold text-gray-900">à tout moment</span> <span className="font-semibold text-gray-900">sans préavis</span>. Nous vous encourageons à consulter régulièrement cette page.</> : <>We may modify these Terms <span className="font-semibold text-gray-900">at any time</span> <span className="font-semibold text-gray-900">without prior notice</span>. We encourage you to review this page regularly.</>}</p>
+          <p>{isFr ? <>Nous pouvons modifier ces conditions <span className="font-semibold text-gray-900">de temps à autre</span>. L&apos;utilisation continue d&apos;Uneden après mise à jour signifie que vous acceptez la version révisée dans la mesure permise par la loi.</> : <>We may modify these Terms <span className="font-semibold text-gray-900">from time to time</span>. Continued use of Uneden after an update means you accept the revised version to the extent permitted by law.</>}</p>
         </section>
 
         <section id="governing-law">
           <h2 className="text-xl font-bold text-gray-900 mb-4">
             {isFr ? "15. Droit applicable" : "15. Governing Law"}
           </h2>
-          <p className="mb-3">{isFr ? "Les présentes conditions sont régies par les lois de :" : "These Terms are governed by the laws of:"}</p>
+          <p className="mb-3">{isFr ? "Les présentes conditions sont régies par les lois applicables de :" : "These Terms are governed by the applicable laws of:"}</p>
           <ul className="list-disc list-inside space-y-2 text-gray-600 ml-2">
             <li><span className="font-semibold text-gray-900">{isFr ? "La province de Québec" : "Province of Quebec"}</span></li>
             <li><span className="font-semibold text-gray-900">Canada</span></li>

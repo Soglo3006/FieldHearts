@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useAuth } from '@/contexts/AuthContext';
+import { sendOptimisticMessage } from '@/lib/optimisticMessage';
 
 const PAGE_SIZE = 40;
 
@@ -186,7 +187,7 @@ export function useMessages(chatRoomId: string | null) {
       setLoadedChatId(chatRoomId);
       setHasMore(hasMoreResult);
       messagesCacheRef.current.set(chatRoomId, enriched);
-    } catch (err) {
+    } catch {
     } finally {
       if (currentRequestId === requestIdRef.current) setLoading(false);
     }
@@ -275,7 +276,7 @@ export function useMessages(chatRoomId: string | null) {
       });
       setHasMore(hasMoreResult);
       return enriched.length;
-    } catch (err) {
+    } catch {
       return 0;
     } finally {
       if (capturedRequestId === requestIdRef.current) setLoadingMore(false);
@@ -414,83 +415,53 @@ export function useMessages(chatRoomId: string | null) {
   }, [chatRoomId]);
 
   const sendMessage = async (content: string, repliedToMessageId?: string | null, overrideChatRoomId?: string | null) => {
-    const targetChatRoomId = overrideChatRoomId || chatRoomId;
-    if (!content.trim() || !targetChatRoomId || !user) return;
-
-    const trimmed = content.trim();
-    const tempId = makeTempId();
-    const nowIso = new Date().toISOString();
-
-    const optimistic: Message = {
-      id: tempId,
-      client_temp_id: tempId,
-      chat_room_id: targetChatRoomId,
-      user_id: user.id,
-      content: trimmed,
-      created_at: nowIso,
-      replied_to_message_id: repliedToMessageId || null,
-      status: 'sending' as const,
-      replied_to: repliedToMessageId
-        ? (() => {
-            const target = messagesRef.current.find((m) => m.id === repliedToMessageId);
-            return target
-              ? { id: target.id, content: target.content, user_id: target.user_id, sender_name: target.sender?.full_name }
-              : null;
-          })()
-        : null,
-    };
-
-    setMessages((prev) => {
-      const next = [...prev, optimistic];
-      messagesCacheRef.current.set(targetChatRoomId, next);
-      return next;
-    });
-
-    setSending(true);
-
-    try {
-      const { error } = await supabase.from('messages').insert({
-        chat_room_id: targetChatRoomId,
-        user_id: user.id,
-        content: trimmed,
-        client_temp_id: tempId,
-        replied_to_message_id: repliedToMessageId || null,
-      });
-      if (error) throw error;
-
-      // Restore conversation for any member who had deleted it on their side
-      await supabase
-        .from('chat_room_member')
-        .update({ is_deleted: false })
-        .eq('chat_room_id', targetChatRoomId)
-        .neq('user_id', user.id)
-        .eq('is_deleted', true);
-
-      fetch(`${process.env.NEXT_PUBLIC_API_URL}/messages/notify`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          chatRoomId: targetChatRoomId,
-          senderUserId: user.id,
-          messagePreview: trimmed.substring(0, 100),
-        }),
-      }).catch(() => {});
-
-    } catch (err) {
-      setMessages((prev) => {
-        const next = prev.map((m) => (m.id === tempId ? { ...m, status: 'failed' as const } : m));
+    await sendOptimisticMessage<Message>({
+      chatRoomId,
+      content,
+      repliedToMessageId,
+      overrideChatRoomId,
+      user,
+      existingMessages: messagesRef.current,
+      setMessages,
+      cacheMessages: (targetChatRoomId, next) => {
         messagesCacheRef.current.set(targetChatRoomId, next);
-        return next;
-      });
-    } finally {
-      setSending(false);
-    }
+      },
+      setSending,
+      insertMessage: async (payload) => {
+        const { error } = await supabase.from('messages').insert(payload);
+        if (error) throw error;
+      },
+      restoreConversation: async (targetChatRoomId, userId) => {
+        await supabase
+          .from('chat_room_member')
+          .update({ is_deleted: false })
+          .eq('chat_room_id', targetChatRoomId)
+          .neq('user_id', userId)
+          .eq('is_deleted', true);
+      },
+      notifyMessage: ({ chatRoomId: targetChatRoomId, senderUserId, messagePreview }) => {
+        fetch(`${process.env.NEXT_PUBLIC_API_URL}/messages/notify`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chatRoomId: targetChatRoomId,
+            senderUserId,
+            messagePreview,
+          }),
+        }).catch(() => {});
+      },
+      makeTempId,
+    });
   };
 
   const retryMessage = async (tempId: string) => {
     const msg = messagesRef.current.find((m) => m.id === tempId);
     if (!msg) return;
-    await sendMessage(msg.content, msg.replied_to_message_id);
+    try {
+      await sendMessage(msg.content, msg.replied_to_message_id);
+    } catch {
+      // The failed state is already reflected in the message list.
+    }
   };
 
   return { messages, loading, sending, sendMessage, retryMessage, loadedChatId, hasMore, loadingMore, loadMore };

@@ -140,10 +140,14 @@ export function ConversationSettings({
     },
   };
 
+  const neutralRowClass = 'w-full flex items-center gap-3 px-4 py-3 text-left transition-colors cursor-pointer hover:bg-gray-50';
+  const dangerRowClass = 'w-full flex items-center gap-3 px-4 py-3 text-left transition-colors cursor-pointer text-red-600 hover:bg-red-50';
+  const successRowClass = 'w-full flex items-center gap-3 px-4 py-3 text-left transition-colors cursor-pointer text-green-700 hover:bg-green-50';
+
   return (
     <div className="w-full h-full flex flex-col bg-gray-50">
       {/* Header */}
-      <div className="shrink-0 p-4 bg-gray-50 border-b flex items-center justify-between h-[73px]">
+      <div className="shrink-0 p-4 bg-gray-50 border-b flex items-center justify-between h-18.25">
         <h3 className="text-lg font-semibold">{t("messages.settings")}</h3>
         <Button variant="ghost" size="icon" onClick={onClose} className='cursor-pointer'>
           {backButton ? <ArrowLeft className="h-5 w-5" /> : <X className="h-5 w-5" />}
@@ -171,6 +175,9 @@ export function ConversationSettings({
               {searchQuery && (
                 <button
                   onClick={() => setSearchQuery('')}
+                  type="button"
+                  title={t("common.clear", { defaultValue: "Clear" })}
+                  aria-label={t("common.clear", { defaultValue: "Clear" })}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
                 >
                   <X className="h-3 w-3" />
@@ -240,7 +247,7 @@ export function ConversationSettings({
         <div className="bg-white rounded-xl border divide-y overflow-hidden">
           <button
             onClick={onToggleMute}
-            className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors text-left cursor-pointer"
+            className={neutralRowClass}
           >
             {isMuted
               ? <Bell className="h-5 w-5 text-gray-500" />
@@ -254,7 +261,7 @@ export function ConversationSettings({
           {onArchive && (
             <button
               onClick={onArchive}
-              className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors text-left cursor-pointer"
+              className={neutralRowClass}
             >
               {isArchived
                 ? <ArchiveRestore className="h-5 w-5 text-gray-500" />
@@ -271,16 +278,16 @@ export function ConversationSettings({
         <div className="bg-white rounded-xl border divide-y overflow-hidden">
           <button
             onClick={() => setConfirmAction('delete')}
-            className="w-full flex items-center gap-3 px-4 py-3 hover:bg-red-50 transition-colors text-left cursor-pointer"
+            className={dangerRowClass}
           >
-            <Trash2 className="h-5 w-5 text-gray-700" />
-            <span className="text-sm text-gray-700">{t("messages.deleteConversation")}</span>
+            <Trash2 className="h-5 w-5 text-red-500" />
+            <span className="text-sm font-medium text-red-600">{t("messages.deleteConversation")}</span>
           </button>
 
           {isBlocked ? (
             <button
               onClick={() => setConfirmAction('unblock')}
-              className="w-full flex items-center gap-3 px-4 py-3 hover:bg-green-50 transition-colors text-left cursor-pointer"
+              className={successRowClass}
             >
               <Ban className="h-5 w-5 text-green-600" />
               <span className="text-sm text-green-600 font-medium">{t("messages.unblockUser", { name: displayName })}</span>
@@ -288,19 +295,19 @@ export function ConversationSettings({
           ) : (
             <button
               onClick={() => setConfirmAction('block')}
-              className="w-full flex items-center gap-3 px-4 py-3 hover:bg-red-50 transition-colors text-left cursor-pointer"
+              className={dangerRowClass}
             >
-              <Ban className="h-5 w-5 text-gray-700" />
-              <span className="text-sm text-gray-700">{t("messages.blockUser", { name: displayName })}</span>
+              <Ban className="h-5 w-5 text-red-500" />
+              <span className="text-sm font-medium text-red-600">{t("messages.blockUser", { name: displayName })}</span>
             </button>
           )}
 
           <button
             onClick={() => setShowReportModal(true)}
-            className="w-full flex items-center gap-3 px-4 py-3 hover:bg-red-50 transition-colors text-left cursor-pointer"
+            className={dangerRowClass}
           >
-            <Flag className="h-5 w-5 text-gray-700" />
-            <span className="text-sm text-gray-700">{t("messages.reportUser", { name: displayName })}</span>
+            <Flag className="h-5 w-5 text-red-500" />
+            <span className="text-sm font-medium text-red-600">{t("messages.reportUser", { name: displayName })}</span>
           </button>
         </div>
       </div>
@@ -355,7 +362,7 @@ export function ConversationSettings({
               <label className="text-sm font-medium text-gray-700 block mb-2">{t("messages.reportDetails")}</label>
               <Textarea
                 placeholder={t("messages.reportDetailsPlaceholder")}
-                className="min-h-[100px] resize-none"
+                className="min-h-25 resize-none"
                 value={reportDetails}
                 onChange={(e) => setReportDetails(e.target.value)}
               />

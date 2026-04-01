@@ -23,7 +23,7 @@ export function QuickReactions({ onEmojiSelect, onShowPicker }: QuickReactionsPr
       {QUICK_EMOJIS.map((item) => (
         <button
           key={item.code}
-          className="h-10 w-10 flex items-center justify-center hover:bg-gray-100 rounded-full transition-all hover:scale-110 active:scale-95 cursor-pointer"
+          className="h-10 w-10 flex items-center justify-center rounded-full transition-all hover:scale-110 active:scale-95 cursor-pointer hover:bg-green-50"
           onClick={(e) => {
             e.stopPropagation();
             onEmojiSelect(item.emoji);
@@ -40,13 +40,13 @@ export function QuickReactions({ onEmojiSelect, onShowPicker }: QuickReactionsPr
       <Button
         variant="ghost"
         size="sm"
-        className="h-10 w-10 p-0 hover:bg-gray-100 rounded-full flex-shrink-0 cursor-pointer"
+        className="h-10 w-10 p-0 rounded-full shrink-0 cursor-pointer hover:bg-green-50"
         onClick={(e) => {
           e.stopPropagation();
           onShowPicker();
         }}
       >
-        <Plus className="h-5 w-5 text-gray-600" />
+        <Plus className="h-5 w-5 text-green-700" />
       </Button>
     </div>
   );

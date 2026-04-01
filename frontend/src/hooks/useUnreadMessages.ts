@@ -1,6 +1,8 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTranslation } from 'react-i18next';
+import { formatUnreadMessagePreview } from '@/lib/messagePreview';
 
 export interface UnreadChat {
   id: string;
@@ -29,10 +31,26 @@ function playNotificationSound() {
 
 export function useUnreadMessages() {
   const { user } = useAuth();
+  const { t, i18n } = useTranslation();
   const [unreadChats, setUnreadChats] = useState<UnreadChat[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const prevUnreadCountRef = useRef(0);
+
+  const formatMessagePreview = useCallback((content: string, isOwnMessage: boolean, senderName?: string) => {
+    return formatUnreadMessagePreview(content, {
+      isOwnMessage,
+      senderName,
+      labels: {
+        ownPrefix: i18n.language.startsWith('fr') ? 'Vous: ' : 'You: ',
+        photo: t('messages.photo'),
+        file: t('messages.file'),
+        voiceMessage: t('messages.voiceMessage'),
+        fallbackSenderName: i18n.language.startsWith('fr') ? 'Quelqu’un' : 'Someone',
+        formatVoiceFromOther: (name: string) => t('messages.sentVoiceMessageOther', { name }),
+      },
+    });
+  }, [i18n.language, t]);
 
   useEffect(() => {
     if (!user) return;
@@ -98,21 +116,26 @@ export function useUnreadMessages() {
               .maybeSingle();
 
             // Préfixer "Vous: " si le dernier message est le nôtre
-            const messagePreview = lastMsg.user_id === user.id
-              ? `Vous: ${lastMsg.content}`
-              : lastMsg.content;
+            const senderName = profile?.account_type === 'company'
+              ? profile?.company_name || profile?.full_name || 'Inconnu'
+              : profile?.full_name || 'Inconnu';
+
+            const messagePreview = formatMessagePreview(
+              lastMsg.content,
+              lastMsg.user_id === user.id,
+              senderName
+            );
 
             return {
               id: lastMsg.id,
               chat_room_id: chatId,
               last_message: messagePreview,
               last_message_time: lastMsg.created_at,
-              sender_name: profile?.account_type === 'company'
-                ? profile?.company_name || profile?.full_name || 'Inconnu'
-                : profile?.full_name || 'Inconnu',
+              sender_name: senderName,
               sender_avatar: profile?.avatar_url || null,
               sender_id: displayUserId,
               is_read: !isUnread,
+              account_type: profile?.account_type || null,
             };
           })
         );
@@ -136,7 +159,7 @@ export function useUnreadMessages() {
         prevUnreadCountRef.current = newUnreadCount;
         setUnreadChats(validChats);
         setUnreadCount(newUnreadCount);
-      } catch (error) {
+      } catch {
       } finally {
         setLoading(false);
       }
@@ -200,7 +223,7 @@ export function useUnreadMessages() {
       supabase.removeChannel(channel);
       clearInterval(pollInterval);
     };
-  }, [user]);
+  }, [formatMessagePreview, user]);
 
   const markAsRead = async (chatRoomId: string) => {
     if (!user) return;

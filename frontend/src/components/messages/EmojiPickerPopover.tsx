@@ -43,10 +43,10 @@ export function EmojiPickerPopover({ onEmojiSelect, onOpenChange }: EmojiPickerP
         <Button
           variant="ghost"
           size="icon"
-          className="h-7 w-7 bg-white border border-gray-200 hover:bg-gray-50 rounded-full shadow-sm cursor-pointer"
+          className="h-7 w-7 rounded-full border border-green-100 bg-white shadow-sm cursor-pointer hover:border-green-200 hover:bg-green-50"
           onClick={(e) => e.stopPropagation()}
         >
-          <Smile className="h-3 w-3 text-gray-600" />
+          <Smile className="h-3 w-3 text-green-700" />
         </Button>
       </PopoverTrigger>
       <PopoverContent

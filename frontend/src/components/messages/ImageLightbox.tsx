@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from 'react';
+import Image from 'next/image';
 import { useScrollLock } from "@/hooks/useScrollLock";
 import { X, Download } from 'lucide-react';
 
@@ -11,6 +12,7 @@ interface ImageLightboxProps {
 
 export function ImageLightbox({ imageUrl, onClose }: ImageLightboxProps) {
   useScrollLock(true);
+
   // Fermer avec Escape
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
@@ -19,12 +21,6 @@ export function ImageLightbox({ imageUrl, onClose }: ImageLightboxProps) {
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
   }, [onClose]);
-
-  // Bloquer le scroll
-  useEffect(() => {
-    document.body.style.overflow = 'hidden';
-    return () => { document.body.style.overflow = 'auto'; };
-  }, []);
 
   const handleDownload = async () => {
     try {
@@ -43,8 +39,11 @@ export function ImageLightbox({ imageUrl, onClose }: ImageLightboxProps) {
 
   return (
     <div
-      className="fixed inset-0 z-[100] bg-black/90 flex items-center justify-center"
-      onClick={onClose} 
+      role="dialog"
+      aria-modal="true"
+      aria-label="Image preview"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/90"
+      onClick={onClose}
     >
       {/* Boutons en haut à droite */}
       <div
@@ -53,12 +52,14 @@ export function ImageLightbox({ imageUrl, onClose }: ImageLightboxProps) {
       >
         <button
           onClick={handleDownload}
+          aria-label="Download image"
           className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors cursor-pointer"
         >
           <Download className="h-5 w-5" />
         </button>
         <button
           onClick={onClose}
+          aria-label="Close image preview"
           className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors cursor-pointer"
         >
           <X className="h-5 w-5" />
@@ -70,9 +71,11 @@ export function ImageLightbox({ imageUrl, onClose }: ImageLightboxProps) {
         className="max-w-[90vw] max-h-[90vh] flex items-center justify-center"
         onClick={(e) => e.stopPropagation()} // Clic sur l'image ne ferme pas
       >
-        <img
+        <Image
           src={imageUrl}
           alt="Image"
+          width={1600}
+          height={1200}
           className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl"
         />
       </div>

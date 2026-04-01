@@ -1,7 +1,8 @@
 "use client";
 
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Smile, MessageCircle, MoreVertical, Star, Pencil } from 'lucide-react';
+import { MessageCircle, MoreVertical } from 'lucide-react';
 import {
   Tooltip,
   TooltipContent,
@@ -43,16 +44,26 @@ export function MessageActions({
   onEmojiOpenChange,
 }: MessageActionsProps) {
   const { t } = useTranslation();
+  const [isReactTooltipOpen, setIsReactTooltipOpen] = useState(false);
+  const [isReactPickerOpen, setIsReactPickerOpen] = useState(false);
+
   return (
     <div className="flex items-center gap-1 mt-1">
-      {/* Bouton Réagir avec EmojiPicker + Tooltip */}
-      <Tooltip>
+      {/* Bouton Réagir avec EmojiPicker + Tooltip contrôlé */}
+      <Tooltip
+        open={isReactPickerOpen ? false : isReactTooltipOpen}
+        onOpenChange={setIsReactTooltipOpen}
+      >
         <TooltipTrigger asChild>
           <div>
             <EmojiPickerPopover
               onEmojiSelect={(emoji) => onReact?.(emoji)}
               onOpenChange={(open) => {
-                if (open) setOpenMenuKey(null);
+                if (open) {
+                  setOpenMenuKey(null);
+                  setIsReactTooltipOpen(false);
+                }
+                setIsReactPickerOpen(open);
                 onEmojiOpenChange?.(open);
               }}
             />
@@ -69,14 +80,14 @@ export function MessageActions({
           <Button
             variant="ghost"
             size="icon"
-            className="h-7 w-7 bg-white border border-gray-200 hover:bg-gray-50 rounded-full shadow-sm cursor-pointer"
+            className="h-7 w-7 rounded-full border border-green-100 bg-white shadow-sm cursor-pointer hover:border-green-200 hover:bg-green-50"
             onPointerDown={(e) => e.stopPropagation()}
             onClick={(e) => {
               e.stopPropagation();
               onReply?.();
             }}
           >
-            <MessageCircle className="h-3 w-3 text-gray-600" />
+            <MessageCircle className="h-3 w-3 text-green-700" />
           </Button>
         </TooltipTrigger>
         <TooltipContent>
@@ -98,11 +109,11 @@ export function MessageActions({
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-7 w-7 bg-white border border-gray-200 hover:bg-gray-50 rounded-full shadow-sm cursor-pointer"
+                className="h-7 w-7 rounded-full border border-green-100 bg-white shadow-sm cursor-pointer hover:border-green-200 hover:bg-green-50"
                 onPointerDown={(e) => e.stopPropagation()}
                 onClick={(e) => e.stopPropagation()}
               >
-                <MoreVertical className="h-3 w-3 text-gray-600" />
+                <MoreVertical className="h-3 w-3 text-green-700" />
               </Button>
             </DropdownMenuTrigger>
           </TooltipTrigger>
@@ -113,7 +124,7 @@ export function MessageActions({
 
         <DropdownMenuContent
           align="end"
-          className="z-[9999]"
+          className="z-9999"
           onPointerDown={(e) => e.stopPropagation()}
         >
           <DropdownMenuItem

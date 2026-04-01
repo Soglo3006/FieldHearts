@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, Suspense } from 'react';
+import Image from 'next/image';
 import { useProtectedRoute } from '@/hooks/useProtectedRoute';
 import { useAuth } from '@/contexts/AuthContext';
 import { useChats } from '@/hooks/useChats';
@@ -30,6 +31,7 @@ import { ChatInputArea } from '@/components/messages/ChatInputArea';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
+import { DraftMessagePreparationError, prepareDraftMessageTarget } from '@/lib/draftMessage';
 
 function MessagesContent() {
   const { t } = useTranslation();
@@ -132,6 +134,8 @@ function MessagesContent() {
   const { togglePin } = usePinMessage();
 
   const activeChat = chats.find(c => c.id === activeChatId);
+  const hasActiveChat = !!activeChat;
+  const activeOtherUserId = activeChat?.other_user?.id ?? null;
   const displayedConversationUser = activeChat?.other_user ?? pendingNewConvUser;
   const isPendingConversationTransition = !!pendingNewConvUser;
   const shouldSyncSidebarLoading = !!activeChat && !showSettings && (isLargeScreen || showMobileSidebar);
@@ -146,23 +150,23 @@ function MessagesContent() {
       || (shouldSyncSidebarLoading && isProfileSidebarLoading)
     );
   useEffect(() => {
-    if (!pendingNewConvUser || !activeChat) return;
-    if (activeChat.other_user?.id !== pendingNewConvUser.id) return;
+    if (!pendingNewConvUser?.id || !activeOtherUserId) return;
+    if (activeOtherUserId !== pendingNewConvUser.id) return;
     setPendingNewConvUser(null);
     setNewConversationMode(false);
     previousChatIdRef.current = null;
-  }, [activeChat, pendingNewConvUser]);
+  }, [activeOtherUserId, pendingNewConvUser?.id]);
   useEffect(() => {
-    if (!activeChat || newConversationMode || isPendingConversationTransition) {
+    if (!hasActiveChat || !activeChatId || newConversationMode || isPendingConversationTransition) {
       previousSidebarChatIdRef.current = null;
       setIsProfileSidebarLoading(false);
       return;
     }
-    if (activeChat.id !== previousSidebarChatIdRef.current) {
-      previousSidebarChatIdRef.current = activeChat.id;
+    if (activeChatId !== previousSidebarChatIdRef.current) {
+      previousSidebarChatIdRef.current = activeChatId;
       setIsProfileSidebarLoading(true);
     }
-  }, [activeChat?.id, newConversationMode, isPendingConversationTransition]);
+  }, [activeChatId, hasActiveChat, newConversationMode, isPendingConversationTransition]);
   usePresence(user?.id || null);
   const { sendTyping } = useTypingIndicator(activeChatId, user?.id ?? null);
   const isTyping = useIsTyping(activeChatId, activeChat?.other_user?.id);
@@ -270,7 +274,7 @@ function MessagesContent() {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  const ensureChatForDraftConversation = async () => {
+  const ensureChatForDraftConversation = async (options?: { activate?: boolean }) => {
     if (activeChatId) return activeChatId;
     if (!pendingNewConvUser) return null;
 
@@ -278,47 +282,106 @@ function MessagesContent() {
     const chatId = await getOrCreateDirectChat(pendingNewConvUser.id);
     if (!chatId) return null;
 
+    if (options?.activate !== false) {
+      await refreshChats();
+      skipNextSwitchRef.current = true;
+      skipNextLoadingRef.current = true;
+      handleChatSelect(chatId, { preservePendingUser: true });
+    }
+
+    return chatId;
+  };
+
+  const activateDraftConversation = async (chatId: string) => {
     await refreshChats();
     skipNextSwitchRef.current = true;
     skipNextLoadingRef.current = true;
     handleChatSelect(chatId, { preservePendingUser: true });
-    return chatId;
   };
 
   const handleSendMessage = async () => {
     if (!messageInput.trim() && !attachedFile) return;
-    try {
-      const targetChatId = await ensureChatForDraftConversation();
-      if (!targetChatId) {
-        toast.error(t("messages.failedToSend"));
-        return;
-      }
 
-      let fileUrl = null;
-      if (attachedFile) {
-        const fileExt = attachedFile.name.split('.').pop();
-        const fileName = `${user?.id}/${Date.now()}.${fileExt}`;
-        const { error: uploadError } = await supabase.storage.from('chat-attachments').upload(fileName, attachedFile);
-        if (uploadError) { toast.error(t("messages.failedToUpload")); return; }
-        const { data } = supabase.storage.from('chat-attachments').getPublicUrl(fileName);
-        fileUrl = data.publicUrl;
-      }
+    const isDraftConversation = !activeChatId && !!pendingNewConvUser;
+    let uploadedFilePath: string | null = null;
+    let targetChatId: string | null = null;
+    let fileUrl: string | null = null;
+    let textSent = false;
+    let fileSent = false;
+
+    try {
+      const preparedTarget = await prepareDraftMessageTarget<File>({
+        attachment: attachedFile,
+        createUploadPath: attachedFile
+          ? () => {
+              const fileExt = attachedFile.name.split('.').pop();
+              return `${user?.id}/${Date.now()}.${fileExt}`;
+            }
+          : undefined,
+        uploadAttachment: attachedFile
+          ? async (fileName, file) => {
+              const { error: uploadError } = await supabase.storage.from('chat-attachments').upload(fileName, file);
+              if (uploadError) throw uploadError;
+              const { data } = supabase.storage.from('chat-attachments').getPublicUrl(fileName);
+              return data.publicUrl;
+            }
+          : undefined,
+        ensureChat: () => ensureChatForDraftConversation({ activate: false }),
+        removeUploadedAttachment: async (fileName) => {
+          await supabase.storage.from('chat-attachments').remove([fileName]);
+        },
+      });
+
+      targetChatId = preparedTarget.chatId;
+      uploadedFilePath = preparedTarget.uploadedFilePath;
+      fileUrl = preparedTarget.fileUrl;
+
       const now = new Date().toISOString();
       if (messageInput.trim() && fileUrl) {
         await sendMessage(messageInput.trim(), replyingTo?.id || null, targetChatId);
+        textSent = true;
+        updateLastMessage(targetChatId, messageInput.trim(), user?.id || '', now);
         await sendMessage(`[FILE:${fileUrl}]`, null, targetChatId);
+        fileSent = true;
         updateLastMessage(targetChatId, `[FILE:${fileUrl}]`, user?.id || '', now);
       } else if (fileUrl) {
         await sendMessage(`[FILE:${fileUrl}]`, replyingTo?.id || null, targetChatId);
+        fileSent = true;
         updateLastMessage(targetChatId, `[FILE:${fileUrl}]`, user?.id || '', now);
       } else {
         await sendMessage(messageInput.trim(), replyingTo?.id || null, targetChatId);
+        textSent = true;
         updateLastMessage(targetChatId, messageInput.trim(), user?.id || '', now);
       }
+
+      if (isDraftConversation) {
+        await activateDraftConversation(targetChatId);
+      }
+
       setMessageInput('');
-      removeAttachment();
+      if (fileSent) {
+        removeAttachment();
+      }
       setReplyingTo(null);
-    } catch {
+    } catch (error) {
+      if (error instanceof DraftMessagePreparationError) {
+        toast.error(t(error.code === 'upload' ? 'messages.failedToUpload' : 'messages.failedToSend'));
+        return;
+      }
+
+      if (uploadedFilePath && !fileSent) {
+        supabase.storage.from('chat-attachments').remove([uploadedFilePath]).catch(() => {});
+      }
+
+      if (textSent) {
+        setMessageInput('');
+        setReplyingTo(null);
+      }
+
+      if (isDraftConversation && targetChatId && (textSent || fileSent)) {
+        await activateDraftConversation(targetChatId);
+      }
+
       toast.error(t("messages.failedToSend"));
     }
   };
@@ -349,21 +412,47 @@ function MessagesContent() {
   };
 
   const handleVoiceMessage = async (audioBlob: Blob, duration: number) => {
+    const isDraftConversation = !activeChatId && !!pendingNewConvUser;
+    let uploadedFilePath: string | null = null;
+    let targetChatId: string | null = null;
+    let voiceSent = false;
+
     try {
-      const targetChatId = await ensureChatForDraftConversation();
-      if (!targetChatId) {
+      const preparedTarget = await prepareDraftMessageTarget<Blob>({
+        attachment: audioBlob,
+        createUploadPath: () => `${user?.id}/${Date.now()}.webm`,
+        uploadAttachment: async (fileName, blob) => {
+          const { error: uploadError } = await supabase.storage.from('chat-attachments').upload(fileName, blob, { contentType: 'audio/webm' });
+          if (uploadError) throw uploadError;
+          const { data } = supabase.storage.from('chat-attachments').getPublicUrl(fileName);
+          return data.publicUrl;
+        },
+        ensureChat: () => ensureChatForDraftConversation({ activate: false }),
+        removeUploadedAttachment: async (fileName) => {
+          await supabase.storage.from('chat-attachments').remove([fileName]);
+        },
+      });
+
+      targetChatId = preparedTarget.chatId;
+      uploadedFilePath = preparedTarget.uploadedFilePath;
+
+      const audioContent = `[AUDIO:${preparedTarget.fileUrl}:${duration}]`;
+      await sendMessage(audioContent, null, targetChatId);
+      voiceSent = true;
+      updateLastMessage(targetChatId, audioContent, user?.id || '', new Date().toISOString());
+
+      if (isDraftConversation) {
+        await activateDraftConversation(targetChatId);
+      }
+    } catch (error) {
+      if (error instanceof DraftMessagePreparationError) {
         toast.error(t("messages.failedToSendVoice"));
         return;
       }
 
-      const fileName = `${user?.id}/${Date.now()}.webm`;
-      const { error: uploadError } = await supabase.storage.from('chat-attachments').upload(fileName, audioBlob, { contentType: 'audio/webm' });
-      if (uploadError) throw uploadError;
-      const { data } = supabase.storage.from('chat-attachments').getPublicUrl(fileName);
-      const audioContent = `[AUDIO:${data.publicUrl}:${duration}]`;
-      await sendMessage(audioContent, null, targetChatId);
-      updateLastMessage(targetChatId, audioContent, user?.id || '', new Date().toISOString());
-    } catch {
+      if (uploadedFilePath && !voiceSent) {
+        supabase.storage.from('chat-attachments').remove([uploadedFilePath]).catch(() => {});
+      }
       toast.error(t("messages.failedToSendVoice"));
     }
   };
@@ -642,7 +731,7 @@ function MessagesContent() {
                               >
                                 <div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center shrink-0 overflow-hidden">
                                   {avatar ? (
-                                    <img src={avatar} alt={displayName} className="h-10 w-10 object-cover rounded-full" />
+                                    <Image src={avatar} alt={displayName} width={40} height={40} className="h-10 w-10 rounded-full object-cover" />
                                   ) : (
                                     <span className="text-green-800 font-semibold text-sm">{displayName.charAt(0).toUpperCase()}</span>
                                   )}

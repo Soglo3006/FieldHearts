@@ -61,13 +61,20 @@ export default function OfferServiceForm({ onSuccess }: Props) {
   };
 
   const doSubmit = async () => {
+    const accessToken = session?.access_token;
+    if (!accessToken) {
+      toast.error(t("post.mustBeLoggedInService"));
+      router.push("/login");
+      return;
+    }
+
     setSubmitting(true);
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/services`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${session.access_token}`,
+          Authorization: `Bearer ${accessToken}`,
         },
         body: JSON.stringify({
           type: "offer",

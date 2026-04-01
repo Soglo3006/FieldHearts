@@ -466,7 +466,7 @@ export default function SettingsPage({ onClose, scrollRef }: { onClose: () => vo
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label className="mb-2 block text-sm">{t("settings.language")}</Label>
-                <Select value={language} onValueChange={setLanguage}>
+                <Select value={language} onValueChange={(v) => setLanguage(v as "fr" | "en")}>
                   <SelectTrigger className="cursor-pointer text-sm"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="en" className="cursor-pointer">English</SelectItem>

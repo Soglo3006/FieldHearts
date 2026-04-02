@@ -8,6 +8,7 @@ import { ReceivedBooking, BookingStatus, STATUS_CONFIG, BOOKING_GROUPS, formatDa
 import { type BookingDetail } from "./BookingDetailModal";
 import PayNowButton from "./PayNowButton";
 import { useTranslation } from "react-i18next";
+import { getDisputeWindowState } from "@/lib/disputes";
 
 function StatusBadge({ status }: { status: BookingStatus }) {
   const c = STATUS_CONFIG[status] ?? STATUS_CONFIG.pending;
@@ -73,6 +74,7 @@ export default function ReceivedBookingsList({
               {bookings.filter((b) => statuses.includes(b.status)).map((b) => {
                 const isLooking = b.service_type === "looking";
                 const statusBar = STATUS_CONFIG[b.status]?.bar ?? "bg-gray-400";
+                const disputeWindow = getDisputeWindowState(b.completed_at);
                 // For offer: other person is the client (b.client_id)
                 // For looking: other person is the worker/applicant (b.worker_id)
                 const otherId = isLooking ? b.worker_id : b.client_id;
@@ -202,7 +204,7 @@ export default function ReceivedBookingsList({
                                 </span>
                               )}
                               {!b.has_dispute && (
-                                <Button type="button" size="sm" variant="outline" className="text-red-600 border-red-200 hover:bg-red-50 gap-1.5"
+                                <Button type="button" size="sm" variant="outline" className="w-full justify-center text-red-600 border-red-200 hover:bg-red-50 gap-1.5"
                                   onClick={() => onDispute(b.id, b.title)}>
                                   <AlertTriangle className="h-3.5 w-3.5" /> {t("bookings.dispute")}
                                 </Button>
@@ -223,7 +225,7 @@ export default function ReceivedBookingsList({
                                 </span>
                               )}
                               {!b.has_dispute && (
-                                <Button type="button" size="sm" variant="outline" className="text-red-600 border-red-200 hover:bg-red-50 gap-1.5"
+                                <Button type="button" size="sm" variant="outline" className="w-full justify-center text-red-600 border-red-200 hover:bg-red-50 gap-1.5"
                                   onClick={() => onDispute(b.id, b.title)}>
                                   <AlertTriangle className="h-3.5 w-3.5" /> {t("bookings.dispute")}
                                 </Button>
@@ -244,10 +246,15 @@ export default function ReceivedBookingsList({
                                 <Star className="h-3.5 w-3.5 fill-yellow-400 text-yellow-400" /> {t("bookings.reviewed")}
                               </span>
                             )}
-                            {!b.has_dispute && (
-                              <Button type="button" size="sm" variant="outline" className="text-red-600 border-red-200 hover:bg-red-50 gap-1.5"
+                            {!b.has_dispute && disputeWindow.isOpen && (
+                              <Button type="button" size="sm" variant="outline" className="w-full justify-center text-red-600 border-red-200 hover:bg-red-50 gap-1.5"
                                 onClick={() => onDispute(b.id, b.title)}>
                                 <AlertTriangle className="h-3.5 w-3.5" /> {t("bookings.dispute")}
+                              </Button>
+                            )}
+                            {!b.has_dispute && disputeWindow.isExpired && (
+                              <Button type="button" size="sm" variant="outline" className="w-full justify-center text-gray-400 border-gray-200 bg-gray-50 gap-1.5" disabled>
+                                <AlertTriangle className="h-3.5 w-3.5" /> {t("bookings.disputeExpiredButton")}
                               </Button>
                             )}
                           </>

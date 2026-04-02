@@ -13,6 +13,7 @@ import { AlertTriangle, CheckCircle, Star } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import PayNowButton from "./PayNowButton";
 import { type BookingDetail } from "./BookingDetailModal";
+import { getDisputeWindowState } from "@/lib/disputes";
 
 type BookingStatus = "pending" | "accepted" | "active" | "completed" | "cancelled" | "rejected";
 
@@ -43,11 +44,11 @@ export default function BookingDetailFooter({
 }: Props) {
   const { t } = useTranslation();
   const [confirmDisputeOpen, setConfirmDisputeOpen] = useState(false);
+  const disputeWindow = getDisputeWindowState(booking.completed_at);
 
   const openDisputeFromCancellation = () => {
     setConfirmDisputeOpen(false);
     onOpenDispute(booking.id, booking.title);
-    onClose();
   };
 
   return (
@@ -149,17 +150,22 @@ export default function BookingDetailFooter({
       )}
 
       {/* Dispute */}
-      {booking.status === "completed" && !booking.has_dispute && (
+      {booking.status === "completed" && !booking.has_dispute && disputeWindow.isOpen && (
         <Button variant="outline" className="w-full text-red-600 border-red-200 hover:bg-red-50 h-10 gap-2"
-          onClick={() => { onOpenDispute(booking.id, booking.title); onClose(); }}>
+          onClick={() => onOpenDispute(booking.id, booking.title)}>
           <AlertTriangle className="h-4 w-4" /> {t("bookings.openDispute")}
+        </Button>
+      )}
+      {booking.status === "completed" && !booking.has_dispute && disputeWindow.isExpired && (
+        <Button variant="outline" className="w-full text-gray-400 border-gray-200 bg-gray-50 h-10 gap-2" disabled>
+          <AlertTriangle className="h-4 w-4" /> {t("bookings.disputeExpiredButton")}
         </Button>
       )}
 
       {/* Review */}
       {booking.status === "completed" && !booking.has_reviewed && (
         <Button className="w-full bg-yellow-500 hover:bg-yellow-600 text-white h-10 gap-2"
-          onClick={() => { onOpenReview(booking.id, otherUserName); onClose(); }}>
+          onClick={() => onOpenReview(booking.id, otherUserName)}>
           <Star className="h-4 w-4" /> {t("bookings.leaveReview")}
         </Button>
       )}

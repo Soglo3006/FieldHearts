@@ -570,8 +570,6 @@ export default function WalletPage() {
             )
           }
           onMessage={(userId) => { setDetailBooking(null); startConversation(userId); }}
-          onOpenReview={() => setDetailBooking(null)}
-          onOpenDispute={() => setDetailBooking(null)}
         />
       )}
     </div>

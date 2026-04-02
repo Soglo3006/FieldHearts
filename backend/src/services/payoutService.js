@@ -145,6 +145,15 @@ export async function processUserPayout(userId) {
         [row.booking_id]
       );
 
+      // ── Record platform's 20% worker commission ──────────────────────────
+      // transferCents = 80% → gross was transferCents / 0.80, commission = gross * 0.20
+      const workerCommission = ((transferCents / 0.80) * 0.20 / 100).toFixed(2);
+      await pool.query(
+        `INSERT INTO platform_earnings (booking_id, type, amount, description)
+         VALUES ($1, 'worker_commission', $2, 'Commission vendeur 20% au versement')`,
+        [row.booking_id, workerCommission]
+      );
+
       totalTransferredCents += transferCents;
       processedBookings.push(row.booking_id);
     } catch (err) {

@@ -47,14 +47,23 @@ export default function DisputeThread({ bookingId, currentUserId, accessToken }:
   const [sending, setSending] = useState(false);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const bottomRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const hasLoadedInitialMessagesRef = useRef(false);
 
   useEffect(() => {
     fetchThread();
   }, [bookingId]);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (!hasLoadedInitialMessagesRef.current) {
+      hasLoadedInitialMessagesRef.current = true;
+      return;
+    }
+
+    const container = messagesContainerRef.current;
+    if (!container) return;
+
+    container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
   }, [messages]);
 
   const fetchThread = async () => {
@@ -159,7 +168,7 @@ export default function DisputeThread({ bookingId, currentUserId, accessToken }:
       </div>
 
       {/* Messages */}
-      <div className="max-h-72 overflow-y-auto px-4 py-3 space-y-3">
+      <div ref={messagesContainerRef} className="max-h-72 overflow-y-auto px-4 py-3 space-y-3">
         {messages.length === 0 && (
           <p className="text-xs text-gray-400 text-center py-4">{t("disputeThread.noMessages")}</p>
         )}
@@ -206,7 +215,6 @@ export default function DisputeThread({ bookingId, currentUserId, accessToken }:
             </div>
           );
         })}
-        <div ref={bottomRef} />
       </div>
 
       {/* Admin resolution note */}

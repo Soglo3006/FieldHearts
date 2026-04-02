@@ -2,8 +2,22 @@ import pool from "../config/db.js";
 import stripe from "../config/stripe.js";
 import { notifyPaymentReceipt } from "../services/emailService.js";
 
+// ─── Ensure platform_earnings table exists ────────────────────────────────────
+pool.query(`
+  CREATE TABLE IF NOT EXISTS platform_earnings (
+    id            UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    booking_id    UUID REFERENCES bookings(id),
+    type          TEXT NOT NULL CHECK (type IN ('buyer_commission', 'worker_commission')),
+    amount        NUMERIC(10, 2) NOT NULL,
+    description   TEXT,
+    created_at    TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE (booking_id, type)
+  )
+`).catch((err) => console.error("[DB] Failed to create platform_earnings table:", err.message));
+
 // Fee rates
 const BUYER_COMMISSION_RATE = 0.05; // 5% buyer commission
+const WORKER_COMMISSION_RATE = 0.20; // 20% kept when worker is paid out
 const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:3000";
 
 // Tax rates by Canadian province
@@ -445,6 +459,18 @@ export const stripeWebhook = async (req, res) => {
             );
             notifyPaymentReceipt(client_email, client_name, title, amountDollars, worker_name, bookingId, image_url);
           }
+
+          // ── Record platform's 5% buyer commission (idempotent) ────────────
+          const servicePriceCents = Number(session.metadata?.service_price_cents ?? 0);
+          if (servicePriceCents > 0) {
+            const buyerCommission = (Math.round(servicePriceCents * BUYER_COMMISSION_RATE) / 100).toFixed(2);
+            await pool.query(
+              `INSERT INTO platform_earnings (booking_id, type, amount, description)
+               VALUES ($1, 'buyer_commission', $2, 'Commission acheteur 5% — ' || $3)
+               ON CONFLICT (booking_id, type) DO NOTHING`,
+              [bookingId, buyerCommission, title]
+            );
+          }
         }
 
         console.log(`Payment confirmed for booking ${bookingId} — now active`);
@@ -559,7 +585,9 @@ export const releasePayment = async (req, res) => {
 // ─── Refund payment (for disputes resolved in client's favor) ─────────────────
 export const refundPayment = async (req, res) => {
   try {
-    const { booking_id } = req.body;
+    const { booking_id, refund_amount_cents } = req.body;
+    // refund_amount_cents: optional override (admin chosen). If omitted → default
+    // policy = total minus 5% buyer commission (we always keep the 5%).
 
     const payment = await pool.query(
       "SELECT * FROM payments WHERE booking_id = $1 AND status = 'paid'",
@@ -572,8 +600,33 @@ export const refundPayment = async (req, res) => {
 
     const p = payment.rows[0];
 
+    const totalCents       = Number(p.amount);
+    const platformFeeCents = Number(p.platform_fee ?? 0);
+    const maxRefundCents   = totalCents - platformFeeCents; // we never refund the 5%
+
+    // Admin can pass a custom amount, but it cannot exceed (total - 5%)
+    let amountToRefundCents;
+    if (refund_amount_cents !== undefined) {
+      const requested = Math.round(Number(refund_amount_cents));
+      if (requested <= 0 || requested > maxRefundCents) {
+        return res.status(400).json({
+          message: `Refund amount must be between 1 and ${maxRefundCents} cents (total minus 5% fee)`,
+          max_refund_cents: maxRefundCents,
+        });
+      }
+      amountToRefundCents = requested;
+    } else {
+      // Default: refund everything except the 5%
+      amountToRefundCents = maxRefundCents;
+    }
+
+    if (amountToRefundCents <= 0) {
+      return res.status(400).json({ message: "Nothing to refund after deducting platform fee" });
+    }
+
     const refund = await stripe.refunds.create({
       payment_intent: p.stripe_payment_intent_id,
+      amount: amountToRefundCents,
     });
 
     await pool.query(
@@ -582,11 +635,26 @@ export const refundPayment = async (req, res) => {
     );
 
     await pool.query(
-      "UPDATE bookings SET payment_status = 'refunded' WHERE id = $1",
+      "UPDATE bookings SET payment_status = 'refunded', status = 'cancelled' WHERE id = $1",
       [booking_id]
     );
 
-    res.json({ success: true, refund_id: refund.id });
+    // Cancel the worker's pending credit so they don't receive a payout for this booking
+    await pool.query(
+      "DELETE FROM transactions WHERE booking_id = $1 AND type = 'credit'",
+      [booking_id]
+    );
+
+    // The buyer_commission entry in platform_earnings stays — we keep the 5%
+    // worker_commission entry won't exist yet (only created at payout time)
+
+    res.json({
+      success: true,
+      refund_id: refund.id,
+      refunded_amount_cents: amountToRefundCents,
+      kept_fee_cents: platformFeeCents,
+      partial: amountToRefundCents < maxRefundCents,
+    });
   } catch (err) {
     console.error("Refund error:", err);
     res.status(500).json({ message: "Failed to refund payment" });

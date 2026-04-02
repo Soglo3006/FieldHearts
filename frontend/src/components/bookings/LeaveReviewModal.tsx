@@ -5,7 +5,7 @@ import { useScrollLock } from "@/hooks/useScrollLock";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { X, Star, CheckCircle } from "lucide-react";
+import { X, Star, CheckCircle, ChevronLeft } from "lucide-react";
 import { sanitizePlainText } from "@/lib/sanitize";
 import { useTranslation } from "react-i18next";
 
@@ -14,6 +14,7 @@ interface Props {
   targetName: string;
   accessToken: string;
   onClose: () => void;
+  onBack?: () => void;
   onReviewed: (bookingId: string) => void;
 }
 
@@ -22,10 +23,14 @@ export default function LeaveReviewModal({
   targetName,
   accessToken,
   onClose,
+  onBack,
   onReviewed,
 }: Props) {
   const { t } = useTranslation();
   useScrollLock(true);
+  const panelAnimation = onBack
+    ? "animate-in fade-in-0 slide-in-from-right-4 duration-300"
+    : "animate-in fade-in-0 zoom-in-95 duration-200";
   const [rating, setRating] = useState(0);
   const [hovered, setHovered] = useState(0);
   const [comment, setComment] = useState("");
@@ -67,23 +72,37 @@ export default function LeaveReviewModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 animate-in fade-in-0 duration-200">
+      <div className="absolute inset-0" onClick={onClose} />
+
+      <div className={`relative bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col z-10 overflow-hidden ${panelAnimation}`}>
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-          <div>
-            <h2 className="text-lg font-semibold text-gray-900">{t("bookings.reviewModal.title")}</h2>
-            <p className="text-xs text-gray-500 mt-0.5">{t("bookings.reviewModal.subtitle", { name: targetName })}</p>
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 shrink-0">
+          <div className="flex items-start gap-3 min-w-0">
+            {onBack && (
+              <button
+                type="button"
+                aria-label={t("common.back")}
+                onClick={onBack}
+                className="mt-0.5 cursor-pointer text-gray-400 hover:text-gray-600 transition-colors shrink-0"
+              >
+                <ChevronLeft className="h-5 w-5" />
+              </button>
+            )}
+            <div className="min-w-0">
+              <h2 className="text-lg font-semibold text-gray-900">{t("bookings.reviewModal.title")}</h2>
+              <p className="text-xs text-gray-500 mt-0.5 truncate">{t("bookings.reviewModal.subtitle", { name: targetName })}</p>
+            </div>
           </div>
-          <button aria-label={t("common.close")} onClick={onClose} className="cursor-pointer text-gray-400 hover:text-gray-600 transition-colors">
+          <button type="button" aria-label={t("common.close")} onClick={onClose} className="cursor-pointer text-gray-400 hover:text-gray-600 transition-colors shrink-0">
             <X className="h-5 w-5" />
           </button>
         </div>
 
         {/* Body */}
-        <div className="px-6 py-5 space-y-5">
+        <div className="overflow-y-auto flex-1 px-5 py-5 space-y-5">
           {error && (
-            <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+            <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-3 py-2">
               {error}
             </p>
           )}
@@ -128,13 +147,13 @@ export default function LeaveReviewModal({
               value={comment}
               onChange={(e) => setComment(e.target.value)}
               placeholder={t("bookings.reviewModal.commentPlaceholder")}
-              className="min-h-24 resize-none"
+              className="min-h-28 resize-none rounded-xl"
             />
           </div>
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-3">
+        <div className="px-5 py-4 border-t border-gray-100 flex justify-end gap-3 shrink-0 bg-white">
           <Button variant="outline" onClick={onClose} disabled={submitting}>{t("common.cancel")}</Button>
           <Button
             className="bg-green-700 hover:bg-green-800 text-white min-w-32"

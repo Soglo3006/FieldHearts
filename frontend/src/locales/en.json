@@ -250,6 +250,8 @@
     "reviewed": "Reviewed",
     "dispute": "Dispute",
     "disputeOpen": "Dispute open",
+    "disputeExpiredButton": "Dispute window expired",
+    "disputeExpiredNotice": "The 3-day dispute window has expired for this booking.",
     "disputePaused": "A dispute is open. Completion and cancellation actions are paused while the case is being reviewed.",
     "disputeWindowTitle": "Dispute window",
     "disputeWindowNotice": "You can still open a dispute for {{time}}. Refunds, credits, or adjustments are reviewed case by case.",

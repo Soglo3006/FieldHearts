@@ -6,6 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { CheckCircle, MapPin, Calendar } from "lucide-react";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/Spinner";
 import AppImage from "@/components/ui/AppImage";
 import Link from "next/link";
 import { useTranslation } from "react-i18next";
@@ -85,7 +86,11 @@ export default function PaymentSuccessPage() {
         </div>
 
         {/* Booking summary */}
-        {booking && (
+        {!booking ? (
+          <div className="flex justify-center py-10">
+            <Spinner className="h-8 w-8 text-green-600" />
+          </div>
+        ) : (
           <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden mb-5">
             {booking.image_url && (
               <AspectRatio ratio={16 / 9}>
@@ -147,7 +152,7 @@ export default function PaymentSuccessPage() {
           </div>
         )}
 
-        <div className="flex flex-col gap-2.5">
+        {booking && <div className="flex flex-col gap-2.5">
           <Link href="/bookings?payment=success">
             <Button className="w-full bg-green-700 hover:bg-green-800 text-white h-12 rounded-xl">
               {t("payment.viewBookings")}
@@ -158,7 +163,7 @@ export default function PaymentSuccessPage() {
               {t("payment.backHome")}
             </Button>
           </Link>
-        </div>
+        </div>}
       </div>
     </div>
   );

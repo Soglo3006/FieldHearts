@@ -508,8 +508,6 @@ function BookingsContent() {
             setDetailBooking((prev) => prev ? { ...prev, booking: { ...prev.booking, ...updates } } : null);
           }}
           onMessage={(userId) => startConversation(userId)}
-          onOpenReview={(bookingId, targetName) => setReviewBooking({ id: bookingId, targetName })}
-          onOpenDispute={(bookingId, title) => setDisputeBooking({ id: bookingId, title })}
         />
       )}
 

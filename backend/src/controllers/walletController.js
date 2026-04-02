@@ -202,3 +202,57 @@ export const triggerPayout = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
+
+// ─── Platform earnings summary (admin only) ───────────────────────────────────
+export const getPlatformEarnings = async (req, res) => {
+  try {
+    const { period } = req.query; // e.g. "7days", "30days", "alltime"
+
+    const intervalMap = {
+      "7days":   "7 days",
+      "30days":  "30 days",
+      "90days":  "90 days",
+      "1year":   "1 year",
+      "alltime": null,
+    };
+
+    const interval = intervalMap[period] ?? null;
+    const dateFilter = interval
+      ? `AND created_at >= NOW() - INTERVAL '${interval}'`
+      : "";
+
+    const totals = await pool.query(
+      `SELECT
+         type,
+         COALESCE(SUM(amount), 0) AS total,
+         COUNT(*) AS count
+       FROM platform_earnings
+       WHERE 1=1 ${dateFilter}
+       GROUP BY type`
+    );
+
+    const summary = { buyer_commission: 0, worker_commission: 0, total: 0, count: 0 };
+    for (const row of totals.rows) {
+      const amt = Number(row.total);
+      summary[row.type] = amt;
+      summary.total += amt;
+      summary.count += Number(row.count);
+    }
+    summary.buyer_commission  = Number(summary.buyer_commission.toFixed(2));
+    summary.worker_commission = Number(summary.worker_commission.toFixed(2));
+    summary.total             = Number(summary.total.toFixed(2));
+
+    // Recent earnings rows
+    const recent = await pool.query(
+      `SELECT pe.id, pe.booking_id, pe.type, pe.amount, pe.description, pe.created_at
+       FROM platform_earnings pe
+       ORDER BY pe.created_at DESC
+       LIMIT 100`
+    );
+
+    res.json({ summary, entries: recent.rows });
+  } catch (err) {
+    console.error("getPlatformEarnings error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};

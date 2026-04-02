@@ -5,10 +5,14 @@ import { useScrollLock } from "@/hooks/useScrollLock";
 import Link from "next/link";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import {
   X, MapPin, CalendarDays, Tag, CheckCircle, CreditCard, FileText, Grid3x3,
-  TrendingDown, TrendingUp, ChevronLeft, ChevronRight, AlertTriangle,
+  TrendingDown, TrendingUp, ChevronLeft, ChevronRight, AlertTriangle, Star,
+  ImagePlus, Loader2,
 } from "lucide-react";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import DisputeThread from "@/components/bookings/DisputeThread";
@@ -17,10 +21,18 @@ import BookingDetailFooter from "./BookingDetailFooter";
 import { useTranslation } from "react-i18next";
 import { getTaxRate, getTaxLabel, formatTaxRate } from "@/lib/taxes";
 import { getIntlLocale } from "@/lib/locale";
+import { sanitizePlainText } from "@/lib/sanitize";
+import { supabase } from "@/lib/supabaseClient";
 import AppImage from "@/components/ui/AppImage";
 import PaymentInlinePanel from "@/components/payment/PaymentInlinePanel";
 
 type BookingStatus = "pending" | "accepted" | "active" | "completed" | "cancelled" | "rejected";
+type BookingStep = "detail" | "payment" | "review" | "dispute";
+
+interface DisputeAttachment {
+  url: string;
+  name: string;
+}
 
 export interface BookingDetail {
   id: string;
@@ -64,8 +76,6 @@ interface Props {
   onClose: () => void;
   onUpdated: (bookingId: string, updates: Partial<BookingDetail>) => void;
   onMessage: (userId: string) => void;
-  onOpenReview: (bookingId: string, targetName: string) => void;
-  onOpenDispute: (bookingId: string, title: string) => void;
 }
 
 const STATUS_BADGE: Record<BookingStatus, string> = {
@@ -87,15 +97,30 @@ function formatDate(dateStr: string, lang: string) {
 
 export default function BookingDetailModal({
   booking: initialBooking, userRole, accessToken,
-  onClose, onUpdated, onMessage, onOpenReview, onOpenDispute,
+  onClose, onUpdated, onMessage,
 }: Props) {
   const { t, i18n } = useTranslation();
   useScrollLock(true);
   const [booking, setBooking] = useState(initialBooking);
   const [serviceDescription, setServiceDescription] = useState<string | null>(null);
   const [updating, setUpdating] = useState(false);
-  const [step, setStep] = useState<"detail" | "payment">("detail");
+  const [step, setStep] = useState<BookingStep>("detail");
+  const [layoutMode, setLayoutMode] = useState<"review" | "dispute" | "payment">("review");
+  const [reviewRating, setReviewRating] = useState(0);
+  const [reviewHovered, setReviewHovered] = useState(0);
+  const [reviewComment, setReviewComment] = useState("");
+  const [reviewSubmitting, setReviewSubmitting] = useState(false);
+  const [reviewError, setReviewError] = useState("");
+  const [reviewSuccess, setReviewSuccess] = useState(false);
+  const [disputeDescription, setDisputeDescription] = useState("");
+  const [disputePhotos, setDisputePhotos] = useState<File[]>([]);
+  const [disputePreviews, setDisputePreviews] = useState<string[]>([]);
+  const [disputeSubmitting, setDisputeSubmitting] = useState(false);
+  const [disputeUploading, setDisputeUploading] = useState(false);
+  const [disputeError, setDisputeError] = useState("");
+  const [disputeSuccess, setDisputeSuccess] = useState(false);
   const bookingRef = useRef(booking);
+  const disputeFileInputRef = useRef<HTMLInputElement>(null);
   bookingRef.current = booking;
 
   useEffect(() => {
@@ -185,6 +210,147 @@ export default function BookingDetailModal({
   const needsPayment = booking.status === "accepted" && (!booking.payment_status || booking.payment_status === "unpaid");
   const hasMarkedDone = userRole === "worker" ? booking.completed_by_worker : booking.completed_by_client;
   const otherHasMarkedDone = userRole === "worker" ? booking.completed_by_client : booking.completed_by_worker;
+  const panelOrders = layoutMode === "dispute"
+    ? { review: 0, detail: 1, dispute: 2, payment: 3 }
+    : layoutMode === "payment"
+      ? { review: 0, detail: 1, payment: 2, dispute: 3 }
+      : { dispute: 0, detail: 1, review: 2, payment: 3 };
+  const activeIndex = panelOrders[step];
+  const translateClass = ["translate-x-0", "-translate-x-1/4", "-translate-x-1/2", "-translate-x-3/4"][activeIndex];
+  const orderClasses = ["order-1", "order-2", "order-3", "order-4"];
+  const disputeIsValid = disputeDescription.trim().length >= 20;
+
+  const resetReviewPanel = () => {
+    setReviewError("");
+    setReviewSuccess(false);
+  };
+
+  const resetDisputePanel = () => {
+    setDisputeError("");
+    setDisputeSuccess(false);
+  };
+
+  const openReviewStep = () => {
+    setLayoutMode("review");
+    resetReviewPanel();
+    setStep("review");
+  };
+
+  const openDisputeStep = () => {
+    setLayoutMode("dispute");
+    resetDisputePanel();
+    setStep("dispute");
+  };
+
+  const handleReviewSubmit = async () => {
+    if (reviewRating === 0) {
+      setReviewError(t("bookings.reviewModal.selectRating"));
+      return;
+    }
+
+    setReviewSubmitting(true);
+    setReviewError("");
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/reviews`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          booking_id: booking.id,
+          rating: reviewRating,
+          comment: sanitizePlainText(reviewComment),
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setReviewError(data.message ?? t("bookings.reviewModal.submitFailed"));
+        return;
+      }
+
+      setReviewSuccess(true);
+      setBooking((prev) => ({ ...prev, has_reviewed: true }));
+      onUpdated(booking.id, { has_reviewed: true });
+      setTimeout(() => setStep("detail"), 700);
+    } catch {
+      setReviewError(t("bookings.reviewModal.networkError"));
+    } finally {
+      setReviewSubmitting(false);
+    }
+  };
+
+  const handleDisputePhotos = (files: FileList | null) => {
+    if (!files) return;
+    const valid = Array.from(files).filter((file) => file.type.startsWith("image/")).slice(0, 4);
+    setDisputePhotos((prev) => [...prev, ...valid].slice(0, 4));
+    setDisputePreviews((prev) => [...prev, ...valid.map((file) => URL.createObjectURL(file))].slice(0, 4));
+  };
+
+  const removeDisputePhoto = (idx: number) => {
+    URL.revokeObjectURL(disputePreviews[idx]);
+    setDisputePhotos((prev) => prev.filter((_, i) => i !== idx));
+    setDisputePreviews((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  const uploadDisputePhotos = async (disputeId: string): Promise<DisputeAttachment[]> => {
+    const results: DisputeAttachment[] = [];
+    for (const file of disputePhotos) {
+      const ext = file.name.split(".").pop();
+      const path = `${disputeId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+      const { error } = await supabase.storage.from("dispute-attachments").upload(path, file);
+      if (error) continue;
+      const { data } = supabase.storage.from("dispute-attachments").getPublicUrl(path);
+      results.push({ url: data.publicUrl, name: file.name });
+    }
+    return results;
+  };
+
+  const handleDisputeSubmit = async () => {
+    if (!disputeIsValid) {
+      setDisputeError(t("bookings.openDisputeModal.descriptionTooShort"));
+      return;
+    }
+
+    setDisputeSubmitting(true);
+    setDisputeError("");
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/disputes`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+        body: JSON.stringify({ booking_id: booking.id, description: disputeDescription.trim() }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setDisputeError(data.message ?? t("bookings.openDisputeModal.openFailed"));
+        return;
+      }
+
+      const dispute = await res.json();
+      let attachments: DisputeAttachment[] = [];
+      if (disputePhotos.length > 0) {
+        setDisputeUploading(true);
+        attachments = await uploadDisputePhotos(dispute.id);
+        setDisputeUploading(false);
+      }
+
+      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/disputes/${dispute.id}/messages`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+        body: JSON.stringify({ content: disputeDescription.trim(), attachments }),
+      });
+
+      setDisputeSuccess(true);
+      setBooking((prev) => ({ ...prev, has_dispute: true }));
+      onUpdated(booking.id, { has_dispute: true });
+      setTimeout(() => setStep("detail"), 700);
+    } catch {
+      setDisputeError(t("bookings.openDisputeModal.networkError"));
+    } finally {
+      setDisputeSubmitting(false);
+      setDisputeUploading(false);
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60">
@@ -193,14 +359,18 @@ export default function BookingDetailModal({
       <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col z-10 overflow-hidden">
         {/* Header — changes based on step */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 shrink-0">
-          {step === "payment" ? (
+          {step !== "detail" ? (
             <button
               type="button"
               onClick={() => setStep("detail")}
               className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 transition-colors cursor-pointer"
             >
               <ChevronLeft className="h-4 w-4" />
-              {t("payment.completePayment")}
+              {step === "payment"
+                ? t("payment.completePayment")
+                : step === "review"
+                  ? t("bookings.leaveReview")
+                  : t("bookings.openDispute")}
             </button>
           ) : (
             <div className="flex items-center gap-2">
@@ -226,9 +396,103 @@ export default function BookingDetailModal({
         </div>
 
         {/* Sliding panels container */}
-        <div className={`flex flex-1 min-h-0 w-[200%] transition-transform duration-300 ease-in-out ${step === "payment" ? "-translate-x-1/2" : "translate-x-0"}`}>
-          {/* Panel 1 — booking detail */}
-          <div className="flex flex-col overflow-hidden w-1/2">
+        <div className={`flex flex-1 min-h-0 w-[400%] transition-transform duration-300 ease-in-out ${translateClass}`}>
+          {/* Panel 1 — dispute step */}
+          <div className={`flex flex-col overflow-hidden w-1/4 ${orderClasses[panelOrders.dispute]}`}>
+            <div className="overflow-y-auto flex-1 px-5 py-5 space-y-4">
+              <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-800 space-y-1.5">
+                <p>{t("bookings.openDisputeModal.intro")}</p>
+                <ul className="list-disc list-inside text-xs text-red-700 space-y-0.5">
+                  <li>{t("bookings.openDisputeModal.ruleCompleted")}</li>
+                  <li>{t("bookings.openDisputeModal.ruleInProgress")}</li>
+                  <li>{t("bookings.openDisputeModal.ruleFees")}</li>
+                  <li>{t("bookings.openDisputeModal.ruleCaseByCase")}</li>
+                </ul>
+              </div>
+
+              {disputeError && (
+                <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-3 py-2">{disputeError}</p>
+              )}
+
+              <div className="space-y-2">
+                <Label className="text-base font-medium text-gray-900">
+                  {t("bookings.openDisputeModal.describeLabel")} <span className="text-red-500">*</span>
+                </Label>
+                <Textarea
+                  value={disputeDescription}
+                  onChange={(e) => setDisputeDescription(e.target.value)}
+                  placeholder={t("bookings.openDisputeModal.describePlaceholder")}
+                  className="min-h-32 resize-none rounded-xl"
+                />
+                <p className={`text-xs text-right ${disputeDescription.length < 20 ? "text-gray-400" : "text-green-600"}`}>
+                  {t("bookings.openDisputeModal.minimumCount", { count: disputeDescription.length })}
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-sm font-medium text-gray-700">{t("bookings.openDisputeModal.photosLabel")}</Label>
+                <div className="flex flex-wrap gap-2">
+                  {disputePreviews.map((src, i) => (
+                    <div key={i} className="relative">
+                      <AppImage src={src} alt={t("bookings.openDisputeModal.photoAlt", { number: i + 1 })} width={64} height={64} className="h-16 w-16 object-cover rounded-xl border border-gray-200" />
+                      <button
+                        type="button"
+                        aria-label={t("bookings.openDisputeModal.removePhoto")}
+                        onClick={() => removeDisputePhoto(i)}
+                        className="absolute -top-1 -right-1 bg-gray-800 text-white rounded-full h-4 w-4 flex items-center justify-center"
+                      >
+                        <X className="h-2.5 w-2.5" />
+                      </button>
+                    </div>
+                  ))}
+                  {disputePhotos.length < 4 && (
+                    <button
+                      type="button"
+                      aria-label={t("bookings.openDisputeModal.addPhoto")}
+                      onClick={() => disputeFileInputRef.current?.click()}
+                      className="h-16 w-16 border-2 border-dashed border-gray-300 rounded-xl flex items-center justify-center text-gray-400 hover:border-gray-400 hover:text-gray-500 transition-colors"
+                    >
+                      <ImagePlus className="h-5 w-5" />
+                    </button>
+                  )}
+                </div>
+                <input
+                  ref={disputeFileInputRef}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="hidden"
+                  aria-label={t("bookings.openDisputeModal.uploadPhotos")}
+                  title={t("bookings.openDisputeModal.uploadPhotos")}
+                  onChange={(e) => handleDisputePhotos(e.target.files)}
+                />
+              </div>
+
+              {disputeUploading && (
+                <div className="flex items-center gap-2 text-sm text-gray-400">
+                  <Loader2 className="h-4 w-4 animate-spin" /> {t("bookings.openDisputeModal.uploading")}
+                </div>
+              )}
+            </div>
+
+            <div className="px-5 py-4 border-t border-gray-100 flex justify-end gap-3 shrink-0 bg-white">
+              <Button variant="outline" onClick={() => setStep("detail")} disabled={disputeSubmitting}>{t("common.cancel")}</Button>
+              <Button
+                className="bg-red-600 hover:bg-red-700 text-white min-w-36"
+                onClick={handleDisputeSubmit}
+                disabled={disputeSubmitting || !disputeIsValid}
+              >
+                {disputeSuccess ? (
+                  <span className="flex items-center gap-2"><CheckCircle className="h-4 w-4" /> {t("bookings.openDisputeModal.opened")}</span>
+                ) : disputeSubmitting ? (
+                  <span className="flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> {t("bookings.openDisputeModal.opening")}</span>
+                ) : t("bookings.openDisputeModal.openButton")}
+              </Button>
+            </div>
+          </div>{/* end panel 1 */}
+
+          {/* Panel 2 — booking detail */}
+          <div className={`flex flex-col overflow-hidden w-1/4 ${orderClasses[panelOrders.detail]}`}>
 
         {/* Scrollable body */}
         <div className="overflow-y-auto flex-1">
@@ -630,7 +894,18 @@ export default function BookingDetailModal({
               const remainingMs = deadlineMs - Date.now();
               const remainingHours = Math.ceil(remainingMs / (1000 * 60 * 60));
               const remainingDays = Math.ceil(remainingMs / (1000 * 60 * 60 * 24));
-              if (remainingMs <= 0) return null;
+              if (remainingMs <= 0) {
+                if (booking.has_dispute) return null;
+                return (
+                  <div className="bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs text-gray-600 space-y-1">
+                    <div className="flex items-center gap-1.5 font-semibold text-gray-700">
+                      <AlertTriangle className="h-3.5 w-3.5" />
+                      {t('bookings.disputeWindowTitle')}
+                    </div>
+                    <p>{t("bookings.disputeExpiredNotice")}</p>
+                  </div>
+                );
+              }
               const remainingLabel = remainingDays > 1
                 ? t('bookings.remainingDays', { count: remainingDays })
                 : t('bookings.remainingHours', { count: remainingHours });
@@ -664,16 +939,95 @@ export default function BookingDetailModal({
           onCallStatus={callStatus}
           onMarkCompleted={callMarkCompleted}
           onUndoMarkCompleted={callUndoMarkCompleted}
-          onOpenDispute={onOpenDispute}
-          onOpenReview={onOpenReview}
+          onOpenDispute={openDisputeStep}
+          onOpenReview={openReviewStep}
           onMessage={onMessage}
           onClose={onClose}
-          onPayNow={() => setStep("payment")}
+          onPayNow={() => {
+            setLayoutMode("payment");
+            setStep("payment");
+          }}
         />
-          </div>{/* end panel 1 */}
+          </div>{/* end panel 2 */}
 
-          {/* Panel 2 — payment step */}
-          <div className="flex flex-col overflow-hidden w-1/2">
+          {/* Panel 3 — review step */}
+          <div className={`flex flex-col overflow-hidden w-1/4 ${orderClasses[panelOrders.review]}`}>
+            <div className="overflow-y-auto flex-1 px-5 py-5 space-y-5">
+              {reviewError && (
+                <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-3 py-2">
+                  {reviewError}
+                </p>
+              )}
+
+              <div className="space-y-2">
+                <Label className="text-base font-medium text-gray-900">
+                  {t("bookings.reviewModal.ratingLabel")} <span className="text-red-500">*</span>
+                </Label>
+                <div className="flex gap-1">
+                  {[1, 2, 3, 4, 5].map((i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      aria-label={t("bookings.reviewModal.starAria", { count: i })}
+                      onMouseEnter={() => setReviewHovered(i)}
+                      onMouseLeave={() => setReviewHovered(0)}
+                      onClick={() => {
+                        setReviewRating(i);
+                        setReviewError("");
+                      }}
+                      className="cursor-pointer transition-transform hover:scale-110 focus:outline-none"
+                    >
+                      <Star
+                        className={`h-8 w-8 transition-colors ${
+                          i <= (reviewHovered || reviewRating)
+                            ? "fill-yellow-400 text-yellow-400"
+                            : "text-gray-300"
+                        }`}
+                      />
+                    </button>
+                  ))}
+                </div>
+                {reviewRating > 0 && (
+                  <p className="text-sm text-gray-500">
+                    {["", t("bookings.reviewModal.poor"), t("bookings.reviewModal.fair"), t("bookings.reviewModal.good"), t("bookings.reviewModal.veryGood"), t("bookings.reviewModal.excellent")][reviewRating]}
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-base font-medium text-gray-900">{t("bookings.reviewModal.commentLabel")}</Label>
+                <Textarea
+                  value={reviewComment}
+                  onChange={(e) => setReviewComment(e.target.value)}
+                  placeholder={t("bookings.reviewModal.commentPlaceholder")}
+                  className="min-h-28 resize-none rounded-xl"
+                />
+              </div>
+            </div>
+
+            <div className="px-5 py-4 border-t border-gray-100 flex justify-end gap-3 shrink-0 bg-white">
+              <Button variant="outline" onClick={() => setStep("detail")} disabled={reviewSubmitting}>{t("common.cancel")}</Button>
+              <Button
+                className="bg-green-700 hover:bg-green-800 text-white min-w-32"
+                onClick={handleReviewSubmit}
+                disabled={reviewSubmitting || reviewRating === 0}
+              >
+                {reviewSuccess ? (
+                  <span className="flex items-center gap-2">
+                    <CheckCircle className="h-4 w-4" /> {t("bookings.reviewModal.submitted")}
+                  </span>
+                ) : reviewSubmitting ? (
+                  <span className="flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    {t("bookings.reviewModal.submitting")}
+                  </span>
+                ) : t("bookings.reviewModal.submit")}
+              </Button>
+            </div>
+          </div>{/* end panel 3 */}
+
+          {/* Panel 4 — payment step */}
+          <div className={`flex flex-col overflow-hidden w-1/4 ${orderClasses[panelOrders.payment]}`}>
             <PaymentInlinePanel
               bookingId={booking.id}
               bookingTitle={booking.title}
@@ -681,7 +1035,7 @@ export default function BookingDetailModal({
               accessToken={accessToken}
               clientProvince={booking.client_province ?? null}
             />
-          </div>{/* end panel 2 */}
+          </div>{/* end panel 4 */}
 
         </div>{/* end sliding panels */}
       </div>

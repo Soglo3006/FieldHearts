@@ -248,6 +248,8 @@
     "reviewed": "Évalué",
     "dispute": "Dispute",
     "disputeOpen": "Dispute ouverte",
+    "disputeExpiredButton": "Délai de litige expiré",
+    "disputeExpiredNotice": "La période de litige de 3 jours est terminée pour cette réservation.",
     "disputePaused": "Un litige est ouvert. Les actions de fin de travail et d'annulation sont suspendues pendant l'examen du dossier.",
     "disputeWindowTitle": "Fenêtre de litige",
     "disputeWindowNotice": "Vous pouvez encore ouvrir un litige pendant {{time}}. Les remboursements, crédits ou ajustements sont examinés au cas par cas.",

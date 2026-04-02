@@ -96,13 +96,13 @@ export default function StepSummary({ data, accountType }: Props) {
           </div>
         )}
 
-        {accountType === "person" && (data.portfolio?.length ?? 0) > 0 && (
+        {(data.portfolio?.length ?? 0) > 0 && (
           <div>
-            <h4 className="font-semibold text-gray-900 mb-2">{t("onboarding.portfolio")}</h4>
+            <h4 className="font-semibold text-gray-900 mb-2">{accountType === "company" ? t("onboarding.companyProjectsTitle") : t("onboarding.portfolio")}</h4>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-4">
               {(data.portfolio ?? []).map((item) => (
                 <div key={item.id} className="border rounded-lg overflow-hidden">
-                  <div className="relative aspect-square">
+                  <div className="relative aspect-4/3 bg-gray-100">
                     <AppImage src={item.image} alt={item.title} fill sizes="(max-width: 768px) 50vw, 33vw" className="object-cover" />
                   </div>
                   <p className="text-center p-2 text-sm font-medium">{item.title}</p>
@@ -113,7 +113,7 @@ export default function StepSummary({ data, accountType }: Props) {
         )}
 
         <p className="text-sm text-gray-500 italic">{t("onboarding.confirmReady")}</p>
-      </div>
+        </div>
     </Card>
   );
 }

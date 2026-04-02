@@ -75,6 +75,21 @@ export default function RegisterPage() {
     setChargement(true);
 
     try {
+      // Check if email already exists before attempting signup
+      const checkRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/check-email`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim().toLowerCase() }),
+      });
+      if (checkRes.ok) {
+        const { exists } = await checkRes.json();
+        if (exists) {
+          setError(t("register.emailAlreadyExists"));
+          setChargement(false);
+          return;
+        }
+      }
+
       await signUpWithEmail(email, password, fullName);
       setShowSuccess(true);
     } catch (err: unknown) {

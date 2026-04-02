@@ -2,19 +2,12 @@
 
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { MessageCircle, MoreVertical } from 'lucide-react';
+import { MessageCircle, Pencil, Pin, PinOff, Trash2 } from 'lucide-react';
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  DropdownMenuSeparator,
-} from '@/components/ui/dropdown-menu';
 import { EmojiPickerPopover } from './EmojiPickerPopover';
 import { useTranslation } from 'react-i18next';
 
@@ -22,6 +15,7 @@ interface MessageActionsProps {
   messageKey: string;
   openMenuKey: string | null;
   setOpenMenuKey: (key: string | null) => void;
+  onActionComplete?: () => void;
   isPinned?: boolean;
   onReact?: (emoji: string) => void;
   onReply?: () => void;
@@ -35,6 +29,7 @@ export function MessageActions({
   messageKey,
   openMenuKey,
   setOpenMenuKey,
+  onActionComplete,
   isPinned,
   onReact,
   onReply,
@@ -57,7 +52,10 @@ export function MessageActions({
         <TooltipTrigger asChild>
           <div>
             <EmojiPickerPopover
-              onEmojiSelect={(emoji) => onReact?.(emoji)}
+              onEmojiSelect={(emoji) => {
+                onReact?.(emoji);
+                onActionComplete?.();
+              }}
               onOpenChange={(open) => {
                 if (open) {
                   setOpenMenuKey(null);
@@ -85,6 +83,7 @@ export function MessageActions({
             onClick={(e) => {
               e.stopPropagation();
               onReply?.();
+              onActionComplete?.();
             }}
           >
             <MessageCircle className="h-3 w-3 text-green-700" />
@@ -95,81 +94,77 @@ export function MessageActions({
         </TooltipContent>
       </Tooltip>
 
-      {/* Bouton Plus (Dropdown) */}
-      <DropdownMenu
-        open={openMenuKey === messageKey}
-        onOpenChange={(open) => {
-          if (open) onEmojiOpenChange?.(false);
-          setOpenMenuKey(open ? messageKey : null);
-        }}
-      >
+      {/* Bouton Modifier */}
+      {onEdit && (
         <Tooltip>
           <TooltipTrigger asChild>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7 rounded-full border border-green-100 bg-white shadow-sm cursor-pointer hover:border-green-200 hover:bg-green-50"
-                onPointerDown={(e) => e.stopPropagation()}
-                onClick={(e) => e.stopPropagation()}
-              >
-                <MoreVertical className="h-3 w-3 text-green-700" />
-              </Button>
-            </DropdownMenuTrigger>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>{t("common.more", "More")}</p>
-          </TooltipContent>
-        </Tooltip>
-
-        <DropdownMenuContent
-          align="end"
-          className="z-9999"
-          onPointerDown={(e) => e.stopPropagation()}
-        >
-          <DropdownMenuItem
-            className="cursor-pointer"
-            onSelect={() => {
-              setOpenMenuKey(null);
-              onReply?.();
-            }}
-          >
-            {t("messages.reply")}
-          </DropdownMenuItem>
-
-          {onEdit && (
-            <DropdownMenuItem
-              className="cursor-pointer"
-              onSelect={() => {
-                setOpenMenuKey(null);
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 rounded-full border border-green-100 bg-white shadow-sm cursor-pointer hover:border-green-200 hover:bg-green-50"
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation();
                 onEdit?.();
+                onActionComplete?.();
               }}
             >
-              {t("messages.edit")}
-            </DropdownMenuItem>
-          )}
+              <Pencil className="h-3 w-3 text-green-700" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>{t("messages.edit")}</p>
+          </TooltipContent>
+        </Tooltip>
+      )}
 
-          <DropdownMenuItem
-            className="cursor-pointer"
-            onSelect={() => {
-              setOpenMenuKey(null);
+      {/* Bouton Épingler / Désépingler */}
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 rounded-full border border-green-100 bg-white shadow-sm cursor-pointer hover:border-green-200 hover:bg-green-50"
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
               onPin?.();
+              onActionComplete?.();
             }}
           >
-            {isPinned ? t("messages.unpin") : t("messages.pin")}
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem
-            className="text-red-600 cursor-pointer"
-            onSelect={() => {
-              setOpenMenuKey(null);
+            {isPinned ? (
+              <PinOff className="h-3 w-3 text-green-700" />
+            ) : (
+              <Pin className="h-3 w-3 text-green-700" />
+            )}
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p>{isPinned ? t("messages.unpin") : t("messages.pin")}</p>
+        </TooltipContent>
+      </Tooltip>
+
+      {/* Bouton Supprimer */}
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 rounded-full border border-red-100 bg-white shadow-sm cursor-pointer hover:border-red-200 hover:bg-red-50"
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
               onDelete?.();
+              onActionComplete?.();
             }}
           >
-            {t("messages.delete")}
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+            <Trash2 className="h-3 w-3 text-red-500" />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p>{t("messages.delete")}</p>
+        </TooltipContent>
+      </Tooltip>
     </div>
   );
 }

@@ -9,7 +9,8 @@ import { useSearchParams } from "next/navigation";
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
 
-const COOLDOWN = 60;
+const COOLDOWN = 1800; // 30 minutes
+const STORAGE_KEY = "verify-email-cooldown-until";
 
 export default function VerifyEmailPage() {
   const { t } = useTranslation();
@@ -19,6 +20,23 @@ export default function VerifyEmailPage() {
   const [cooldown, setCooldown] = useState(0);
   const [resending, setResending] = useState(false);
   const [resent, setResent] = useState(false);
+
+  // Restore cooldown from localStorage on mount
+  useEffect(() => {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      const remaining = Math.ceil((Number(stored) - Date.now()) / 1000);
+      if (remaining > 0) {
+        setCooldown(remaining);
+      } else {
+        localStorage.removeItem(STORAGE_KEY);
+      }
+    } else {
+      // First visit after registration — start cooldown since email was just sent
+      setCooldown(COOLDOWN);
+      localStorage.setItem(STORAGE_KEY, String(Date.now() + COOLDOWN * 1000));
+    }
+  }, []);
 
   useEffect(() => {
     if (cooldown <= 0) return;
@@ -33,6 +51,7 @@ export default function VerifyEmailPage() {
     setResending(false);
     setResent(true);
     setCooldown(COOLDOWN);
+    localStorage.setItem(STORAGE_KEY, String(Date.now() + COOLDOWN * 1000));
   };
 
   return (
@@ -71,7 +90,7 @@ export default function VerifyEmailPage() {
                 {resending
                   ? t("auth.resending")
                   : cooldown > 0
-                  ? t("auth.resendCooldown", { seconds: cooldown })
+                  ? t("auth.resendCooldown", { seconds: `${Math.floor(cooldown / 60)}:${String(cooldown % 60).padStart(2, "0")}` })
                   : t("auth.resendEmail")}
               </Button>
             </div>

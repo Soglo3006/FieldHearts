@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Check, User, Users, Building2, UserPen, FileText, Languages, Briefcase, FileUser, CreditCard } from "lucide-react";
 
 const personIcons  = [User, UserPen, FileText, Languages, Briefcase, CreditCard, FileUser];
-const companyIcons = [Users, Building2, FileText, CreditCard, FileUser];
+const companyIcons = [Users, Building2, FileText, Briefcase, CreditCard, FileUser];
 
 interface Props {
   accountType: string;
@@ -27,6 +27,7 @@ export default function OnboardingStepBar({ accountType, currentStep, totalSteps
     t("onboarding.step1"),
     t("onboarding.step2"),
     t("onboarding.step3"),
+    t("onboarding.step5Company"),
     t("onboarding.step6"),
     t("onboarding.step7"),
   ];

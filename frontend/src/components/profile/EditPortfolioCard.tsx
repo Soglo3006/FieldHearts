@@ -28,6 +28,12 @@ interface Props {
 
 export default function EditPortfolioCard({ portfolio, isPerson, onAdd, onRemove }: Props) {
   const { t } = useTranslation();
+  const sectionTitle = isPerson ? t("profile.portfolio") : t("profile.ourWork");
+  const sectionSubtitle = isPerson ? t("profile.uploadPortfolio") : t("profile.uploadProjects");
+  const addItemLabel = isPerson ? t("profile.addPortfolioItem", "Ajouter un élément au portfolio") : t("profile.addProjectItem");
+  const uploadLabel = isPerson ? t("profile.uploadPortfolioImages") : t("profile.uploadProjectImages");
+  const titlePlaceholder = isPerson ? t("profile.portfolioTitlePlaceholder") : t("profile.projectTitlePlaceholder");
+  const addButtonLabel = isPerson ? t("profile.addToPortfolio") : t("profile.addToProjects");
   const [showModal, setShowModal] = useState(false);
   const [image, setImage] = useState<string | null>(null);
   useScrollLock(showModal);
@@ -80,8 +86,8 @@ export default function EditPortfolioCard({ portfolio, isPerson, onAdd, onRemove
     <>
       <Card className="p-6 sm:p-8 mb-6">
         <div className="mb-6">
-          <h2 className="text-xl font-bold text-gray-900 mb-2">{isPerson ? t("profile.portfolio") : t("profile.ourWork")}</h2>
-          <p className="text-gray-600">{t("profile.uploadPortfolio")}</p>
+          <h2 className="text-xl font-bold text-gray-900 mb-2">{sectionTitle}</h2>
+          <p className="text-gray-600">{sectionSubtitle}</p>
 
           {portfolio.length === 0 && (
             <div className="bg-green-50 border border-green-200 rounded-lg p-4 mt-4">
@@ -129,9 +135,9 @@ export default function EditPortfolioCard({ portfolio, isPerson, onAdd, onRemove
           className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center hover:border-green-700 transition-colors cursor-pointer group"
           onClick={() => document.getElementById("portfolio-upload")?.click()}
         >
-          <input type="file" accept="image/*" id="portfolio-upload" onChange={handleUpload} title={t("profile.addPortfolioItem", "Ajouter un élément au portfolio")} aria-label={t("profile.addPortfolioItem", "Ajouter un élément au portfolio")} className="hidden" />
+          <input type="file" accept="image/*" id="portfolio-upload" onChange={handleUpload} title={addItemLabel} aria-label={addItemLabel} className="hidden" />
           <Upload className="h-12 w-12 text-gray-400 mx-auto mb-3 group-hover:text-green-600 transition-colors" />
-          <h3 className="text-lg font-semibold text-gray-900 mb-1">{t("profile.uploadPortfolioImages")}</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-1">{uploadLabel}</h3>
           <p className="text-gray-500 text-sm mb-4">{t("profile.clickToBrowse")}</p>
           <Button variant="outline" className="gap-2 cursor-pointer mb-3" type="button">
             <Plus className="h-4 w-4" /> {t("profile.chooseFiles")}
@@ -144,7 +150,7 @@ export default function EditPortfolioCard({ portfolio, isPerson, onAdd, onRemove
         <div className="fixed inset-0 z-100 bg-black flex flex-col">
           {/* Header */}
           <div className="shrink-0 flex items-center justify-between px-5 py-4 bg-black/80">
-            <h3 className="text-white font-semibold text-base">{t("profile.addPortfolioItem")}</h3>
+            <h3 className="text-white font-semibold text-base">{addItemLabel}</h3>
             <button
               type="button"
               onClick={closeModal}
@@ -189,7 +195,7 @@ export default function EditPortfolioCard({ portfolio, isPerson, onAdd, onRemove
             <div className="mb-4">
               <Input
                 type="text"
-                placeholder={t("profile.portfolioTitlePlaceholder")}
+                placeholder={titlePlaceholder}
                 value={title}
                 onChange={(e) => { setTitle(e.target.value); setError(false); }}
                 className={`bg-white/10 border-white/20 text-white placeholder:text-white/40 focus:border-green-500 ${error ? "border-red-500" : ""}`}
@@ -202,7 +208,7 @@ export default function EditPortfolioCard({ portfolio, isPerson, onAdd, onRemove
               type="button"
               className="w-full bg-green-700 hover:bg-green-800 text-white h-12 text-base font-semibold rounded-xl cursor-pointer"
             >
-              {t("profile.addToPortfolio")}
+              {addButtonLabel}
             </Button>
           </div>
         </div>

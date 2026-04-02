@@ -45,6 +45,8 @@ interface ConversationListProps {
   onNewConversation?: () => void;
   newConversationMode?: boolean;
   pendingUser?: { id: string; full_name?: string; company_name?: string; account_type?: string; avatar_url?: string | null } | null;
+  pendingUserActive?: boolean;
+  onPendingUserSelect?: () => void;
 }
 
 function ConversationItem({
@@ -182,6 +184,8 @@ export function ConversationList({
   onNewConversation,
   newConversationMode,
   pendingUser,
+  pendingUserActive,
+  onPendingUserSelect,
 }: ConversationListProps) {
   const { t } = useTranslation();
   const [filter, setFilter] = useState<string>('all');
@@ -277,7 +281,10 @@ export function ConversationList({
             ? pendingUser.company_name || ''
             : pendingUser.full_name || '';
           return (
-            <div className="p-4 border-b bg-green-50 border-l-4 border-l-green-700">
+            <div
+              onClick={onPendingUserSelect}
+              className={`p-4 border-b border-l-4 transition-colors ${pendingUserActive ? 'bg-green-50 border-l-green-700' : 'border-l-transparent hover:bg-gray-50'} ${onPendingUserSelect ? 'cursor-pointer' : ''}`}
+            >
               <div className="flex items-center gap-3">
                 <Avatar className="h-12 w-12 border-4 border-white shadow-lg">
                   {pendingUser.avatar_url ? <AvatarImage src={pendingUser.avatar_url} alt={name} /> : null}

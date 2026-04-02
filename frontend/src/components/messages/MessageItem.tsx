@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Check, CheckCheck } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -79,6 +80,7 @@ export function MessageItem({
   retryMessage, onReply, onReplyClick, onReactionToggle, onEdit, onPin, onDelete,
 }: Props) {
   const { t, i18n } = useTranslation();
+  const [suppressAudioActionsUntilLeave, setSuppressAudioActionsUntilLeave] = useState(false);
   const isDeleted = Boolean(message.deleted_at);
   const isAudio = !isDeleted && message.content.includes("[AUDIO:");
   const isFile = !isDeleted && !isAudio && message.content.includes("[FILE:");
@@ -91,6 +93,7 @@ export function MessageItem({
       setHoveredMessageId(message.id);
     },
     onMouseLeave: () => {
+      setSuppressAudioActionsUntilLeave(false);
       if (openMenuKey === message.id) return;
       const t = setTimeout(() => {
         setHoveredMessageId(null);
@@ -100,7 +103,13 @@ export function MessageItem({
     },
   };
 
-  const showActions = hoveredMessageId === message.id || openMenuKey === message.id || selectedMessageKey === message.id;
+  const showActions = !suppressAudioActionsUntilLeave && (hoveredMessageId === message.id || openMenuKey === message.id || selectedMessageKey === message.id);
+  const clearAudioInteractionState = () => {
+    setSuppressAudioActionsUntilLeave(true);
+    setHoveredMessageId(null);
+    setOpenMenuKey(null);
+    setSelectedMessageKey(null);
+  };
 
   return (
     <div id={`message-${message.id}`}>
@@ -144,6 +153,7 @@ export function MessageItem({
                 >
                   <MessageActions
                     messageKey={message.id} openMenuKey={openMenuKey} setOpenMenuKey={setOpenMenuKey}
+                    onActionComplete={clearAudioInteractionState}
                     onReact={(emoji) => onReactionToggle?.(message.id, emoji, message.reactions || [])}
                     onReply={() => onReply?.(message)}
                     onDelete={() => onDelete?.(message.id)}
@@ -176,7 +186,7 @@ export function MessageItem({
         })() : (
           <MessageBubble
             messageId={message.id} content={message.content} isOwn={isOwn}
-            currentUserId={currentUserId} status={message.status} editedAt={message.edited_at}
+            currentUserId={currentUserId} status={message.status} createdAt={message.created_at} editedAt={message.edited_at}
             deletedAt={message.deleted_at}
             isPinned={!!message.pinned_at} repliedTo={message.replied_to} onReplyClick={onReplyClick}
             otherUser={otherUser} isHovered={hoveredMessageId === message.id}

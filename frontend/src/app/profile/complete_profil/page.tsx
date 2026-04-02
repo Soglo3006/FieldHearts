@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button";
 import { useSearchParams } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import i18n from "@/lib/i18n";
-import { ChevronRight, ChevronLeft } from "lucide-react";
+import { ChevronRight, ChevronLeft, ArrowLeft } from "lucide-react";
+import Link from "next/link";
 import { OnboardingData, Experience, PortfolioItem } from "@/components/onboarding/onboardingTypes";
 import OnboardingStepBar from "@/components/onboarding/OnboardingStepBar";
 import SuccessScreen from "@/components/onboarding/SuccessScreen";
@@ -81,7 +82,7 @@ function OnboardingContent() {
   const [showSuccess, setShowSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const totalSteps = accountType === "company" ? 5 : 7;
+  const totalSteps = accountType === "company" ? 6 : 7;
 
   const storageKey = `onboarding_data_${accountType}`;
 
@@ -179,7 +180,7 @@ function OnboardingContent() {
     : !!data.industry?.trim();
   const isStep3Valid = (data.skills?.length ?? 0) > 0;
 
-  const isBankStep = (accountType === "person" && currentStep === 6) || (accountType === "company" && currentStep === 4);
+  const isBankStep = (accountType === "person" && currentStep === 6) || (accountType === "company" && currentStep === 5);
 
   const canProceed = () => {
     if (currentStep === 1) return isStep1Valid;
@@ -246,7 +247,14 @@ function OnboardingContent() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      <div className="flex justify-end px-4 pt-3">
+      <div className="flex items-center justify-between px-4 pt-3">
+        <Link
+          href="/choose_type"
+          className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-800 transition-colors"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          {t("onboarding.changeAccountType")}
+        </Link>
         <LanguageToggle />
       </div>
 
@@ -282,13 +290,23 @@ function OnboardingContent() {
           {accountType === "person" && currentStep === 5 && (
             <StepPortfolio
               portfolio={data.portfolio ?? []}
+              accountType="person"
               onAdd={handleAddPortfolioItem}
               onRemove={handleRemovePortfolio}
               onUpdate={handleUpdatePortfolio}
             />
           )}
-          {/* Bank account step: person = step 6, company = step 4 */}
-          {((accountType === "person" && currentStep === 6) || (accountType === "company" && currentStep === 4)) && (
+          {accountType === "company" && currentStep === 4 && (
+            <StepPortfolio
+              portfolio={data.portfolio ?? []}
+              accountType="company"
+              onAdd={handleAddPortfolioItem}
+              onRemove={handleRemovePortfolio}
+              onUpdate={handleUpdatePortfolio}
+            />
+          )}
+          {/* Bank account step: person = step 6, company = step 5 */}
+          {((accountType === "person" && currentStep === 6) || (accountType === "company" && currentStep === 5)) && (
             <StepBankAccount accessToken={session?.access_token ?? ""} accountType={accountType} />
           )}
           {currentStep === totalSteps && (

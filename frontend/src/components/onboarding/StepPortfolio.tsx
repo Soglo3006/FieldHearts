@@ -15,13 +15,15 @@ import { useScrollLock } from "@/hooks/useScrollLock";
 
 interface Props {
   portfolio: PortfolioItem[];
+  accountType: "person" | "company";
   onAdd: (item: PortfolioItem) => void;
   onRemove: (id: number) => void;
   onUpdate: (id: number, field: keyof PortfolioItem, value: string) => void;
 }
 
-export default function StepPortfolio({ portfolio, onAdd, onRemove, onUpdate }: Props) {
+export default function StepPortfolio({ portfolio, accountType, onAdd, onRemove, onUpdate }: Props) {
   const { t } = useTranslation();
+  const isCompany = accountType === "company";
   const [showCropper, setShowCropper] = useState(false);
   const [rawImage, setRawImage] = useState<string | null>(null);
   const [title, setTitle] = useState("");
@@ -72,8 +74,8 @@ export default function StepPortfolio({ portfolio, onAdd, onRemove, onUpdate }: 
   return (
     <>
       <Card className="p-6 sm:p-8 animate-in fade-in duration-300">
-        <h2 className="text-xl font-bold text-gray-900">{t("onboarding.portfolio")}</h2>
-        <p className="text-gray-600">{t("onboarding.portfolioSubtitle")}</p>
+        <h2 className="text-xl font-bold text-gray-900">{isCompany ? t("onboarding.companyProjectsTitle") : t("onboarding.portfolio")}</h2>
+        <p className="text-gray-600">{isCompany ? t("onboarding.companyProjectsSubtitle") : t("onboarding.portfolioSubtitle")}</p>
 
         <div className="space-y-6">
           {portfolio.length > 0 && (
@@ -108,19 +110,19 @@ export default function StepPortfolio({ portfolio, onAdd, onRemove, onUpdate }: 
           {portfolio.length === 0 && (
             <div className="text-center py-8 border-2 border-dashed border-gray-200 rounded-xl">
               <ImageIcon className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-              <p className="text-gray-500 mb-4">{t('onboarding.noPortfolio')}</p>
+              <p className="text-gray-500 mb-4">{isCompany ? t('onboarding.noProjects') : t('onboarding.noPortfolio')}</p>
             </div>
           )}
 
           <Button variant="outline" onClick={() => document.getElementById("portfolioInput")?.click()} className="w-full gap-2 cursor-pointer">
             <Plus className="h-4 w-4" /> {t("onboarding.addPhoto")}
           </Button>
-          <input type="file" accept="image/*" id="portfolioInput" title={t('onboarding.uploadPortfolioImage')} aria-label={t('onboarding.uploadPortfolioImage')} className="hidden" onChange={handleUpload} />
+          <input type="file" accept="image/*" id="portfolioInput" title={isCompany ? t('onboarding.uploadProjectImage') : t('onboarding.uploadPortfolioImage')} aria-label={isCompany ? t('onboarding.uploadProjectImage') : t('onboarding.uploadPortfolioImage')} className="hidden" onChange={handleUpload} />
         </div>
       </Card>
 
       {showCropper && rawImage && (
-        <div className="fixed inset-0 z-[100] bg-black flex flex-col">
+        <div className="fixed inset-0 z-100 bg-black flex flex-col">
           {/* Header */}
           <div className="shrink-0 flex items-center justify-between px-5 py-4 bg-black/80">
             <h3 className="text-white font-semibold text-base">{t("onboarding.addPhoto")}</h3>

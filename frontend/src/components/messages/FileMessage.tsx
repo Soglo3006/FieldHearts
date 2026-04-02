@@ -160,19 +160,25 @@ export function FileMessage({
   const keyImage = `${messageId}-image`;
   const fileName = getFilename(fileUrl, t('messages.file'));
 
-  const actionsVisible = (key: string) =>
-    !lightboxOpen && (hoveredMessageId === key || openMenuKey === key || selectedMessageKey === key);
-
   const isSending = status === 'sending';
   const isFailed = status === 'failed';
 
   const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [suppressedActionKey, setSuppressedActionKey] = useState<string | null>(null);
 
   const clearImageInteractionState = () => {
     setHoveredMessageId(null);
     setOpenMenuKey(null);
     setSelectedMessageKey(null);
   };
+
+  const suppressActionsForKey = (key: string) => {
+    setSuppressedActionKey(key);
+    clearImageInteractionState();
+  };
+
+  const actionsVisible = (key: string) =>
+    !lightboxOpen && suppressedActionKey !== key && (hoveredMessageId === key || openMenuKey === key || selectedMessageKey === key);
 
   const closeLightbox = () => {
     setLightboxOpen(false);
@@ -186,6 +192,7 @@ export function FileMessage({
           onPointerDown={(e) => e.stopPropagation()}
           onMouseEnter={() => !isSending && setHoveredMessageId(keyText)}
           onMouseLeave={() => {
+            if (suppressedActionKey === keyText) setSuppressedActionKey(null);
             if (openMenuKey !== keyText && selectedMessageKey !== keyText) {
               setHoveredMessageId(null);
             }
@@ -199,6 +206,7 @@ export function FileMessage({
               messageKey={keyText}
               openMenuKey={openMenuKey}
               setOpenMenuKey={setOpenMenuKey}
+              onActionComplete={() => suppressActionsForKey(keyText)}
               onReact={onReact}  
               onReply={onReply}
               onDelete={onDelete} 
@@ -271,6 +279,7 @@ export function FileMessage({
           onPointerDown={(e) => e.stopPropagation()}
           onMouseEnter={() => !isSending && setHoveredMessageId(keyImage)}
           onMouseLeave={() => {
+            if (suppressedActionKey === keyImage) setSuppressedActionKey(null);
             if (openMenuKey !== keyImage && selectedMessageKey !== keyImage) {
               setHoveredMessageId(null);
             }
@@ -284,6 +293,7 @@ export function FileMessage({
               messageKey={keyImage}
               openMenuKey={openMenuKey}
               setOpenMenuKey={setOpenMenuKey}
+              onActionComplete={() => suppressActionsForKey(keyImage)}
               isPinned={isPinned}
               onReact={onReact}
               onReply={onReply}

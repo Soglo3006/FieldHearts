@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { X, Plus, Building2, User, Briefcase, Users } from "lucide-react";
+import { X, Plus } from "lucide-react";
 import ProfilePictureUploader from "@/components/profile/ProfilePicture";
 import AddressAutocomplete from "@/components/ui/AddressAutocomplete";
 
@@ -59,12 +59,8 @@ export default function EditBasicInfoCard({ formData, accountType, onChange }: P
 
   return (
     <Card className="p-6 sm:p-8 mb-6">
-      <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
-        {isPerson ? (
-          <><User className="h-5 w-5 text-green-700" /> {t("profileEdit.personalInfo")}</>
-        ) : (
-          <><Building2 className="h-5 w-5 text-green-700" /> {t("profileEdit.companyInfo")}</>
-        )}
+      <h2 className="text-xl font-bold text-gray-900 mb-6">
+        {isPerson ? t("profileEdit.personalInfo") : t("profileEdit.companyInfo")}
       </h2>
 
       <div className="space-y-6">
@@ -187,16 +183,16 @@ export default function EditBasicInfoCard({ formData, accountType, onChange }: P
         ) : (
           <>
             <div className="space-y-2">
-              <Label htmlFor="industry" className="text-base font-medium text-gray-900 flex items-center gap-2">
-                <Briefcase className="h-4 w-4 text-gray-500" /> {t("profileEdit.industry")}
+              <Label htmlFor="industry" className="text-base font-medium text-gray-900">
+                {t("profileEdit.industry")}
               </Label>
               <Input id="industry" type="text" value={formData.industry}
                 placeholder="Construction, IT Services, Manufacturing..."
                 onChange={(e) => onChange({ industry: e.target.value })} className="h-12" />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="teamSize" className="text-base font-medium text-gray-900 flex items-center gap-2">
-                <Users className="h-4 w-4 text-gray-500" /> {t("profile.teamSize")}
+              <Label htmlFor="teamSize" className="text-base font-medium text-gray-900">
+                {t("profile.teamSize")}
               </Label>
               <Input id="teamSize" type="text" value={formData.teamSize}
                 placeholder="1-10, 11-50, 51-200..."

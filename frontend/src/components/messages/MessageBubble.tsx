@@ -11,6 +11,7 @@ import { RepliedMessage } from './RepliedMessage';
 import { MessageReactions } from './MessageReactions';
 import { sanitizeAndFormatMessage } from '@/lib/sanitize';
 import { useTranslation } from 'react-i18next';
+import { toast } from 'sonner';
 
 interface Reaction {  
   emoji: string;
@@ -46,6 +47,7 @@ interface MessageBubbleProps {
   setOpenMenuKey: (key: string | null) => void;
   setHoveredMessageId: (key: string | null) => void;
   setSelectedMessageKey: (key: string | null) => void;
+  createdAt?: string;
   onReact?: (emoji: string) => void;  
   onReply?: () => void;
   onEdit?: (newContent: string) => void;
@@ -76,6 +78,7 @@ export function MessageBubble({
   setOpenMenuKey,
   setHoveredMessageId,
   setSelectedMessageKey,
+  createdAt,
   onReact,
   onReply,
   onEdit,
@@ -88,10 +91,11 @@ export function MessageBubble({
   const [isEditing, setIsEditing] = useState(false);
   const [editedContent, setEditedContent] = useState(content);
   const [isEmojiOpen, setIsEmojiOpen] = useState(false);
+  const [suppressActionsUntilLeave, setSuppressActionsUntilLeave] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const hideTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const showActions = isHovered || isMenuOpen || isSelected || isEmojiOpen;
+  const showActions = !suppressActionsUntilLeave && (isHovered || isMenuOpen || isSelected || isEmojiOpen);
   const isSending = status === 'sending';
   const isFailed = status === 'failed';
   const isDeleted = Boolean(deletedAt);
@@ -126,6 +130,13 @@ export function MessageBubble({
 
 
   const handleStartEdit = () => {
+    if (createdAt) {
+      const ageMs = Date.now() - new Date(createdAt).getTime();
+      if (ageMs > 15 * 60 * 1000) {
+        toast.error(t('messages.editExpired'));
+        return;
+      }
+    }
     setIsEditing(true);
     setEditedContent(content);
   };
@@ -133,6 +144,9 @@ export function MessageBubble({
   const handleCancelEdit = () => {
     setIsEditing(false);
     setEditedContent(content);
+    setSuppressActionsUntilLeave(true);
+    setHoveredMessageId(null);
+    setSelectedMessageKey(null);
   };
 
   const handleSaveEdit = () => {
@@ -140,6 +154,9 @@ export function MessageBubble({
       onEdit?.(editedContent.trim());
     }
     setIsEditing(false);
+    setSuppressActionsUntilLeave(true);
+    setHoveredMessageId(null);
+    setSelectedMessageKey(null);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -153,8 +170,18 @@ export function MessageBubble({
   };
 
   const handleMouseLeave = () => {
+    setSuppressActionsUntilLeave(false);
+    setSelectedMessageKey(null);
     scheduleHide();
   };
+
+  const clearInteractionState = useCallback(() => {
+    setSuppressActionsUntilLeave(true);
+    setHoveredMessageId(null);
+    setOpenMenuKey(null);
+    setSelectedMessageKey(null);
+    setIsEmojiOpen(false);
+  }, [setHoveredMessageId, setOpenMenuKey, setSelectedMessageKey]);
 
   return (
     <div
@@ -238,7 +265,7 @@ export function MessageBubble({
                     size="sm"
                     variant="ghost"
                     className={`h-7 cursor-pointer ${isOwn ? 'text-white hover:bg-green-600' : ''}`}
-                    onClick={handleSaveEdit}
+                    onClick={(e) => { e.stopPropagation(); handleSaveEdit(); }}
                   >
                     <Check className="h-4 w-4 mr-1" />
                     {t('common.save')}
@@ -247,7 +274,7 @@ export function MessageBubble({
                     size="sm"
                     variant="ghost"
                     className={`h-7 cursor-pointer ${isOwn ? 'text-white hover:bg-green-600' : ''}`}
-                    onClick={handleCancelEdit}
+                    onClick={(e) => { e.stopPropagation(); handleCancelEdit(); }}
                   >
                     <X className="h-4 w-4 mr-1" />
                     {t('common.cancel')}
@@ -307,15 +334,13 @@ export function MessageBubble({
             <MessageActions
               messageKey={messageId}
               openMenuKey={openMenuKey}
+              onActionComplete={clearInteractionState}
               onEmojiOpenChange={setIsEmojiOpen}
               setOpenMenuKey={setOpenMenuKey}
               isPinned={isPinned}
               onReact={(emoji) => {
                 onReact?.(emoji);
-                setIsEmojiOpen(false);
-                setOpenMenuKey(null);
-                setSelectedMessageKey(null);
-                setHoveredMessageId(null);
+                clearInteractionState();
               }}
               onReply={onReply}
               onEdit={isOwn ? handleStartEdit : undefined}

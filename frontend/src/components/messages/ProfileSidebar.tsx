@@ -277,7 +277,7 @@ export function ProfileSidebar({ otherUser, onClose, onOpenSettings, isBlocked, 
                             className="block"
                           >
                             <div className="border rounded-xl shadow-sm bg-white overflow-hidden hover:shadow-md transition-all cursor-pointer">
-                              <div className="aspect-video w-full overflow-hidden bg-gray-100">
+                              <div className="relative aspect-video w-full overflow-hidden bg-gray-100">
                                 {listing.image_url ? (
                                   <AppImage
                                     src={listing.image_url}

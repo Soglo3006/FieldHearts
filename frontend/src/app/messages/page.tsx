@@ -136,8 +136,8 @@ function MessagesContent() {
   const activeChat = chats.find(c => c.id === activeChatId);
   const hasActiveChat = !!activeChat;
   const activeOtherUserId = activeChat?.other_user?.id ?? null;
-  const displayedConversationUser = activeChat?.other_user ?? pendingNewConvUser;
-  const isPendingConversationTransition = !!pendingNewConvUser;
+  const displayedConversationUser = pendingNewConvUser ?? activeChat?.other_user;
+  const isPendingConversationTransition = !!pendingNewConvUser && !activeChatId;
   const shouldSyncSidebarLoading = !!activeChat && !showSettings && (isLargeScreen || showMobileSidebar);
   const isConversationShellLoading = !!activeChat
     && !newConversationMode
@@ -534,7 +534,24 @@ function MessagesContent() {
     setNewConvSearch('');
     setNewConvResults([]);
     setPendingNewConvUser(userInfo);
+    setActiveChatId(null);
     setSuppressThreadLoading(false);
+    setShowSettings(false);
+    setShowMobileSidebar(false);
+    router.replace('/messages');
+    if (isMobile) setShowMobileChat(true);
+  };
+
+  const handleSelectPendingConversation = () => {
+    if (!pendingNewConvUser) return;
+    setNewConversationMode(false);
+    setActiveChatId(null);
+    setShowSettings(false);
+    setShowMobileSidebar(false);
+    setReplyingTo(null);
+    setSuppressThreadLoading(false);
+    router.replace('/messages');
+    if (isMobile) setShowMobileChat(true);
   };
 
   const scrollToMessage = (messageId: string) => {
@@ -590,6 +607,8 @@ function MessagesContent() {
                   onNewConversation={openNewConversation}
                   newConversationMode={newConversationMode}
                   pendingUser={pendingNewConvUser}
+                  pendingUserActive={isPendingConversationTransition}
+                  onPendingUserSelect={handleSelectPendingConversation}
                 />
               </div>
 

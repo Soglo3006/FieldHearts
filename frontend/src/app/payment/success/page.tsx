@@ -122,7 +122,10 @@ export default function PaymentSuccessPage() {
                         <span className="text-gray-700">{fmt(price)} $</span>
                       </div>
                       <div className="flex justify-between text-gray-400">
-                        <span>{t("payment.buyerCommission")}</span>
+                        <div>
+                          <div>{t("payment.buyerCommission")}</div>
+                          <div className="text-xs text-red-400">{t("payment.nonRefundable")}</div>
+                        </div>
                         <span>{fmt(buyerCommission)} $</span>
                       </div>
                       <div className="flex justify-between text-gray-400">

@@ -13,6 +13,7 @@ import AppImage from "@/components/ui/AppImage";
 import { useTranslation } from "react-i18next";
 import AdBanner from "@/components/AdBanner";
 import { toast } from "sonner";
+import { getPublicServiceLocation } from "@/lib/serviceLocation";
 
 const COMING_SOON = process.env.NEXT_PUBLIC_COMING_SOON === "true";
 
@@ -53,7 +54,9 @@ interface Listing {
   title: string;
   price: number;
   location: string;
+  address?: string | null;
   city?: string | null;
+  hide_exact_location?: boolean;
   image_url?: string;
   created_at: string;
   category: string;
@@ -98,7 +101,7 @@ function ListingCard({ listing, t }: { listing: Listing; t: (key: string, opts?:
           <div className="flex items-center justify-between text-xs text-gray-500 mt-auto">
             <div className="flex items-center gap-1 min-w-0">
               <MapPin className="h-3 w-3 shrink-0" />
-              <span className="line-clamp-1">{listing.city ?? listing.location}</span>
+              <span className="line-clamp-1">{getPublicServiceLocation(listing)}</span>
             </div>
             <div className="flex items-center gap-1 shrink-0 ml-2">
               <Clock className="h-3 w-3" />

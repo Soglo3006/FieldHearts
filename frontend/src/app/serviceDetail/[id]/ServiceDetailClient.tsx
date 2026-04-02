@@ -17,6 +17,7 @@ import AdBanner from "@/components/AdBanner";
 import BookingModal from "@/components/serviceDetail/BookingModal";
 import LocationMapModal from "@/components/serviceDetail/LocationMapModal";
 import { useTranslation } from "react-i18next";
+import { getPublicServiceLocation, hasApproximateServiceLocation } from "@/lib/serviceLocation";
 
 interface Service {
   id: string;
@@ -59,7 +60,10 @@ interface SimilarService {
   title: string;
   price: number;
   location: string;
+  address?: string | null;
   created_at: string;
+  city?: string | null;
+  hide_exact_location?: boolean;
   image_url: string | null;
 }
 
@@ -355,9 +359,10 @@ export default function ServiceDetailClient() {
 
       {isMapOpen && (
         <LocationMapModal
-          location={service.city ?? service.location}
+          location={getPublicServiceLocation(service)}
           lat={service.hide_exact_location ? null : service.latitude}
           lng={service.hide_exact_location ? null : service.longitude}
+          isApproximate={hasApproximateServiceLocation(service)}
           onClose={() => setIsMapOpen(false)}
         />
       )}

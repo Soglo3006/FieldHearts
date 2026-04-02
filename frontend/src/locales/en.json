@@ -562,6 +562,8 @@
     "deleting": "Deleting...",
     "yesDeleteListing": "Yes, Delete Listing",
     "viewAllMyListings": "View All My Listings",
+    "exactLocation": "Exact Location",
+    "exactLocationDesc": "This shows the exact location provided in the listing.",
     "approximateLocation": "Approximate Location",
     "approximateLocationDesc": "This shows an approximate area to protect privacy.",
     "openInGoogleMaps": "Open in Google Maps",

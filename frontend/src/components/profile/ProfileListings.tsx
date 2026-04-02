@@ -13,6 +13,7 @@ import { Grid3x3, MapPin, ChevronLeft, ChevronRight } from "lucide-react";
 import AppImage from "@/components/ui/AppImage";
 import EditListingModal, { type Service as Listing } from "@/components/listings/EditListingModal";
 import { Spinner } from "@/components/ui/Spinner";
+import { getPublicServiceLocation } from "@/lib/serviceLocation";
 
 const PAGE_SIZE = 9;
 
@@ -149,7 +150,7 @@ export default function ProfileListings({
 
         <div className="flex items-center text-sm text-gray-500 mb-2">
           <MapPin className="h-4 w-4 mr-1 shrink-0" />
-          <span className="line-clamp-1">{listing.location}</span>
+          <span className="line-clamp-1">{getPublicServiceLocation(listing)}</span>
         </div>
 
         {listing.category && (

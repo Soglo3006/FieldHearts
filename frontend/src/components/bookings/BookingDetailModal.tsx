@@ -331,7 +331,10 @@ export default function BookingDetailModal({
                               <span className="font-medium">{fmt(base)} $</span>
                             </div>
                             <div className="flex justify-between text-gray-500">
-                              <span>{t("serviceDetail.buyerCommission")}</span>
+                              <div>
+                                <div>{t("serviceDetail.buyerCommission")}</div>
+                                <div className="text-[11px] text-red-500">{t("payment.nonRefundable")}</div>
+                              </div>
                               <span>{fmt(buyerCommission)} $</span>
                             </div>
                             <div className="flex justify-between text-gray-500">
@@ -391,7 +394,10 @@ export default function BookingDetailModal({
                           </span>
                         </div>
                         <div className="flex justify-between text-gray-500">
-                          <span>{t("serviceDetail.buyerCommission")}</span>
+                          <div>
+                            <div>{t("serviceDetail.buyerCommission")}</div>
+                            <div className="text-[11px] text-red-500">{t("payment.nonRefundable")}</div>
+                          </div>
                           <span>{fmt(buyerCommission)} $</span>
                         </div>
                         <div className="flex justify-between text-gray-500">
@@ -432,7 +438,10 @@ export default function BookingDetailModal({
                             </span>
                           </div>
                           <div className="flex justify-between text-gray-500">
-                            <span>{t("serviceDetail.buyerCommission")}</span>
+                            <div>
+                              <div>{t("serviceDetail.buyerCommission")}</div>
+                              <div className="text-[11px] text-red-500">{t("payment.nonRefundable")}</div>
+                            </div>
                             <span>{fmt(buyerCommission)} $</span>
                           </div>
                           <div className="flex justify-between text-gray-500">
@@ -494,7 +503,10 @@ export default function BookingDetailModal({
                         </span>
                       </div>
                       <div className="flex justify-between text-gray-500">
-                        <span>{t("serviceDetail.buyerCommission")}</span>
+                        <div>
+                          <div>{t("serviceDetail.buyerCommission")}</div>
+                          <div className="text-[11px] text-red-500">{t("payment.nonRefundable")}</div>
+                        </div>
                         <span>{fmt(buyerCommission)} $</span>
                       </div>
                       <div className="flex justify-between text-gray-500">
@@ -583,7 +595,7 @@ export default function BookingDetailModal({
             </div>
 
             {booking.status === "accepted" && userRole === "worker" && (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 text-xs text-blue-700">
+              <div className="bg-green-50 border border-green-200 rounded-lg px-3 py-2 text-xs text-green-700">
                 {t("bookings.waitingForPayment")}
               </div>
             )}

@@ -9,14 +9,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import MultiImageUploader from "@/components/ui/MultiImageUploader";
 import LocationAutocomplete, { type LocationDetails } from "@/components/post/LocationAutocomplete";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { categories } from "@/lib/categories";
+import CategorySubcategoryFields from "@/components/post/CategorySubcategoryFields";
+import AvailabilityLanguageMobilityFields from "@/components/post/AvailabilityLanguageMobilityFields";
+import PostSelect from "@/components/post/PostSelect";
 import { X, CheckCircle } from "lucide-react";
 
 export interface Service {
@@ -151,11 +146,16 @@ export default function EditListingModal({ service, accessToken, onClose, onSave
     }
   };
 
-  const selectedCat = categories.find((c) => c.name === category);
+  const urgencyOptions = [
+    { value: "anytime", label: t("post.urgencyAnytime") },
+    { value: "few-days", label: t("post.urgencyFewDays") },
+    { value: "today", label: t("post.urgencyToday") },
+    { value: "urgent", label: t("post.urgencyUrgent") },
+  ];
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center overscroll-none bg-black/50 p-4">
-      <div className="flex max-h-[92vh] w-full max-w-2xl flex-col rounded-2xl bg-white shadow-xl">
+      <div className="flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-xl">
         {/* Header */}
         <div className="flex shrink-0 items-center justify-between border-b border-gray-100 px-6 py-4">
           <div>
@@ -170,7 +170,7 @@ export default function EditListingModal({ service, accessToken, onClose, onSave
         </div>
 
         {/* Body — scrollable */}
-        <div className="flex-1 space-y-6 overflow-y-auto overscroll-contain px-6 py-5">
+        <div className="flex-1 space-y-6 overflow-y-auto overflow-x-hidden overscroll-contain px-6 py-5">
           {error && (
             <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
               {error}
@@ -236,119 +236,57 @@ export default function EditListingModal({ service, accessToken, onClose, onSave
             />
           </div>
 
+          {/* Hide exact location */}
+          <div className="flex items-start gap-3 px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg">
+            <input
+              type="checkbox"
+              id="editHideLocation"
+              checked={hideExactLocation}
+              onChange={(e) => setHideExactLocation(e.target.checked)}
+              className="mt-0.5 h-4 w-4 rounded border-gray-300 text-green-600 cursor-pointer"
+            />
+            <label htmlFor="editHideLocation" className="cursor-pointer">
+              <span className="text-sm font-medium text-gray-800">{t("post.hideExactLocation")}</span>
+              <p className="text-xs text-gray-500 mt-0.5">{t("post.hideExactLocationDesc")}</p>
+            </label>
+          </div>
+
           {/* Urgency — looking only */}
           {!isOffer && (
             <div className="space-y-2">
               <Label className="text-base font-medium text-gray-900">{t("post.urgencyLevel")}</Label>
-              <Select value={urgency} onValueChange={setUrgency}>
-                <SelectTrigger className="h-12 cursor-pointer">
-                  <SelectValue placeholder={t("post.selectUrgency")} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="anytime" className="cursor-pointer">{t("post.urgencyAnytime")}</SelectItem>
-                  <SelectItem value="few-days" className="cursor-pointer">{t("post.urgencyFewDays")}</SelectItem>
-                  <SelectItem value="today" className="cursor-pointer">{t("post.urgencyToday")}</SelectItem>
-                  <SelectItem value="urgent" className="cursor-pointer">{t("post.urgencyUrgent")}</SelectItem>
-                </SelectContent>
-              </Select>
+              <PostSelect
+                value={urgency}
+                onValueChange={setUrgency}
+                placeholder={t("post.selectUrgency")}
+                options={urgencyOptions}
+              />
             </div>
           )}
 
           {/* Category / Subcategory / Poster type */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label className="text-base font-medium text-gray-900">
-                {t("post.category")} <span className="text-red-500">*</span>
-              </Label>
-              <Select value={category} onValueChange={(v) => { setCategory(v); setSubcategory(""); }}>
-                <SelectTrigger className="h-12 cursor-pointer">
-                  <SelectValue placeholder={t("post.selectCategory")} />
-                </SelectTrigger>
-                <SelectContent>
-                  {categories.map((cat) => (
-                    <SelectItem key={cat.name} value={cat.name} className="cursor-pointer">
-                      {cat.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label className="text-base font-medium text-gray-900">{t("post.subcategory")}</Label>
-              <Select value={subcategory} onValueChange={setSubcategory} disabled={!category}>
-                <SelectTrigger className="h-12 cursor-pointer">
-                  <SelectValue placeholder={t("post.selectSubcategory")} />
-                </SelectTrigger>
-                <SelectContent>
-                  {selectedCat?.subcategories?.map((sub) => (
-                    <SelectItem key={sub} value={sub} className="cursor-pointer">
-                      {sub}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label className="text-base font-medium text-gray-900">{t("post.typeOfPoster")}</Label>
-              <Select value={posterType} onValueChange={setPosterType}>
-                <SelectTrigger className="h-12 cursor-pointer">
-                  <SelectValue placeholder={t("post.selectPosterType")} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="individual" className="cursor-pointer">{t("post.individual")}</SelectItem>
-                  <SelectItem value="company" className="cursor-pointer">{t("post.company")}</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
+          <CategorySubcategoryFields
+            category={category}
+            subcategory={subcategory}
+            posterType={posterType}
+            onCategoryChange={(value) => {
+              setCategory(value);
+              setSubcategory("");
+            }}
+            onSubcategoryChange={setSubcategory}
+            onPosterTypeChange={setPosterType}
+            categoryRequired
+          />
 
           {/* Availability / Language / Mobility */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label className="text-base font-medium text-gray-900">{t("post.availability")}</Label>
-              <Select value={availability} onValueChange={setAvailability}>
-                <SelectTrigger className="h-12 cursor-pointer">
-                  <SelectValue placeholder={t("post.selectAvailability")} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="anytime" className="cursor-pointer">{t("post.urgencyAnytime")}</SelectItem>
-                  <SelectItem value="weekends" className="cursor-pointer">{t("post.availabilityWeekends")}</SelectItem>
-                  <SelectItem value="weekdays" className="cursor-pointer">{t("post.availabilityWeekdays")}</SelectItem>
-                  <SelectItem value="evenings" className="cursor-pointer">{t("post.availabilityEvenings")}</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label className="text-base font-medium text-gray-900">{t("post.spokenLanguage")}</Label>
-              <Select value={language} onValueChange={setLanguage}>
-                <SelectTrigger className="h-12 cursor-pointer">
-                  <SelectValue placeholder={t("post.preferredLanguage")} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="french" className="cursor-pointer">{t("post.languageFrench")}</SelectItem>
-                  <SelectItem value="english" className="cursor-pointer">{t("post.languageEnglish")}</SelectItem>
-                  <SelectItem value="bilingual" className="cursor-pointer">{t("post.languageBilingual")}</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label className="text-base font-medium text-gray-900">{t("post.mobility")}</Label>
-              <Select value={mobility} onValueChange={setMobility}>
-                <SelectTrigger className="h-12 cursor-pointer">
-                  <SelectValue placeholder={t("post.canYouTravel")} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="yes" className="cursor-pointer">{t("post.mobilityYes")}</SelectItem>
-                  <SelectItem value="no" className="cursor-pointer">{t("post.mobilityNo")}</SelectItem>
-                  <SelectItem value="limited" className="cursor-pointer">{t("post.mobilityLimited")}</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
+          <AvailabilityLanguageMobilityFields
+            availability={availability}
+            language={language}
+            mobility={mobility}
+            onAvailabilityChange={setAvailability}
+            onLanguageChange={setLanguage}
+            onMobilityChange={setMobility}
+          />
 
           {/* Duration */}
           <div className="space-y-2">
@@ -364,22 +302,9 @@ export default function EditListingModal({ service, accessToken, onClose, onSave
           {/* Images */}
           <div className="space-y-2">
             <Label className="text-base font-medium text-gray-900">{t("serviceDetail.photos")}</Label>
-            <MultiImageUploader images={images} onChange={setImages} aspectRatio={16 / 9} />
-          </div>
-
-          {/* Hide exact location */}
-          <div className="flex items-start gap-3 p-4 bg-gray-50 border border-gray-200 rounded-lg">
-            <input
-              type="checkbox"
-              id="editHideLocation"
-              checked={hideExactLocation}
-              onChange={(e) => setHideExactLocation(e.target.checked)}
-              className="mt-0.5 h-4 w-4 rounded border-gray-300 text-green-600 cursor-pointer"
-            />
-            <label htmlFor="editHideLocation" className="cursor-pointer">
-              <span className="text-sm font-medium text-gray-800">{t("post.hideExactLocation")}</span>
-              <p className="text-xs text-gray-500 mt-0.5">{t("post.hideExactLocationDesc")}</p>
-            </label>
+            <div className="overflow-hidden">
+              <MultiImageUploader images={images} onChange={setImages} aspectRatio={16 / 9} />
+            </div>
           </div>
 
           {/* One-time listing */}

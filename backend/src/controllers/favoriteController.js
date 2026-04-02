@@ -18,7 +18,7 @@ export const getFavoriteIds = async (req, res) => {
 export const getFavorites = async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT s.id, s.title, s.price, s.location, s.image_url,
+      `SELECT s.id, s.title, s.price, s.location, s.address, s.city, s.hide_exact_location, s.image_url,
               COALESCE(c.name, s.category) AS category_name, s.subcategory
        FROM service_favorites f
        JOIN services s ON s.id = f.service_id

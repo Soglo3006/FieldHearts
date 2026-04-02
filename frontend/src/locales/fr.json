@@ -558,6 +558,8 @@
     "deleting": "Suppression...",
     "yesDeleteListing": "Oui, supprimer l'annonce",
     "viewAllMyListings": "Voir toutes mes annonces",
+    "exactLocation": "Emplacement exact",
+    "exactLocationDesc": "Ceci montre l'emplacement exact fourni dans l'annonce.",
     "approximateLocation": "Emplacement approximatif",
     "approximateLocationDesc": "Ceci montre une zone approximative pour protéger la vie privée.",
     "openInGoogleMaps": "Ouvrir dans Google Maps",

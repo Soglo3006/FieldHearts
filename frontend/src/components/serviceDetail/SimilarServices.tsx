@@ -4,13 +4,16 @@ import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { MapPin, Grid3x3 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import AppImage from "@/components/ui/AppImage";
+import { getPublicServiceLocation } from "@/lib/serviceLocation";
 
 interface SimilarService {
   id: string;
   title: string;
   price: number;
   location: string;
-  city?: string;
+  address?: string | null;
+  city?: string | null;
+  hide_exact_location?: boolean;
   image_url: string | null;
 }
 
@@ -44,10 +47,10 @@ export default function SimilarServices({ services }: Props) {
                   {s.title}
                 </p>
                 <p className="text-green-700 font-bold text-sm mt-1">{Number(s.price).toFixed(2)} $</p>
-                {(s.location || s.city) && (
+                {getPublicServiceLocation(s) && (
                   <p className="text-xs text-gray-500 mt-0.5 flex items-center gap-1">
                     <MapPin className="h-3 w-3 shrink-0" />
-                    <span className="line-clamp-1">{s.location || s.city}</span>
+                    <span className="line-clamp-1">{getPublicServiceLocation(s)}</span>
                   </p>
                 )}
               </div>

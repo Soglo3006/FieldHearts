@@ -6,7 +6,7 @@ import { CreditCard, AlertCircle, Loader2 } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import BillingAddressSelector, { type BillingAddress } from "@/components/payment/BillingAddressSelector";
-import { getTaxRate, getTaxLabel, formatTaxRate, normalizeProvince } from "@/lib/taxes";
+import { getTaxRate, getTaxLabel, formatTaxRate } from "@/lib/taxes";
 import { getIntlLocale } from "@/lib/locale";
 
 interface Props {
@@ -21,60 +21,32 @@ interface Props {
 }
 
 export default function PaymentSheet({
-  open, onClose, bookingId, bookingTitle, price, accessToken, clientProvince, taxRateStored,
+  open, onClose, bookingId, bookingTitle, price, accessToken, clientProvince,
 }: Props) {
   const { t, i18n } = useTranslation();
   const checkoutLocale = getIntlLocale(i18n.language, { fr: "fr-CA", en: "en" });
-  const defaultBillingLabel = t("payment.defaultBillingLabel");
 
   const [billingAddresses, setBillingAddresses] = useState<BillingAddress[]>([]);
   const [selectedAddress, setSelectedAddress] = useState<BillingAddress | null>(null);
   const [billingConfirmed, setBillingConfirmed] = useState(false);
   const [paying, setPaying] = useState(false);
   const [error, setError] = useState("");
-  const [loadingAddresses, setLoadingAddresses] = useState(false);
+  const [loadingAddresses, setLoadingAddresses] = useState(true);
 
   useEffect(() => {
     if (!open || !accessToken) return;
-    setLoadingAddresses(true);
 
-    Promise.all([
-      fetch(`${process.env.NEXT_PUBLIC_API_URL}/billing-addresses`, {
-        headers: { Authorization: `Bearer ${accessToken}` },
-      }).then((r) => r.json()),
-      fetch(`${process.env.NEXT_PUBLIC_API_URL}/profiles/me`, {
-        headers: { Authorization: `Bearer ${accessToken}` },
-      }).then((r) => r.json()),
-    ])
-      .then(async ([addressData, profileData]) => {
-        let addresses: BillingAddress[] = Array.isArray(addressData) ? addressData : [];
-
-        // If no billing addresses yet and profile has an address, auto-create one from profile
-        if (addresses.length === 0 && profileData?.address && profileData?.city && profileData?.province) {
-          const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/billing-addresses`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
-            body: JSON.stringify({
-              label: defaultBillingLabel,
-              full_name: profileData.full_name ?? profileData.company_name ?? null,
-              address_line1: profileData.address,
-              city: profileData.city,
-              province: normalizeProvince(profileData.province),
-              postal_code: profileData.postal_code ?? "",
-              is_default: true,
-            }),
-          });
-          if (res.ok) {
-            const newAddr: BillingAddress = await res.json();
-            addresses = [newAddr];
-          }
-        }
-
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/billing-addresses`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    })
+      .then((r) => r.json())
+      .then((addressData) => {
+        const addresses: BillingAddress[] = Array.isArray(addressData) ? addressData : [];
         setBillingAddresses(addresses);
         setSelectedAddress(addresses.find((a) => a.is_default) ?? addresses[0] ?? null);
       })
       .finally(() => setLoadingAddresses(false));
-  }, [open, accessToken, defaultBillingLabel]);
+  }, [open, accessToken]);
 
   const handleAddAddress = async (data: Omit<BillingAddress, "id" | "is_default">) => {
     const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/billing-addresses`, {
@@ -138,6 +110,7 @@ export default function PaymentSheet({
         body: JSON.stringify({
           booking_id: bookingId,
           locale: checkoutLocale,
+          billing_address_id: selectedAddress?.id ?? null,
           billing_province: selectedAddress?.province ?? null,
         }),
       });

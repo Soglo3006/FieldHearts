@@ -88,14 +88,14 @@ async function syncDefaultBillingAddress(client, {
         return;
     }
 
-    if (!address || !city || !normalizedProvince) {
+    if (!address || !city || !normalizedProvince || !normalizedPostalCode) {
         return;
     }
 
     await client.query(
         `INSERT INTO billing_addresses (user_id, label, full_name, address_line1, city, province, postal_code, is_default)
          VALUES ($1, $2, $3, $4, $5, $6, $7, true)`,
-        [userId, "Domicile", fullName || null, address, city, normalizedProvince, normalizedPostalCode || ""]
+        [userId, "Domicile", fullName || null, address, city, normalizedProvince, normalizedPostalCode]
     );
 }
 
@@ -405,6 +405,7 @@ export const UpdateMyProfile = async (req, res) => {
             city,
             province,
             postalCode: normalizedPostalCode || "",
+            createIfMissing: true,
         });
 
         await client.query("COMMIT");

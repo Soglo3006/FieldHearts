@@ -90,7 +90,10 @@ export default function PaymentTermsPage() {
                     <span className="font-medium">$100.00</span>
                   </div>
                   <div className="flex items-center justify-between gap-4">
-                    <span className="font-semibold">{t("paymentTermsPage.sections.buyerFees.calcFeeLabel")}</span>
+                    <div>
+                      <div className="font-semibold">{t("paymentTermsPage.sections.buyerFees.calcFeeLabel")}</div>
+                      <div className="text-xs text-red-500">{t("payment.nonRefundable")}</div>
+                    </div>
                     <span className="font-semibold">$5.00</span>
                   </div>
                   <div className="flex items-center justify-between gap-4">

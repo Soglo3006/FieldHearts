@@ -4,6 +4,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { MapPin, Calendar, Globe, Truck, Zap, Tag } from "lucide-react";
 import SaveShareActions from "@/components/serviceDetail/SaveShareActions";
 import { useTranslation } from "react-i18next";
+import { getPublicServiceLocation } from "@/lib/serviceLocation";
 
 interface Service {
   id: string;
@@ -14,7 +15,9 @@ interface Service {
   subcategory: string | null;
   price: number;
   location: string;
+  address?: string | null;
   city?: string | null;
+  hide_exact_location?: boolean;
   duration: string | null;
   availability: string | null;
   language: string | null;
@@ -75,7 +78,7 @@ export default function ServiceTitleCard({
               className="cursor-pointer flex items-center gap-1 hover:text-green-700"
             >
               <MapPin className="h-4 w-4" />
-              <span className="underline cursor-pointer">{service.city ?? service.location}</span>
+              <span className="underline cursor-pointer">{getPublicServiceLocation(service)}</span>
             </button>
             <span>·</span>
             <span>{formatRelativeDate(service.created_at)}</span>

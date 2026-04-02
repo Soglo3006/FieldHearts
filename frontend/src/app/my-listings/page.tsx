@@ -12,6 +12,7 @@ import { AspectRatio } from "@/components/ui/aspect-ratio";
 import AppImage from "@/components/ui/AppImage";
 import EditListingModal from "@/components/listings/EditListingModal";
 import { Spinner } from "@/components/ui/Spinner";
+import { getPublicServiceLocation } from "@/lib/serviceLocation";
 
 const PAGE_SIZE = 9;
 
@@ -22,6 +23,9 @@ interface MyService {
   description: string;
   price: string | number;
   location: string;
+  address?: string | null;
+  city?: string | null;
+  hide_exact_location?: boolean;
   category: string | null;
   subcategory: string | null;
   poster_type: string | null;
@@ -141,7 +145,7 @@ function ListingCard({
 
         <div className="flex items-center text-sm text-gray-500 mb-2">
           <MapPin className="h-4 w-4 mr-1 flex-shrink-0" />
-          <span className="line-clamp-1">{s.location}</span>
+          <span className="line-clamp-1">{getPublicServiceLocation(s)}</span>
         </div>
 
         {s.category && (

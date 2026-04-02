@@ -11,13 +11,16 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import AdBanner from "@/components/AdBanner";
 import AppImage from "@/components/ui/AppImage";
 import { formatTranslatedCategoryTrail, categories, toCategoryKey } from "@/lib/categories";
+import { getPublicServiceLocation } from "@/lib/serviceLocation";
 
 interface ApiService {
   id: string;
   title: string;
   price: number;
   location: string;
+  address?: string | null;
   city?: string | null;
+  hide_exact_location?: boolean;
   created_at: string;
   image_url: string | null;
   image_urls?: string[] | null;
@@ -242,7 +245,7 @@ export default function ListingsGrid({ filters }: { filters?: ListingsFilters })
                   <div className="flex items-center justify-between text-xs text-gray-500 mt-auto">
                     <div className="flex items-center gap-1 min-w-0">
                       <MapPin className="h-3 w-3 shrink-0" />
-                      <span className="line-clamp-1">{s.city ?? s.location}</span>
+                      <span className="line-clamp-1">{getPublicServiceLocation(s)}</span>
                     </div>
                     <div className="ml-2 flex shrink-0 items-center gap-1">
                       <Clock className="h-3 w-3" />

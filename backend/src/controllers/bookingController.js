@@ -126,7 +126,12 @@ export const getMyBookings = async (req, res) => {
     //   offer listing  → you are the client (you booked someone's offer)
     //   looking listing → you are the worker (you applied to someone's search)
     const result = await pool.query(
-      `SELECT b.*, s.title, s.price, s.image_url, s.image_urls, s.category, s.location AS service_location,
+      `SELECT b.*, s.title, s.price, s.image_url, s.image_urls, s.category,
+              CASE
+                WHEN s.hide_exact_location = true AND s.user_id <> $1
+                  THEN COALESCE(NULLIF(TRIM(s.city), ''), NULLIF(TRIM(s.location), ''), NULLIF(TRIM(s.address), ''))
+                ELSE COALESCE(NULLIF(TRIM(s.address), ''), NULLIF(TRIM(s.location), ''), NULLIF(TRIM(s.city), ''))
+              END AS service_location,
               s.is_one_time, s.type AS service_type,
               -- worker_name = the OTHER person you're dealing with
               CASE
@@ -160,7 +165,12 @@ export const getReceivedBookings = async (req, res) => {
     //   offer listing  → you are the worker (someone booked your offer)
     //   looking listing → you are the client (someone applied to your search)
     const result = await pool.query(
-      `SELECT b.*, s.title, s.price, s.image_url, s.image_urls, s.category, s.location AS service_location,
+      `SELECT b.*, s.title, s.price, s.image_url, s.image_urls, s.category,
+              CASE
+                WHEN s.hide_exact_location = true AND s.user_id <> $1
+                  THEN COALESCE(NULLIF(TRIM(s.city), ''), NULLIF(TRIM(s.location), ''), NULLIF(TRIM(s.address), ''))
+                ELSE COALESCE(NULLIF(TRIM(s.address), ''), NULLIF(TRIM(s.location), ''), NULLIF(TRIM(s.city), ''))
+              END AS service_location,
               s.is_one_time, s.type AS service_type,
               -- client_name = the OTHER person who initiated the booking
               CASE
@@ -518,7 +528,12 @@ export const getBookingById = async (req, res) => {
   try {
     const { id } = req.params;
     const result = await pool.query(
-      `SELECT b.*, s.title, s.price, s.image_url, s.image_urls, s.category, s.location AS service_location,
+      `SELECT b.*, s.title, s.price, s.image_url, s.image_urls, s.category,
+              CASE
+                WHEN s.hide_exact_location = true AND s.user_id <> $2
+                  THEN COALESCE(NULLIF(TRIM(s.city), ''), NULLIF(TRIM(s.location), ''), NULLIF(TRIM(s.address), ''))
+                ELSE COALESCE(NULLIF(TRIM(s.address), ''), NULLIF(TRIM(s.location), ''), NULLIF(TRIM(s.city), ''))
+              END AS service_location,
               s.is_one_time, s.type AS service_type,
               CASE WHEN uw.account_type = 'company' THEN uw.company_name ELSE uw.full_name END AS worker_name,
               CASE WHEN uc.account_type = 'company' THEN uc.company_name ELSE uc.full_name END AS client_name,

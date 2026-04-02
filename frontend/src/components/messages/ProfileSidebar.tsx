@@ -9,12 +9,24 @@ import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
 import { Star } from 'lucide-react';
 import { useState, useEffect } from 'react';
-import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ExternalLink, Grid3x3, MapPin, Settings, X } from 'lucide-react';
 import { Spinner } from "@/components/ui/Spinner";
 import AppImage from '@/components/ui/AppImage';
 import RatingsPage from '@/components/profile/RatingsPage';
+import { getPublicServiceLocation } from '@/lib/serviceLocation';
+
+interface SidebarListing {
+  id: string;
+  title: string;
+  type?: 'offer' | 'looking';
+  price: number | string;
+  location?: string | null;
+  address?: string | null;
+  city?: string | null;
+  hide_exact_location?: boolean;
+  image_url?: string | null;
+}
 
 interface ProfileSidebarProps {
   otherUser?: {
@@ -37,7 +49,7 @@ interface ProfileSidebarProps {
 export function ProfileSidebar({ otherUser, onClose, onOpenSettings, isBlocked, isBlockedByOther, blockCheckLoading, onLoadingChange }: ProfileSidebarProps) {
   const { t, i18n } = useTranslation();
   useScrollLock(true);
-  const [userListings, setUserListings] = useState<any[]>([]);
+  const [userListings, setUserListings] = useState<SidebarListing[]>([]);
   const [listingsLoading, setListingsLoading] = useState(false);
   const [reviewStats, setReviewStats] = useState<{ avg: number; count: number } | null>(null);
   const [reviewsLoading, setReviewsLoading] = useState(false);
@@ -77,7 +89,7 @@ export function ProfileSidebar({ otherUser, onClose, onOpenSettings, isBlocked, 
         
         // Limiter à 3 listings maximum
         setUserListings(data.slice(0, 3));
-      } catch (err) {
+      } catch {
         setUserListings([]);
       } finally {
         setListingsLoading(false);
@@ -122,7 +134,6 @@ export function ProfileSidebar({ otherUser, onClose, onOpenSettings, isBlocked, 
     );
   }
 
-  const isPerson = otherUser.account_type === 'person';
   const isCompany = otherUser.account_type === 'company';
   const displayName = (isCompany
     ? otherUser.company_name
@@ -299,10 +310,10 @@ export function ProfileSidebar({ otherUser, onClose, onOpenSettings, isBlocked, 
                                 <p className="text-green-700 font-bold text-sm mb-1">
                                   ${listing.price}
                                 </p>
-                                {(listing.location || listing.city) && (
+                                {getPublicServiceLocation(listing) && (
                                   <div className="flex items-center text-xs text-gray-500">
                                     <MapPin className="h-3 w-3 mr-1 shrink-0" />
-                                    <span className="line-clamp-1">{listing.location || listing.city}</span>
+                                    <span className="line-clamp-1">{getPublicServiceLocation(listing)}</span>
                                   </div>
                                 )}
                               </div>

@@ -210,13 +210,17 @@ export const getConnectStatus = async (req, res) => {
 // ─── Create Stripe Checkout Session (client pays for accepted booking) ────────
 export const createCheckoutSession = async (req, res) => {
   try {
-    const { booking_id, billing_province } = req.body;
+    const { booking_id, billing_province, billing_address_id } = req.body;
     const clientId = req.user.id;
 
     // Fetch booking + service + worker + client info
     const booking = await pool.query(
       `SELECT b.*, s.title, s.price, s.image_url,
               u.email AS worker_email, u.province AS worker_province,
+              uc.email AS client_email,
+              uc.full_name AS client_full_name,
+              uc.company_name AS client_company_name,
+              uc.account_type AS client_account_type,
               uc.province AS client_province
        FROM bookings b
        JOIN services s ON b.service_id = s.id
@@ -244,10 +248,26 @@ export const createCheckoutSession = async (req, res) => {
       return res.status(400).json({ message: "This booking has already been paid" });
     }
 
+    let billingAddress = null;
+    if (billing_address_id) {
+      const billingAddressResult = await pool.query(
+        `SELECT id, full_name, address_line1, city, province, postal_code
+         FROM billing_addresses
+         WHERE id = $1 AND user_id = $2`,
+        [billing_address_id, clientId]
+      );
+
+      if (billingAddressResult.rows.length === 0) {
+        return res.status(404).json({ message: "Billing address not found" });
+      }
+
+      billingAddress = billingAddressResult.rows[0];
+    }
+
     // Use billing_province from request if provided (user selected at payment time),
     // otherwise fall back to stored tax_rate or client's profile province
     // normalizeProvince ensures we always store a 2-letter code (e.g. "QC" not "Quebec")
-    const effectiveProvince    = normalizeProvince(billing_province ?? b.client_province ?? "QC");
+    const effectiveProvince    = normalizeProvince(billingAddress?.province ?? billing_province ?? b.client_province ?? "QC");
     const effectivePrice       = Number(b.custom_price ?? b.price);
     const servicePriceCents    = Math.round(effectivePrice * 100);
     const buyerCommissionCents = Math.round(servicePriceCents * BUYER_COMMISSION_RATE);
@@ -255,6 +275,34 @@ export const createCheckoutSession = async (req, res) => {
     const taxesCents           = Math.round(servicePriceCents * taxRate);
     const totalCents           = servicePriceCents + buyerCommissionCents + taxesCents;
     const province             = effectiveProvince;
+
+    let stripeCustomerId;
+    if (billingAddress) {
+      const defaultClientName = b.client_account_type === "company"
+        ? (b.client_company_name || null)
+        : (b.client_full_name || null);
+
+      const customer = await stripe.customers.create({
+        email: b.client_email,
+        ...(billingAddress.full_name || defaultClientName
+          ? { name: billingAddress.full_name || defaultClientName }
+          : {}),
+        address: {
+          line1: billingAddress.address_line1,
+          city: billingAddress.city,
+          state: normalizeProvince(billingAddress.province),
+          country: "CA",
+          ...(billingAddress.postal_code ? { postal_code: billingAddress.postal_code } : {}),
+        },
+        metadata: {
+          booking_id,
+          user_id: clientId,
+          billing_address_id,
+        },
+      });
+
+      stripeCustomerId = customer.id;
+    }
 
     // Update the booking's tax_rate to reflect the billing address province used
     await pool.query(
@@ -265,6 +313,8 @@ export const createCheckoutSession = async (req, res) => {
     // Create Checkout Session — funds go directly to platform account
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
+      ...(stripeCustomerId ? { customer: stripeCustomerId } : {}),
+      billing_address_collection: "required",
       line_items: [
         {
           price_data: {
@@ -302,6 +352,7 @@ export const createCheckoutSession = async (req, res) => {
       metadata: {
         booking_id,
         service_price_cents: String(servicePriceCents),
+        ...(billing_address_id ? { billing_address_id: String(billing_address_id) } : {}),
       },
     });
 

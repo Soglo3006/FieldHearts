@@ -29,6 +29,7 @@ interface Props {
 }
 
 const MAX_ADDRESSES = 2;
+const SYSTEM_DEFAULT_BILLING_LABELS = new Set(["Domicile", "Home"]);
 
 export default function BillingAddressSelector({ addresses, selectedId, onSelect, onAdd, onUpdate, onSetDefault, onDelete }: Props) {
   const { t, i18n } = useTranslation();
@@ -83,7 +84,7 @@ export default function BillingAddressSelector({ addresses, selectedId, onSelect
     onSelect(address);
     setEditingId(address.id);
     setForm({
-      label: address.label,
+      label: SYSTEM_DEFAULT_BILLING_LABELS.has(address.label) ? defaultBillingLabel : address.label,
       full_name: address.full_name ?? "",
       address_line1: address.address_line1,
       city: address.city,
@@ -112,6 +113,7 @@ export default function BillingAddressSelector({ addresses, selectedId, onSelect
   };
 
   const orderedAddresses = [...addresses].sort((left, right) => Number(right.is_default) - Number(left.is_default));
+  const getDisplayLabel = (label: string) => SYSTEM_DEFAULT_BILLING_LABELS.has(label) ? defaultBillingLabel : label;
 
   const renderForm = () => (
     <div className="mt-3 border border-gray-200 rounded-xl p-4 bg-gray-50 space-y-3">
@@ -232,7 +234,7 @@ export default function BillingAddressSelector({ addresses, selectedId, onSelect
                     </div>
                     <div className="min-w-0">
                       <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="text-xs font-semibold text-gray-700">{addr.label}</span>
+                        <span className="text-xs font-semibold text-gray-700">{getDisplayLabel(addr.label)}</span>
                         {addr.is_default && (
                           <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full border border-gray-200">
                             {t("payment.billingAddressDefault")}

@@ -8,12 +8,16 @@ import { Grid3x3, MapPin, HeartOff } from "lucide-react";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import AppImage from "@/components/ui/AppImage";
 import { useAuth } from "@/contexts/AuthContext";
+import { getPublicServiceLocation } from "@/lib/serviceLocation";
 
 interface FavoriteService {
   id: string;
   title: string;
   price: number;
   location: string;
+  address?: string | null;
+  city?: string | null;
+  hide_exact_location?: boolean;
   category_name: string | null;
   subcategory: string | null;
   image_url: string | null;
@@ -63,6 +67,9 @@ export default function FavoritesPage() {
                     title: data.title,
                     price: Number(data.price),
                     location: data.location,
+                      address: data.address ?? null,
+                      city: data.city ?? null,
+                      hide_exact_location: data.hide_exact_location ?? false,
                     category_name: data.category_name ?? data.category ?? null,
                     subcategory: data.subcategory ?? null,
                     image_url: data.image_url ?? null,
@@ -148,7 +155,7 @@ export default function FavoritesPage() {
 
                   <div className="flex items-center text-sm text-gray-500 mb-2">
                     <MapPin className="h-4 w-4 mr-1 shrink-0" />
-                    <span className="line-clamp-1">{s.location}</span>
+                    <span className="line-clamp-1">{getPublicServiceLocation(s)}</span>
                   </div>
 
                   {s.category_name && (

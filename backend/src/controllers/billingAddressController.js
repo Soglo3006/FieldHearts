@@ -1,6 +1,30 @@
 import pool from "../config/db.js";
 
 const MAX_ADDRESSES = 2;
+const PROVINCE_NAME_TO_CODE = {
+  alberta: "AB",
+  "british columbia": "BC",
+  "colombie-britannique": "BC",
+  manitoba: "MB",
+  "new brunswick": "NB",
+  "nouveau-brunswick": "NB",
+  "newfoundland and labrador": "NL",
+  "terre-neuve-et-labrador": "NL",
+  "nova scotia": "NS",
+  "nouvelle-ecosse": "NS",
+  "nouvelle-écosse": "NS",
+  "northwest territories": "NT",
+  "territoires du nord-ouest": "NT",
+  nunavut: "NU",
+  ontario: "ON",
+  "prince edward island": "PE",
+  "ile-du-prince-edouard": "PE",
+  "île-du-prince-édouard": "PE",
+  quebec: "QC",
+  "québec": "QC",
+  saskatchewan: "SK",
+  yukon: "YT",
+};
 
 function normalizePostalCode(postalCode) {
   if (!postalCode) return null;
@@ -9,17 +33,74 @@ function normalizePostalCode(postalCode) {
   return compact.length > 3 ? `${compact.slice(0, 3)} ${compact.slice(3)}` : compact;
 }
 
+function normalizeProvinceCode(province) {
+  if (!province) return null;
+  const upper = String(province).toUpperCase();
+  if (upper.length === 2) return upper;
+  return PROVINCE_NAME_TO_CODE[String(province).toLowerCase()] ?? upper;
+}
+
+function getDefaultBillingName(user) {
+  return user.account_type === "company"
+    ? (user.company_name?.trim() || null)
+    : (user.full_name?.trim() || null);
+}
+
+async function getOrBootstrapBillingAddresses(userId) {
+  const existing = await pool.query(
+    `SELECT id, label, full_name, address_line1, city, province, postal_code, is_default, created_at
+     FROM billing_addresses
+     WHERE user_id = $1
+     ORDER BY is_default DESC, created_at ASC`,
+    [userId]
+  );
+
+  if (existing.rows.length > 0) {
+    return existing.rows;
+  }
+
+  const profileResult = await pool.query(
+    `SELECT account_type, full_name, company_name, address, city, province, postal_code
+     FROM users
+     WHERE id = $1`,
+    [userId]
+  );
+
+  const profile = profileResult.rows[0];
+  if (!profile) {
+    return [];
+  }
+
+  const normalizedProvince = normalizeProvinceCode(profile.province);
+  const normalizedPostalCode = normalizePostalCode(profile.postal_code);
+
+  if (!profile.address || !profile.city || !normalizedProvince) {
+    return [];
+  }
+
+  const inserted = await pool.query(
+    `INSERT INTO billing_addresses (user_id, label, full_name, address_line1, city, province, postal_code, is_default)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, true)
+     RETURNING id, label, full_name, address_line1, city, province, postal_code, is_default, created_at`,
+    [
+      userId,
+      "Domicile",
+      getDefaultBillingName(profile),
+      profile.address,
+      profile.city,
+      normalizedProvince,
+      normalizedPostalCode ?? "",
+    ]
+  );
+
+  return inserted.rows;
+}
+
 export const getBillingAddresses = async (req, res) => {
   try {
     const userId = req.user.id;
-    const result = await pool.query(
-      `SELECT id, label, full_name, address_line1, city, province, postal_code, is_default, created_at
-       FROM billing_addresses
-       WHERE user_id = $1
-       ORDER BY is_default DESC, created_at ASC`,
-      [userId]
-    );
-    res.json(result.rows);
+    const addresses = await getOrBootstrapBillingAddresses(userId);
+    res.json(addresses);
   } catch (err) {
     console.error("getBillingAddresses error:", err);
     res.status(500).json({ message: "Failed to fetch billing addresses" });
@@ -32,8 +113,8 @@ export const createBillingAddress = async (req, res) => {
     const { label, full_name, address_line1, city, province, postal_code, is_default } = req.body;
     const normalizedPostalCode = normalizePostalCode(postal_code);
 
-    if (!address_line1 || !city || !province || !normalizedPostalCode) {
-      return res.status(400).json({ message: "address_line1, city, province and postal_code are required" });
+    if (!address_line1 || !city || !province) {
+      return res.status(400).json({ message: "address_line1, city and province are required" });
     }
 
     // Enforce max 2 addresses

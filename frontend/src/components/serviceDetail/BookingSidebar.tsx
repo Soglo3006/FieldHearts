@@ -50,7 +50,10 @@ export default function BookingSidebar({
                 <span className="font-semibold text-gray-900">{fmt(price)} $</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-500">{t("serviceDetail.buyerCommission")}</span>
+                <div>
+                  <div className="text-gray-500">{t("serviceDetail.buyerCommission")}</div>
+                  <div className="text-xs text-red-500">{t("payment.nonRefundable")}</div>
+                </div>
                 <span className="text-gray-700">{fmt(buyerCommission)} $</span>
               </div>
               <div className="flex justify-between">

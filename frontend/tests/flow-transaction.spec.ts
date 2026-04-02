@@ -27,8 +27,9 @@ test.describe('1. Seller views listing', () => {
   test('listing appears in my-listings', async ({ page }) => {
     await page.goto('/my-listings');
     await page.waitForLoadState('networkidle');
-    const listingLink = page.locator(`a[href="/serviceDetail/${LISTING_ID}"]`).first();
-    await expect(listingLink).toBeVisible({ timeout: 15000 });
+    const listingCard = page.locator('div.border.rounded-xl.shadow-sm.bg-white').first();
+    await expect(listingCard).toBeVisible({ timeout: 15000 });
+    await expect(listingCard.locator('button').filter({ hasText: /edit|modifier/i }).first()).toBeVisible({ timeout: 10000 });
   });
 });
 

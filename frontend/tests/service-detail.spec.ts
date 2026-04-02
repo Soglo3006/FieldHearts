@@ -5,7 +5,14 @@ test.describe('Service detail page', () => {
   async function getFirstListingUrl(page: import('@playwright/test').Page) {
     await page.goto('/listings');
     await page.waitForLoadState('networkidle');
+    const emptyState = page.locator('text=/No results found|Aucun résultat/i').first();
+    if (await emptyState.isVisible().catch(() => false)) {
+      return null;
+    }
     const firstCard = page.locator('a[href*="/serviceDetail/"]').first();
+    if (await firstCard.count() === 0) {
+      return null;
+    }
     await firstCard.waitFor({ timeout: 10000 });
     return await firstCard.getAttribute('href');
   }

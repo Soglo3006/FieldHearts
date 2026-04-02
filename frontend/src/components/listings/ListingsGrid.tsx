@@ -29,6 +29,11 @@ interface ApiService {
   type?: string;
 }
 
+interface PaginatedListingsResponse {
+  data?: ApiService[];
+  total?: number;
+}
+
 export interface ListingsFilters {
   search?: string;
   categories?: string[];
@@ -61,6 +66,29 @@ function formatRelativeDate(dateStr: string, t: (key: string, opts?: Record<stri
 
 const LISTINGS_PER_PAGE = 12;
 const AD_INTERVAL = 8; // insert ad every N cards
+
+function normalizeListingsResponse(
+  payload: unknown,
+  currentPage: number,
+  pageSize: number
+): { data: ApiService[]; total: number } {
+  if (Array.isArray(payload)) {
+    const startIndex = (currentPage - 1) * pageSize;
+
+    return {
+      data: payload.slice(startIndex, startIndex + pageSize),
+      total: payload.length,
+    };
+  }
+
+  const response = (payload ?? {}) as PaginatedListingsResponse;
+  const data = Array.isArray(response.data) ? response.data : [];
+
+  return {
+    data,
+    total: typeof response.total === "number" ? response.total : data.length,
+  };
+}
 
 export default function ListingsGrid({ filters }: { filters?: ListingsFilters }) {
   const { t } = useTranslation();
@@ -110,8 +138,9 @@ export default function ListingsGrid({ filters }: { filters?: ListingsFilters })
         const res = await fetch(url, { signal: controller.signal });
         if (res.ok) {
           const json = await res.json();
-          setListings(Array.isArray(json.data) ? json.data : []);
-          setTotalListings(typeof json.total === "number" ? json.total : 0);
+          const normalized = normalizeListingsResponse(json, currentPage, LISTINGS_PER_PAGE);
+          setListings(normalized.data);
+          setTotalListings(normalized.total);
         } else {
           setListings([]);
           setTotalListings(0);

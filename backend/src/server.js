@@ -14,6 +14,7 @@ import supportRoutes from "./routes/supportRoutes.js";
 import messageRoutes from './routes/messageRoutes.js';
 import reportRoutes from './routes/reportRoutes.js';
 import paymentRoutes from './routes/paymentRoutes.js';
+import { stripeWebhook } from './controllers/paymentController.js';
 import walletRoutes from './routes/walletRoutes.js';
 import notificationRoutes from './routes/notificationRoutes.js';
 import metricsRoutes from './routes/metricsRoutes.js';
@@ -84,6 +85,8 @@ app.use(cors({
 }));
 
 app.use("/api/payments/webhook", express.raw({ type: "application/json" }));
+// Alias pour l'URL configurée dans Stripe Dashboard
+app.use("/webhook/stripe", express.raw({ type: "application/json" }));
 
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
@@ -99,6 +102,10 @@ app.use("/api/support", generalLimiter, supportRoutes);
 app.use('/api/messages', generalLimiter, messageRoutes);
 app.use('/api/reports', generalLimiter, reportRoutes);
 app.use('/api/payments', generalLimiter, paymentRoutes);
+// Alias Stripe webhook (URL enregistrée dans le Stripe Dashboard)
+app.post('/webhook/stripe', stripeWebhook);
+// Alias Stripe webhook (URL enregistrée dans le Stripe Dashboard)
+app.post('/webhook/stripe', stripeWebhook);
 app.use('/api/wallet', generalLimiter, walletRoutes);
 app.use('/api/notifications', generalLimiter, notificationRoutes);
 app.use('/api/admin/metrics', generalLimiter, metricsRoutes);

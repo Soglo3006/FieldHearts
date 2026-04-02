@@ -132,8 +132,24 @@ export function MessageThread({
       sender_name: msg.sender?.account_type === "company" ? msg.sender.company_name : msg.sender?.full_name,
     }));
 
+  const prevPinnedLengthRef = useRef(pinnedMessages.length);
   const scrollViewportRef = useRef<HTMLDivElement | null>(null);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
+  const [pinnedModalOpen, setPinnedModalOpen] = useState(false);
+
+  // Scroll compensation when pinned banner appears/disappears
+  useLayoutEffect(() => {
+    const prev = prevPinnedLengthRef.current;
+    const curr = pinnedMessages.length;
+    prevPinnedLengthRef.current = curr;
+    if (prev === curr) return;
+    const viewport = scrollViewportRef.current;
+    if (!viewport) return;
+    const atBottom = viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight < SCROLL_TO_BOTTOM_THRESHOLD;
+    if (atBottom) {
+      requestAnimationFrame(() => { viewport.scrollTop = viewport.scrollHeight; });
+    }
+  }, [pinnedMessages.length]);
 
   const updateScrollToBottomVisibility = () => {
     const viewport = scrollViewportRef.current;
@@ -252,6 +268,8 @@ export function MessageThread({
     <div className="relative flex-1 min-h-0 overflow-hidden flex flex-col">
       <PinnedMessages
         pinnedMessages={pinnedMessages}
+        open={pinnedModalOpen}
+        onOpenChange={setPinnedModalOpen}
         onMessageClick={onReplyClick || (() => {})}
         onUnpin={(messageId) => onPin?.(messageId, true)}
       />

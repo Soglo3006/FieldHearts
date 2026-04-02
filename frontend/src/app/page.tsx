@@ -137,7 +137,6 @@ export default function HomePage() {
   const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [locationPending, setLocationPending] = useState(true);
   const [locationGranted, setLocationGranted] = useState(false);
-  const [nearbyLoading, setNearbyLoading] = useState(false);
 
   useEffect(() => {
     if (loading) return;
@@ -160,6 +159,7 @@ export default function HomePage() {
         const counts: CategoryCount[] = await countsRes.json();
 
         setListings(Array.isArray(data) ? data : []);
+        setNearbyListings(Array.isArray(data) ? data.slice(0, 3) : []);
 
         // Sort categories by real count from backend
         const countMap: Record<string, number> = {};
@@ -229,18 +229,19 @@ export default function HomePage() {
     }
   }, []);
 
-  // Re-fetch annonces proches quand on a les coords ET les listings
+  // Re-fetch annonces proches quand on a les coords
   useEffect(() => {
-    if (!userCoords || listings.length === 0) return;
-    setNearbyLoading(true);
+    if (!userCoords) return;
     fetch(`${API_URL}/services?userLat=${userCoords.lat}&userLng=${userCoords.lng}&radius=50`)
       .then((r) => r.json())
       .then((data: Listing[]) => {
-        setNearbyListings(Array.isArray(data) && data.length > 0 ? data.slice(0, 3) : listings.slice(0, 3));
+        if (Array.isArray(data) && data.length > 0) {
+          setNearbyListings(data.slice(0, 3));
+        }
+        // sinon on garde le fallback déjà initialisé depuis les listings principaux
       })
-      .catch(() => {})
-      .finally(() => setNearbyLoading(false));
-  }, [userCoords, listings]);
+      .catch(() => {});
+  }, [userCoords]);
 
   if (loading) {
     return (
@@ -346,7 +347,7 @@ export default function HomePage() {
                 <div className="col-span-full mt-10">
                   <h1 className="text-2xl font-bold mb-5">{t("home.listingsNearYou")}</h1>
                   <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
-                    {dataLoading || locationPending || nearbyLoading ? (
+                    {dataLoading ? (
                       Array.from({ length: 3 }).map((_, i) => <ListingSkeleton key={i} />)
                     ) : nearbyListings.length === 0 ? (
                       <p className="text-gray-500 col-span-full">{t("home.noListingsNearYou")}</p>
@@ -366,8 +367,8 @@ export default function HomePage() {
 
             </div>
 
-            {/* Sidebar ads */}
-            <div className="lg:col-span-1 space-y-6">
+            {/* Sidebar ads — hidden on mobile */}
+            <div className="hidden lg:block lg:col-span-1 space-y-6">
               <AdBanner slot="HOME_SIDEBAR_1_SLOT" format="vertical" style={{ minHeight: 300 }} />
               <AdBanner slot="HOME_SIDEBAR_2_SLOT" format="rectangle" style={{ minHeight: 250 }} />
             </div>

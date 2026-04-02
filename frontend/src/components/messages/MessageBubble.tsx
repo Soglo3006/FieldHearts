@@ -102,6 +102,8 @@ export function MessageBubble({
   const rootRef = useRef<HTMLDivElement>(null);
   const actionsRef = useRef<HTMLDivElement>(null);
 
+  const showEnterTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const scheduleHide = useCallback(() => {
     if (openMenuKey === messageId || isSelected || isEmojiOpen) return;
     hideTimeoutRef.current = setTimeout(() => {
@@ -139,6 +141,12 @@ export function MessageBubble({
     }
     setIsEditing(true);
     setEditedContent(content);
+    setSuppressActionsUntilLeave(true);
+    setHoveredMessageId(null);
+    setSelectedMessageKey(null);
+    setTimeout(() => {
+      rootRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }, 50);
   };
 
   const handleCancelEdit = () => {
@@ -170,6 +178,10 @@ export function MessageBubble({
   };
 
   const handleMouseLeave = () => {
+    if (showEnterTimeoutRef.current) {
+      clearTimeout(showEnterTimeoutRef.current);
+      showEnterTimeoutRef.current = null;
+    }
     setSuppressActionsUntilLeave(false);
     setSelectedMessageKey(null);
     scheduleHide();
@@ -189,7 +201,12 @@ export function MessageBubble({
       onPointerDown={(e) => e.stopPropagation()}
       onMouseEnter={() => {
         cancelHide();
-        if (!isSending) setHoveredMessageId(messageId);
+        if (showEnterTimeoutRef.current) clearTimeout(showEnterTimeoutRef.current);
+        showEnterTimeoutRef.current = setTimeout(() => {
+          setSuppressActionsUntilLeave(false);
+          if (!isSending) setHoveredMessageId(messageId);
+          showEnterTimeoutRef.current = null;
+        }, 150);
       }}
       onMouseLeave={handleMouseLeave}
       onClick={() => !isSending && setSelectedMessageKey(isSelected ? null : messageId)}

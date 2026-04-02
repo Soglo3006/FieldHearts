@@ -36,7 +36,7 @@ import { Category } from "./types";
     {
       name: "Personal & Care Services",
       subcategories: ["Babysitting", "After-school Care", "Full-time Childcare", "Pet Sitting", "Dog Walking", "Grooming"],
-      image: "https://images.unsplash.com/photo-1587654780291-39c9404d746b?w=600&q=80",
+      image: "https://images.unsplash.com/photo-1516627145497-ae6968895b74?w=600&q=80",
     },
     {
       name: "Lessons & Creative Services",

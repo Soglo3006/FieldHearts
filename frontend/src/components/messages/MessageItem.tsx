@@ -88,18 +88,27 @@ export function MessageItem({
 
   const hoverHandlers = {
     onMouseEnter: () => {
-      const t = hoverTimeoutRef.current.get(message.id);
-      if (t) { clearTimeout(t); hoverTimeoutRef.current.delete(message.id); }
-      setHoveredMessageId(message.id);
+      const existing = hoverTimeoutRef.current.get(message.id + '_hide');
+      if (existing) { clearTimeout(existing); hoverTimeoutRef.current.delete(message.id + '_hide'); }
+      // Delai d'apparition: n'affiche les actions que si le curseur reste 250ms
+      const showT = setTimeout(() => {
+        setSuppressAudioActionsUntilLeave(false);
+        setHoveredMessageId(message.id);
+        hoverTimeoutRef.current.delete(message.id + '_show');
+      }, 150);
+      hoverTimeoutRef.current.set(message.id + '_show', showT);
     },
     onMouseLeave: () => {
+      // Annuler le delai d'apparition si la souris est deja partie
+      const showT = hoverTimeoutRef.current.get(message.id + '_show');
+      if (showT) { clearTimeout(showT); hoverTimeoutRef.current.delete(message.id + '_show'); }
       setSuppressAudioActionsUntilLeave(false);
       if (openMenuKey === message.id) return;
       const t = setTimeout(() => {
         setHoveredMessageId(null);
-        hoverTimeoutRef.current.delete(message.id);
+        hoverTimeoutRef.current.delete(message.id + '_hide');
       }, 150);
-      hoverTimeoutRef.current.set(message.id, t);
+      hoverTimeoutRef.current.set(message.id + '_hide', t);
     },
   };
 

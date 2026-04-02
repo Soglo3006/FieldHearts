@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pin, ChevronDown, Mic } from 'lucide-react';
 import Image from 'next/image';
@@ -22,21 +22,31 @@ interface Message {
 
 interface PinnedMessagesProps {
   pinnedMessages: Message[];
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
   onMessageClick: (messageId: string) => void;
   onUnpin: (messageId: string) => void;
 }
 
 export function PinnedMessages({ 
   pinnedMessages, 
+  open,
+  onOpenChange,
   onMessageClick, 
   onUnpin 
 }: PinnedMessagesProps) {
   const { t, i18n } = useTranslation();
-  const [modalOpen, setModalOpen] = useState(false);
-
-  if (pinnedMessages.length === 0) return null;
 
   const lastPinned = pinnedMessages[pinnedMessages.length - 1];
+
+  // Fermer le modal automatiquement si plus aucun message épinglé
+  useEffect(() => {
+    if (pinnedMessages.length === 0 && open) {
+      onOpenChange(false);
+    }
+  }, [pinnedMessages.length, open, onOpenChange]);
+
+  if (pinnedMessages.length === 0) return null;
 
   const getPreview = (content: string) => {
     if (content.includes('[AUDIO:')) return t('messages.voiceMessage');
@@ -123,14 +133,14 @@ export function PinnedMessages({
           variant="ghost"
           size="icon"
           className="h-7 w-7 text-green-700 hover:bg-green-100 shrink-0 cursor-pointer"
-          onClick={() => setModalOpen(true)}
+          onClick={() => onOpenChange(true)}
         >
           <ChevronDown className="h-4 w-4" />
         </Button>
       </div>
 
       {/* Modal Messages épinglés */}
-      <Dialog open={modalOpen} onOpenChange={setModalOpen}>
+      <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -162,7 +172,7 @@ export function PinnedMessages({
                       type="button"
                       onClick={() => {
                         onMessageClick(message.id);
-                        setModalOpen(false);
+                        onOpenChange(false);
                       }}
                       className="flex items-center gap-1.5 text-xs text-green-700 hover:text-green-900 cursor-pointer font-medium"
                     >

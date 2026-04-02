@@ -190,7 +190,7 @@ export function FileMessage({
       {text && (
         <div
           onPointerDown={(e) => e.stopPropagation()}
-          onMouseEnter={() => !isSending && setHoveredMessageId(keyText)}
+          onMouseEnter={() => { setSuppressedActionKey(null); if (!isSending) setHoveredMessageId(keyText); }}
           onMouseLeave={() => {
             if (suppressedActionKey === keyText) setSuppressedActionKey(null);
             if (openMenuKey !== keyText && selectedMessageKey !== keyText) {
@@ -277,7 +277,7 @@ export function FileMessage({
       {isImage && (
         <div
           onPointerDown={(e) => e.stopPropagation()}
-          onMouseEnter={() => !isSending && setHoveredMessageId(keyImage)}
+          onMouseEnter={() => { setSuppressedActionKey(null); if (!isSending) setHoveredMessageId(keyImage); }}
           onMouseLeave={() => {
             if (suppressedActionKey === keyImage) setSuppressedActionKey(null);
             if (openMenuKey !== keyImage && selectedMessageKey !== keyImage) {

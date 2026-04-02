@@ -14,7 +14,93 @@ const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
   }
 });
 
+const PROVINCE_NAME_TO_CODE = {
+        alberta: "AB",
+        "british columbia": "BC",
+        "colombie-britannique": "BC",
+        manitoba: "MB",
+        "new brunswick": "NB",
+        "nouveau-brunswick": "NB",
+        "newfoundland and labrador": "NL",
+        "terre-neuve-et-labrador": "NL",
+        "nova scotia": "NS",
+        "nouvelle-ecosse": "NS",
+        "nouvelle-écosse": "NS",
+        "northwest territories": "NT",
+        "territoires du nord-ouest": "NT",
+        nunavut: "NU",
+        ontario: "ON",
+        "prince edward island": "PE",
+        "ile-du-prince-edouard": "PE",
+        "île-du-prince-édouard": "PE",
+        quebec: "QC",
+        québec: "QC",
+        saskatchewan: "SK",
+        yukon: "YT",
+};
+
+function normalizeProvinceCode(province) {
+        if (!province) return null;
+        const upper = String(province).toUpperCase();
+        if (upper.length === 2) return upper;
+        return PROVINCE_NAME_TO_CODE[String(province).toLowerCase()] ?? upper;
+}
+
+function normalizePostalCode(postalCode) {
+    if (!postalCode) return null;
+    const compact = String(postalCode).replace(/\s+/g, "").toUpperCase().slice(0, 6);
+    if (!compact) return null;
+    return compact.length > 3 ? `${compact.slice(0, 3)} ${compact.slice(3)}` : compact;
+}
+
+async function syncDefaultBillingAddress(client, {
+    userId,
+    fullName,
+    address,
+    city,
+    province,
+    postalCode = "",
+    createIfMissing = false,
+}) {
+    const normalizedProvince = normalizeProvinceCode(province);
+    const normalizedPostalCode = normalizePostalCode(postalCode);
+
+    const updateResult = await client.query(
+        `UPDATE billing_addresses
+         SET
+            full_name = COALESCE($1, full_name),
+            address_line1 = COALESCE($2, address_line1),
+            city = COALESCE($3, city),
+            province = COALESCE($4, province),
+            postal_code = COALESCE($5, postal_code)
+         WHERE user_id = $6 AND is_default = true`,
+        [
+            fullName || null,
+            address || null,
+            city || null,
+            normalizedProvince,
+            normalizedPostalCode,
+            userId,
+        ]
+    );
+
+    if (!createIfMissing || updateResult.rowCount > 0) {
+        return;
+    }
+
+    if (!address || !city || !normalizedProvince) {
+        return;
+    }
+
+    await client.query(
+        `INSERT INTO billing_addresses (user_id, label, full_name, address_line1, city, province, postal_code, is_default)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, true)`,
+        [userId, "Domicile", fullName || null, address, city, normalizedProvince, normalizedPostalCode || ""]
+    );
+}
+
 export const completeProfile = async (req, res) => {
+    let client;
     try {
         const {
             account_type,
@@ -22,6 +108,7 @@ export const completeProfile = async (req, res) => {
             address,
             city,
             province,
+            postal_code,
             bio,
             avatar,
 
@@ -49,6 +136,7 @@ export const completeProfile = async (req, res) => {
         const sanitizedBio = sanitizeText(bio);
         const sanitizedProfession = sanitizeText(profession);
         const sanitizedCompanyName = sanitizeText(company_name);
+        const normalizedPostalCode = normalizePostalCode(postal_code);
 
 
         //Préparer les métadonnées pour auth.users
@@ -60,6 +148,7 @@ export const completeProfile = async (req, res) => {
                 bio: sanitizedBio,
                 city: city,
                 province: province,
+                postal_code: normalizedPostalCode,
                 phone: phone,
                 address: address,
                 avatar_url: avatar,
@@ -73,6 +162,7 @@ export const completeProfile = async (req, res) => {
                 bio: sanitizedBio,
                 city: city,
                 province: province,
+                postal_code: normalizedPostalCode,
                 phone: phone,
                 address: address,
                 team_size: team_size,
@@ -93,27 +183,31 @@ export const completeProfile = async (req, res) => {
             });
         }
 
-        const result = await pool.query(
-            `UPDATE users 
-            SET 
+        client = await pool.connect();
+        await client.query("BEGIN");
+
+        const result = await client.query(
+            `UPDATE users
+            SET
                 account_type = $1,
                 phone = $2,
                 address = $3,
                 city = $4,
                 province = $5,
-                bio = $6,
-                avatar = $7,
-                profession = $8,
-                skills = $9,
-                languages = $10,
-                experiences = $11,
-                company_name = $12,
-                industry = $13,
-                team_size = $14,
-                portfolio = $15,
+                postal_code = $6,
+                bio = $7,
+                avatar = $8,
+                profession = $9,
+                skills = $10,
+                languages = $11,
+                experiences = $12,
+                company_name = $13,
+                industry = $14,
+                team_size = $15,
+                portfolio = $16,
                 profile_completed = true,
                 updated_at = NOW()
-            WHERE id = $16
+            WHERE id = $17
             RETURNING *`,
             [
                 account_type,
@@ -121,6 +215,7 @@ export const completeProfile = async (req, res) => {
                 address,
                 city,
                 province,
+                normalizedPostalCode,
                 sanitizedBio,
                 avatar,
                 sanitizedProfession,
@@ -136,8 +231,25 @@ export const completeProfile = async (req, res) => {
         );
 
         if (result.rows.length === 0) {
+            await client.query("ROLLBACK");
             return res.status(404).json({ message: "User not found" });
         }
+
+        const defaultBillingName = account_type === 'company'
+            ? (sanitizedCompanyName?.trim() || null)
+            : (fullName?.trim() || null);
+
+        await syncDefaultBillingAddress(client, {
+            userId,
+            fullName: defaultBillingName,
+            address,
+            city,
+            province,
+            postalCode: normalizedPostalCode || "",
+            createIfMissing: true,
+        });
+
+        await client.query("COMMIT");
 
         const u = result.rows[0];
         const displayName = u.account_type === "company" ? u.company_name : u.full_name;
@@ -149,11 +261,20 @@ export const completeProfile = async (req, res) => {
             user: u
         });
     } catch (err) {
+        if (client) {
+            try {
+                await client.query("ROLLBACK");
+            } catch (rollbackError) {
+                console.error("Rollback failed:", rollbackError);
+            }
+        }
         console.error("Error completing profile:", err);
         res.status(500).json({ 
             message: "Server error while completing profile",
             error: err.message 
         });
+    } finally {
+        client?.release();
     }
 };
 
@@ -177,6 +298,7 @@ export const GetMyProfile = async (req, res) => {
 };
 
 export const UpdateMyProfile = async (req, res) => {
+    let client;
     try {
         const {
             full_name,
@@ -187,6 +309,7 @@ export const UpdateMyProfile = async (req, res) => {
             address,
             city,
             province,
+            postal_code,
             skills,
             languages,
             portfolio,
@@ -217,9 +340,13 @@ export const UpdateMyProfile = async (req, res) => {
         const skillsJson = Array.isArray(skills) ? JSON.stringify(skills) : skills;
         const languagesJson = Array.isArray(languages) ? JSON.stringify(languages) : languages;
         const portfolioJson = Array.isArray(portfolio) ? JSON.stringify(portfolio) : portfolio;
+        const normalizedPostalCode = normalizePostalCode(postal_code);
+
+        client = await pool.connect();
+        await client.query("BEGIN");
 
         // Mise à jour avec tous les champs
-        const result = await pool.query(
+        const result = await client.query(
             `UPDATE users
             SET
                 full_name = $1,
@@ -230,15 +357,16 @@ export const UpdateMyProfile = async (req, res) => {
                 address = $6,
                 city = $7,
                 province = $8,
-                skills = $9,
-                languages = $10,
-                portfolio = $11,
-                profession = $12,
-                company_name = $13,
-                industry = $14,
-                team_size = $15,
+                postal_code = $9,
+                skills = $10,
+                languages = $11,
+                portfolio = $12,
+                profession = $13,
+                company_name = $14,
+                industry = $15,
+                team_size = $16,
                 updated_at = NOW()
-            WHERE id = $16
+            WHERE id = $17
             RETURNING *`,
             [
                 full_name || null,
@@ -249,6 +377,7 @@ export const UpdateMyProfile = async (req, res) => {
                 address || null,
                 city || null,
                 province || null,
+                normalizedPostalCode,
                 skillsJson || '[]',
                 languagesJson || '[]',
                 portfolioJson || '[]',
@@ -261,8 +390,24 @@ export const UpdateMyProfile = async (req, res) => {
         );
 
         if (result.rows.length === 0) {
+            await client.query("ROLLBACK");
             return res.status(404).json({ message: "Profile not found" });
         }
+
+        const defaultBillingName = account_type === "company"
+            ? (company_name?.trim() || null)
+            : (full_name?.trim() || null);
+
+        await syncDefaultBillingAddress(client, {
+            userId: req.user.id,
+            fullName: defaultBillingName,
+            address,
+            city,
+            province,
+            postalCode: normalizedPostalCode || "",
+        });
+
+        await client.query("COMMIT");
 
         res.json({
             message: "Profile updated successfully",
@@ -270,11 +415,20 @@ export const UpdateMyProfile = async (req, res) => {
         });
 
     } catch (err) {
+        if (client) {
+            try {
+                await client.query("ROLLBACK");
+            } catch (rollbackError) {
+                console.error("Rollback failed:", rollbackError);
+            }
+        }
         console.error("Error updating profile:", err);
         res.status(500).json({ 
             message: "Server error while updating profile",
             error: err.message 
         });
+    } finally {
+        client?.release();
     }
 };
 

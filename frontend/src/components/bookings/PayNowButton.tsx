@@ -3,61 +3,62 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
-import { CreditCard, Loader2 } from "lucide-react";
 import Link from "next/link";
+import PaymentModal from "@/components/payment/PaymentModal";
 
 interface Props {
   bookingId: string;
   accessToken: string;
   fullWidth?: boolean;
+  bookingTitle?: string;
+  price?: number;
+  clientProvince?: string | null;
+  taxRateStored?: number | null;
+  onPayNow?: () => void; // when inside a modal, triggers in-modal transition instead
 }
 
-export default function PayNowButton({ bookingId, accessToken, fullWidth }: Props) {
+export default function PayNowButton({
+  bookingId, accessToken, fullWidth,
+  bookingTitle = "", price = 0, clientProvince = null,
+  onPayNow,
+}: Props) {
   const { t } = useTranslation();
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [open, setOpen] = useState(false);
 
-  const handlePay = async () => {
-    setLoading(true);
-    setError("");
-    try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/payments/checkout`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
-        },
-        body: JSON.stringify({ booking_id: bookingId }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data.message || t("payNowButton.startError"));
-        setLoading(false);
-        return;
-      }
-      window.location.href = data.url;
-    } catch {
-      setError(t("payNowButton.networkError"));
-      setLoading(false);
+  const handleClick = () => {
+    if (onPayNow) {
+      onPayNow();
+    } else {
+      setOpen(true);
     }
   };
 
   return (
-    <div className="flex flex-col gap-1">
+    <>
       <Button
         size={fullWidth ? "default" : "sm"}
         className={`bg-green-700 hover:bg-green-800 text-white gap-1.5 ${fullWidth ? "w-full h-11" : "flex-1"}`}
-        onClick={handlePay}
-        disabled={loading}
+        onClick={handleClick}
       >
-        {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CreditCard className="h-3.5 w-3.5" />}
-        {loading ? t("payNowButton.redirecting") : t("bookings.payNow")}
+        {t("payment.confirmNow")}
       </Button>
-      {error && <p className="text-xs text-red-600">{error}</p>}
       <p className="text-center text-xs text-gray-400">
-        {t("payNowButton.agreement")} {" "}
+        {t("payNowButton.agreement")}{" "}
         <Link href="/payment-terms" className="text-green-700 hover:underline">{t("footer.paymentTerms")}</Link>
       </p>
-    </div>
+
+      {/* Standalone cards open the same centered modal used by booking details. */}
+      {!onPayNow && (
+        <PaymentModal
+          open={open}
+          onClose={() => setOpen(false)}
+          bookingId={bookingId}
+          bookingTitle={bookingTitle}
+          price={price}
+          accessToken={accessToken}
+          clientProvince={clientProvince}
+        />
+      )}
+    </>
   );
 }

@@ -153,7 +153,14 @@ export default function ReceivedBookingsList({
                           isLooking ? (
                             // Looking: you accepted the applicant → you must pay them
                             <div className="flex flex-col gap-2 w-full">
-                              <PayNowButton bookingId={b.id} accessToken={accessToken} />
+                              <PayNowButton
+                              bookingId={b.id}
+                              accessToken={accessToken}
+                              bookingTitle={b.title}
+                              price={Number(b.custom_price ?? b.price)}
+                              clientProvince={b.client_province ?? null}
+                              taxRateStored={b.tax_rate ? Number(b.tax_rate) : null}
+                            />
                               <Button type="button" size="sm" variant="outline"
                                 className="text-red-600 border-red-200 hover:bg-red-50 w-full"
                                 onClick={() => onUpdateStatus(b.id, "cancelled", "received")} disabled={updating === b.id}>
@@ -251,7 +258,14 @@ export default function ReceivedBookingsList({
                             <AlertTriangle className="h-3.5 w-3.5" /> {t("bookings.disputeOpen")}
                           </span>
                         )}
-                        <Button type="button" size="sm" variant="outline" onClick={() => onMessage(otherId)} disabled={chatLoading}>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="w-full justify-center text-center"
+                          onClick={() => onMessage(otherId)}
+                          disabled={chatLoading}
+                        >
                           {t("bookings.message")}
                         </Button>
                       </div>

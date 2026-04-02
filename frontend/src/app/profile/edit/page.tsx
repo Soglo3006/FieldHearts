@@ -21,6 +21,7 @@ interface FormData {
   address: string;
   city: string;
   province: string;
+  postalCode: string;
   skills: string[];
   languages: (string | { language: string; proficiency: string })[];
   portfolio: { id: number; image: string; title: string }[];
@@ -32,7 +33,7 @@ interface FormData {
 }
 
 const EMPTY_FORM: FormData = {
-  email: "", phone: "", avatar: "", bio: "", address: "", city: "", province: "",
+  email: "", phone: "", avatar: "", bio: "", address: "", city: "", province: "", postalCode: "",
   skills: [], languages: [], portfolio: [],
   fullName: "", profession: "",
   companyName: "", industry: "", teamSize: "",
@@ -79,6 +80,7 @@ export default function EditProfilePage() {
           address: data.address || "",
           city: data.city || "",
           province: data.province || "",
+          postalCode: data.postal_code || "",
           skills: parse(data.skills),
           languages: parse(data.languages),
           portfolio: parse(data.portfolio),
@@ -114,6 +116,7 @@ export default function EditProfilePage() {
         address: formData.address,
         city: formData.city,
         province: formData.province,
+        postal_code: formData.postalCode,
         skills: formData.skills,
         languages: formData.languages,
         portfolio: formData.portfolio,
@@ -135,7 +138,7 @@ export default function EditProfilePage() {
   };
 
   const isFormValid = () => {
-    const base = !!formData.phone.trim() && !!formData.city.trim() && !!formData.province.trim();
+    const base = !!formData.phone.trim() && !!formData.address.trim() && !!formData.city.trim() && !!formData.province.trim() && !!formData.postalCode.trim();
     return isPerson ? base && !!formData.fullName.trim() : base && !!formData.companyName.trim();
   };
 

@@ -33,12 +33,13 @@ interface Props {
   onOpenReview: (id: string, name: string) => void;
   onMessage: (userId: string) => void;
   onClose: () => void;
+  onPayNow?: () => void;
 }
 
 export default function BookingDetailFooter({
   booking, userRole, updating, hasMarkedDone, otherHasMarkedDone,
   needsPayment, accessToken, otherUserName, otherUserId,
-  onCallStatus, onMarkCompleted, onUndoMarkCompleted, onOpenDispute, onOpenReview, onMessage, onClose,
+  onCallStatus, onMarkCompleted, onUndoMarkCompleted, onOpenDispute, onOpenReview, onMessage, onClose, onPayNow,
 }: Props) {
   const { t } = useTranslation();
   const [confirmDisputeOpen, setConfirmDisputeOpen] = useState(false);
@@ -91,7 +92,16 @@ export default function BookingDetailFooter({
 
       {/* Client: accepted — pay now */}
       {userRole === "client" && needsPayment && (
-        <PayNowButton bookingId={booking.id} accessToken={accessToken} fullWidth />
+        <PayNowButton
+          bookingId={booking.id}
+          accessToken={accessToken}
+          fullWidth
+          bookingTitle={booking.title}
+          price={Number(booking.custom_price ?? booking.price)}
+          clientProvince={booking.client_province ?? null}
+          taxRateStored={booking.tax_rate ? Number(booking.tax_rate) : null}
+          onPayNow={onPayNow}
+        />
       )}
 
       {/* Active: mark done */}

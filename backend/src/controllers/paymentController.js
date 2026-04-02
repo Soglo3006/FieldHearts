@@ -246,7 +246,8 @@ export const createCheckoutSession = async (req, res) => {
 
     // Use billing_province from request if provided (user selected at payment time),
     // otherwise fall back to stored tax_rate or client's profile province
-    const effectiveProvince    = billing_province ?? b.client_province ?? "QC";
+    // normalizeProvince ensures we always store a 2-letter code (e.g. "QC" not "Quebec")
+    const effectiveProvince    = normalizeProvince(billing_province ?? b.client_province ?? "QC");
     const effectivePrice       = Number(b.custom_price ?? b.price);
     const servicePriceCents    = Math.round(effectivePrice * 100);
     const buyerCommissionCents = Math.round(servicePriceCents * BUYER_COMMISSION_RATE);

@@ -2,6 +2,13 @@ import pool from "../config/db.js";
 
 const MAX_ADDRESSES = 2;
 
+function normalizePostalCode(postalCode) {
+  if (!postalCode) return null;
+  const compact = String(postalCode).replace(/\s+/g, "").toUpperCase().slice(0, 6);
+  if (!compact) return null;
+  return compact.length > 3 ? `${compact.slice(0, 3)} ${compact.slice(3)}` : compact;
+}
+
 export const getBillingAddresses = async (req, res) => {
   try {
     const userId = req.user.id;
@@ -23,8 +30,9 @@ export const createBillingAddress = async (req, res) => {
   try {
     const userId = req.user.id;
     const { label, full_name, address_line1, city, province, postal_code, is_default } = req.body;
+    const normalizedPostalCode = normalizePostalCode(postal_code);
 
-    if (!address_line1 || !city || !province || !postal_code) {
+    if (!address_line1 || !city || !province || !normalizedPostalCode) {
       return res.status(400).json({ message: "address_line1, city, province and postal_code are required" });
     }
 
@@ -52,7 +60,7 @@ export const createBillingAddress = async (req, res) => {
       `INSERT INTO billing_addresses (user_id, label, full_name, address_line1, city, province, postal_code, is_default)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        RETURNING id, label, full_name, address_line1, city, province, postal_code, is_default, created_at`,
-      [userId, label ?? "Domicile", full_name ?? null, address_line1, city, province.toUpperCase(), postal_code.toUpperCase(), shouldBeDefault]
+      [userId, label ?? "Domicile", full_name ?? null, address_line1, city, province.toUpperCase(), normalizedPostalCode, shouldBeDefault]
     );
 
     res.status(201).json(result.rows[0]);
@@ -67,6 +75,7 @@ export const updateBillingAddress = async (req, res) => {
     const userId = req.user.id;
     const { id } = req.params;
     const { label, full_name, address_line1, city, province, postal_code, is_default } = req.body;
+    const normalizedPostalCode = normalizePostalCode(postal_code);
 
     // Verify ownership
     const existing = await pool.query(
@@ -95,7 +104,7 @@ export const updateBillingAddress = async (req, res) => {
            is_default = COALESCE($7, is_default)
        WHERE id = $8 AND user_id = $9
        RETURNING id, label, full_name, address_line1, city, province, postal_code, is_default, created_at`,
-      [label, full_name, address_line1, city, province?.toUpperCase(), postal_code?.toUpperCase(), is_default, id, userId]
+      [label, full_name, address_line1, city, province?.toUpperCase(), normalizedPostalCode, is_default, id, userId]
     );
 
     res.json(result.rows[0]);

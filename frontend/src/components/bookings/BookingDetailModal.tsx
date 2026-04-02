@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useScrollLock } from "@/hooks/useScrollLock";
+import Link from "next/link";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -17,6 +18,7 @@ import { useTranslation } from "react-i18next";
 import { getTaxRate, getTaxLabel, formatTaxRate } from "@/lib/taxes";
 import { getIntlLocale } from "@/lib/locale";
 import AppImage from "@/components/ui/AppImage";
+import PaymentInlinePanel from "@/components/payment/PaymentInlinePanel";
 
 type BookingStatus = "pending" | "accepted" | "active" | "completed" | "cancelled" | "rejected";
 
@@ -92,6 +94,7 @@ export default function BookingDetailModal({
   const [booking, setBooking] = useState(initialBooking);
   const [serviceDescription, setServiceDescription] = useState<string | null>(null);
   const [updating, setUpdating] = useState(false);
+  const [step, setStep] = useState<"detail" | "payment">("detail");
   const bookingRef = useRef(booking);
   bookingRef.current = booking;
 
@@ -188,28 +191,44 @@ export default function BookingDetailModal({
       <div className="absolute inset-0" onClick={onClose} />
 
       <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col z-10 overflow-hidden">
-        {/* Header */}
+        {/* Header — changes based on step */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 shrink-0">
-          <div className="flex items-center gap-2">
-            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${STATUS_BADGE[booking.status]}`}>
-              {t(`bookings.${booking.status}`)}
-            </span>
-            {booking.is_one_time && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-800">
-                <Tag className="h-3 w-3" /> {t("bookings.oneTime")}
+          {step === "payment" ? (
+            <button
+              type="button"
+              onClick={() => setStep("detail")}
+              className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 transition-colors cursor-pointer"
+            >
+              <ChevronLeft className="h-4 w-4" />
+              {t("payment.completePayment")}
+            </button>
+          ) : (
+            <div className="flex items-center gap-2">
+              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${STATUS_BADGE[booking.status]}`}>
+                {t(`bookings.${booking.status}`)}
               </span>
-            )}
-            {booking.payment_status && booking.payment_status !== "unpaid" && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-700 border border-green-200">
-                <CreditCard className="h-3 w-3" />
-                {booking.payment_status === "transferred" ? t("bookings.paidOut") : t("bookings.paid")}
-              </span>
-            )}
-          </div>
+              {booking.is_one_time && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-800">
+                  <Tag className="h-3 w-3" /> {t("bookings.oneTime")}
+                </span>
+              )}
+              {booking.payment_status && booking.payment_status !== "unpaid" && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-700 border border-green-200">
+                  <CreditCard className="h-3 w-3" />
+                  {booking.payment_status === "transferred" ? t("bookings.paidOut") : t("bookings.paid")}
+                </span>
+              )}
+            </div>
+          )}
           <button type="button" onClick={onClose} aria-label={t("common.close")} className="cursor-pointer text-gray-400 hover:text-gray-600 transition-colors">
             <X className="h-5 w-5" />
           </button>
         </div>
+
+        {/* Sliding panels container */}
+        <div className={`flex flex-1 min-h-0 w-[200%] transition-transform duration-300 ease-in-out ${step === "payment" ? "-translate-x-1/2" : "translate-x-0"}`}>
+          {/* Panel 1 — booking detail */}
+          <div className="flex flex-col overflow-hidden w-1/2">
 
         {/* Scrollable body */}
         <div className="overflow-y-auto flex-1">
@@ -513,7 +532,12 @@ export default function BookingDetailModal({
               </Avatar>
               <div>
                 <p className="text-xs text-gray-500">{userRole === "worker" ? t("bookings.requestFrom") : t("bookings.serviceBy")}</p>
-                <p className="text-sm font-semibold text-gray-900">{otherUserName}</p>
+                <Link
+                  href={`/profile/${otherUserId}`}
+                  className="text-sm font-semibold text-gray-900 hover:text-green-700 hover:underline"
+                >
+                  {otherUserName}
+                </Link>
               </div>
             </div>
 
@@ -632,7 +656,22 @@ export default function BookingDetailModal({
           onOpenReview={onOpenReview}
           onMessage={onMessage}
           onClose={onClose}
+          onPayNow={() => setStep("payment")}
         />
+          </div>{/* end panel 1 */}
+
+          {/* Panel 2 — payment step */}
+          <div className="flex flex-col overflow-hidden w-1/2">
+            <PaymentInlinePanel
+              bookingId={booking.id}
+              bookingTitle={booking.title}
+              price={Number(booking.custom_price ?? booking.price)}
+              accessToken={accessToken}
+              clientProvince={booking.client_province ?? null}
+            />
+          </div>{/* end panel 2 */}
+
+        </div>{/* end sliding panels */}
       </div>
     </div>
   );

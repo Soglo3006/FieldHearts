@@ -93,6 +93,7 @@ function OnboardingContent() {
     adresse: "",
     ville: "",
     province: "",
+    postalCode: "",
     fullName: "",
     profession: "",
     bio: "",
@@ -171,8 +172,8 @@ function OnboardingContent() {
 
   // Validation
   const isStep1Valid = accountType === "person"
-    ? !!data.fullName?.trim() && !!data.phone.trim() && !!data.adresse.trim() && !!data.ville.trim() && !!data.province.trim()
-    : !!data.companyName?.trim() && !!data.phone.trim() && !!data.adresse.trim() && !!data.ville.trim() && !!data.province.trim();
+    ? !!data.fullName?.trim() && !!data.phone.trim() && !!data.adresse.trim() && !!data.ville.trim() && !!data.province.trim() && !!data.postalCode.trim()
+    : !!data.companyName?.trim() && !!data.phone.trim() && !!data.adresse.trim() && !!data.ville.trim() && !!data.province.trim() && !!data.postalCode.trim();
   const isStep2Valid = accountType === "person"
     ? !!data.profession?.trim()
     : !!data.industry?.trim();
@@ -209,6 +210,7 @@ function OnboardingContent() {
         address: data.adresse,
         city: data.ville,
         province: data.province,
+        postal_code: data.postalCode || "",
         bio: data.bio || data.companyBio || "",
         avatar: data.avatar,
         profession: data.profession || "",

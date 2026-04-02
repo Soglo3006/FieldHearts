@@ -6,10 +6,10 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import AppImage from "@/components/ui/AppImage";
-import { CheckCircle, AlertCircle, MapPin, Calendar, CreditCard, ArrowLeft } from "lucide-react";
+import { CheckCircle, AlertCircle, MapPin, Calendar, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { useTranslation } from "react-i18next";
-import { getTaxLabel, formatTaxRate, getTaxRate } from "@/lib/taxes";
+import { getTaxLabel, formatTaxRate, getTaxRate, normalizeProvince } from "@/lib/taxes";
 import { getIntlLocale } from "@/lib/locale";
 import BillingAddressSelector, { type BillingAddress } from "@/components/payment/BillingAddressSelector";
 
@@ -40,6 +40,7 @@ export default function PaymentPage() {
   const { t, i18n } = useTranslation();
   const bookingLocale = getIntlLocale(i18n.language, { fr: 'fr-CA', en: 'en-CA' });
   const checkoutLocale = getIntlLocale(i18n.language, { fr: 'fr-CA', en: 'en' });
+  const defaultBillingLabel = t("payment.defaultBillingLabel");
   const wasCancelled = searchParams.get("cancelled") === "true";
 
   const [booking, setBooking] = useState<Booking | null>(null);
@@ -61,17 +62,42 @@ export default function PaymentPage() {
       fetch(`${process.env.NEXT_PUBLIC_API_URL}/billing-addresses`, {
         headers: { Authorization: `Bearer ${session.access_token}` },
       }).then((r) => r.json()),
+      fetch(`${process.env.NEXT_PUBLIC_API_URL}/profiles/me`, {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      }).then((r) => r.json()),
     ])
-      .then(([bookingData, addressData]) => {
+      .then(async ([bookingData, addressData, profileData]) => {
         setBooking(bookingData);
-        const addresses: BillingAddress[] = Array.isArray(addressData) ? addressData : [];
+        let addresses: BillingAddress[] = Array.isArray(addressData) ? addressData : [];
+        if (addresses.length === 0 && profileData?.address && profileData?.city && profileData?.province) {
+          const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/billing-addresses`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${session.access_token}`,
+            },
+            body: JSON.stringify({
+              label: defaultBillingLabel,
+              full_name: profileData.full_name ?? profileData.company_name ?? null,
+              address_line1: profileData.address,
+              city: profileData.city,
+              province: normalizeProvince(profileData.province),
+              postal_code: profileData.postal_code ?? "",
+              is_default: true,
+            }),
+          });
+          if (res.ok) {
+            const newAddr: BillingAddress = await res.json();
+            addresses = [newAddr];
+          }
+        }
         setBillingAddresses(addresses);
         const defaultAddr = addresses.find((a) => a.is_default) ?? addresses[0] ?? null;
         setSelectedAddress(defaultAddr);
         setLoading(false);
       })
       .catch(() => setLoading(false));
-  }, [bookingId, session?.access_token]);
+  }, [bookingId, defaultBillingLabel, session?.access_token]);
 
   const handleAddAddress = async (data: Omit<BillingAddress, "id" | "is_default">) => {
     if (!session?.access_token) return;
@@ -105,6 +131,37 @@ export default function PaymentPage() {
     });
   };
 
+  const handleUpdateAddress = async (id: string, data: Omit<BillingAddress, "id" | "is_default">) => {
+    if (!session?.access_token) return;
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/billing-addresses/${id}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify(data),
+    });
+    const updatedAddr: BillingAddress = await res.json();
+    if (res.ok) {
+      setBillingAddresses((prev) => prev.map((addr) => (addr.id === id ? updatedAddr : addr)));
+      setSelectedAddress((prev) => (prev?.id === id ? updatedAddr : prev));
+    }
+  };
+
+  const handleSetDefaultAddress = async (id: string) => {
+    if (!session?.access_token) return;
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/billing-addresses/${id}/default`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    });
+    const defaultAddr: BillingAddress = await res.json();
+    if (res.ok) {
+      setBillingAddresses((prev) => prev.map((addr) => ({ ...addr, is_default: addr.id === id })));
+      setSelectedAddress(defaultAddr);
+      setBillingConfirmed(false);
+    }
+  };
+
   const handlePay = async () => {
     if (!session?.access_token) return;
     if (!billingConfirmed) {
@@ -128,13 +185,13 @@ export default function PaymentPage() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.message || "Payment failed. Please try again.");
+        setError(data.message || t("payment.paymentFailed"));
         setPaying(false);
         return;
       }
       window.location.href = data.url;
     } catch {
-      setError("Network error. Please try again.");
+      setError(t("payment.networkError"));
       setPaying(false);
     }
   };
@@ -262,6 +319,8 @@ export default function PaymentPage() {
             selectedId={selectedAddress?.id ?? null}
             onSelect={(addr) => { setSelectedAddress(addr); setBillingConfirmed(false); }}
             onAdd={handleAddAddress}
+            onUpdate={handleUpdateAddress}
+            onSetDefault={handleSetDefaultAddress}
             onDelete={handleDeleteAddress}
             accessToken={session?.access_token ?? ""}
           />
@@ -303,10 +362,7 @@ export default function PaymentPage() {
               {t("payment.redirectingToStripe")}
             </span>
           ) : (
-            <span className="flex items-center gap-2">
-              <CreditCard className="h-5 w-5" />
-              {t("payment.payAmount", { amount: fmt(total) })}
-            </span>
+            <span>{t("payment.payAmount", { amount: fmt(total) })}</span>
           )}
         </Button>
 

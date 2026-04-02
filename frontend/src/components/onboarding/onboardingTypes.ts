@@ -27,6 +27,7 @@ export interface OnboardingData {
   adresse: string;
   ville: string;
   province: string;
+  postalCode: string;
   fullName?: string;
   profession?: string;
   bio?: string;

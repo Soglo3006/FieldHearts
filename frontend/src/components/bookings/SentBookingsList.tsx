@@ -142,7 +142,7 @@ export default function SentBookingsList({
                           isLooking ? (
                             // Looking: you applied → waiting for poster to respond
                             <span className="text-xs text-yellow-700 bg-yellow-50 border border-yellow-200 rounded-lg px-3 py-2 flex-1 text-center">
-                              Candidature envoyée — en attente de réponse
+                              {t("bookings.applicationSentPending")}
                             </span>
                           ) : (
                             // Offer: you sent a request → can cancel
@@ -154,7 +154,14 @@ export default function SentBookingsList({
                         )}
 
                         {needsPayment && (
-                          <PayNowButton bookingId={b.id} accessToken={accessToken} />
+                          <PayNowButton
+                            bookingId={b.id}
+                            accessToken={accessToken}
+                            bookingTitle={b.title}
+                            price={Number(b.custom_price ?? b.price)}
+                            clientProvince={b.client_province ?? null}
+                            taxRateStored={b.tax_rate ? Number(b.tax_rate) : null}
+                          />
                         )}
 
                         {b.status === "accepted" && isLooking && (
@@ -240,7 +247,14 @@ export default function SentBookingsList({
                             <AlertTriangle className="h-3.5 w-3.5" /> {t("bookings.disputeOpen")}
                           </span>
                         )}
-                        <Button type="button" size="sm" variant="outline" onClick={() => onMessage(otherId)} disabled={chatLoading}>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="w-full justify-center text-center"
+                          onClick={() => onMessage(otherId)}
+                          disabled={chatLoading}
+                        >
                           {t("bookings.message")}
                         </Button>
                       </div>

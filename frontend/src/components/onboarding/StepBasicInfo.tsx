@@ -106,6 +106,7 @@ export default function StepBasicInfo({ data, accountType, onChange }: Props) {
                 adresse: result.adresse,
                 ville: result.ville,
                 province: result.province,
+                postalCode: result.postalCode,
               })
             }
             placeholder={t("onboarding.addressPlaceholder")}
@@ -113,7 +114,7 @@ export default function StepBasicInfo({ data, accountType, onChange }: Props) {
           <p className="text-xs text-gray-400">{t("onboarding.addressHint")}</p>
         </div>
 
-        {/* City + Province auto-filled, still editable */}
+        {/* City + Province + Postal code auto-filled, still editable */}
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label htmlFor="ville" className="text-base font-medium text-gray-900">
@@ -142,6 +143,23 @@ export default function StepBasicInfo({ data, accountType, onChange }: Props) {
             />
             <p className="text-xs text-gray-400">{t("onboarding.provinceReadOnly")}</p>
           </div>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="postalCode" className="text-base font-medium text-gray-900">
+            {t("profileEdit.postalCode")} <span className="text-red-500">*</span>
+          </Label>
+          <Input
+            id="postalCode"
+            type="text"
+            placeholder="A1A 1A1"
+            value={data.postalCode}
+            onChange={(e) => {
+              const raw = e.target.value.replace(/\s/g, "").toUpperCase().slice(0, 6);
+              onChange({ postalCode: raw.length > 3 ? `${raw.slice(0, 3)} ${raw.slice(3)}` : raw });
+            }}
+            maxLength={7}
+            className="h-12 max-w-48"
+          />
         </div>
       </div>
     </Card>

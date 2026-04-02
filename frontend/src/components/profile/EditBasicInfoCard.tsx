@@ -19,6 +19,7 @@ interface FormData {
   address: string;
   city: string;
   province: string;
+  postalCode: string;
   skills: string[];
   languages: (string | { language: string; proficiency: string })[];
   fullName: string;
@@ -127,12 +128,17 @@ export default function EditBasicInfoCard({ formData, accountType, onChange }: P
             id="address"
             value={formData.address}
             onChange={(raw) => onChange({ address: raw })}
-            onSelect={(result) => onChange({ address: result.adresse, city: result.ville, province: result.province })}
+            onSelect={(result) => onChange({
+              address: result.adresse,
+              city: result.ville,
+              province: result.province,
+              postalCode: result.postalCode,
+            })}
             placeholder={t("onboarding.addressPlaceholder")}
           />
         </div>
 
-        {/* City + Province */}
+        {/* City + Province + Postal code */}
         <div className="grid md:grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label htmlFor="city" className="text-base font-medium text-gray-900">
@@ -149,6 +155,23 @@ export default function EditBasicInfoCard({ formData, accountType, onChange }: P
               readOnly className="h-12 bg-gray-50 cursor-not-allowed" />
             <p className="text-xs text-gray-400">{t("onboarding.provinceReadOnly")}</p>
           </div>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="postalCode" className="text-base font-medium text-gray-900">
+            {t("profileEdit.postalCode")} <span className="text-red-500">*</span>
+          </Label>
+          <Input
+            id="postalCode"
+            type="text"
+            placeholder="A1A 1A1"
+            value={formData.postalCode}
+            onChange={(e) => {
+              const raw = e.target.value.replace(/\s/g, "").toUpperCase().slice(0, 6);
+              onChange({ postalCode: raw.length > 3 ? `${raw.slice(0, 3)} ${raw.slice(3)}` : raw });
+            }}
+            maxLength={7}
+            className="h-12 max-w-48"
+          />
         </div>
 
         {/* Profession / Industry */}

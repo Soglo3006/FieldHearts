@@ -1,6 +1,7 @@
 import pool from "../config/db.js";
 import stripe from "../config/stripe.js";
 import { notifyPaymentReceipt } from "../services/emailService.js";
+import { processBookingRefund } from "../services/refundService.js";
 
 // ─── Ensure platform_earnings table exists ────────────────────────────────────
 pool.query(`
@@ -586,77 +587,21 @@ export const releasePayment = async (req, res) => {
 export const refundPayment = async (req, res) => {
   try {
     const { booking_id, refund_amount_cents } = req.body;
-    // refund_amount_cents: optional override (admin chosen). If omitted → default
-    // policy = total minus 5% buyer commission (we always keep the 5%).
-
-    const payment = await pool.query(
-      "SELECT * FROM payments WHERE booking_id = $1 AND status = 'paid'",
-      [booking_id]
-    );
-
-    if (payment.rows.length === 0) {
-      return res.status(404).json({ message: "No paid payment found for this booking" });
-    }
-
-    const p = payment.rows[0];
-
-    const totalCents       = Number(p.amount);
-    const platformFeeCents = Number(p.platform_fee ?? 0);
-    const maxRefundCents   = totalCents - platformFeeCents; // we never refund the 5%
-
-    // Admin can pass a custom amount, but it cannot exceed (total - 5%)
-    let amountToRefundCents;
-    if (refund_amount_cents !== undefined) {
-      const requested = Math.round(Number(refund_amount_cents));
-      if (requested <= 0 || requested > maxRefundCents) {
-        return res.status(400).json({
-          message: `Refund amount must be between 1 and ${maxRefundCents} cents (total minus 5% fee)`,
-          max_refund_cents: maxRefundCents,
-        });
-      }
-      amountToRefundCents = requested;
-    } else {
-      // Default: refund everything except the 5%
-      amountToRefundCents = maxRefundCents;
-    }
-
-    if (amountToRefundCents <= 0) {
-      return res.status(400).json({ message: "Nothing to refund after deducting platform fee" });
-    }
-
-    const refund = await stripe.refunds.create({
-      payment_intent: p.stripe_payment_intent_id,
-      amount: amountToRefundCents,
+    const refundResult = await processBookingRefund({
+      bookingId: booking_id,
+      refundAmountCents: refund_amount_cents,
+      cancelBooking: true,
     });
-
-    await pool.query(
-      "UPDATE payments SET status = 'refunded', updated_at = NOW() WHERE id = $1",
-      [p.id]
-    );
-
-    await pool.query(
-      "UPDATE bookings SET payment_status = 'refunded', status = 'cancelled' WHERE id = $1",
-      [booking_id]
-    );
-
-    // Cancel the worker's pending credit so they don't receive a payout for this booking
-    await pool.query(
-      "DELETE FROM transactions WHERE booking_id = $1 AND type = 'credit'",
-      [booking_id]
-    );
-
-    // The buyer_commission entry in platform_earnings stays — we keep the 5%
-    // worker_commission entry won't exist yet (only created at payout time)
 
     res.json({
       success: true,
-      refund_id: refund.id,
-      refunded_amount_cents: amountToRefundCents,
-      kept_fee_cents: platformFeeCents,
-      partial: amountToRefundCents < maxRefundCents,
+      ...refundResult,
     });
   } catch (err) {
     console.error("Refund error:", err);
+    if (err.statusCode) {
+      return res.status(err.statusCode).json(err.payload);
+    }
     res.status(500).json({ message: "Failed to refund payment" });
   }
 };

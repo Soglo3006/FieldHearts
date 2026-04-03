@@ -261,9 +261,27 @@ export default function ReceivedBookingsList({
                         )}
 
                         {b.has_dispute && (
-                          <span className="text-xs text-red-600 italic flex items-center gap-1">
-                            <AlertTriangle className="h-3.5 w-3.5" /> {t("bookings.disputeOpen")}
-                          </span>
+                          <div className={`w-full rounded-lg border px-3 py-2 text-xs ${
+                            b.dispute_status === "resolved"
+                              ? "border-green-200 bg-green-50 text-green-700"
+                              : b.dispute_status === "rejected"
+                                ? "border-gray-200 bg-gray-50 text-gray-700"
+                                : "border-red-200 bg-red-50 text-red-700"
+                          }`}>
+                            <div className="flex items-center gap-1 font-medium">
+                              <AlertTriangle className="h-3.5 w-3.5" />
+                              {b.dispute_status === "resolved"
+                                ? t("bookings.disputeResolvedNotice")
+                                : b.dispute_status === "rejected"
+                                  ? t("bookings.disputeRejectedNotice")
+                                  : t("bookings.disputeOpen")}
+                            </div>
+                            {b.dispute_resolution && (
+                              <p className="mt-1 line-clamp-2">
+                                <span className="font-semibold">{t("bookings.disputeDecisionLabel")}</span> {b.dispute_resolution}
+                              </p>
+                            )}
+                          </div>
                         )}
                         <Button
                           type="button"

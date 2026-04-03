@@ -127,6 +127,10 @@ export const getMyBookings = async (req, res) => {
     //   looking listing → you are the worker (you applied to someone's search)
     const result = await pool.query(
       `SELECT b.*, s.title, s.price, s.image_url, s.image_urls, s.category,
+              d.dispute_id,
+              d.dispute_status,
+              d.dispute_resolution,
+              d.dispute_created_at,
               CASE
                 WHEN s.hide_exact_location = true AND s.user_id <> $1
                   THEN COALESCE(NULLIF(TRIM(s.city), ''), NULLIF(TRIM(s.location), ''), NULLIF(TRIM(s.address), ''))
@@ -139,7 +143,7 @@ export const getMyBookings = async (req, res) => {
                 ELSE CASE WHEN w.account_type = 'company' THEN w.company_name ELSE w.full_name END
               END AS worker_name,
               EXISTS(SELECT 1 FROM reviews WHERE booking_id = b.id AND reviewer_id = $1) AS has_reviewed,
-              EXISTS(SELECT 1 FROM disputes WHERE booking_id = b.id) AS has_dispute,
+              (d.dispute_id IS NOT NULL) AS has_dispute,
               b.payment_status, b.completed_by_worker, b.completed_by_client,
               b.worker_note, b.custom_price, b.last_modified_at, b.modified_fields,
               b.cancel_requested_by, b.cancel_reason, b.completed_at
@@ -147,6 +151,13 @@ export const getMyBookings = async (req, res) => {
        JOIN services s ON b.service_id = s.id
        JOIN users u ON b.worker_id = u.id
        JOIN users w ON b.client_id = w.id
+       LEFT JOIN LATERAL (
+         SELECT d1.id AS dispute_id, d1.status AS dispute_status, d1.resolution AS dispute_resolution, d1.created_at AS dispute_created_at
+         FROM disputes d1
+         WHERE d1.booking_id = b.id
+         ORDER BY d1.created_at DESC
+         LIMIT 1
+       ) d ON true
        WHERE (b.client_id = $1 AND s.type = 'offer')
           OR (b.worker_id = $1 AND s.type = 'looking')
        ORDER BY b.created_at DESC`,
@@ -166,6 +177,10 @@ export const getReceivedBookings = async (req, res) => {
     //   looking listing → you are the client (someone applied to your search)
     const result = await pool.query(
       `SELECT b.*, s.title, s.price, s.image_url, s.image_urls, s.category,
+              d.dispute_id,
+              d.dispute_status,
+              d.dispute_resolution,
+              d.dispute_created_at,
               CASE
                 WHEN s.hide_exact_location = true AND s.user_id <> $1
                   THEN COALESCE(NULLIF(TRIM(s.city), ''), NULLIF(TRIM(s.location), ''), NULLIF(TRIM(s.address), ''))
@@ -178,7 +193,7 @@ export const getReceivedBookings = async (req, res) => {
                 ELSE CASE WHEN uw.account_type = 'company' THEN uw.company_name ELSE uw.full_name END
               END AS client_name,
               EXISTS(SELECT 1 FROM reviews WHERE booking_id = b.id AND reviewer_id = $1) AS has_reviewed,
-              EXISTS(SELECT 1 FROM disputes WHERE booking_id = b.id) AS has_dispute,
+              (d.dispute_id IS NOT NULL) AS has_dispute,
               b.payment_status, b.completed_by_worker, b.completed_by_client,
               b.worker_note, b.custom_price, b.last_modified_at, b.modified_fields,
               b.cancel_requested_by, b.cancel_reason, b.completed_at
@@ -186,6 +201,13 @@ export const getReceivedBookings = async (req, res) => {
        JOIN services s ON b.service_id = s.id
        JOIN users uc ON b.client_id = uc.id
        JOIN users uw ON b.worker_id = uw.id
+       LEFT JOIN LATERAL (
+         SELECT d1.id AS dispute_id, d1.status AS dispute_status, d1.resolution AS dispute_resolution, d1.created_at AS dispute_created_at
+         FROM disputes d1
+         WHERE d1.booking_id = b.id
+         ORDER BY d1.created_at DESC
+         LIMIT 1
+       ) d ON true
        WHERE (b.worker_id = $1 AND s.type = 'offer')
           OR (b.client_id = $1 AND s.type = 'looking')
        ORDER BY b.created_at DESC`,
@@ -529,6 +551,10 @@ export const getBookingById = async (req, res) => {
     const { id } = req.params;
     const result = await pool.query(
       `SELECT b.*, s.title, s.price, s.image_url, s.image_urls, s.category,
+              d.dispute_id,
+              d.dispute_status,
+              d.dispute_resolution,
+              d.dispute_created_at,
               CASE
                 WHEN s.hide_exact_location = true AND s.user_id <> $2
                   THEN COALESCE(NULLIF(TRIM(s.city), ''), NULLIF(TRIM(s.location), ''), NULLIF(TRIM(s.address), ''))
@@ -540,7 +566,7 @@ export const getBookingById = async (req, res) => {
               uc.province AS client_province,
               uw.province AS worker_province,
               EXISTS(SELECT 1 FROM reviews WHERE booking_id = b.id AND reviewer_id = $2) AS has_reviewed,
-              EXISTS(SELECT 1 FROM disputes WHERE booking_id = b.id) AS has_dispute,
+              (d.dispute_id IS NOT NULL) AS has_dispute,
               b.payment_status, b.completed_by_worker, b.completed_by_client,
               b.worker_note, b.custom_price, b.last_modified_at, b.modified_fields,
               b.cancel_requested_by, b.cancel_reason, b.completed_at
@@ -548,6 +574,13 @@ export const getBookingById = async (req, res) => {
        JOIN services s ON b.service_id = s.id
        JOIN users uw ON b.worker_id = uw.id
        JOIN users uc ON b.client_id = uc.id
+       LEFT JOIN LATERAL (
+         SELECT d1.id AS dispute_id, d1.status AS dispute_status, d1.resolution AS dispute_resolution, d1.created_at AS dispute_created_at
+         FROM disputes d1
+         WHERE d1.booking_id = b.id
+         ORDER BY d1.created_at DESC
+         LIMIT 1
+       ) d ON true
        WHERE b.id = $1 AND (b.client_id = $2 OR b.worker_id = $2)`,
       [id, req.user.id]
     );

@@ -1,11 +1,12 @@
 import express from "express";
 import { protect, adminOnly } from "../middleware/authMiddleware.js";
-import { CreateDispute, GetDisputes, UpdateDispute, GetDisputeByBooking, PostDisputeMessage, AdminGetAllDisputes, AdminUpdateDispute } from "../controllers/disputeController.js";
+import { CreateDispute, GetDisputes, UpdateDispute, GetDisputeByBooking, PostDisputeMessage, AdminGetAllDisputes, AdminGetDisputeDetail, AdminUpdateDispute } from "../controllers/disputeController.js";
 
 const router = express.Router();
 
 // Admin (must be before /:id to avoid route conflict)
 router.get("/", protect, adminOnly, AdminGetAllDisputes);
+router.get("/:id/admin", protect, adminOnly, AdminGetDisputeDetail);
 router.put("/:id/admin", protect, adminOnly, AdminUpdateDispute);
 
 // Dispute thread (must be before /:id)

@@ -31,6 +31,10 @@ interface BookingBase {
   worker_province?: string | null;
   client_province?: string | null;
   completed_at?: string | null;
+  dispute_id?: string | null;
+  dispute_status?: "open" | "resolved" | "rejected" | null;
+  dispute_resolution?: string | null;
+  dispute_created_at?: string | null;
 }
 
 export interface ReceivedBooking extends BookingBase {

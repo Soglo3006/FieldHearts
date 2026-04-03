@@ -1,7 +1,7 @@
 import pool from "../config/db.js";
-import stripe from "../config/stripe.js";
-import { notifyDisputeCreated } from "../services/emailService.js";
+import { notifyDisputeCreated, notifyDisputeOutcome } from "../services/emailService.js";
 import { createLocalizedNotification, shouldSendEmail } from "../services/notificationService.js";
+import { buildRefundSummary, processBookingRefund } from "../services/refundService.js";
 
 export const CreateDispute = async (req, res) => {
     try {
@@ -105,44 +105,7 @@ export const GetDisputes = async (req, res) => {
 }
 
 export const UpdateDispute = async (req, res) => {
-    try {
-        const { id } = req.params;
-        const { status } = req.body;
-
-        const allowed = ["open", "resolved", "rejected"];
-        if (!allowed.includes(status)) {
-            return res.status(400).json({ message: "Invalid dispute status" });
-        }
-
-        const dispute = await pool.query(
-            `SELECT d.*, b.client_id, b.worker_id
-             FROM disputes d
-             JOIN bookings b ON d.booking_id = b.id
-             WHERE d.id = $1`,
-            [id]
-        );
-
-        if (dispute.rows.length === 0) {
-            return res.status(404).json({ message: "Dispute not found" });
-        }
-
-        const d = dispute.rows[0];
-
-        if (d.client_id !== req.user.id && d.worker_id !== req.user.id) {
-            return res.status(403).json({ message: "You are not authorized to update this dispute" });
-        }
-
-        const result = await pool.query(
-            `UPDATE disputes SET status = $1 WHERE id = $2 RETURNING *`,
-            [status, id]
-        );
-
-        res.status(200).json(result.rows[0]);
-
-    } catch(err){
-        console.error(err);
-        res.status(500).json({ message: "Server error while updating dispute" });
-    }
+    return res.status(403).json({ message: "Only admins can update dispute status" });
 }
 
 // ─── Dispute thread ───────────────────────────────────────────────────────────
@@ -243,14 +206,17 @@ export const AdminGetAllDisputes = async (_req, res) => {
                 d.id, d.status, d.description, d.resolution, d.created_at,
                 d.booking_id,
                 b.service_id,
+                b.status AS booking_status,
+                b.payment_status,
                 s.title AS service_title,
-                s.price AS service_price,
+                COALESCE(b.custom_price, s.price) AS service_price,
                 CASE WHEN uc.account_type = 'company' THEN uc.company_name ELSE uc.full_name END AS client_name,
                 uc.email AS client_email,
                 CASE WHEN uw.account_type = 'company' THEN uw.company_name ELSE uw.full_name END AS worker_name,
                 uw.email AS worker_email,
                 CASE WHEN ur.account_type = 'company' THEN ur.company_name ELSE ur.full_name END AS raised_by_name,
-                d.raised_by
+                d.raised_by,
+                (SELECT COUNT(*) FROM dispute_messages dm WHERE dm.dispute_id = d.id) AS message_count
              FROM disputes d
              JOIN bookings b ON d.booking_id = b.id
              JOIN services s ON b.service_id = s.id
@@ -266,107 +232,231 @@ export const AdminGetAllDisputes = async (_req, res) => {
     }
 };
 
+export const AdminGetDisputeDetail = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const disputeResult = await pool.query(
+            `SELECT
+                d.id, d.status, d.description, d.resolution, d.created_at,
+                d.booking_id, d.raised_by,
+                b.status AS booking_status,
+                b.payment_status,
+                b.completed_at,
+                b.created_at AS booking_created_at,
+                b.service_id,
+                COALESCE(b.custom_price, s.price) AS booking_price,
+                s.title AS service_title,
+                s.price AS service_price,
+                s.image_url AS service_image_url,
+                CASE WHEN uc.account_type = 'company' THEN uc.company_name ELSE uc.full_name END AS client_name,
+                uc.email AS client_email,
+                uc.id AS client_id,
+                CASE WHEN uw.account_type = 'company' THEN uw.company_name ELSE uw.full_name END AS worker_name,
+                uw.email AS worker_email,
+                uw.id AS worker_id,
+                CASE WHEN ur.account_type = 'company' THEN ur.company_name ELSE ur.full_name END AS raised_by_name,
+                p.id AS payment_id,
+                p.amount AS payment_amount,
+                p.platform_fee,
+                p.status AS payment_record_status,
+                p.currency,
+                p.created_at AS payment_created_at
+             FROM disputes d
+             JOIN bookings b ON d.booking_id = b.id
+             JOIN services s ON b.service_id = s.id
+             JOIN users uc ON b.client_id = uc.id
+             JOIN users uw ON b.worker_id = uw.id
+             JOIN users ur ON d.raised_by = ur.id
+             LEFT JOIN LATERAL (
+                SELECT *
+                FROM payments p2
+                WHERE p2.booking_id = b.id
+                ORDER BY p2.created_at DESC
+                LIMIT 1
+             ) p ON true
+             WHERE d.id = $1`,
+            [id]
+        );
+
+        if (disputeResult.rows.length === 0) {
+            return res.status(404).json({ message: "Dispute not found" });
+        }
+
+        const detail = disputeResult.rows[0];
+        const messages = await pool.query(
+            `SELECT dm.*, COALESCE(dm.attachments, '[]'::json) AS attachments,
+                    CASE WHEN u.account_type = 'company' THEN u.company_name ELSE u.full_name END AS sender_name,
+                    u.email AS sender_email
+             FROM dispute_messages dm
+             JOIN users u ON u.id = dm.user_id
+             WHERE dm.dispute_id = $1
+             ORDER BY dm.created_at ASC`,
+            [id]
+        );
+
+        res.status(200).json({
+            dispute: {
+                id: detail.id,
+                status: detail.status,
+                description: detail.description,
+                resolution: detail.resolution,
+                created_at: detail.created_at,
+                booking_id: detail.booking_id,
+                raised_by: detail.raised_by,
+                raised_by_name: detail.raised_by_name,
+            },
+            booking: {
+                id: detail.booking_id,
+                service_id: detail.service_id,
+                status: detail.booking_status,
+                payment_status: detail.payment_status,
+                completed_at: detail.completed_at,
+                created_at: detail.booking_created_at,
+                service_title: detail.service_title,
+                service_price: detail.service_price,
+                booking_price: detail.booking_price,
+                service_image_url: detail.service_image_url,
+            },
+            parties: {
+                client: {
+                    id: detail.client_id,
+                    name: detail.client_name,
+                    email: detail.client_email,
+                },
+                worker: {
+                    id: detail.worker_id,
+                    name: detail.worker_name,
+                    email: detail.worker_email,
+                },
+            },
+            payment: detail.payment_id ? {
+                id: detail.payment_id,
+                amount: detail.payment_amount,
+                platform_fee: detail.platform_fee,
+                status: detail.payment_record_status,
+                currency: detail.currency,
+                created_at: detail.payment_created_at,
+            } : null,
+            refund_summary: detail.payment_id && ["paid", "transferred"].includes(detail.payment_record_status)
+                ? buildRefundSummary({
+                    amount: detail.payment_amount,
+                    platform_fee: detail.platform_fee,
+                })
+                : null,
+            messages: messages.rows,
+        });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: "Server error fetching dispute details" });
+    }
+};
+
 export const AdminUpdateDispute = async (req, res) => {
     try {
         const { id } = req.params;
-        const { status, resolution, refund_client } = req.body;
+        const { status, resolution, refund_client, refund_amount_cents } = req.body;
 
         const allowed = ["open", "resolved", "rejected"];
         if (!allowed.includes(status)) {
             return res.status(400).json({ message: "Invalid dispute status" });
         }
 
+        const normalizedResolution = resolution?.trim() || null;
+        if (status !== "open" && !normalizedResolution) {
+            return res.status(400).json({ message: "Resolution notes are required when closing a dispute" });
+        }
+
         const dispute = await pool.query(
-            `SELECT d.*, b.client_id, b.worker_id FROM disputes d JOIN bookings b ON d.booking_id = b.id WHERE d.id = $1`,
+            `SELECT d.*, b.client_id, b.worker_id, b.payment_status,
+                    CASE WHEN uc.account_type = 'company' THEN uc.company_name ELSE uc.full_name END AS client_name,
+                    uc.email AS client_email,
+                    CASE WHEN uw.account_type = 'company' THEN uw.company_name ELSE uw.full_name END AS worker_name,
+                    uw.email AS worker_email,
+                    s.title AS service_title
+             FROM disputes d
+             JOIN bookings b ON d.booking_id = b.id
+             JOIN users uc ON b.client_id = uc.id
+             JOIN users uw ON b.worker_id = uw.id
+             JOIN services s ON b.service_id = s.id
+             WHERE d.id = $1`,
             [id]
         );
         if (dispute.rows.length === 0) {
             return res.status(404).json({ message: "Dispute not found" });
         }
 
-        // Trigger refund if admin chose to refund the client
+        const currentDispute = dispute.rows[0];
+
+        let refundResult = null;
         if (status === "resolved" && refund_client) {
-            const booking_id = dispute.rows[0].booking_id;
-            const client_id  = dispute.rows[0].client_id;
-            const worker_id  = dispute.rows[0].worker_id;
+            refundResult = await processBookingRefund({
+                bookingId: currentDispute.booking_id,
+                refundAmountCents: refund_amount_cents,
+                cancelBooking: false,
+            });
 
-            const payment = await pool.query(
-                "SELECT * FROM payments WHERE booking_id = $1 AND status IN ('paid', 'transferred') ORDER BY created_at DESC LIMIT 1",
-                [booking_id]
-            );
-
-            if (payment.rows.length === 0) {
-                return res.status(400).json({ message: "No eligible payment found for this booking — refund cannot be processed." });
-            }
-
-            const p = payment.rows[0];
-
-            if (!p.stripe_payment_intent_id) {
-                return res.status(400).json({ message: "No Stripe payment intent found — refund cannot be processed." });
-            }
-
-            // If funds were already transferred to worker, reverse the transfer first
-            if (p.stripe_transfer_id) {
-                try {
-                    await stripe.transfers.createReversal(p.stripe_transfer_id);
-                } catch (_) { /* transfer may already be reversed */ }
-            }
-            await stripe.refunds.create({ payment_intent: p.stripe_payment_intent_id });
-
-            await pool.query(
-                "UPDATE payments SET status = 'refunded', updated_at = NOW() WHERE id = $1",
-                [p.id]
-            );
-            await pool.query(
-                "UPDATE bookings SET payment_status = 'refunded' WHERE id = $1",
-                [booking_id]
-            );
-
-            // Decrement client's total_spent in wallet
-            const debitTx = await pool.query(
-                "SELECT amount FROM transactions WHERE booking_id = $1 AND type = 'debit' LIMIT 1",
-                [booking_id]
-            );
-            if (debitTx.rows.length > 0) {
-                await pool.query(
-                    "UPDATE wallets SET total_spent = GREATEST(0, total_spent - $1) WHERE user_id = $2",
-                    [debitTx.rows[0].amount, client_id]
-                );
-            }
-
-            // Decrement worker's balance and total_earned in wallet
-            const creditTx = await pool.query(
-                "SELECT amount FROM transactions WHERE booking_id = $1 AND type = 'credit' LIMIT 1",
-                [booking_id]
-            );
-            if (creditTx.rows.length > 0) {
-                await pool.query(
-                    `UPDATE wallets
-                     SET balance = GREATEST(0, balance - $1),
-                         total_earned = GREATEST(0, total_earned - $1)
-                     WHERE user_id = $2`,
-                    [creditTx.rows[0].amount, worker_id]
-                );
-            }
-
-            // Notify client
             createLocalizedNotification({
-                userId: client_id,
+                userId: currentDispute.client_id,
                 type: "payment",
                 link: "/wallet",
-                en: { title: "Refund processed", body: "Your payment has been refunded following the resolution of your dispute." },
-                fr: { title: "Remboursement effectué", body: "Votre paiement a été remboursé suite à la résolution de votre plainte." },
+                en: { title: "Refund processed", body: `A refund of $${(refundResult.refunded_amount_cents / 100).toFixed(2)} has been processed after your dispute.` },
+                fr: { title: "Remboursement effectué", body: `Un remboursement de ${(refundResult.refunded_amount_cents / 100).toFixed(2)} $ a été traité après votre litige.` },
             });
         }
 
         const result = await pool.query(
             `UPDATE disputes SET status = $1, resolution = $2 WHERE id = $3 RETURNING *`,
-            [status, resolution || null, id]
+            [status, normalizedResolution, id]
         );
 
-        res.status(200).json(result.rows[0]);
+        if (status !== "open") {
+            const refundedAmount = refundResult ? (refundResult.refunded_amount_cents / 100).toFixed(2) : null;
+
+            createLocalizedNotification({
+                userId: currentDispute.client_id,
+                type: "dispute",
+                link: "/bookings",
+                en: { title: status === "resolved" ? "Dispute resolved" : "Dispute rejected", body: normalizedResolution || "A decision has been added to your dispute." },
+                fr: { title: status === "resolved" ? "Litige résolu" : "Litige rejeté", body: normalizedResolution || "Une décision a été ajoutée à votre litige." },
+            });
+            createLocalizedNotification({
+                userId: currentDispute.worker_id,
+                type: "dispute",
+                link: "/bookings",
+                en: { title: status === "resolved" ? "Dispute resolved" : "Dispute rejected", body: normalizedResolution || "A decision has been added to your dispute." },
+                fr: { title: status === "resolved" ? "Litige résolu" : "Litige rejeté", body: normalizedResolution || "Une décision a été ajoutée à votre litige." },
+            });
+
+            if (await shouldSendEmail(currentDispute.client_id, "complaint")) {
+                await notifyDisputeOutcome(
+                    currentDispute.client_email,
+                    currentDispute.client_name,
+                    currentDispute.booking_id,
+                    status,
+                    normalizedResolution,
+                    refundedAmount
+                );
+            }
+
+            if (await shouldSendEmail(currentDispute.worker_id, "complaint")) {
+                await notifyDisputeOutcome(
+                    currentDispute.worker_email,
+                    currentDispute.worker_name,
+                    currentDispute.booking_id,
+                    status,
+                    normalizedResolution,
+                    refundedAmount
+                );
+            }
+        }
+
+        res.status(200).json({ ...result.rows[0], refund: refundResult });
     } catch (err) {
         console.error(err);
+        if (err.statusCode) {
+            return res.status(err.statusCode).json(err.payload);
+        }
         res.status(500).json({ message: "Server error updating dispute" });
     }
 };

@@ -240,19 +240,42 @@ export default function SentBookingsList({
                                 <Star className="h-3.5 w-3.5 fill-yellow-400 text-yellow-400" /> {t("bookings.reviewed")}
                               </span>
                             )}
-                            {!b.has_dispute && (
+                            {!b.has_dispute && disputeWindow.isOpen && (
                               <Button type="button" size="sm" variant="outline" className="w-full justify-center text-red-600 border-red-200 hover:bg-red-50 gap-1.5"
                                 onClick={() => onDispute(b.id, b.title)}>
                                 <AlertTriangle className="h-3.5 w-3.5" /> {t("bookings.dispute")}
+                              </Button>
+                            )}
+                            {!b.has_dispute && disputeWindow.isExpired && (
+                              <Button type="button" size="sm" variant="outline" className="w-full justify-center text-gray-400 border-gray-200 bg-gray-50 gap-1.5" disabled>
+                                <AlertTriangle className="h-3.5 w-3.5" /> {t("bookings.disputeExpiredButton")}
                               </Button>
                             )}
                           </>
                         )}
 
                         {b.has_dispute && (
-                          <span className="text-xs text-red-600 italic flex items-center gap-1">
-                            <AlertTriangle className="h-3.5 w-3.5" /> {t("bookings.disputeOpen")}
-                          </span>
+                          <div className={`w-full rounded-lg border px-3 py-2 text-xs ${
+                            b.dispute_status === "resolved"
+                              ? "border-green-200 bg-green-50 text-green-700"
+                              : b.dispute_status === "rejected"
+                                ? "border-gray-200 bg-gray-50 text-gray-700"
+                                : "border-red-200 bg-red-50 text-red-700"
+                          }`}>
+                            <div className="flex items-center gap-1 font-medium">
+                              <AlertTriangle className="h-3.5 w-3.5" />
+                              {b.dispute_status === "resolved"
+                                ? t("bookings.disputeResolvedNotice")
+                                : b.dispute_status === "rejected"
+                                  ? t("bookings.disputeRejectedNotice")
+                                  : t("bookings.disputeOpen")}
+                            </div>
+                            {b.dispute_resolution && (
+                              <p className="mt-1 line-clamp-2">
+                                <span className="font-semibold">{t("bookings.disputeDecisionLabel")}</span> {b.dispute_resolution}
+                              </p>
+                            )}
+                          </div>
                         )}
                         <Button
                           type="button"

@@ -531,8 +531,15 @@ function BookingsContent() {
           accessToken={session.access_token}
           onClose={() => setDisputeBooking(null)}
           onOpened={(bookingId) => {
-            setReceived((prev) => prev.map((b) => b.id === bookingId ? { ...b, has_dispute: true } : b));
-            setSent((prev) => prev.map((b) => b.id === bookingId ? { ...b, has_dispute: true } : b));
+            const openedAt = new Date().toISOString();
+            const disputeUpdate = {
+              has_dispute: true,
+              dispute_status: "open" as const,
+              dispute_resolution: null,
+              dispute_created_at: openedAt,
+            };
+            setReceived((prev) => prev.map((b) => b.id === bookingId ? { ...b, ...disputeUpdate } : b));
+            setSent((prev) => prev.map((b) => b.id === bookingId ? { ...b, ...disputeUpdate } : b));
           }}
         />
       )}

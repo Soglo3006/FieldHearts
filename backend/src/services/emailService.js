@@ -302,6 +302,26 @@ const emailTemplates = {
       ${btn(`${FRONTEND}/bookings`, "Voir mes réservations", "#dc2626")}
     `),
   }),
+
+  disputeOutcome: (userName, bookingId, status, resolution, refundedAmount) => ({
+    subject: status === "resolved" ? "Décision sur votre litige" : "Votre litige a été rejeté",
+    html: base(`
+      <h2 style="margin:0 0 8px;color:${status === "resolved" ? "#15803d" : "#dc2626"};">
+        ${status === "resolved" ? "Litige résolu" : "Litige rejeté"}
+      </h2>
+      <p style="color:#374151;">Bonjour <strong>${userName}</strong>,</p>
+      <p style="color:#374151;">Notre équipe a rendu une décision pour la réservation <strong>#${bookingId.slice(0, 8)}</strong>.</p>
+      <div style="background:${status === "resolved" ? "#f0fdf4" : "#fef2f2"};border:1px solid ${status === "resolved" ? "#bbf7d0" : "#fecaca"};border-radius:8px;padding:16px;margin:20px 0;">
+        <p style="margin:0 0 8px;font-weight:600;color:${status === "resolved" ? "#166534" : "#991b1b"};">
+          ${status === "resolved" ? "Décision" : "Décision de rejet"}
+        </p>
+        <p style="margin:0;color:#374151;white-space:pre-line;">${resolution || "Aucun détail supplémentaire fourni."}</p>
+        ${refundedAmount ? `<p style="margin:12px 0 0;color:#166534;font-weight:600;">Remboursement traité : ${refundedAmount} $ CAD</p>` : ""}
+      </div>
+      <p style="color:#374151;">Vous pouvez consulter le fil du litige dans vos réservations.</p>
+      ${btn(`${FRONTEND}/bookings`, "Voir le litige", status === "resolved" ? "#15803d" : "#dc2626")}
+    `),
+  }),
 };
 
 // ── Core sender ────────────────────────────────────────────────────────────────
@@ -342,6 +362,9 @@ export const notifyNewReview = (targetEmail, targetName, reviewerName, rating, c
 export const notifyDisputeCreated = (userEmail, userName, bookingId, description) =>
   sendEmail(userEmail, "disputeCreated", [userName, bookingId, description]);
 
+export const notifyDisputeOutcome = (userEmail, userName, bookingId, status, resolution, refundedAmount) =>
+  sendEmail(userEmail, "disputeOutcome", [userName, bookingId, status, resolution, refundedAmount]);
+
 export const notifyPaymentReceipt = (clientEmail, clientName, serviceTitle, amount, workerName, bookingId, imageUrl) =>
   sendEmail(clientEmail, "paymentReceipt", [clientName, serviceTitle, amount, workerName, bookingId, new Date().toLocaleDateString("fr-CA", { year: "numeric", month: "long", day: "numeric" }), imageUrl]);
 
@@ -364,5 +387,6 @@ export default {
   notifyNewMessage,
   notifyNewReview,
   notifyDisputeCreated,
+  notifyDisputeOutcome,
   notifyPasswordChanged,
 };

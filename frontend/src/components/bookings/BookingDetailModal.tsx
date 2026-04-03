@@ -67,6 +67,10 @@ export interface BookingDetail {
   client_province?: string | null;
   worker_province?: string | null;
   tax_rate?: number | null;
+  dispute_id?: string | null;
+  dispute_status?: "open" | "resolved" | "rejected" | null;
+  dispute_resolution?: string | null;
+  dispute_created_at?: string | null;
 }
 
 interface Props {
@@ -219,6 +223,8 @@ export default function BookingDetailModal({
   const translateClass = ["translate-x-0", "-translate-x-1/4", "-translate-x-1/2", "-translate-x-3/4"][activeIndex];
   const orderClasses = ["order-1", "order-2", "order-3", "order-4"];
   const disputeIsValid = disputeDescription.trim().length >= 20;
+  const disputeStatus = booking.dispute_status ?? (booking.has_dispute ? "open" : null);
+  const disputeIsClosed = disputeStatus === "resolved" || disputeStatus === "rejected";
 
   const resetReviewPanel = () => {
     setReviewError("");
@@ -341,8 +347,22 @@ export default function BookingDetailModal({
       });
 
       setDisputeSuccess(true);
-      setBooking((prev) => ({ ...prev, has_dispute: true }));
-      onUpdated(booking.id, { has_dispute: true });
+      const openedAt = new Date().toISOString();
+      setBooking((prev) => ({
+        ...prev,
+        has_dispute: true,
+        dispute_id: dispute.id,
+        dispute_status: "open",
+        dispute_resolution: null,
+        dispute_created_at: openedAt,
+      }));
+      onUpdated(booking.id, {
+        has_dispute: true,
+        dispute_id: dispute.id,
+        dispute_status: "open",
+        dispute_resolution: null,
+        dispute_created_at: openedAt,
+      });
       setTimeout(() => setStep("detail"), 700);
     } catch {
       setDisputeError(t("bookings.openDisputeModal.networkError"));
@@ -863,7 +883,7 @@ export default function BookingDetailModal({
                 {t("bookings.waitingForPayment")}
               </div>
             )}
-            {booking.status === "active" && booking.has_dispute && (
+            {booking.status === "active" && booking.has_dispute && disputeStatus === "open" && (
               <div className="bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-xs text-red-700 space-y-1">
                 <div className="flex items-center gap-1.5 font-semibold">
                   <AlertTriangle className="h-3.5 w-3.5" />
@@ -919,6 +939,39 @@ export default function BookingDetailModal({
                 </div>
               );
             })()}
+
+            {booking.has_dispute && (
+              <div className={`rounded-lg px-3 py-2 text-xs space-y-1 border ${
+                disputeStatus === "resolved"
+                  ? "bg-green-50 border-green-200 text-green-800"
+                  : disputeStatus === "rejected"
+                    ? "bg-gray-50 border-gray-200 text-gray-700"
+                    : "bg-red-50 border-red-200 text-red-700"
+              }`}>
+                <div className="flex items-center gap-1.5 font-semibold">
+                  <AlertTriangle className="h-3.5 w-3.5" />
+                  {disputeStatus === "resolved"
+                    ? t("bookings.disputeResolvedNotice")
+                    : disputeStatus === "rejected"
+                      ? t("bookings.disputeRejectedNotice")
+                      : t("bookings.disputeInProgress")}
+                </div>
+                {disputeIsClosed ? (
+                  <p>
+                    {booking.payment_status === "refunded"
+                      ? t("bookings.disputeRefundedNotice")
+                      : t("bookings.disputeClosedNotice")}
+                  </p>
+                ) : (
+                  <p>{t("bookings.disputePaused")}</p>
+                )}
+                {booking.dispute_resolution && (
+                  <p>
+                    <span className="font-semibold">{t("bookings.disputeDecisionLabel")}</span> {booking.dispute_resolution}
+                  </p>
+                )}
+              </div>
+            )}
 
             {booking.has_dispute && (
               <DisputeThread bookingId={booking.id} currentUserId={currentUserId} accessToken={accessToken} />

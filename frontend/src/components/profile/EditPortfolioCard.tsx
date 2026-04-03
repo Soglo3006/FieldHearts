@@ -2,10 +2,9 @@
 import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import AppImage from "@/components/ui/AppImage";
-import { Upload, Trash2, Camera, Plus, X } from "lucide-react";
+import { Upload, Trash2, Camera, Plus, Pencil } from "lucide-react";
 import Cropper from "react-easy-crop";
 import type { Area } from "react-easy-crop";
 import getCroppedImg from "@/utils/cropImage";
@@ -23,10 +22,11 @@ interface Props {
   portfolio: PortfolioItem[];
   isPerson: boolean;
   onAdd: (item: PortfolioItem) => void;
+  onUpdate: (item: PortfolioItem) => void;
   onRemove: (id: number) => void;
 }
 
-export default function EditPortfolioCard({ portfolio, isPerson, onAdd, onRemove }: Props) {
+export default function EditPortfolioCard({ portfolio, isPerson, onAdd, onUpdate, onRemove }: Props) {
   const { t } = useTranslation();
   const sectionTitle = isPerson ? t("profile.portfolio") : t("profile.ourWork");
   const sectionSubtitle = isPerson ? t("profile.uploadPortfolio") : t("profile.uploadProjects");
@@ -35,8 +35,10 @@ export default function EditPortfolioCard({ portfolio, isPerson, onAdd, onRemove
   const titlePlaceholder = isPerson ? t("profile.portfolioTitlePlaceholder") : t("profile.projectTitlePlaceholder");
   const addButtonLabel = isPerson ? t("profile.addToPortfolio") : t("profile.addToProjects");
   const [showModal, setShowModal] = useState(false);
+  const [showActionModal, setShowActionModal] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<PortfolioItem | null>(null);
   const [image, setImage] = useState<string | null>(null);
-  useScrollLock(showModal);
+  useScrollLock(showModal || showActionModal);
   const [title, setTitle] = useState("");
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
@@ -46,10 +48,11 @@ export default function EditPortfolioCard({ portfolio, isPerson, onAdd, onRemove
   const handleUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (!file.type.startsWith("image/")) { toast.error("Please upload an image."); return; }
-    if (file.size > 5 * 1024 * 1024) { toast.error("File size must be less than 5MB."); return; }
+    if (!file.type.startsWith("image/")) { toast.error(t("profile.invalidImageFile")); return; }
+    if (file.size > 5 * 1024 * 1024) { toast.error(t("profile.maxFileSize")); return; }
     const reader = new FileReader();
     reader.onloadend = () => {
+      setSelectedItem(null);
       setImage(reader.result as string);
       setTitle("");
       setCrop({ x: 0, y: 0 });
@@ -61,19 +64,46 @@ export default function EditPortfolioCard({ portfolio, isPerson, onAdd, onRemove
   };
 
   const handleSave = async () => {
-    if (!image || !title.trim() || !croppedPixels) { setError(true); return; }
+    if (!image || !title.trim()) { setError(true); return; }
     try {
-      const cropped = await getCroppedImg(image, croppedPixels);
-      const newId = portfolio.length > 0 ? Math.max(...portfolio.map((p) => p.id)) + 1 : 1;
-      onAdd({ id: newId, image: cropped, title: title.trim() });
+      const nextImage = croppedPixels ? await getCroppedImg(image, croppedPixels) : image;
+      if (selectedItem) {
+        onUpdate({ ...selectedItem, image: nextImage, title: title.trim() });
+      } else {
+        const newId = portfolio.length > 0 ? Math.max(...portfolio.map((p) => p.id)) + 1 : 1;
+        onAdd({ id: newId, image: nextImage, title: title.trim() });
+      }
       closeModal();
     } catch {
-      toast.error("Failed to crop image. Please try again.");
+      toast.error(t("profile.cropImageFailed"));
     }
+  };
+
+  const handleEditItem = (item: PortfolioItem) => {
+    setSelectedItem(item);
+    setImage(item.image);
+    setTitle(item.title);
+    setCrop({ x: 0, y: 0 });
+    setZoom(1);
+    setCroppedPixels(null);
+    setError(false);
+    setShowActionModal(false);
+    setShowModal(true);
+  };
+
+  const openMobileActions = (item: PortfolioItem) => {
+    setSelectedItem(item);
+    setShowActionModal(true);
+  };
+
+  const closeActionModal = () => {
+    setShowActionModal(false);
+    setSelectedItem(null);
   };
 
   const closeModal = () => {
     setShowModal(false);
+    setSelectedItem(null);
     setImage(null);
     setTitle("");
     setCrop({ x: 0, y: 0 });
@@ -111,9 +141,24 @@ export default function EditPortfolioCard({ portfolio, isPerson, onAdd, onRemove
             {portfolio.map((item, i) => (
               <div key={i} className="relative group">
                 <div className="relative overflow-hidden rounded-lg aspect-4/3">
+                  <button
+                    type="button"
+                    onClick={() => openMobileActions(item)}
+                    className="absolute inset-0 z-10 cursor-pointer md:hidden"
+                    aria-label={item.title || t("profile.portfolioItemAlt")}
+                  />
                   <AppImage src={item.image} alt={item.title} fill sizes="(max-width: 768px) 50vw, 33vw" className="object-cover" />
                   <div className="absolute inset-0 bg-opacity-0 group-hover:bg-opacity-40 transition-all duration-200" />
-                  <div className="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="absolute top-2 right-2 hidden gap-2 opacity-0 transition-opacity md:flex group-hover:opacity-100">
+                    <button
+                      type="button"
+                      onClick={() => handleEditItem(item)}
+                      title={t("common.edit")}
+                      aria-label={t("common.edit")}
+                      className="p-2 bg-white/95 text-gray-700 rounded-full hover:bg-white cursor-pointer"
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </button>
                     <button
                       type="button"
                       onClick={() => onRemove(item.id)}
@@ -146,11 +191,54 @@ export default function EditPortfolioCard({ portfolio, isPerson, onAdd, onRemove
         </div>
       </Card>
 
+      {showActionModal && selectedItem && (
+        <div className="fixed inset-0 z-110 flex items-end bg-black/55 p-4 md:hidden">
+          <div className="w-full rounded-3xl bg-white p-5 shadow-2xl">
+            <div className="mb-4 text-center">
+              <p className="text-sm text-gray-500">{sectionTitle}</p>
+              <h3 className="mt-1 text-base font-semibold text-gray-900">{selectedItem.title}</h3>
+            </div>
+
+            <div className="space-y-3">
+              <Button
+                type="button"
+                variant="outline"
+                className="h-12 w-full justify-center gap-2 cursor-pointer"
+                onClick={() => handleEditItem(selectedItem)}
+              >
+                <Pencil className="h-4 w-4" />
+                {t("common.edit")}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="h-12 w-full justify-center gap-2 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 cursor-pointer"
+                onClick={() => {
+                  onRemove(selectedItem.id);
+                  closeActionModal();
+                }}
+              >
+                <Trash2 className="h-4 w-4" />
+                {t("common.delete")}
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                className="h-11 w-full cursor-pointer"
+                onClick={closeActionModal}
+              >
+                {t("common.cancel")}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showModal && image && (
         <div className="fixed inset-0 z-100 bg-black flex flex-col">
           {/* Header */}
           <div className="shrink-0 flex items-center justify-between px-5 py-4 bg-black/80">
-            <h3 className="text-white font-semibold text-base">{addItemLabel}</h3>
+            <h3 className="text-white font-semibold text-base">{selectedItem ? t("common.edit") : addItemLabel}</h3>
             <button
               type="button"
               onClick={closeModal}
@@ -208,7 +296,7 @@ export default function EditPortfolioCard({ portfolio, isPerson, onAdd, onRemove
               type="button"
               className="w-full bg-green-700 hover:bg-green-800 text-white h-12 text-base font-semibold rounded-xl cursor-pointer"
             >
-              {addButtonLabel}
+              {selectedItem ? t("common.save") : addButtonLabel}
             </Button>
           </div>
         </div>

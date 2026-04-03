@@ -93,7 +93,7 @@ export function ConversationSettings({
       if (confirmAction === 'unblock') await onUnblockUser?.();
       setConfirmAction(null);
       onClose();
-    } catch (err) {
+    } catch {
     } finally {
       setLoading(false);
     }
@@ -108,7 +108,7 @@ export function ConversationSettings({
       setReportReason('');
       setReportDetails('');
       setShowSuccessModal(true);
-    } catch (err) {
+    } catch {
     } finally {
       setLoading(false);
     }
@@ -149,10 +149,11 @@ export function ConversationSettings({
     <div className="w-full h-full flex flex-col bg-gray-50">
       {/* Header */}
       <div className="shrink-0 p-4 bg-gray-50 border-b flex items-center justify-between h-18.25">
-        <h3 className="text-lg font-semibold">{t("messages.settings")}</h3>
         <Button variant="ghost" size="icon" onClick={onClose} className='cursor-pointer'>
           {backButton ? <ArrowLeft className="h-5 w-5" /> : <X className="h-5 w-5" />}
         </Button>
+        <h3 className="text-lg font-semibold flex-1 min-w-0 px-3">{t("messages.settings")}</h3>
+        <div className="w-9 shrink-0" aria-hidden="true" />
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
@@ -206,10 +207,6 @@ export function ConversationSettings({
                       const before = msg.content.substring(0, idx);
                       const match = msg.content.substring(idx, idx + searchQuery.length);
                       const after = msg.content.substring(idx + searchQuery.length);
-                      const preview = msg.content.length > 60
-                        ? msg.content.substring(0, 60) + '...'
-                        : msg.content;
-
                       return (
                         <button
                           key={msg.id}

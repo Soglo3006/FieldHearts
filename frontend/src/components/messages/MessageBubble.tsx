@@ -12,6 +12,7 @@ import { MessageReactions } from './MessageReactions';
 import { sanitizeAndFormatMessage } from '@/lib/sanitize';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
+import { useTouchLongPress } from '@/hooks/useTouchLongPress';
 
 interface Reaction {  
   emoji: string;
@@ -195,10 +196,32 @@ export function MessageBubble({
     setIsEmojiOpen(false);
   }, [setHoveredMessageId, setOpenMenuKey, setSelectedMessageKey]);
 
+  const touchLongPressHandlers = useTouchLongPress({
+    onLongPress: () => {
+      if (isSending || isFailed || isDeleted || isEditing) return;
+      cancelHide();
+      setSuppressActionsUntilLeave(false);
+      setHoveredMessageId(null);
+      setOpenMenuKey(null);
+      setSelectedMessageKey(messageId);
+    },
+  });
+
+  const handleBubbleClick = () => {
+    if (isSending) return;
+    if (typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches) return;
+    setSelectedMessageKey(isSelected ? null : messageId);
+  };
+
   return (
     <div
       ref={rootRef}
       onPointerDown={(e) => e.stopPropagation()}
+      onPointerMove={touchLongPressHandlers.onPointerMove}
+      onPointerUp={touchLongPressHandlers.onPointerUp}
+      onPointerCancel={touchLongPressHandlers.onPointerCancel}
+      onClickCapture={touchLongPressHandlers.onClickCapture}
+      onContextMenu={touchLongPressHandlers.onContextMenu}
       onMouseEnter={() => {
         cancelHide();
         if (showEnterTimeoutRef.current) clearTimeout(showEnterTimeoutRef.current);
@@ -209,7 +232,7 @@ export function MessageBubble({
         }, 150);
       }}
       onMouseLeave={handleMouseLeave}
-      onClick={() => !isSending && setSelectedMessageKey(isSelected ? null : messageId)}
+        onClick={handleBubbleClick}
       className={`flex gap-2 items-start ${isOwn ? 'flex-row' : 'flex-row-reverse'}`}
     >
   {/* Avatar + Message */}
@@ -256,6 +279,7 @@ export function MessageBubble({
         {/* Bulle de message avec réaction en position absolue */}
         <div className="relative">
           <div
+              onPointerDown={touchLongPressHandlers.onPointerDown}
               className={`rounded-2xl px-4 py-2 max-w-xs md:max-w-md ${
                 isOwn
                   ? isFailed

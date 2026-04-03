@@ -185,6 +185,7 @@ export default function EditProfilePage() {
             portfolio={formData.portfolio}
             isPerson={isPerson}
             onAdd={(item) => patch({ portfolio: [...formData.portfolio, item] })}
+            onUpdate={(item) => patch({ portfolio: formData.portfolio.map((portfolioItem) => portfolioItem.id === item.id ? item : portfolioItem) })}
             onRemove={(id) => patch({ portfolio: formData.portfolio.filter((p) => p.id !== id) })}
           />
 

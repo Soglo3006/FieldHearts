@@ -3,7 +3,8 @@ import { Trans, useTranslation } from "react-i18next";
 import LegalSidebarNav from "@/components/legal/LegalSidebarNav";
 
 export default function TrustSafetyPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const language = i18n.resolvedLanguage || i18n.language;
 
   const sections = [
     { id: "commitment", label: t("trustSafetyPage.sections.commitment.title") },
@@ -24,7 +25,7 @@ export default function TrustSafetyPage() {
   };
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6">
+    <div key={language} className="mx-auto max-w-6xl px-4 py-12 sm:px-6">
 
       <div className="grid gap-10 lg:grid-cols-[16rem_1px_minmax(0,1fr)] lg:items-start">
         <LegalSidebarNav sections={sections} onNavigate={scrollTo} />

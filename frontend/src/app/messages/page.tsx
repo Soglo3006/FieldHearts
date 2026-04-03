@@ -53,6 +53,7 @@ function MessagesContent() {
   const [selectedMessageKey, setSelectedMessageKey] = useState<string | null>(null);
   const [showMobileChat, setShowMobileChat] = useState(false);
   const [showMobileSidebar, setShowMobileSidebar] = useState(false);
+  const [manualMobileListView, setManualMobileListView] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [isBlocked, setIsBlocked] = useState(false);
@@ -199,19 +200,26 @@ function MessagesContent() {
 
   useEffect(() => {
     if (!chatIdFromUrl || chatIdFromUrl === activeChatId) return;
+    setManualMobileListView(false);
     setActiveChatId(chatIdFromUrl);
     if (isMobile) setShowMobileChat(true);
   }, [chatIdFromUrl, activeChatId, isMobile]);
 
   useEffect(() => {
+    if (isMobile && manualMobileListView) return;
     if (chatIdFromUrl || activeChatId || !chats.length || newConversationMode || pendingNewConvUser) return;
     const firstId = chats[0].id;
+    setManualMobileListView(false);
     setActiveChatId(firstId);
     router.replace(`/messages?chat=${firstId}`);
     if (isMobile) setShowMobileChat(true);
-  }, [chats, chatIdFromUrl, activeChatId, isMobile, newConversationMode, pendingNewConvUser, router]);
+  }, [chats, chatIdFromUrl, activeChatId, isMobile, manualMobileListView, newConversationMode, pendingNewConvUser, router]);
 
-  useEffect(() => { if (activeChatId) setShowMobileChat(true); }, [activeChatId]);
+  useEffect(() => {
+    if (!activeChatId) return;
+    if (isMobile && manualMobileListView) return;
+    setShowMobileChat(true);
+  }, [activeChatId, isMobile, manualMobileListView]);
 
   useEffect(() => {
     if (!activeChatId || !user?.id || !activeChat?.other_user?.id) {
@@ -272,6 +280,20 @@ function MessagesContent() {
     setAttachedFile(null);
     setAttachmentPreview(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const resetDraftConversationState = () => {
+    setNewConversationMode(false);
+    setPendingNewConvUser(null);
+    setNewConvSearch('');
+    setNewConvResults([]);
+    setNewConvSearching(false);
+    setSuppressThreadLoading(false);
+    setShowSettings(false);
+    setShowMobileSidebar(false);
+    setReplyingTo(null);
+    setMessageInput('');
+    removeAttachment();
   };
 
   const ensureChatForDraftConversation = async (options?: { activate?: boolean }) => {
@@ -391,6 +413,7 @@ function MessagesContent() {
   };
 
   const handleChatSelect = (chatId: string, options?: { preserveNewConversationMode?: boolean; preservePendingUser?: boolean }) => {
+    setManualMobileListView(false);
     if (!options?.preserveNewConversationMode) {
       setNewConversationMode(false);
       previousChatIdRef.current = null;
@@ -400,7 +423,14 @@ function MessagesContent() {
     }
     setNewConvSearch('');
     setNewConvResults([]);
-    if (chatId === activeChatId) { setShowMobileChat(true); return; }
+    if (chatId === activeChatId) {
+      setShowMobileChat(true);
+      setShowMobileSidebar(false);
+      setShowSettings(false);
+      clearUnreadCount(chatId);
+      router.replace(`/messages?chat=${chatId}`);
+      return;
+    }
     setIsBlocked(false); setIsBlockedByOther(false); setIsMuted(false);
     setBlockCheckLoading(true);
     setActiveChatId(chatId);
@@ -457,9 +487,27 @@ function MessagesContent() {
     }
   };
 
-  const handleBackToList = () => { setShowMobileChat(false); setShowMobileSidebar(false); setShowSettings(false); router.replace('/messages'); };
+  const handleBackToList = () => {
+    if (!activeChatId && pendingNewConvUser) {
+      const previousChatId = previousChatIdRef.current;
+      resetDraftConversationState();
+      previousChatIdRef.current = null;
+      setActiveChatId(previousChatId ?? null);
+      setManualMobileListView(true);
+      setShowMobileChat(false);
+      router.replace('/messages');
+      return;
+    }
+
+    setManualMobileListView(true);
+    setShowMobileChat(false);
+    setShowMobileSidebar(false);
+    setShowSettings(false);
+    router.replace('/messages');
+  };
 
   const openNewConversation = () => {
+    setManualMobileListView(false);
     previousChatIdRef.current = activeChatId;
     setNewConversationMode(true);
     setPendingNewConvUser(null);
@@ -476,24 +524,23 @@ function MessagesContent() {
   };
 
   const cancelNewConversation = () => {
-    setNewConversationMode(false);
-    setPendingNewConvUser(null);
-    setNewConvSearch('');
-    setNewConvResults([]);
-    setNewConvSearching(false);
-    setSuppressThreadLoading(false);
+    resetDraftConversationState();
 
     const previousChatId = previousChatIdRef.current;
     previousChatIdRef.current = null;
 
     if (previousChatId) {
+      setManualMobileListView(false);
       setActiveChatId(previousChatId);
       router.replace(`/messages?chat=${previousChatId}`);
       if (isMobile) setShowMobileChat(true);
       return;
     }
 
-    if (isMobile) setShowMobileChat(false);
+    if (isMobile) {
+      setManualMobileListView(true);
+      setShowMobileChat(false);
+    }
   };
 
   // Search users for new conversation
@@ -521,6 +568,7 @@ function MessagesContent() {
   }, [newConvSearch, newConversationMode, session?.access_token]);
 
   const handleSelectNewConvUser = async (otherUserId: string, userInfo: { id: string; full_name?: string; company_name?: string; account_type?: string; avatar_url?: string | null }) => {
+    setManualMobileListView(false);
     const existingChat = chats.find((chat) => chat.other_user?.id === otherUserId);
     if (existingChat) {
       setPendingNewConvUser(null);
@@ -544,6 +592,7 @@ function MessagesContent() {
 
   const handleSelectPendingConversation = () => {
     if (!pendingNewConvUser) return;
+    setManualMobileListView(false);
     setNewConversationMode(false);
     setActiveChatId(null);
     setShowSettings(false);

@@ -32,7 +32,7 @@ export default function AboutPage() {
     <div className="min-h-screen bg-white">
 
       {/* Hero */}
-      <div className="relative min-h-105 overflow-hidden px-4 py-20 text-center sm:py-24">
+      <div className="relative min-h-96 overflow-hidden px-4 py-14 text-center sm:min-h-128 sm:py-24">
         <div className="absolute inset-0 flex items-center justify-center">
           <Image
             src="https://images.unsplash.com/photo-1646640381839-02748ae8ddf0?q=80&w=1800&auto=format&fit=crop"
@@ -46,22 +46,22 @@ export default function AboutPage() {
         <div className="absolute inset-0 bg-green-800/65" />
         <div className="absolute inset-0 bg-linear-to-b from-green-900/20 via-green-900/35 to-green-900/55" />
 
-        <div className="relative z-10 max-w-4xl mx-auto">
-          <p className="text-green-200 text-xs font-semibold uppercase tracking-widest mb-4">
+        <div className="relative z-10 mx-auto max-w-4xl px-2">
+          <p className="mb-4 text-[11px] font-semibold uppercase tracking-[0.3em] text-green-200 sm:text-xs">
             {t("aboutPage.eyebrow")}
           </p>
-          <h1 className="text-4xl sm:text-5xl font-bold text-white max-w-3xl mx-auto leading-tight mb-6">
+          <h1 className="mx-auto mb-5 max-w-3xl text-3xl font-bold leading-tight text-white sm:mb-6 sm:text-5xl">
             {t("aboutPage.heroTitle")}
           </h1>
-          <p className="text-green-100 text-base max-w-2xl mx-auto">
+          <p className="mx-auto max-w-2xl text-sm leading-relaxed text-green-100 sm:text-base">
             {t("aboutPage.heroSubtitle")}
           </p>
         </div>
       </div>
 
         {/* Mission section */}
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <div className="mb-20">
+      <div className="mx-auto max-w-5xl px-4 py-12 sm:px-6 sm:py-16 lg:px-8">
+        <div className="mb-16 sm:mb-20">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
           {missionCards.map((item) => (
             <div
@@ -78,7 +78,7 @@ export default function AboutPage() {
         </div>
 
         {/* Paragraph 1 */}
-        <div className="flex flex-col lg:flex-row items-center gap-12 mb-20">
+        <div className="mb-16 flex flex-col items-center gap-8 sm:gap-12 lg:mb-20 lg:flex-row">
           <div className="lg:w-1/2">
             <h2 className="text-2xl font-bold text-gray-900 mb-4">
               {t("aboutPage.whoWeAre.title")}
@@ -89,7 +89,7 @@ export default function AboutPage() {
             </p>
           </div>
           <div className="lg:w-1/2 w-full">
-            <div className="rounded-2xl overflow-hidden bg-green-50 aspect-video flex items-center justify-center border border-green-100">
+            <div className="relative mx-auto aspect-4/3 w-full max-w-md overflow-hidden rounded-2xl border border-green-100 bg-green-50 sm:aspect-video lg:max-w-none">
               <Image
                 src="https://images.unsplash.com/photo-1521737852567-6949f3f9f2b5?w=800&q=80"
                 alt={t("aboutPage.whoWeAre.imageAlt")}
@@ -102,7 +102,7 @@ export default function AboutPage() {
         </div>
 
         {/* Paragraph 2 */}
-        <div className="flex flex-col lg:flex-row-reverse items-center gap-12 mb-24">
+        <div className="mb-20 flex flex-col items-center gap-8 sm:gap-12 lg:mb-24 lg:flex-row-reverse">
           <div className="lg:w-1/2">
             <h2 className="text-2xl font-bold text-gray-900 mb-4 lg:text-right">
               {t("aboutPage.whatDrivesUs.title")}
@@ -113,7 +113,7 @@ export default function AboutPage() {
             </p>
           </div>
           <div className="lg:w-1/2 w-full">
-            <div className="rounded-2xl overflow-hidden aspect-video">
+            <div className="relative mx-auto aspect-4/3 w-full max-w-md overflow-hidden rounded-2xl sm:aspect-video lg:max-w-none">
               <Image
                 src="https://images.unsplash.com/photo-1600880292203-757bb62b4baf?w=800&q=80"
                 alt={t("aboutPage.whatDrivesUs.imageAlt")}
@@ -137,8 +137,8 @@ export default function AboutPage() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
 
             {/* Georges */}
-            <div className="bg-gray-50 rounded-2xl overflow-hidden border border-gray-200">
-              <div className="relative aspect-4/3 overflow-hidden bg-gray-200">
+            <div className="mx-auto w-full max-w-md overflow-hidden rounded-2xl border border-gray-200 bg-gray-50 lg:max-w-none">
+              <div className="relative aspect-5/4 overflow-hidden bg-gray-200 sm:aspect-4/3">
                 <Image
                   src="/team/george.png"
                   alt="Georges Rychel Moung"
@@ -160,7 +160,7 @@ export default function AboutPage() {
                   </div>
                 </div>
               </div>
-              <div className="p-7">
+              <div className="p-5 sm:p-7">
                 <h3 className="text-xl font-bold text-gray-900">Georges Rychel Moung</h3>
                 <p className="text-green-700 text-sm font-semibold mt-0.5 mb-4">
                   {t("aboutPage.team.georges.role")}
@@ -181,8 +181,8 @@ export default function AboutPage() {
             </div>
 
             {/* Alexandre */}
-            <div className="bg-gray-50 rounded-2xl overflow-hidden border border-gray-200">
-              <div className="relative aspect-4/3 overflow-hidden bg-gray-200">
+            <div className="mx-auto w-full max-w-md overflow-hidden rounded-2xl border border-gray-200 bg-gray-50 lg:max-w-none">
+              <div className="relative aspect-5/4 overflow-hidden bg-gray-200 sm:aspect-4/3">
                 <Image
                   src="/team/alexandre.jpg"
                   alt="Alexandre Soglo Booh Louha"
@@ -204,7 +204,7 @@ export default function AboutPage() {
                   </div>
                 </div>
               </div>
-              <div className="p-7">
+              <div className="p-5 sm:p-7">
                 <h3 className="text-xl font-bold text-gray-900">Alexandre Soglo Booh Louha</h3>
                 <p className="text-green-700 text-sm font-semibold mt-0.5 mb-4">
                   {t("aboutPage.team.alexandre.role")}
@@ -229,7 +229,7 @@ export default function AboutPage() {
 
         {/* Bottom CTA */}
         {!loading && !session && (
-          <div className="mt-20 bg-green-900 rounded-2xl p-10 text-center">
+          <div className="mt-16 rounded-2xl bg-green-900 p-7 text-center sm:mt-20 sm:p-10">
             <h3 className="text-2xl font-bold text-white mb-3">
               {t("aboutPage.cta.title")}
             </h3>

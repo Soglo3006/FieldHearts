@@ -34,7 +34,7 @@ export function ChatHeader({
       : otherUser?.full_name || "Unknown";
 
   return (
-    <div className="shrink-0 p-4 border-b flex items-center justify-between bg-white shadow-sm h-[73px]">
+    <div className="shrink-0 p-4 border-b flex items-center justify-between bg-white shadow-sm h-18.25">
       <div className="flex items-center gap-3 min-w-0 flex-1">
         <Button variant="ghost" size="icon" className="md:hidden shrink-0 cursor-pointer" onClick={onBack}>
           <ArrowLeft className="h-5 w-5" />

@@ -29,6 +29,11 @@ export const metadata: Metadata = {
   description: "Uneden connecte les gens de ta communauté pour offrir et trouver des services locaux. Publie ton service ou trouve de l'aide près de chez toi.",
   keywords: ["services locaux", "communauté", "aide", "prestataire", "Québec", "Canada", "Uneden"],
   metadataBase: new URL("https://uneden.ca"),
+  icons: {
+    icon: [{ url: "/logo.png", type: "image/png" }],
+    shortcut: [{ url: "/logo.png", type: "image/png" }],
+    apple: [{ url: "/logo.png", type: "image/png" }],
+  },
   alternates: {
     canonical: "https://uneden.ca",
     languages: {

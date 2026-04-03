@@ -35,7 +35,6 @@ async function sendAlertEmail(subject, body) {
         <div style="font-family:Arial,sans-serif;padding:24px;background:#fff1f2;border-left:4px solid #dc2626;border-radius:8px;">
           <h2 style="color:#dc2626;margin-top:0;">⚠️ ${subject}</h2>
           <p style="color:#374151;">${body}</p>
-          <p style="color:#6b7280;font-size:12px;">Time: ${new Date().toISOString()}<br/>Server: ${process.env.RENDER_SERVICE_NAME || "backend"}</p>
         </div>
       `,
     });
@@ -63,7 +62,6 @@ async function sendRecoveryEmail(subject) {
         <div style="font-family:Arial,sans-serif;padding:24px;background:#f0fdf4;border-left:4px solid #16a34a;border-radius:8px;">
           <h2 style="color:#16a34a;margin-top:0;">✅ ${subject}</h2>
           <p style="color:#374151;">The service has recovered and is operating normally.</p>
-          <p style="color:#6b7280;font-size:12px;">Time: ${new Date().toISOString()}</p>
         </div>
       `,
     });
@@ -92,7 +90,7 @@ export async function runHealthCheck() {
       if (cooldownPassed) {
         await sendAlertEmail(
           "Database slow response",
-          `Database query took <strong>${responseTime}ms</strong>. This may indicate performance issues.`
+          "The database is responding slowly. This may indicate performance issues."
         );
       }
     }
@@ -105,7 +103,7 @@ export async function runHealthCheck() {
     if (consecutiveFailures >= 2 && cooldownPassed) {
       await sendAlertEmail(
         "Database connection failed",
-        `The database has been unreachable for <strong>${consecutiveFailures}</strong> consecutive checks.<br/><br/>Error: <code>${err.message}</code>`
+        "The database has been unreachable for multiple consecutive checks."
       );
     }
   }

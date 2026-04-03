@@ -238,6 +238,8 @@ function BookingsContent() {
     seenIds.add(b.id);
     return true;
   });
+  const visibleReceived = received.filter((b) => b.status !== "completed");
+  const visibleSent = sent.filter((b) => b.status !== "completed");
   const completedReceived = uniqueCompleted.filter((b) => b.worker_id === uid);
   const completedSent     = uniqueCompleted.filter((b) => b.client_id === uid);
   const doneCount = uniqueCompleted.length;
@@ -307,7 +309,7 @@ function BookingsContent() {
 
       {paymentBanner === "success" && (
         <div className="flex items-center gap-3 bg-green-50 border border-green-200 rounded-lg px-4 py-3 mb-4 text-green-800">
-          <CheckCircle className="h-5 w-5 flex-shrink-0" />
+          <CheckCircle className="h-5 w-5 shrink-0" />
           <p className="text-sm font-medium">{t("bookings.paymentSuccess")}</p>
           <button type="button" aria-label="Dismiss" onClick={() => setPaymentBanner(null)} className="cursor-pointer ml-auto text-green-600 hover:text-green-800">
             <XCircle className="h-4 w-4" />
@@ -316,7 +318,7 @@ function BookingsContent() {
       )}
       {paymentBanner === "cancelled" && (
         <div className="flex items-center gap-3 bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 mb-4 text-gray-700">
-          <XCircle className="h-5 w-5 flex-shrink-0 text-gray-400" />
+          <XCircle className="h-5 w-5 shrink-0 text-gray-400" />
           <p className="text-sm">{t("bookings.paymentCancelled")}</p>
           <button type="button" aria-label="Dismiss" onClick={() => setPaymentBanner(null)} className="cursor-pointer ml-auto text-gray-400 hover:text-gray-600">
             <XCircle className="h-4 w-4" />
@@ -381,11 +383,11 @@ function BookingsContent() {
 
       {tab === "received" && (
         <>
-          {loadingReceived ? <LoadingSkeleton /> : received.length === 0 ? (
+          {loadingReceived ? <LoadingSkeleton /> : visibleReceived.length === 0 ? (
             <EmptyState message={t("bookings.noReceived")} />
           ) : (
             <ReceivedBookingsList
-              bookings={received}
+              bookings={visibleReceived}
               updating={updating}
               chatLoading={chatLoading}
               accessToken={session?.access_token ?? ""}
@@ -401,11 +403,11 @@ function BookingsContent() {
       )}
 
       {tab === "sent" && (
-        loadingSent ? <LoadingSkeleton /> : sent.length === 0 ? (
+        loadingSent ? <LoadingSkeleton /> : visibleSent.length === 0 ? (
           <EmptyState message={t("bookings.noSent")} />
         ) : (
           <SentBookingsList
-            bookings={sent}
+            bookings={visibleSent}
             updating={updating}
             chatLoading={chatLoading}
             accessToken={session?.access_token ?? ""}

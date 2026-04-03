@@ -1,6 +1,9 @@
 import webpush from "web-push";
 import { supabaseAdmin } from "../lib/supabase.js";
 
+const PUSH_ICON_URL = "https://www.uneden.ca/logo.png";
+const PUSH_BADGE_URL = "https://www.uneden.ca/logo.png";
+
 let _configured = false;
 
 const configure = () => {
@@ -65,7 +68,8 @@ export const pushNewBooking = (workerId, clientName, serviceTitle) =>
   sendPushToUser(workerId, {
     title: "New booking request",
     body: `${clientName} wants to book "${serviceTitle}"`,
-    icon: "https://www.uneden.ca/logo.png",
+    icon: PUSH_ICON_URL,
+    badge: PUSH_BADGE_URL,
     url: "/bookings",
     tag: "booking-new",
   });
@@ -79,7 +83,8 @@ export const pushBookingStatus = (clientId, status, serviceTitle) =>
         : status === "refused"
         ? `Your request for "${serviceTitle}" was declined.`
         : `Your booking for "${serviceTitle}" is now ${status}.`,
-    icon: "https://www.uneden.ca/logo.png",
+    icon: PUSH_ICON_URL,
+    badge: PUSH_BADGE_URL,
     url: "/bookings",
     tag: "booking-status",
   });
@@ -88,7 +93,8 @@ export const pushNewMessage = (recipientId, senderName) =>
   sendPushToUser(recipientId, {
     title: "New message",
     body: `${senderName} sent you a message`,
-    icon: "https://www.uneden.ca/logo.png",
+    icon: PUSH_ICON_URL,
+    badge: PUSH_BADGE_URL,
     url: "/messages",
     tag: "message-new",
   });

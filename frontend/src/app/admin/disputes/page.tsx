@@ -253,11 +253,12 @@ export default function AdminDisputesPage() {
     setSaveError("");
 
     try {
-      const parsedRefundAmount = refundClient && refundAmount.trim()
+      const hasRefundAmount = refundAmount.trim().length > 0;
+      const parsedRefundAmount = refundClient && hasRefundAmount
         ? Math.round(Number(refundAmount.replace(",", ".")) * 100)
-        : undefined;
+        : null;
 
-      if (refundClient && refundAmount.trim() && (!Number.isFinite(parsedRefundAmount) || parsedRefundAmount <= 0)) {
+      if (refundClient && hasRefundAmount && (!Number.isFinite(parsedRefundAmount ?? NaN) || (parsedRefundAmount ?? 0) <= 0)) {
         setSaveError(t("admin.disputes.invalidRefundAmount"));
         setSaving(false);
         return;
@@ -273,7 +274,7 @@ export default function AdminDisputesPage() {
           status: newStatus,
           resolution,
           refund_client: refundClient,
-          ...(parsedRefundAmount ? { refund_amount_cents: parsedRefundAmount } : {}),
+          ...(parsedRefundAmount !== null ? { refund_amount_cents: parsedRefundAmount } : {}),
         }),
       });
 

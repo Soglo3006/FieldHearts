@@ -5,10 +5,10 @@ import { useScrollLock } from "@/hooks/useScrollLock";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { supabase } from "@/lib/supabaseClient";
 import AppImage from "@/components/ui/AppImage";
 import { X, AlertTriangle, CheckCircle, ImagePlus, Loader2, ChevronLeft } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { uploadDisputeAttachments } from "@/lib/disputeAttachments";
 
 interface Props {
   bookingId: string;
@@ -56,19 +56,6 @@ export default function OpenDisputeModal({
     setPreviews(p => p.filter((_, i) => i !== idx));
   };
 
-  const uploadPhotos = async (disputeId: string) => {
-    const results: { url: string; name: string }[] = [];
-    for (const file of photos) {
-      const ext = file.name.split(".").pop();
-      const path = `${disputeId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-      const { error } = await supabase.storage.from("dispute-attachments").upload(path, file);
-      if (error) continue;
-      const { data } = supabase.storage.from("dispute-attachments").getPublicUrl(path);
-      results.push({ url: data.publicUrl, name: file.name });
-    }
-    return results;
-  };
-
   const handleSubmit = async () => {
     if (!isValid) {
       setError(t("bookings.openDisputeModal.descriptionTooShort"));
@@ -94,20 +81,25 @@ export default function OpenDisputeModal({
       let attachments: { url: string; name: string }[] = [];
       if (photos.length > 0) {
         setUploading(true);
-        attachments = await uploadPhotos(dispute.id);
+        attachments = await uploadDisputeAttachments({ disputeId: dispute.id, files: photos, accessToken });
         setUploading(false);
       }
 
-      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/disputes/${dispute.id}/messages`, {
+      const messageRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/disputes/${dispute.id}/messages`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
         body: JSON.stringify({ content: description.trim(), attachments }),
       });
+      if (!messageRes.ok) {
+        const data = await messageRes.json().catch(() => ({}));
+        setError(data.message ?? t("bookings.openDisputeModal.openFailed"));
+        return;
+      }
 
       setSuccess(true);
       setTimeout(() => { onOpened(bookingId); onClose(); }, 800);
-    } catch {
-      setError(t("bookings.openDisputeModal.networkError"));
+    } catch (error) {
+      setError(error instanceof Error ? error.message : t("bookings.openDisputeModal.networkError"));
     } finally {
       setSubmitting(false);
       setUploading(false);

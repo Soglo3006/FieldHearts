@@ -92,11 +92,11 @@ export async function processUserPayout(userId) {
             p.stripe_payment_intent_id
      FROM transactions t
      JOIN bookings b ON b.id = t.booking_id
-     JOIN payments p ON p.booking_id = t.booking_id AND p.status = 'paid'
+     JOIN payments p ON p.booking_id = t.booking_id AND p.status IN ('paid', 'refunded')
      WHERE t.user_id = $1
        AND t.type = 'credit'
        AND b.status = 'completed'
-       AND b.payment_status = 'paid'
+       AND b.payment_status IN ('paid', 'refunded')
        AND t.created_at <= $2
      ORDER BY t.created_at ASC`,
     [userId, eligibilityCutoff.toISOString()]
@@ -141,7 +141,7 @@ export async function processUserPayout(userId) {
         [row.booking_id]
       );
       await pool.query(
-        "UPDATE payments SET status = 'transferred', updated_at = NOW() WHERE booking_id = $1 AND status = 'paid'",
+        "UPDATE payments SET status = 'transferred', updated_at = NOW() WHERE booking_id = $1 AND status IN ('paid', 'refunded')",
         [row.booking_id]
       );
 
@@ -263,10 +263,10 @@ export async function processAllPayouts() {
     `SELECT DISTINCT t.user_id
      FROM transactions t
      JOIN bookings b ON b.id = t.booking_id
-     JOIN payments p ON p.booking_id = t.booking_id AND p.status = 'paid'
+     JOIN payments p ON p.booking_id = t.booking_id AND p.status IN ('paid', 'refunded')
      WHERE t.type = 'credit'
        AND b.status = 'completed'
-       AND b.payment_status = 'paid'
+       AND b.payment_status IN ('paid', 'refunded')
        AND t.created_at <= $1`,
     [eligibilityCutoff.toISOString()]
   );

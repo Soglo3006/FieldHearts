@@ -17,6 +17,8 @@ import {
   CheckCircle2,
   TrendingUp,
   TrendingDown,
+  X,
+  Banknote,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -169,6 +171,10 @@ export default function WalletPage() {
   const [connectLoading, setConnectLoading] = useState(false);
   const [detailBooking, setDetailBooking] = useState<{ booking: BookingDetail; role: "worker" | "client" } | null>(null);
   const [detailLoading, setDetailLoading] = useState<string | null>(null);
+  const [payoutModal, setPayoutModal] = useState<{ date: string; items: { booking_id: string; title: string; base_price: number; worker_amount: number }[]; total: number } | null>(null);
+  const [payoutLoading, setPayoutLoading] = useState<string | null>(null);
+  const [payoutItemLoading, setPayoutItemLoading] = useState<string | null>(null);
+  const [payoutView, setPayoutView] = useState<"list" | "detail">("list");
   const { startConversation } = useStartConversation();
 
   useEffect(() => {
@@ -217,6 +223,42 @@ export default function WalletPage() {
     } catch {
     } finally {
       setDetailLoading(null);
+    }
+  };
+
+  const handleOpenPayout = async (tx: Transaction) => {
+    if (!session?.access_token) return;
+    setPayoutLoading(tx.id);
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/wallet/payout-details?date=${encodeURIComponent(tx.created_at)}`,
+        { headers: { Authorization: `Bearer ${session.access_token}` } }
+      );
+      if (!res.ok) return;
+      const items = await res.json();
+      const total = items.reduce((sum: number, i: { worker_amount: number }) => sum + Number(i.worker_amount), 0);
+      setPayoutView("list");
+      setPayoutModal({ date: tx.created_at, items, total });
+    } catch {
+    } finally {
+      setPayoutLoading(null);
+    }
+  };
+
+  const handleOpenPayoutItem = async (bookingId: string) => {
+    if (!session?.access_token) return;
+    setPayoutItemLoading(bookingId);
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/bookings/${bookingId}`, {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      setDetailBooking({ booking: data as BookingDetail, role: "worker" });
+      setPayoutModal(null);
+    } catch {
+    } finally {
+      setPayoutItemLoading(null);
     }
   };
 
@@ -505,11 +547,17 @@ export default function WalletPage() {
             </CardContent>
           ) : (
             <ul className="divide-y divide-gray-100">
-              {transactions.map((tx) => (
+              {transactions.map((tx) => {
+                const isPayout = !tx.booking_id && tx.type === "debit" && tx.description?.toLowerCase().includes("versement");
+                const isClickable = !!tx.booking_id || isPayout;
+                return (
                 <li
                   key={tx.id}
-                  onClick={() => tx.booking_id && handleOpenBooking(tx)}
-                  className={`flex items-center gap-3 px-4 sm:px-5 py-3 sm:py-3.5 transition-colors ${tx.booking_id ? "cursor-pointer active:bg-gray-50 hover:bg-gray-50" : ""}`}
+                  onClick={() => {
+                    if (isPayout) handleOpenPayout(tx);
+                    else if (tx.booking_id) handleOpenBooking(tx);
+                  }}
+                  className={`flex items-center gap-3 px-4 sm:px-5 py-3 sm:py-3.5 transition-colors ${isClickable ? "cursor-pointer active:bg-gray-50 hover:bg-gray-50" : ""}`}
                 >
                   {/* Icon */}
                   <div
@@ -517,9 +565,11 @@ export default function WalletPage() {
                       tx.type === "credit" ? "bg-green-100" : "bg-red-100"
                     }`}
                   >
-                    {tx.type === "credit"
-                      ? <ArrowDownCircle className="h-4 w-4 sm:h-5 sm:w-5 text-green-600" />
-                      : <ArrowUpCircle className="h-4 w-4 sm:h-5 sm:w-5 text-red-500" />
+                    {isPayout
+                      ? <Banknote className="h-4 w-4 sm:h-5 sm:w-5 text-red-500" />
+                      : tx.type === "credit"
+                        ? <ArrowDownCircle className="h-4 w-4 sm:h-5 sm:w-5 text-green-600" />
+                        : <ArrowUpCircle className="h-4 w-4 sm:h-5 sm:w-5 text-red-500" />
                     }
                   </div>
 
@@ -544,19 +594,66 @@ export default function WalletPage() {
                     <span className={`text-sm font-bold ${tx.type === "credit" ? "text-green-700" : "text-red-600"}`}>
                       {tx.type === "credit" ? "+" : "−"}{fmt(tx.amount)}&nbsp;$
                     </span>
-                    {tx.booking_id && (
-                      detailLoading === tx.id
+                    {isClickable && (
+                      (detailLoading === tx.id || payoutLoading === tx.id)
                         ? <div className="h-4 w-4 rounded-full border-2 border-gray-300 border-t-gray-500 animate-spin" />
                         : <ChevronRight className="h-4 w-4 text-gray-400" />
                     )}
                   </div>
                 </li>
-              ))}
+                );
+              })}
             </ul>
           )}
         </Card>
 
       </main>
+
+      {/* Payout detail modal */}
+      {payoutModal && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-black/40 backdrop-blur-sm">
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-xl w-full sm:max-w-lg overflow-hidden flex flex-col max-h-[85vh] sm:max-h-[80vh]">
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 shrink-0">
+              <h2 className="text-base font-semibold text-gray-900">{t("wallet.payoutDetails")}</h2>
+              <button onClick={() => setPayoutModal(null)} className="text-gray-400 hover:text-gray-600">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            {/* Date */}
+            <div className="px-5 py-2.5 bg-gray-50 border-b border-gray-100 shrink-0">
+              <p className="text-xs text-gray-500">{formatDate(payoutModal.date, lang)}</p>
+            </div>
+            {/* Items */}
+            <div className="divide-y divide-gray-100 overflow-y-auto flex-1">
+              {payoutModal.items.length === 0 ? (
+                <p className="px-5 py-8 text-center text-sm text-gray-400">{t("wallet.noDetails")}</p>
+              ) : payoutModal.items.map((item) => (
+                <div
+                  key={item.booking_id}
+                  onClick={() => handleOpenPayoutItem(item.booking_id)}
+                  className="flex items-center gap-3 px-5 py-4 cursor-pointer hover:bg-gray-50 active:bg-gray-100 transition-colors"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-gray-900 truncate">{item.title}</p>
+                    <p className="text-xs text-gray-400 mt-0.5">{t("wallet.basePrice")} : {fmt(item.base_price)} $</p>
+                  </div>
+                  <span className="text-sm font-bold text-green-700 shrink-0">+{fmt(item.worker_amount)} $</span>
+                  {payoutItemLoading === item.booking_id
+                    ? <div className="h-4 w-4 rounded-full border-2 border-gray-300 border-t-gray-500 animate-spin shrink-0" />
+                    : <ChevronRight className="h-4 w-4 text-gray-400 shrink-0" />
+                  }
+                </div>
+              ))}
+            </div>
+            {/* Total */}
+            <div className="flex items-center justify-between px-5 py-4 border-t border-gray-200 bg-gray-50 shrink-0">
+              <span className="text-sm font-semibold text-gray-700">{t("wallet.totalPayout")}</span>
+              <span className="text-base font-bold text-gray-900">−{fmt(payoutModal.total)} $</span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {detailBooking && session?.access_token && (
         <BookingDetailModal

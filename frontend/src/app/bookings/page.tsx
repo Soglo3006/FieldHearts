@@ -17,7 +17,7 @@ import SentBookingsList from "@/components/bookings/SentBookingsList";
 import { ReceivedBooking, SentBooking, BookingStatus } from "@/components/bookings/bookingTypes";
 import { Spinner } from "@/components/ui/Spinner";
 import AppImage from "@/components/ui/AppImage";
-import { getTaxRate } from "@/lib/taxes";
+import { getBookingDisputeFinancialOutcome } from "@/lib/disputeFinancials";
 import { getIntlLocale } from "@/lib/locale";
 
 function LoadingSkeleton() {
@@ -436,24 +436,37 @@ function BookingsContent() {
                 <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">{t("bookings.servicesRendered")}</h2>
                 <div className="space-y-3">
                   {completedReceived.map((b) => (
-                    <div
-                      key={b.id}
-                      className="bg-white border border-gray-200 rounded-xl p-4 flex items-center gap-4 cursor-pointer hover:border-gray-300 transition-colors"
-                      onClick={() => setDetailBooking({ booking: b as BookingDetail, role: "worker" })}
-                    >
-                      {b.image_url && (
-                        <AppImage src={b.image_url} alt={b.title} width={56} height={56} className="h-14 w-14 rounded-lg object-cover shrink-0" />
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-gray-900 truncate">{b.title}</p>
-                        <p className="text-sm text-gray-500">{t("bookings.clientLabel")} : {("client_name" in b ? (b as ReceivedBooking).client_name : (b as SentBooking).worker_name)}</p>
-                        <p className="text-xs text-gray-400">{new Date(b.created_at).toLocaleDateString(bookingDateLocale, { year: "numeric", month: "long", day: "numeric" })}</p>
-                      </div>
-                      <div className="text-right shrink-0">
-                        <p className="font-semibold text-green-700">+{(Number(b.custom_price ?? b.price) * 0.80).toFixed(2)} $</p>
-                        <span className="inline-block mt-1 text-xs bg-green-100 text-green-800 border border-green-200 rounded-full px-2 py-0.5">{t("bookings.done")}</span>
-                      </div>
-                    </div>
+                    (() => {
+                      const outcome = getBookingDisputeFinancialOutcome(b);
+                      const finalAmount = outcome.finalWorkerReceives ?? outcome.workerReceivesOriginal;
+
+                      return (
+                        <div
+                          key={b.id}
+                          className="bg-white border border-gray-200 rounded-xl p-4 flex items-center gap-4 cursor-pointer hover:border-gray-300 transition-colors"
+                          onClick={() => setDetailBooking({ booking: b as BookingDetail, role: "worker" })}
+                        >
+                          {b.image_url && (
+                            <AppImage src={b.image_url} alt={b.title} width={56} height={56} className="h-14 w-14 rounded-lg object-cover shrink-0" />
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-gray-900 truncate">{b.title}</p>
+                            <p className="text-sm text-gray-500">{t("bookings.clientLabel")} : {("client_name" in b ? (b as ReceivedBooking).client_name : (b as SentBooking).worker_name)}</p>
+                            <p className="text-xs text-gray-400">{new Date(b.created_at).toLocaleDateString(bookingDateLocale, { year: "numeric", month: "long", day: "numeric" })}</p>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <p className="font-semibold text-green-700">+{finalAmount.toFixed(2)} $</p>
+                            {outcome.hasFinancialAdjustment && outcome.finalWorkerReceives !== null && (
+                              <>
+                                <p className="text-xs text-gray-400 line-through">+{outcome.workerReceivesOriginal.toFixed(2)} $</p>
+                                <p className="text-xs text-amber-700">{t("bookings.finalAfterDispute")}</p>
+                              </>
+                            )}
+                            <span className="inline-block mt-1 text-xs bg-green-100 text-green-800 border border-green-200 rounded-full px-2 py-0.5">{t("bookings.done")}</span>
+                          </div>
+                        </div>
+                      );
+                    })()
                   ))}
                 </div>
               </div>
@@ -463,33 +476,46 @@ function BookingsContent() {
                 <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">{t("bookings.servicesReceived")}</h2>
                 <div className="space-y-3">
                   {completedSent.map((b) => (
-                    <div
-                      key={b.id}
-                      className="bg-white border border-gray-200 rounded-xl p-4 flex items-center gap-4 cursor-pointer hover:border-gray-300 transition-colors"
-                      onClick={() => setDetailBooking({ booking: b as BookingDetail, role: "client" })}
-                    >
-                      {b.image_url && (
-                        <AppImage src={b.image_url} alt={b.title} width={56} height={56} className="h-14 w-14 rounded-lg object-cover shrink-0" />
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-gray-900 truncate">{b.title}</p>
-                        <p className="text-sm text-gray-500">{t("bookings.providerLabel")} : {("worker_name" in b ? (b as SentBooking).worker_name : (b as ReceivedBooking).client_name)}</p>
-                        <p className="text-xs text-gray-400">{new Date(b.created_at).toLocaleDateString(bookingDateLocale, { year: "numeric", month: "long", day: "numeric" })}</p>
-                      </div>
-                      <div className="text-right shrink-0">
-                        <p className="font-semibold text-red-600">-{(Number(b.custom_price ?? b.price) * (1 + 0.05 + (b.tax_rate ? Number(b.tax_rate) : getTaxRate(b.client_province ?? "QC")))).toFixed(2)} $</p>
-                        <span className="inline-block mt-1 text-xs bg-green-100 text-green-800 border border-green-200 rounded-full px-2 py-0.5">{t("bookings.done")}</span>
-                        {!b.has_reviewed && (
-                          <button
-                            type="button"
-                            onClick={(e) => { e.stopPropagation(); setReviewBooking({ id: b.id, targetName: ("worker_name" in b ? (b as SentBooking).worker_name : (b as ReceivedBooking).client_name) }); }}
-                            className="block mt-1 text-xs text-green-700 hover:underline"
-                          >
-                            {t("bookings.leaveReview")}
-                          </button>
-                        )}
-                      </div>
-                    </div>
+                    (() => {
+                      const outcome = getBookingDisputeFinancialOutcome(b);
+                      const finalAmount = outcome.finalClientPaid ?? outcome.totalPaidOriginal;
+
+                      return (
+                        <div
+                          key={b.id}
+                          className="bg-white border border-gray-200 rounded-xl p-4 flex items-center gap-4 cursor-pointer hover:border-gray-300 transition-colors"
+                          onClick={() => setDetailBooking({ booking: b as BookingDetail, role: "client" })}
+                        >
+                          {b.image_url && (
+                            <AppImage src={b.image_url} alt={b.title} width={56} height={56} className="h-14 w-14 rounded-lg object-cover shrink-0" />
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-gray-900 truncate">{b.title}</p>
+                            <p className="text-sm text-gray-500">{t("bookings.providerLabel")} : {("worker_name" in b ? (b as SentBooking).worker_name : (b as ReceivedBooking).client_name)}</p>
+                            <p className="text-xs text-gray-400">{new Date(b.created_at).toLocaleDateString(bookingDateLocale, { year: "numeric", month: "long", day: "numeric" })}</p>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <p className="font-semibold text-red-600">-{finalAmount.toFixed(2)} $</p>
+                            {outcome.hasFinancialAdjustment && outcome.finalClientPaid !== null && (
+                              <>
+                                <p className="text-xs text-gray-400 line-through">-{outcome.totalPaidOriginal.toFixed(2)} $</p>
+                                <p className="text-xs text-amber-700">{t("bookings.finalAfterDispute")}</p>
+                              </>
+                            )}
+                            <span className="inline-block mt-1 text-xs bg-green-100 text-green-800 border border-green-200 rounded-full px-2 py-0.5">{t("bookings.done")}</span>
+                            {!b.has_reviewed && (
+                              <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); setReviewBooking({ id: b.id, targetName: ("worker_name" in b ? (b as SentBooking).worker_name : (b as ReceivedBooking).client_name) }); }}
+                                className="block mt-1 text-xs text-green-700 hover:underline"
+                              >
+                                {t("bookings.leaveReview")}
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })()
                   ))}
                 </div>
               </div>

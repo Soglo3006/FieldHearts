@@ -1,7 +1,65 @@
 import pool from "../config/db.js";
+import { supabaseAdmin } from "../lib/supabase.js";
 import { notifyDisputeCreated, notifyDisputeOutcome } from "../services/emailService.js";
 import { createLocalizedNotification, shouldSendEmail } from "../services/notificationService.js";
 import { buildRefundSummary, processBookingRefund } from "../services/refundService.js";
+
+const DISPUTE_ATTACHMENTS_BUCKET = "dispute-attachments";
+const MAX_DISPUTE_ATTACHMENTS = 4;
+
+function sanitizeAttachmentName(fileName = "attachment") {
+    return fileName
+        .normalize("NFKD")
+        .replace(/[^a-zA-Z0-9._-]+/g, "-")
+        .replace(/-+/g, "-")
+        .replace(/^-|-$/g, "")
+        .slice(0, 80) || "attachment";
+}
+
+function getAttachmentExtension(file) {
+    const fromName = file.originalname?.split(".").pop()?.trim().toLowerCase();
+    if (fromName) return fromName;
+
+    const fromType = file.mimetype?.split("/").pop()?.trim().toLowerCase();
+    if (fromType === "jpeg") return "jpg";
+    return fromType || "bin";
+}
+
+function normalizeDisputeAttachments(attachments) {
+    if (!Array.isArray(attachments)) return [];
+
+    return attachments
+        .filter((attachment) => attachment && typeof attachment.url === "string" && typeof attachment.name === "string")
+        .slice(0, MAX_DISPUTE_ATTACHMENTS)
+        .map((attachment) => ({
+            url: attachment.url.trim(),
+            name: attachment.name.trim(),
+        }))
+        .filter((attachment) => attachment.url && attachment.name);
+}
+
+async function getDisputeWithParticipants(disputeId) {
+    const dispute = await pool.query(
+        `SELECT d.*, b.client_id, b.worker_id
+         FROM disputes d
+         JOIN bookings b ON d.booking_id = b.id
+         WHERE d.id = $1`,
+        [disputeId]
+    );
+
+    return dispute.rows[0] || null;
+}
+
+async function getDisputeAttachmentCount(disputeId) {
+    const result = await pool.query(
+        `SELECT COALESCE(SUM(jsonb_array_length(COALESCE(attachments, '[]'::jsonb))), 0) AS attachment_count
+         FROM dispute_messages
+         WHERE dispute_id = $1`,
+        [disputeId]
+    );
+
+    return Number(result.rows[0]?.attachment_count || 0);
+}
 
 export const CreateDispute = async (req, res) => {
     try {
@@ -134,7 +192,7 @@ export const GetDisputeByBooking = async (req, res) => {
         const d = dispute.rows[0];
 
         const messages = await pool.query(
-            `SELECT dm.*,
+            `SELECT dm.*, COALESCE(dm.attachments, '[]'::jsonb) AS attachments,
                 CASE WHEN u.account_type = 'company' THEN u.company_name ELSE u.full_name END AS sender_name,
                 u.account_type AS sender_account_type
              FROM dispute_messages dm
@@ -151,36 +209,111 @@ export const GetDisputeByBooking = async (req, res) => {
     }
 };
 
+export const UploadDisputeAttachments = async (req, res) => {
+    const uploadedPaths = [];
+
+    try {
+        const { disputeId } = req.params;
+        const userId = req.user.id;
+        const files = Array.isArray(req.files) ? req.files : [];
+
+        if (files.length === 0) {
+            return res.status(400).json({ message: "No files uploaded" });
+        }
+
+        const dispute = await getDisputeWithParticipants(disputeId);
+        if (!dispute) {
+            return res.status(404).json({ message: "Dispute not found" });
+        }
+        if (dispute.client_id !== userId && dispute.worker_id !== userId) {
+            return res.status(403).json({ message: "Not authorized" });
+        }
+        if (dispute.status !== "open") {
+            return res.status(400).json({ message: "This dispute is closed. No more files can be uploaded." });
+        }
+
+        const existingAttachmentCount = await getDisputeAttachmentCount(disputeId);
+        const remainingAttachmentSlots = MAX_DISPUTE_ATTACHMENTS - existingAttachmentCount;
+        if (remainingAttachmentSlots <= 0) {
+            return res.status(400).json({ message: `This dispute already has the maximum of ${MAX_DISPUTE_ATTACHMENTS} photos.` });
+        }
+        if (files.length > remainingAttachmentSlots) {
+            return res.status(400).json({
+                message: `You can only add ${remainingAttachmentSlots} more photo${remainingAttachmentSlots > 1 ? "s" : ""} to this dispute.`,
+            });
+        }
+
+        const attachments = [];
+
+        for (const [index, file] of files.entries()) {
+            const extension = getAttachmentExtension(file);
+            const baseName = sanitizeAttachmentName(file.originalname?.replace(/\.[^.]+$/, "") || `attachment-${index + 1}`);
+            const path = `${disputeId}/${userId}/${Date.now()}-${index}-${baseName}.${extension}`;
+
+            const { error } = await supabaseAdmin.storage
+                .from(DISPUTE_ATTACHMENTS_BUCKET)
+                .upload(path, file.buffer, {
+                    contentType: file.mimetype,
+                    upsert: false,
+                });
+
+            if (error) {
+                throw error;
+            }
+
+            uploadedPaths.push(path);
+            const { data } = supabaseAdmin.storage.from(DISPUTE_ATTACHMENTS_BUCKET).getPublicUrl(path);
+            attachments.push({
+                url: data.publicUrl,
+                name: file.originalname,
+            });
+        }
+
+        return res.status(201).json({ attachments });
+    } catch (err) {
+        if (uploadedPaths.length > 0) {
+            await supabaseAdmin.storage.from(DISPUTE_ATTACHMENTS_BUCKET).remove(uploadedPaths).catch(() => {});
+        }
+
+        console.error(err);
+        return res.status(500).json({ message: "Server error while uploading dispute attachments" });
+    }
+};
+
 export const PostDisputeMessage = async (req, res) => {
     try {
         const { disputeId } = req.params;
         const { content, attachments } = req.body;
         const userId = req.user.id;
+        const normalizedAttachments = normalizeDisputeAttachments(attachments);
 
-        if (!content?.trim() && (!attachments || attachments.length === 0)) {
+        if (!content?.trim() && normalizedAttachments.length === 0) {
             return res.status(400).json({ message: "Message cannot be empty" });
         }
 
         // Verify dispute exists and user is part of it
-        const dispute = await pool.query(
-            `SELECT d.*, b.client_id, b.worker_id
-             FROM disputes d JOIN bookings b ON d.booking_id = b.id
-             WHERE d.id = $1`,
-            [disputeId]
-        );
-        if (dispute.rows.length === 0) return res.status(404).json({ message: "Dispute not found" });
-        const d = dispute.rows[0];
+        const d = await getDisputeWithParticipants(disputeId);
+        if (!d) return res.status(404).json({ message: "Dispute not found" });
         if (d.client_id !== userId && d.worker_id !== userId) {
             return res.status(403).json({ message: "Not authorized" });
         }
         if (d.status !== 'open') {
             return res.status(400).json({ message: "This dispute is closed. No more messages can be sent." });
         }
+        const existingAttachmentCount = await getDisputeAttachmentCount(disputeId);
+        if (existingAttachmentCount + normalizedAttachments.length > MAX_DISPUTE_ATTACHMENTS) {
+            const remainingAttachmentSlots = Math.max(0, MAX_DISPUTE_ATTACHMENTS - existingAttachmentCount);
+            return res.status(400).json({
+                message: remainingAttachmentSlots > 0
+                    ? `You can only add ${remainingAttachmentSlots} more photo${remainingAttachmentSlots > 1 ? "s" : ""} to this dispute.`
+                    : `This dispute already has the maximum of ${MAX_DISPUTE_ATTACHMENTS} photos.`,
+            });
+        }
 
         const result = await pool.query(
             `INSERT INTO dispute_messages (dispute_id, user_id, content, attachments)
              VALUES ($1, $2, $3, $4) RETURNING *`,
-            [disputeId, userId, content?.trim() || '', JSON.stringify(attachments || [])]
+            [disputeId, userId, content?.trim() || '', JSON.stringify(normalizedAttachments)]
         );
 
         const msg = result.rows[0];
@@ -239,10 +372,11 @@ export const AdminGetDisputeDetail = async (req, res) => {
         const disputeResult = await pool.query(
             `SELECT
                 d.id, d.status, d.description, d.resolution, d.created_at,
-                d.booking_id, d.raised_by,
+                d.booking_id, d.raised_by, d.refund_percentage,
                 b.status AS booking_status,
                 b.payment_status,
                 b.completed_at,
+                b.tax_rate,
                 b.created_at AS booking_created_at,
                 b.service_id,
                 COALESCE(b.custom_price, s.price) AS booking_price,
@@ -285,7 +419,7 @@ export const AdminGetDisputeDetail = async (req, res) => {
 
         const detail = disputeResult.rows[0];
         const messages = await pool.query(
-            `SELECT dm.*, COALESCE(dm.attachments, '[]'::json) AS attachments,
+                `SELECT dm.*, COALESCE(dm.attachments, '[]'::jsonb) AS attachments,
                     CASE WHEN u.account_type = 'company' THEN u.company_name ELSE u.full_name END AS sender_name,
                     u.email AS sender_email
              FROM dispute_messages dm
@@ -301,6 +435,7 @@ export const AdminGetDisputeDetail = async (req, res) => {
                 status: detail.status,
                 description: detail.description,
                 resolution: detail.resolution,
+                refund_percentage: detail.refund_percentage ? Number(detail.refund_percentage) : null,
                 created_at: detail.created_at,
                 booking_id: detail.booking_id,
                 raised_by: detail.raised_by,
@@ -339,10 +474,10 @@ export const AdminGetDisputeDetail = async (req, res) => {
                 created_at: detail.payment_created_at,
             } : null,
             refund_summary: detail.payment_id && ["paid", "transferred"].includes(detail.payment_record_status)
-                ? buildRefundSummary({
-                    amount: detail.payment_amount,
-                    platform_fee: detail.platform_fee,
-                })
+                ? buildRefundSummary(
+                    { amount: detail.payment_amount, platform_fee: detail.platform_fee },
+                    detail.booking_price
+                )
                 : null,
             messages: messages.rows,
         });
@@ -355,7 +490,7 @@ export const AdminGetDisputeDetail = async (req, res) => {
 export const AdminUpdateDispute = async (req, res) => {
     try {
         const { id } = req.params;
-        const { status, resolution, refund_client, refund_amount_cents } = req.body;
+        const { status, resolution, refund_percentage } = req.body;
 
         const allowed = ["open", "resolved", "rejected"];
         if (!allowed.includes(status)) {
@@ -365,6 +500,16 @@ export const AdminUpdateDispute = async (req, res) => {
         const normalizedResolution = resolution?.trim() || null;
         if (status !== "open" && !normalizedResolution) {
             return res.status(400).json({ message: "Resolution notes are required when closing a dispute" });
+        }
+
+        // Validate refund percentage when resolving
+        const parsedPct = refund_percentage !== undefined && refund_percentage !== null
+            ? Number(refund_percentage)
+            : null;
+        if (status === "resolved" && parsedPct !== null) {
+            if (!Number.isFinite(parsedPct) || parsedPct < 50 || parsedPct > 100) {
+                return res.status(400).json({ message: "Refund percentage must be between 50 and 100" });
+            }
         }
 
         const dispute = await pool.query(
@@ -389,29 +534,30 @@ export const AdminUpdateDispute = async (req, res) => {
         const currentDispute = dispute.rows[0];
 
         let refundResult = null;
-        if (status === "resolved" && refund_client) {
+        if (status === "resolved" && parsedPct !== null) {
             refundResult = await processBookingRefund({
                 bookingId: currentDispute.booking_id,
-                refundAmountCents: refund_amount_cents,
+                refundPercentage: parsedPct,
                 cancelBooking: false,
             });
 
+            const totalRefundDollars = (refundResult.total_client_refund_cents / 100).toFixed(2);
             createLocalizedNotification({
                 userId: currentDispute.client_id,
                 type: "payment",
                 link: "/wallet",
-                en: { title: "Refund processed", body: `A refund of $${(refundResult.refunded_amount_cents / 100).toFixed(2)} has been processed after your dispute.` },
-                fr: { title: "Remboursement effectué", body: `Un remboursement de ${(refundResult.refunded_amount_cents / 100).toFixed(2)} $ a été traité après votre litige.` },
+                en: { title: "Refund processed", body: `A refund of $${totalRefundDollars} has been processed after your dispute.` },
+                fr: { title: "Remboursement effectué", body: `Un remboursement de ${totalRefundDollars} $ a été traité après votre litige.` },
             });
         }
 
         const result = await pool.query(
-            `UPDATE disputes SET status = $1, resolution = $2 WHERE id = $3 RETURNING *`,
-            [status, normalizedResolution, id]
+            `UPDATE disputes SET status = $1, resolution = $2, refund_percentage = $3 WHERE id = $4 RETURNING *`,
+            [status, normalizedResolution, status === "resolved" ? parsedPct : null, id]
         );
 
         if (status !== "open") {
-            const refundedAmount = refundResult ? (refundResult.refunded_amount_cents / 100).toFixed(2) : null;
+            const refundedAmount = refundResult ? (refundResult.total_client_refund_cents / 100).toFixed(2) : null;
 
             createLocalizedNotification({
                 userId: currentDispute.client_id,

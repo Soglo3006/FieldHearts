@@ -131,6 +131,7 @@ export const getMyBookings = async (req, res) => {
               d.dispute_status,
               d.dispute_resolution,
               d.dispute_created_at,
+              d.dispute_refund_percentage,
               CASE
                 WHEN s.hide_exact_location = true AND s.user_id <> $1
                   THEN COALESCE(NULLIF(TRIM(s.city), ''), NULLIF(TRIM(s.location), ''), NULLIF(TRIM(s.address), ''))
@@ -152,7 +153,7 @@ export const getMyBookings = async (req, res) => {
        JOIN users u ON b.worker_id = u.id
        JOIN users w ON b.client_id = w.id
        LEFT JOIN LATERAL (
-         SELECT d1.id AS dispute_id, d1.status AS dispute_status, d1.resolution AS dispute_resolution, d1.created_at AS dispute_created_at
+         SELECT d1.id AS dispute_id, d1.status AS dispute_status, d1.resolution AS dispute_resolution, d1.created_at AS dispute_created_at, d1.refund_percentage AS dispute_refund_percentage
          FROM disputes d1
          WHERE d1.booking_id = b.id
          ORDER BY d1.created_at DESC
@@ -181,6 +182,7 @@ export const getReceivedBookings = async (req, res) => {
               d.dispute_status,
               d.dispute_resolution,
               d.dispute_created_at,
+              d.dispute_refund_percentage,
               CASE
                 WHEN s.hide_exact_location = true AND s.user_id <> $1
                   THEN COALESCE(NULLIF(TRIM(s.city), ''), NULLIF(TRIM(s.location), ''), NULLIF(TRIM(s.address), ''))
@@ -202,7 +204,7 @@ export const getReceivedBookings = async (req, res) => {
        JOIN users uc ON b.client_id = uc.id
        JOIN users uw ON b.worker_id = uw.id
        LEFT JOIN LATERAL (
-         SELECT d1.id AS dispute_id, d1.status AS dispute_status, d1.resolution AS dispute_resolution, d1.created_at AS dispute_created_at
+         SELECT d1.id AS dispute_id, d1.status AS dispute_status, d1.resolution AS dispute_resolution, d1.created_at AS dispute_created_at, d1.refund_percentage AS dispute_refund_percentage
          FROM disputes d1
          WHERE d1.booking_id = b.id
          ORDER BY d1.created_at DESC
@@ -555,6 +557,7 @@ export const getBookingById = async (req, res) => {
               d.dispute_status,
               d.dispute_resolution,
               d.dispute_created_at,
+              d.dispute_refund_percentage,
               CASE
                 WHEN s.hide_exact_location = true AND s.user_id <> $2
                   THEN COALESCE(NULLIF(TRIM(s.city), ''), NULLIF(TRIM(s.location), ''), NULLIF(TRIM(s.address), ''))
@@ -575,7 +578,7 @@ export const getBookingById = async (req, res) => {
        JOIN users uw ON b.worker_id = uw.id
        JOIN users uc ON b.client_id = uc.id
        LEFT JOIN LATERAL (
-         SELECT d1.id AS dispute_id, d1.status AS dispute_status, d1.resolution AS dispute_resolution, d1.created_at AS dispute_created_at
+         SELECT d1.id AS dispute_id, d1.status AS dispute_status, d1.resolution AS dispute_resolution, d1.created_at AS dispute_created_at, d1.refund_percentage AS dispute_refund_percentage
          FROM disputes d1
          WHERE d1.booking_id = b.id
          ORDER BY d1.created_at DESC
@@ -590,6 +593,57 @@ export const getBookingById = async (req, res) => {
     res.json(result.rows[0]);
   } catch (err) {
     console.error(err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+export const getAdminBookingById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await pool.query(
+      `SELECT b.*, s.title, s.price, s.image_url, s.image_urls, s.category,
+              d.dispute_id,
+              d.dispute_status,
+              d.dispute_resolution,
+              d.dispute_created_at,
+              d.dispute_refund_percentage,
+              COALESCE(NULLIF(TRIM(s.address), ''), NULLIF(TRIM(s.location), ''), NULLIF(TRIM(s.city), '')) AS service_location,
+              s.is_one_time, s.type AS service_type,
+              CASE WHEN uw.account_type = 'company' THEN uw.company_name ELSE uw.full_name END AS worker_name,
+              CASE WHEN uc.account_type = 'company' THEN uc.company_name ELSE uc.full_name END AS client_name,
+              uc.email AS client_email,
+              uw.email AS worker_email,
+              uc.province AS client_province,
+              uw.province AS worker_province,
+              uc.avatar AS client_avatar_url,
+              uw.avatar AS worker_avatar_url,
+              FALSE AS has_reviewed,
+              (d.dispute_id IS NOT NULL) AS has_dispute,
+              b.payment_status, b.completed_by_worker, b.completed_by_client,
+              b.worker_note, b.custom_price, b.last_modified_at, b.modified_fields,
+              b.cancel_requested_by, b.cancel_reason, b.completed_at
+       FROM bookings b
+       JOIN services s ON b.service_id = s.id
+       JOIN users uw ON b.worker_id = uw.id
+       JOIN users uc ON b.client_id = uc.id
+       LEFT JOIN LATERAL (
+         SELECT d1.id AS dispute_id, d1.status AS dispute_status, d1.resolution AS dispute_resolution, d1.created_at AS dispute_created_at, d1.refund_percentage AS dispute_refund_percentage
+         FROM disputes d1
+         WHERE d1.booking_id = b.id
+         ORDER BY d1.created_at DESC
+         LIMIT 1
+       ) d ON true
+       WHERE b.id = $1`,
+      [id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: "Booking not found" });
+    }
+
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error("getAdminBookingById error:", err);
     res.status(500).json({ message: "Server error" });
   }
 };

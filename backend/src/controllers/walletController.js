@@ -23,11 +23,22 @@ export const getWallet = async (req, res) => {
     );
 
     const result = await pool.query(
-      "SELECT balance, total_earned, total_spent FROM wallets WHERE user_id = $1",
+      "SELECT balance, total_spent FROM wallets WHERE user_id = $1",
       [userId]
     );
 
-    const wallet = result.rows[0] ?? { balance: 0, total_earned: 0, total_spent: 0 };
+    const wallet = result.rows[0] ?? { balance: 0, total_spent: 0 };
+
+    // Compute total_earned from credit transactions where user is the worker
+    // This always reflects refund adjustments (credit amount is reduced by refundService)
+    const earnedResult = await pool.query(
+      `SELECT COALESCE(SUM(t.amount), 0) AS total_earned
+       FROM transactions t
+       JOIN bookings b ON b.id = t.booking_id
+       WHERE t.user_id = $1 AND t.type = 'credit' AND b.worker_id = $1`,
+      [userId]
+    );
+    const total_earned = Number(earnedResult.rows[0]?.total_earned ?? 0);
 
     // ── Payout breakdown ──────────────────────────────────────────────────────
     // Dispute window: 3 calendar days after completion
@@ -35,33 +46,36 @@ export const getWallet = async (req, res) => {
     const disputeWindowDays = 3;
     const disputeCutoff = new Date(Date.now() - disputeWindowDays * 24 * 60 * 60 * 1000);
 
-    // Available for payout: completed > 3 days ago AND no open dispute
+    // Available for payout: no open dispute AND (completed > 3 days ago OR dispute was closed)
     const availableResult = await pool.query(
       `SELECT COALESCE(SUM(t.amount), 0) AS total
        FROM transactions t
        JOIN bookings b ON b.id = t.booking_id
-       JOIN payments p ON p.booking_id = t.booking_id AND p.status = 'paid'
+       JOIN payments p ON p.booking_id = t.booking_id AND p.status IN ('paid', 'refunded')
        WHERE t.user_id = $1
          AND t.type = 'credit'
          AND b.status = 'completed'
-         AND b.payment_status = 'paid'
-         AND b.completed_at <= $2
-         AND NOT EXISTS (SELECT 1 FROM disputes d WHERE d.booking_id = b.id AND d.status = 'open')`,
+         AND b.payment_status IN ('paid', 'refunded')
+         AND NOT EXISTS (SELECT 1 FROM disputes d WHERE d.booking_id = b.id AND d.status = 'open')
+         AND (
+           b.completed_at <= $2
+           OR EXISTS (SELECT 1 FROM disputes d WHERE d.booking_id = b.id AND d.status IN ('resolved', 'rejected'))
+         )`,
       [userId, disputeCutoff.toISOString()]
     );
 
-    // Pending: completed within last 3 days OR has an open dispute
+    // Pending: completed within last 3 days AND no closed dispute AND no open dispute resolved
     const pendingResult = await pool.query(
       `SELECT COALESCE(SUM(t.amount), 0) AS total
        FROM transactions t
        JOIN bookings b ON b.id = t.booking_id
-       JOIN payments p ON p.booking_id = t.booking_id AND p.status = 'paid'
+       JOIN payments p ON p.booking_id = t.booking_id AND p.status IN ('paid', 'refunded')
        WHERE t.user_id = $1
          AND t.type = 'credit'
          AND b.status = 'completed'
-         AND b.payment_status = 'paid'
+         AND b.payment_status IN ('paid', 'refunded')
          AND (
-           b.completed_at > $2
+           (b.completed_at > $2 AND NOT EXISTS (SELECT 1 FROM disputes d WHERE d.booking_id = b.id))
            OR EXISTS (SELECT 1 FROM disputes d WHERE d.booking_id = b.id AND d.status = 'open')
          )`,
       [userId, disputeCutoff.toISOString()]
@@ -75,6 +89,7 @@ export const getWallet = async (req, res) => {
 
     res.json({
       ...wallet,
+      total_earned,
       available_for_payout: availableForPayout,
       pending_amount: pendingAmount,
       commission_amount: 0,
@@ -128,7 +143,7 @@ export const exportTransactions = async (req, res) => {
          TO_CHAR(t.created_at AT TIME ZONE 'America/Toronto', 'YYYY-MM-DD') AS "Date",
          TO_CHAR(t.created_at AT TIME ZONE 'America/Toronto', 'HH24:MI:SS') AS "Heure",
          'CA'                                                              AS "Pays",
-         COALESCE(b.worker_province, 'QC')                                AS "Province",
+         COALESCE(uw.province, 'QC')                                      AS "Province",
          t.booking_id                                                      AS "ID Réservation",
          CASE t.type WHEN 'debit' THEN 'Paiement client' ELSE 'Crédit prestataire' END AS "Type",
          COALESCE(p.full_name, p.company_name, 'Unknown')                 AS "Utilisateur",
@@ -146,6 +161,7 @@ export const exportTransactions = async (req, res) => {
        FROM transactions t
        LEFT JOIN users p ON p.id = t.user_id
        LEFT JOIN bookings b ON b.id = t.booking_id
+       LEFT JOIN users uw ON uw.id = b.worker_id
        WHERE 1=1 ${dateFilter}
        ORDER BY t.created_at DESC`
     );
@@ -189,6 +205,39 @@ export const exportTransactions = async (req, res) => {
     res.send(buf);
   } catch (err) {
     console.error("exportTransactions error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+export const getPayoutDetails = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { date } = req.query;
+    if (!date) return res.status(400).json({ message: "date required" });
+
+    // Find credit transactions created within ±12 hours of the payout debit date
+    const from = new Date(new Date(date).getTime() - 12 * 60 * 60 * 1000);
+    const to   = new Date(new Date(date).getTime() + 12 * 60 * 60 * 1000);
+
+    const result = await pool.query(
+      `SELECT b.id AS booking_id, s.title, COALESCE(b.custom_price, s.price) AS base_price,
+              t.amount AS worker_amount
+       FROM transactions t
+       JOIN bookings b ON b.id = t.booking_id
+       JOIN services s ON s.id = b.service_id
+       JOIN payments p ON p.booking_id = b.id AND p.status = 'transferred'
+       WHERE t.user_id = $1
+         AND t.type = 'credit'
+         AND b.worker_id = $1
+         AND b.status = 'completed'
+         AND b.payment_status = 'transferred'
+         AND p.updated_at BETWEEN $2 AND $3`,
+      [userId, from.toISOString(), to.toISOString()]
+    );
+
+    res.json(result.rows);
+  } catch (err) {
+    console.error("getPayoutDetails error:", err);
     res.status(500).json({ message: "Server error" });
   }
 };

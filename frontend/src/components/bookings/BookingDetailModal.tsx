@@ -20,19 +20,15 @@ import WorkerCustomizeSection from "./WorkerCustomizeSection";
 import BookingDetailFooter from "./BookingDetailFooter";
 import { useTranslation } from "react-i18next";
 import { getTaxRate, getTaxLabel, formatTaxRate } from "@/lib/taxes";
+import { uploadDisputeAttachments, type DisputeAttachment } from "@/lib/disputeAttachments";
+import { getBookingDisputeFinancialOutcome } from "@/lib/disputeFinancials";
 import { getIntlLocale } from "@/lib/locale";
 import { sanitizePlainText } from "@/lib/sanitize";
-import { supabase } from "@/lib/supabaseClient";
 import AppImage from "@/components/ui/AppImage";
 import PaymentInlinePanel from "@/components/payment/PaymentInlinePanel";
 
 type BookingStatus = "pending" | "accepted" | "active" | "completed" | "cancelled" | "rejected";
 type BookingStep = "detail" | "payment" | "review" | "dispute";
-
-interface DisputeAttachment {
-  url: string;
-  name: string;
-}
 
 export interface BookingDetail {
   id: string;
@@ -71,6 +67,7 @@ export interface BookingDetail {
   dispute_status?: "open" | "resolved" | "rejected" | null;
   dispute_resolution?: string | null;
   dispute_created_at?: string | null;
+  dispute_refund_percentage?: number | null;
 }
 
 interface Props {
@@ -225,6 +222,38 @@ export default function BookingDetailModal({
   const disputeIsValid = disputeDescription.trim().length >= 20;
   const disputeStatus = booking.dispute_status ?? (booking.has_dispute ? "open" : null);
   const disputeIsClosed = disputeStatus === "resolved" || disputeStatus === "rejected";
+  const disputeFinancialOutcome = getBookingDisputeFinancialOutcome(booking);
+  const displayStatusBadge = (() => {
+    if (booking.status === "completed" && disputeIsClosed) {
+      if (disputeFinancialOutcome.refundType === "full") {
+        return { label: t("bookings.refundedFull"), className: "bg-green-100 text-green-800 border-green-200" };
+      }
+      if (disputeFinancialOutcome.refundType === "partial") {
+        return { label: t("bookings.refundedPartial"), className: "bg-amber-100 text-amber-800 border-amber-200" };
+      }
+      return { label: t("bookings.notRefunded"), className: "bg-gray-100 text-gray-700 border-gray-200" };
+    }
+
+    return {
+      label: t(`bookings.${booking.status}`),
+      className: STATUS_BADGE[booking.status],
+    };
+  })();
+  const displayPaymentBadge = (() => {
+    if (booking.has_dispute && !disputeIsClosed) {
+      return { label: t("bookings.disputeUnderReviewBadge"), className: "bg-amber-100 text-amber-800 border-amber-200" };
+    }
+    if (booking.has_dispute && disputeIsClosed) {
+      return { label: t("bookings.disputeClosedBadge"), className: "bg-gray-100 text-gray-700 border-gray-200" };
+    }
+    if (booking.payment_status && booking.payment_status !== "unpaid") {
+      return {
+        label: booking.payment_status === "transferred" ? t("bookings.paidOut") : t("bookings.paid"),
+        className: "bg-green-100 text-green-700 border-green-200",
+      };
+    }
+    return null;
+  })();
 
   const resetReviewPanel = () => {
     setReviewError("");
@@ -299,19 +328,6 @@ export default function BookingDetailModal({
     setDisputePreviews((prev) => prev.filter((_, i) => i !== idx));
   };
 
-  const uploadDisputePhotos = async (disputeId: string): Promise<DisputeAttachment[]> => {
-    const results: DisputeAttachment[] = [];
-    for (const file of disputePhotos) {
-      const ext = file.name.split(".").pop();
-      const path = `${disputeId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-      const { error } = await supabase.storage.from("dispute-attachments").upload(path, file);
-      if (error) continue;
-      const { data } = supabase.storage.from("dispute-attachments").getPublicUrl(path);
-      results.push({ url: data.publicUrl, name: file.name });
-    }
-    return results;
-  };
-
   const handleDisputeSubmit = async () => {
     if (!disputeIsValid) {
       setDisputeError(t("bookings.openDisputeModal.descriptionTooShort"));
@@ -336,15 +352,20 @@ export default function BookingDetailModal({
       let attachments: DisputeAttachment[] = [];
       if (disputePhotos.length > 0) {
         setDisputeUploading(true);
-        attachments = await uploadDisputePhotos(dispute.id);
+        attachments = await uploadDisputeAttachments({ disputeId: dispute.id, files: disputePhotos, accessToken });
         setDisputeUploading(false);
       }
 
-      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/disputes/${dispute.id}/messages`, {
+      const messageRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/disputes/${dispute.id}/messages`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
         body: JSON.stringify({ content: disputeDescription.trim(), attachments }),
       });
+      if (!messageRes.ok) {
+        const data = await messageRes.json().catch(() => ({}));
+        setDisputeError(data.message ?? t("bookings.openDisputeModal.openFailed"));
+        return;
+      }
 
       setDisputeSuccess(true);
       const openedAt = new Date().toISOString();
@@ -364,8 +385,8 @@ export default function BookingDetailModal({
         dispute_created_at: openedAt,
       });
       setTimeout(() => setStep("detail"), 700);
-    } catch {
-      setDisputeError(t("bookings.openDisputeModal.networkError"));
+    } catch (error) {
+      setDisputeError(error instanceof Error ? error.message : t("bookings.openDisputeModal.networkError"));
     } finally {
       setDisputeSubmitting(false);
       setDisputeUploading(false);
@@ -394,18 +415,18 @@ export default function BookingDetailModal({
             </button>
           ) : (
             <div className="flex items-center gap-2">
-              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${STATUS_BADGE[booking.status]}`}>
-                {t(`bookings.${booking.status}`)}
+              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${displayStatusBadge.className}`}>
+                {displayStatusBadge.label}
               </span>
               {booking.is_one_time && (
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-800">
                   <Tag className="h-3 w-3" /> {t("bookings.oneTime")}
                 </span>
               )}
-              {booking.payment_status && booking.payment_status !== "unpaid" && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-700 border border-green-200">
+              {displayPaymentBadge && (
+                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold border ${displayPaymentBadge.className}`}>
                   <CreditCard className="h-3 w-3" />
-                  {booking.payment_status === "transferred" ? t("bookings.paidOut") : t("bookings.paid")}
+                  {displayPaymentBadge.label}
                 </span>
               )}
             </div>
@@ -636,10 +657,12 @@ export default function BookingDetailModal({
                           </CardContent>
                         </Card>
                         {/* Worker payout */}
-                        <Card className="overflow-hidden border-green-100 shadow-none">
-                          <div className="flex items-center gap-2 bg-green-50 px-4 py-2.5 border-b border-green-100">
+                        <Card className={`overflow-hidden shadow-none ${disputeFinancialOutcome.hasFinancialAdjustment ? "border-amber-200" : "border-green-100"}`}>
+                          <div className={`flex items-center gap-2 px-4 py-2.5 border-b ${disputeFinancialOutcome.hasFinancialAdjustment ? "bg-amber-50 border-amber-100" : "bg-green-50 border-green-100"}`}>
                             <TrendingUp className="h-3.5 w-3.5 text-green-600" />
-                            <span className="text-xs font-semibold text-green-700 uppercase tracking-wide">{t("bookings.workerPayout")}</span>
+                            <span className={`text-xs font-semibold uppercase tracking-wide ${disputeFinancialOutcome.hasFinancialAdjustment ? "text-amber-800" : "text-green-700"}`}>
+                              {disputeFinancialOutcome.hasFinancialAdjustment ? t("bookings.workerPayoutAfterDecision") : t("bookings.workerPayout")}
+                            </span>
                           </div>
                           <CardContent className="p-4 space-y-2 text-sm">
                             <div className="flex justify-between text-gray-600">
@@ -652,8 +675,17 @@ export default function BookingDetailModal({
                             </div>
                             <Separator />
                             <div className="flex justify-between font-bold text-base">
-                              <span className="text-gray-900">{t("bookings.youWillReceive")}</span>
-                              <span className="text-green-600">{fmt(workerReceives)} $</span>
+                              <span className="text-gray-900">{disputeFinancialOutcome.hasFinancialAdjustment ? t("bookings.finalPayoutLabel") : t("bookings.youWillReceive")}</span>
+                              <span className="text-green-600">
+                                {disputeFinancialOutcome.hasFinancialAdjustment && disputeFinancialOutcome.finalWorkerReceives !== null ? (
+                                  <span className="inline-flex items-center gap-2">
+                                    <span className="text-xs font-medium text-gray-400 line-through">{fmt(workerReceives)} $</span>
+                                    <span>{fmt(disputeFinancialOutcome.finalWorkerReceives)} $</span>
+                                  </span>
+                                ) : (
+                                  `${fmt(workerReceives)} $`
+                                )}
+                              </span>
                             </div>
                           </CardContent>
                         </Card>
@@ -662,42 +694,67 @@ export default function BookingDetailModal({
                   }
                   // Client completed view
                   return (
-                    <Card className="overflow-hidden shadow-none">
-                      <div className="flex items-center gap-2 bg-gray-50 px-4 py-2.5 border-b border-gray-100">
-                        <TrendingDown className="h-3.5 w-3.5 text-gray-500" />
-                        <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{t("bookings.totalPaid")}</span>
-                      </div>
-                      <CardContent className="p-4 space-y-2 text-sm">
-                        <div className="flex justify-between text-gray-600">
-                          <span>{t("serviceDetail.servicePrice")}</span>
-                          <span className="font-medium">
-                            {fmt(base)} $
-                            {booking.custom_price && Number(booking.custom_price) !== origBase && (
-                              <span className="text-xs text-gray-400 line-through ml-2">{fmt(origBase)} $</span>
-                            )}
-                          </span>
+                    <div className="space-y-3">
+                      <Card className="overflow-hidden shadow-none">
+                        <div className="flex items-center gap-2 bg-gray-50 px-4 py-2.5 border-b border-gray-100">
+                          <TrendingDown className="h-3.5 w-3.5 text-gray-500" />
+                          <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{t("bookings.totalPaid")}</span>
                         </div>
-                        <div className="flex justify-between text-gray-500">
-                          <div>
-                            <div>{t("serviceDetail.buyerCommission")}</div>
-                            <div className="text-[11px] text-red-500">{t("payment.nonRefundable")}</div>
+                        <CardContent className="p-4 space-y-2 text-sm">
+                          <div className="flex justify-between text-gray-600">
+                            <span>{t("serviceDetail.servicePrice")}</span>
+                            <span className="font-medium">
+                              {fmt(base)} $
+                              {booking.custom_price && Number(booking.custom_price) !== origBase && (
+                                <span className="text-xs text-gray-400 line-through ml-2">{fmt(origBase)} $</span>
+                              )}
+                            </span>
                           </div>
-                          <span>{fmt(buyerCommission)} $</span>
-                        </div>
-                        <div className="flex justify-between text-gray-500">
-                          <div>
-                            <div>{t("serviceDetail.taxes")} ({formatTaxRate(taxRate)}%)</div>
-                            <div className="text-[11px] text-gray-400">{taxLabel}</div>
+                          <div className="flex justify-between text-gray-500">
+                            <div>
+                              <div>{t("serviceDetail.buyerCommission")}</div>
+                              <div className="text-[11px] text-red-500">{t("payment.nonRefundable")}</div>
+                            </div>
+                            <span>{fmt(buyerCommission)} $</span>
                           </div>
-                          <span>{fmt(taxes)} $</span>
-                        </div>
-                        <Separator />
-                        <div className="flex justify-between font-bold text-base">
-                          <span>{t("serviceDetail.total")}</span>
-                          <span className="text-gray-900">{fmt(totalPaid)} $</span>
-                        </div>
-                      </CardContent>
-                    </Card>
+                          <div className="flex justify-between text-gray-500">
+                            <div>
+                              <div>{t("serviceDetail.taxes")} ({formatTaxRate(taxRate)}%)</div>
+                              <div className="text-[11px] text-gray-400">{taxLabel}</div>
+                            </div>
+                            <span>{fmt(taxes)} $</span>
+                          </div>
+                          <Separator />
+                          <div className="flex justify-between font-bold text-base">
+                            <span>{t("serviceDetail.total")}</span>
+                            <span className="text-gray-900">{fmt(totalPaid)} $</span>
+                          </div>
+                        </CardContent>
+                      </Card>
+                      {disputeFinancialOutcome.hasFinancialAdjustment && disputeFinancialOutcome.finalClientPaid !== null && disputeFinancialOutcome.refundedAmount !== null && (
+                        <Card className="overflow-hidden border-amber-200 shadow-none">
+                          <div className="flex items-center gap-2 bg-amber-50 px-4 py-2.5 border-b border-amber-100">
+                            <AlertTriangle className="h-3.5 w-3.5 text-amber-600" />
+                            <span className="text-xs font-semibold text-amber-800 uppercase tracking-wide">{t("bookings.finalOutcomeTitle")}</span>
+                          </div>
+                          <CardContent className="p-4 space-y-2 text-sm">
+                            <div className="flex justify-between text-gray-600">
+                              <span>{t("bookings.originalTotalPaidLabel")}</span>
+                              <span>{fmt(disputeFinancialOutcome.totalPaidOriginal)} $</span>
+                            </div>
+                            <div className="flex justify-between text-green-700">
+                              <span>{t("bookings.refundAmountLabel")}</span>
+                              <span>-{fmt(disputeFinancialOutcome.refundedAmount)} $</span>
+                            </div>
+                            <Separator />
+                            <div className="flex justify-between font-bold text-base">
+                              <span className="text-gray-900">{t("bookings.finalTotalPaidLabel")}</span>
+                              <span className="text-gray-900">{fmt(disputeFinancialOutcome.finalClientPaid)} $</span>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )}
+                    </div>
                   );
                 }
 
@@ -906,7 +963,7 @@ export default function BookingDetailModal({
               </div>
             )}
 
-            {booking.status === "completed" && (() => {
+            {booking.status === "completed" && !booking.has_dispute && (() => {
               const DISPUTE_DAYS = 3;
               if (!booking.completed_at) return null;
               const completedMs = new Date(booking.completed_at).getTime();
@@ -968,6 +1025,16 @@ export default function BookingDetailModal({
                 {booking.dispute_resolution && (
                   <p>
                     <span className="font-semibold">{t("bookings.disputeDecisionLabel")}</span> {booking.dispute_resolution}
+                  </p>
+                )}
+                {disputeFinancialOutcome.hasFinancialAdjustment && disputeFinancialOutcome.refundedAmount !== null && (
+                  <p>
+                    <span className="font-semibold">{t("bookings.finalAmountAfterDisputeLabel")}</span>{" "}
+                    {userRole === "worker" && disputeFinancialOutcome.finalWorkerReceives !== null
+                      ? `${disputeFinancialOutcome.finalWorkerReceives.toFixed(2)} $`
+                      : userRole === "client" && disputeFinancialOutcome.finalClientPaid !== null
+                        ? `${disputeFinancialOutcome.finalClientPaid.toFixed(2)} $`
+                        : `${disputeFinancialOutcome.refundedAmount.toFixed(2)} $`}
                   </p>
                 )}
               </div>

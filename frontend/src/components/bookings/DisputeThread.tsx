@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { supabase } from "@/lib/supabaseClient";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -9,9 +8,8 @@ import AppImage from "@/components/ui/AppImage";
 import { AlertTriangle, ImagePlus, Send, X, Loader2, Lock } from "lucide-react";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
+import { uploadDisputeAttachments, type DisputeAttachment as Attachment } from "@/lib/disputeAttachments";
 import { getIntlLocale } from "@/lib/locale";
-
-interface Attachment { url: string; name: string; }
 
 interface DisputeMessage {
   id: string;
@@ -37,6 +35,7 @@ interface Props {
 }
 
 export default function DisputeThread({ bookingId, currentUserId, accessToken }: Props) {
+  const MAX_DISPUTE_ATTACHMENTS = 4;
   const { t, i18n } = useTranslation();
   const [dispute, setDispute] = useState<Dispute | null>(null);
   const [messages, setMessages] = useState<DisputeMessage[]>([]);
@@ -50,9 +49,30 @@ export default function DisputeThread({ bookingId, currentUserId, accessToken }:
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const hasLoadedInitialMessagesRef = useRef(false);
 
+  const fetchThread = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/disputes/booking/${bookingId}`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      setDispute(data.dispute);
+      setMessages(data.messages);
+    } finally {
+      setLoading(false);
+    }
+  }, [accessToken, bookingId]);
+
   useEffect(() => {
     fetchThread();
-  }, [bookingId]);
+  }, [fetchThread]);
+
+  useEffect(() => {
+    return () => {
+      previews.forEach((preview) => URL.revokeObjectURL(preview));
+    };
+  }, [previews]);
 
   useEffect(() => {
     if (!hasLoadedInitialMessagesRef.current) {
@@ -66,46 +86,36 @@ export default function DisputeThread({ bookingId, currentUserId, accessToken }:
     container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
   }, [messages]);
 
-  const fetchThread = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/disputes/booking/${bookingId}`, {
-        headers: { Authorization: `Bearer ${accessToken}` },
-      });
-      if (!res.ok) return;
-      const data = await res.json();
-      setDispute(data.dispute);
-      setMessages(data.messages);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handlePhotos = (files: FileList | null) => {
     if (!files) return;
-    const valid = Array.from(files).filter(f => f.type.startsWith("image/")).slice(0, 4);
-    setPhotos(prev => [...prev, ...valid].slice(0, 4));
-    const newPreviews = valid.map(f => URL.createObjectURL(f));
-    setPreviews(prev => [...prev, ...newPreviews].slice(0, 4));
+    const existingAttachmentCount = messages.reduce((total, message) => total + (message.attachments?.length ?? 0), 0);
+    const remainingAttachmentSlots = Math.max(0, MAX_DISPUTE_ATTACHMENTS - existingAttachmentCount - photos.length);
+    if (remainingAttachmentSlots <= 0) {
+      toast.error(t("disputeThread.maxPhotosReached"));
+      return;
+    }
+
+    const valid = Array.from(files)
+      .filter((file) => file.type.startsWith("image/"))
+      .slice(0, remainingAttachmentSlots);
+
+    if (valid.length === 0) {
+      return;
+    }
+
+    if (Array.from(files).filter((file) => file.type.startsWith("image/")).length > valid.length) {
+      toast.error(t("disputeThread.remainingPhotosLimit", { count: remainingAttachmentSlots }));
+    }
+
+    setPhotos((prev) => [...prev, ...valid]);
+    const newPreviews = valid.map((file) => URL.createObjectURL(file));
+    setPreviews((prev) => [...prev, ...newPreviews]);
   };
 
   const removePhoto = (idx: number) => {
     URL.revokeObjectURL(previews[idx]);
     setPhotos(p => p.filter((_, i) => i !== idx));
     setPreviews(p => p.filter((_, i) => i !== idx));
-  };
-
-  const uploadPhotos = async (): Promise<Attachment[]> => {
-    const results: Attachment[] = [];
-    for (const file of photos) {
-      const ext = file.name.split(".").pop();
-      const path = `${dispute!.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-      const { error } = await supabase.storage.from("dispute-attachments").upload(path, file);
-      if (error) continue;
-      const { data } = supabase.storage.from("dispute-attachments").getPublicUrl(path);
-      results.push({ url: data.publicUrl, name: file.name });
-    }
-    return results;
   };
 
   const handleSend = async () => {
@@ -115,7 +125,7 @@ export default function DisputeThread({ bookingId, currentUserId, accessToken }:
       let attachments: Attachment[] = [];
       if (photos.length > 0) {
         setUploading(true);
-        attachments = await uploadPhotos();
+        attachments = await uploadDisputeAttachments({ disputeId: dispute.id, files: photos, accessToken });
         setUploading(false);
       }
 
@@ -135,6 +145,11 @@ export default function DisputeThread({ bookingId, currentUserId, accessToken }:
       setPhotos([]);
       previews.forEach(p => URL.revokeObjectURL(p));
       setPreviews([]);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : t("disputeThread.sendError"));
     } finally {
       setSending(false);
       setUploading(false);
@@ -153,6 +168,9 @@ export default function DisputeThread({ bookingId, currentUserId, accessToken }:
 
   const isClosed = dispute.status !== "open";
   const timeLocale = getIntlLocale(i18n.language, { fr: 'fr-FR', en: 'en-CA' });
+  const existingAttachmentCount = messages.reduce((total, message) => total + (message.attachments?.length ?? 0), 0);
+  const remainingAttachmentSlots = Math.max(0, MAX_DISPUTE_ATTACHMENTS - existingAttachmentCount);
+  const canAddMorePhotos = remainingAttachmentSlots > photos.length;
 
   return (
     <div className="border border-red-200 rounded-xl overflow-hidden bg-red-50/30">
@@ -250,17 +268,17 @@ export default function DisputeThread({ bookingId, currentUserId, accessToken }:
               ))}
             </div>
           )}
-          <div className="flex items-end gap-2">
+          <div className="rounded-2xl border border-gray-200 bg-gray-50 px-3 py-2">
             <Textarea
               value={content}
               onChange={(e) => setContent(e.target.value)}
               placeholder={t("disputeThread.replyPlaceholder")}
-              className="resize-none min-h-15 text-sm flex-1"
+              className="min-h-20 resize-none border-0 bg-transparent px-0 text-sm shadow-none focus-visible:ring-0"
               onKeyDown={(e) => {
                 if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handleSend();
               }}
             />
-            <div className="flex flex-col gap-1.5 shrink-0">
+            <div className="flex items-center justify-between gap-2 border-t border-gray-200 pt-2">
               <input
                 ref={fileInputRef}
                 type="file"
@@ -272,18 +290,19 @@ export default function DisputeThread({ bookingId, currentUserId, accessToken }:
                 onChange={(e) => handlePhotos(e.target.files)}
               />
               <Button
-                variant="outline"
-                size="icon"
-                className="h-8 w-8"
+                variant="ghost"
+                size="sm"
+                className="h-9 gap-2 px-2 text-gray-600"
                 onClick={() => fileInputRef.current?.click()}
-                disabled={photos.length >= 4 || sending}
+                disabled={!canAddMorePhotos || sending}
                 title={t("disputeThread.addPhotos")}
               >
                 <ImagePlus className="h-4 w-4" />
+                {t("disputeThread.addPhotos")}
               </Button>
               <Button
-                size="icon"
-                className="h-8 w-8 bg-red-600 hover:bg-red-700 text-white"
+                size="sm"
+                className="h-9 gap-2 bg-red-600 px-3 text-white hover:bg-red-700"
                 onClick={handleSend}
                 disabled={sending || (!content.trim() && photos.length === 0)}
               >
@@ -291,6 +310,11 @@ export default function DisputeThread({ bookingId, currentUserId, accessToken }:
               </Button>
             </div>
           </div>
+          <p className="text-xs text-gray-400">
+            {remainingAttachmentSlots > 0
+              ? t("disputeThread.remainingPhotosHint", { count: remainingAttachmentSlots })
+              : t("disputeThread.maxPhotosReached")}
+          </p>
           {uploading && <p className="text-xs text-gray-400">{t("disputeThread.uploadingPhotos")}</p>}
         </div>
       )}

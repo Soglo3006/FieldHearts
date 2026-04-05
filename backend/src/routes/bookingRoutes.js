@@ -27,7 +27,7 @@ router.get("/unread-summary", protect, async (req, res) => {
          CASE WHEN b.worker_id = $1 THEN 'worker' ELSE 'client' END AS role,
          s.title                                                     AS service_title,
          COALESCE(NULLIF(other_u.company_name, ''), other_u.full_name) AS other_name,
-         other_u.avatar_url                                          AS other_avatar
+         other_u.avatar                                             AS other_avatar
        FROM bookings b
        JOIN services s ON s.id = b.service_id
        JOIN users other_u ON other_u.id = CASE

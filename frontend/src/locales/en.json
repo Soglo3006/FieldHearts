@@ -1017,6 +1017,8 @@
     "noMessagesYet": "No messages yet",
     "sentVoiceMessage": "You sent a voice message",
     "sentVoiceMessageOther": "{{name}} sent a voice message",
+    "youReacted": "You reacted {{emoji}}",
+    "otherReacted": "{{name}} reacted to your message {{emoji}}",
     "youPrefix": "You",
     "someone": "Someone",
     "photo": "Photo",

@@ -27,7 +27,7 @@ router.get('/unread-summary', protect, async (req, res) => {
          COUNT(m_unread.id)                                               AS unread_count,
          other_crm.user_id                                                AS other_user_id,
          COALESCE(NULLIF(other_u.company_name, ''), other_u.full_name)    AS other_user_name,
-         other_u.avatar_url,
+         other_u.avatar                                                   AS avatar_url,
          other_u.account_type
        FROM chat_room_member crm
        JOIN LATERAL (
@@ -53,7 +53,7 @@ router.get('/unread-summary', protect, async (req, res) => {
          crm.chat_room_id,
          m_last.id, m_last.content, m_last.created_at, m_last.user_id, m_last.deleted_at,
          other_crm.user_id, other_u.company_name, other_u.full_name,
-         other_u.avatar_url, other_u.account_type
+         other_u.avatar, other_u.account_type
        ORDER BY m_last.created_at DESC`,
       [userId]
     );

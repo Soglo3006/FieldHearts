@@ -11,6 +11,12 @@ export interface ChatRoom {
     content: string;
     created_at: string;
   };
+  last_reaction?: {
+    emoji: string;
+    reactor_id: string;
+    message_owner_id: string;
+    at: string;
+  } | null;
   other_user?: {
     id: string;
     email: string;
@@ -67,7 +73,7 @@ export function useChats() {
         { data: chatRooms, error: roomsError },
         { data: unreadMessages },
       ] = await Promise.all([
-        supabase.from('chat_room').select('id, created_at, other_user_id, last_message, last_message_at').in('id', chatRoomIds),
+        supabase.from('chat_room').select('*').in('id', chatRoomIds),
         supabase
           .from('messages')
           .select('chat_room_id')
@@ -189,13 +195,46 @@ export function useChats() {
         { event: 'UPDATE', schema: 'public', table: 'messages' },
         (payload) => {
           // Use the payload directly — no extra REST call needed
-          const updated = payload.new as { chat_room_id: string; content: string; created_at: string; user_id: string; deleted_at?: string };
+          const updated = payload.new as {
+            chat_room_id: string; content: string; created_at: string;
+            user_id: string; deleted_at?: string;
+            reactions?: Array<{ emoji: string; user_ids: string[] }>;
+          };
           setChats((prev) =>
-            prev.map((chat) =>
-              chat.id === updated.chat_room_id
-                ? { ...chat, last_message: { content: updated.content, created_at: updated.created_at, user_id: updated.user_id } }
-                : chat
-            )
+            prev.map((chat) => {
+              if (chat.id !== updated.chat_room_id) return chat;
+
+              // If reactions were updated, record the last reaction separately
+              if (updated.reactions && updated.reactions.length > 0) {
+                const lastReactionEntry = updated.reactions[updated.reactions.length - 1];
+                const reactorId = lastReactionEntry.user_ids[lastReactionEntry.user_ids.length - 1];
+                return {
+                  ...chat,
+                  last_reaction: {
+                    emoji: lastReactionEntry.emoji,
+                    reactor_id: reactorId,
+                    message_owner_id: updated.user_id,
+                    at: new Date().toISOString(),
+                  },
+                };
+              }
+
+              // If reactions were cleared, remove last_reaction
+              if (updated.reactions && updated.reactions.length === 0) {
+                return { ...chat, last_reaction: null };
+              }
+
+              // Only replace last_message if the updated message is as recent as the current one
+              const currentLastTime = chat.last_message?.created_at
+                ? new Date(chat.last_message.created_at).getTime() : 0;
+              const updatedTime = new Date(updated.created_at).getTime();
+              if (updatedTime < currentLastTime) return chat;
+
+              return {
+                ...chat,
+                last_message: { content: updated.content, created_at: updated.created_at, user_id: updated.user_id },
+              };
+            })
           );
         }
       )

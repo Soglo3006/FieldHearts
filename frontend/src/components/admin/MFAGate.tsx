@@ -14,7 +14,6 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ShieldAlert, ShieldCheck } from "lucide-react";
 import Image from "next/image";
 
 type Stage = "loading" | "enroll" | "challenge" | "verified";
@@ -52,7 +51,7 @@ export function MFAGate({ children }: { children: React.ReactNode }) {
     const totpFactor = factorsData?.totp?.find((f) => f.status === "verified");
 
     if (totpFactor) {
-      // Factor exists but not yet challenged this session → challenge flow
+      // Verified factor exists → challenge flow
       setFactorId(totpFactor.id);
       const { data: challengeData, error: challengeError } = await supabase.auth.mfa.challenge({ factorId: totpFactor.id });
       if (challengeError || !challengeData) {
@@ -63,20 +62,27 @@ export function MFAGate({ children }: { children: React.ReactNode }) {
       setChallengeId(challengeData.id);
       setStage("challenge");
     } else {
-      // No factor enrolled yet → enroll
+      // No verified factor — unenroll ALL existing factors (verified or not) then enroll fresh
+      const allFactors = [...(factorsData?.totp ?? [])];
+      for (const f of allFactors) {
+        await supabase.auth.mfa.unenroll({ factorId: f.id }).catch(() => {});
+      }
       await startEnrollment();
     }
   }
 
   async function startEnrollment() {
-    const { data, error } = await supabase.auth.mfa.enroll({ factorType: "totp", issuer: "Uneden Admin", friendlyName: "Uneden Admin" });
+    const { data, error } = await supabase.auth.mfa.enroll({
+      factorType: "totp",
+      issuer: "Uneden",
+      friendlyName: `Uneden-${Date.now()}`,
+    });
     if (error || !data) {
-      setError("Failed to start MFA enrollment. Please refresh.");
+      setError(`Erreur: ${error?.message ?? "Impossible de démarrer le 2FA. Réessayez."}`);
       setStage("enroll");
       return;
     }
     setEnrollData({ factorId: data.id, qrCode: data.totp.qr_code, secret: data.totp.secret });
-    // Start a challenge right away so we can verify immediately after scanning
     const { data: challengeData } = await supabase.auth.mfa.challenge({ factorId: data.id });
     if (challengeData) setChallengeId(challengeData.id);
     setFactorId(data.id);
@@ -113,11 +119,6 @@ export function MFAGate({ children }: { children: React.ReactNode }) {
     <div className="flex items-center justify-center min-h-screen bg-gray-50 p-4">
       <div className="bg-white rounded-xl shadow-md border border-gray-200 p-8 w-full max-w-sm">
         <div className="flex flex-col items-center gap-2 mb-6 text-center">
-          {stage === "enroll" ? (
-            <ShieldAlert className="h-10 w-10 text-amber-500" />
-          ) : (
-            <ShieldCheck className="h-10 w-10 text-green-600" />
-          )}
           <h1 className="text-lg font-semibold text-gray-900">
             {stage === "enroll" ? "Activer l'authentification 2FA" : "Vérification 2FA requise"}
           </h1>

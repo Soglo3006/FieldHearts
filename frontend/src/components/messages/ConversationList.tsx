@@ -23,6 +23,12 @@ interface Chat {
     created_at: string;
     user_id?: string;
   };
+  last_reaction?: {
+    emoji: string;
+    reactor_id: string;
+    message_owner_id: string;
+    at: string;
+  } | null;
   other_user?: {
     id?: string;
     full_name?: string;
@@ -30,8 +36,8 @@ interface Chat {
     account_type?: string;
     avatar_url?: string | null;
   };
-  unread_count?: number; 
-  is_archived?: boolean; 
+  unread_count?: number;
+  is_archived?: boolean;
 }
 
 interface ConversationListProps {
@@ -76,29 +82,46 @@ function ConversationItem({
     : chat.other_user?.full_name || chat.name || 'Unknown';
 
   const lastMessagePreview = (() => {
-  if (!chat.last_message?.content) return t("messages.noMessagesYet");
+    // Show reaction preview if there is one and it's more recent than the last message
+    if (chat.last_reaction) {
+      const reactionTime = new Date(chat.last_reaction.at).getTime();
+      const messageTime = chat.last_message?.created_at
+        ? new Date(chat.last_message.created_at).getTime() : 0;
 
-  const content = chat.last_message.content;
+      if (reactionTime >= messageTime) {
+        const isOwnReaction = chat.last_reaction.reactor_id === currentUserId;
+        const otherName = displayName;
+        if (isOwnReaction) {
+          return t("messages.youReacted", { emoji: chat.last_reaction.emoji });
+        } else {
+          return t("messages.otherReacted", { name: otherName, emoji: chat.last_reaction.emoji });
+        }
+      }
+    }
 
-  if (content.includes('[AUDIO:')) {
-    const isOwn = chat.last_message.user_id === currentUserId;
-    const senderName = chat.other_user?.account_type === 'company'
-      ? chat.other_user?.company_name
-      : chat.other_user?.full_name;
-    return isOwn
-      ? t("messages.sentVoiceMessage")
-      : t("messages.sentVoiceMessageOther", { name: senderName });
-  }
+    if (!chat.last_message?.content) return t("messages.noMessagesYet");
 
-  if (content.includes('[FILE:')) {
-    const match = content.match(/\[FILE:(.*?)\]/);
-    const fileUrl = match ? match[1] : '';
-    const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(fileUrl);
-    return isImage ? t("messages.photo") : t("messages.file");
-  }
+    const content = chat.last_message.content;
 
-  return content;
-})();
+    if (content.includes('[AUDIO:')) {
+      const isOwn = chat.last_message.user_id === currentUserId;
+      const senderName = chat.other_user?.account_type === 'company'
+        ? chat.other_user?.company_name
+        : chat.other_user?.full_name;
+      return isOwn
+        ? t("messages.sentVoiceMessage")
+        : t("messages.sentVoiceMessageOther", { name: senderName });
+    }
+
+    if (content.includes('[FILE:')) {
+      const match = content.match(/\[FILE:(.*?)\]/);
+      const fileUrl = match ? match[1] : '';
+      const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(fileUrl);
+      return isImage ? t("messages.photo") : t("messages.file");
+    }
+
+    return content;
+  })();
 
   const timeDisplay = (() => {
     if (!chat.last_message?.created_at) return '';

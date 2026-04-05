@@ -1013,6 +1013,8 @@
     "noMessagesYet": "Aucun message pour l'instant",
     "sentVoiceMessage": "Vous avez envoyé un message vocal",
     "sentVoiceMessageOther": "{{name}} a envoyé un message vocal",
+    "youReacted": "Vous avez réagi {{emoji}}",
+    "otherReacted": "{{name}} a réagi à votre message {{emoji}}",
     "youPrefix": "Vous",
     "someone": "Quelqu’un",
     "photo": "Photo",

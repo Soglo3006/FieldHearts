@@ -1,5 +1,7 @@
 import { Area } from "react-easy-crop";
 
+const MAX_WIDTH = 1200;
+const QUALITY = 0.82;
 
 export default function getCroppedImg(imageSrc: string, pixelCrop: Area): Promise<string> {
   const image = new Image();
@@ -7,12 +9,16 @@ export default function getCroppedImg(imageSrc: string, pixelCrop: Area): Promis
 
   return new Promise((resolve) => {
     image.onload = () => {
+      // Scale down if the crop area exceeds MAX_WIDTH
+      const scale = pixelCrop.width > MAX_WIDTH ? MAX_WIDTH / pixelCrop.width : 1;
+      const outputWidth = Math.round(pixelCrop.width * scale);
+      const outputHeight = Math.round(pixelCrop.height * scale);
+
       const canvas = document.createElement("canvas");
+      canvas.width = outputWidth;
+      canvas.height = outputHeight;
+
       const ctx = canvas.getContext("2d")!;
-
-      canvas.width = pixelCrop.width;
-      canvas.height = pixelCrop.height;
-
       ctx.drawImage(
         image,
         pixelCrop.x,
@@ -21,11 +27,15 @@ export default function getCroppedImg(imageSrc: string, pixelCrop: Area): Promis
         pixelCrop.height,
         0,
         0,
-        pixelCrop.width,
-        pixelCrop.height
+        outputWidth,
+        outputHeight
       );
 
-      resolve(canvas.toDataURL("image/jpeg"));
+      // Use WebP when supported (all modern browsers except older Safari), fall back to JPEG
+      const webpTest = canvas.toDataURL("image/webp");
+      const mimeType = webpTest.startsWith("data:image/webp") ? "image/webp" : "image/jpeg";
+
+      resolve(canvas.toDataURL(mimeType, QUALITY));
     };
   });
 }

@@ -205,8 +205,29 @@ export const getConnectStatus = async (req, res) => {
 
     const row = result.rows[0];
 
-    // Refresh status from Stripe
-    const account = await stripe.accounts.retrieve(row.stripe_account_id);
+    // Refresh status from Stripe — the account may have been deleted or
+    // deauthorized, so handle Stripe errors gracefully instead of crashing.
+    let account;
+    try {
+      account = await stripe.accounts.retrieve(row.stripe_account_id);
+    } catch (stripeErr) {
+      console.error("[Stripe] accounts.retrieve failed:", stripeErr?.message);
+
+      // If the account no longer exists on Stripe, treat as disconnected
+      if (stripeErr?.code === "account_invalid" || stripeErr?.statusCode === 404) {
+        await pool.query("DELETE FROM stripe_accounts WHERE user_id = $1", [userId]);
+        return res.json({ connected: false, charges_enabled: false });
+      }
+
+      // For other Stripe errors (network, key missing, etc.) return cached DB values
+      return res.json({
+        connected: true,
+        charges_enabled: row.charges_enabled ?? false,
+        details_submitted: row.details_submitted ?? false,
+        stripe_account_id: row.stripe_account_id,
+        cached: true,
+      });
+    }
 
     // Update DB with latest status
     await pool.query(
@@ -223,7 +244,7 @@ export const getConnectStatus = async (req, res) => {
       stripe_account_id: row.stripe_account_id,
     });
   } catch (err) {
-    console.error("Stripe status error:", err);
+    console.error("[Stripe] getConnectStatus error:", err);
     res.status(500).json({ message: "Failed to get Stripe status" });
   }
 };

@@ -45,11 +45,19 @@ const nextConfig: NextConfig = {
     ];
   },
   images: {
+    formats: ['image/webp'],
+    deviceSizes: [390, 640, 828, 1080, 1200],
     remotePatterns: [
       {
         protocol: 'https',
         hostname: '*.supabase.co',
         pathname: '/storage/v1/object/**',
+      },
+      {
+        // Supabase Image Transform API (resized/compressed on-the-fly)
+        protocol: 'https',
+        hostname: '*.supabase.co',
+        pathname: '/storage/v1/render/image/**',
       },
       {
         protocol: 'https',

@@ -162,9 +162,15 @@ export const createConnectAccount = async (req, res) => {
       );
     }
 
-    // Allow callers to specify a custom return URL (e.g. onboarding flow)
+    // Allow callers to specify a custom return path (e.g. onboarding flow)
+    // Validate it's a relative path starting with / and contains no protocol to prevent open redirect
     const customReturnUrl = req.body?.return_url;
-    const returnUrl = customReturnUrl
+    const isValidReturnPath = customReturnUrl
+      && typeof customReturnUrl === "string"
+      && customReturnUrl.startsWith("/")
+      && !customReturnUrl.includes("://")
+      && !customReturnUrl.startsWith("//");
+    const returnUrl = isValidReturnPath
       ? `${FRONTEND_URL}${customReturnUrl}`
       : `${FRONTEND_URL}/wallet?stripe=success`;
 
@@ -646,6 +652,19 @@ export const getPaymentStatus = async (req, res) => {
 export const verifyPayment = async (req, res) => {
   try {
     const { booking_id } = req.body;
+    const userId = req.user.id;
+
+    // Verify the caller is the client for this booking
+    const ownershipCheck = await pool.query(
+      "SELECT client_id FROM bookings WHERE id = $1",
+      [booking_id]
+    );
+    if (ownershipCheck.rows.length === 0) {
+      return res.status(404).json({ message: "Booking not found" });
+    }
+    if (ownershipCheck.rows[0].client_id !== userId) {
+      return res.status(403).json({ message: "Not authorized" });
+    }
 
     // Get the pending payment for this booking
     const payment = await pool.query(

@@ -3,6 +3,7 @@ import { notifyBookingCreated, notifyBookingStatusUpdated, sendEmail } from "../
 import { pushNewBooking, pushBookingStatus } from "../services/pushService.js";
 import stripe from "../config/stripe.js";
 import { createLocalizedNotification, shouldSendEmail } from "../services/notificationService.js";
+import { validateInput, sanitizeText } from "../utils/validate.js";
 
 const PROVINCE_TAX_RATES = {
   AB: 0.05, BC: 0.12, MB: 0.12, NB: 0.15, NL: 0.15, NS: 0.15,
@@ -25,7 +26,7 @@ function getWorkerTaxRate(province) {
 
 export const createBooking = async (req, res) => {
   try {
-    const { errors, data } = (await import("../utils/validate.js")).validateInput(req.body, {
+    const { errors, data } = validateInput(req.body, {
       service_id:         { required: true, type: "uuid" },
       client_description: { type: "string", maxLen: 2000 },
     });
@@ -252,6 +253,11 @@ export const updateBookingStatus = async (req, res) => {
 
     const b = booking.rows[0];
 
+    // All status changes require the user to be a participant in the booking
+    if (b.client_id !== req.user.id && b.worker_id !== req.user.id) {
+      return res.status(403).json({ message: "You are not part of this booking" });
+    }
+
     if (status === "accepted" || status === "rejected") {
       // For "offer" listings: worker (poster) accepts/rejects
       // For "looking" listings: client (poster) accepts/rejects the applicant
@@ -263,14 +269,15 @@ export const updateBookingStatus = async (req, res) => {
     }
 
     if (status === "cancelled") {
-      if (b.client_id !== req.user.id && b.worker_id !== req.user.id) {
-        return res.status(403).json({ message: "You are not authorized to cancel this request" });
-      }
       if (!["pending", "accepted"].includes(b.status)) {
         return res.status(400).json({
           message: "In-progress or completed bookings cannot be cancelled directly. Open a dispute instead.",
         });
       }
+    }
+
+    if (status === "active" || status === "completed" || status === "pending") {
+      return res.status(403).json({ message: "This status transition is not allowed via this endpoint" });
     }
 
     const result = await pool.query(
@@ -423,7 +430,8 @@ export const markCompleted = async (req, res) => {
 export const customizeBooking = async (req, res) => {
   try {
     const { id } = req.params;
-    const { worker_note, custom_price } = req.body;
+    const { custom_price } = req.body;
+    const worker_note = sanitizeText(req.body.worker_note);
 
     const booking = await pool.query(
       `SELECT b.*, s.title,

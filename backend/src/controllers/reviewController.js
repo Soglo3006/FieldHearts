@@ -1,9 +1,11 @@
 import pool from "../config/db.js";
 import { notifyNewReview } from "../services/emailService.js";
+import { sanitizeText } from "../utils/validate.js";
 
 export const createReview = async (req, res) => {
   try {
-    const { booking_id, rating, comment } = req.body;
+    const { booking_id, rating } = req.body;
+    const comment = sanitizeText(req.body.comment);
 
     const booking = await pool.query("SELECT * FROM bookings WHERE id = $1", [booking_id]);
     if (booking.rows.length === 0) {

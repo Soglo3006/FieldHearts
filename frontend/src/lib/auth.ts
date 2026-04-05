@@ -42,3 +42,19 @@ export function isAdminUser(user: User | null | undefined): boolean {
 
   return false;
 }
+
+/**
+ * Support-only accounts can access /admin/* but are blocked from the main site.
+ * Configure via NEXT_PUBLIC_SUPPORT_EMAILS (comma-separated).
+ * A support user is NOT treated as a full admin (isAdminUser returns false for them
+ * unless they are also in NEXT_PUBLIC_ADMIN_EMAILS).
+ */
+export function isSupportOnlyUser(user: User | null | undefined): boolean {
+  if (!user) return false;
+  const email = (user.email || "").toLowerCase();
+  const list = (process.env.NEXT_PUBLIC_SUPPORT_EMAILS || "")
+    .split(",")
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean);
+  return list.includes(email);
+}

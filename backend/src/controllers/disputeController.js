@@ -3,6 +3,8 @@ import { supabaseAdmin } from "../lib/supabase.js";
 import { notifyDisputeCreated, notifyDisputeOutcome } from "../services/emailService.js";
 import { createLocalizedNotification, shouldSendEmail } from "../services/notificationService.js";
 import { buildRefundSummary, processBookingRefund } from "../services/refundService.js";
+import { logAdminAction } from "../services/auditService.js";
+import { sanitizeText } from "../utils/validate.js";
 
 const DISPUTE_ATTACHMENTS_BUCKET = "dispute-attachments";
 const MAX_DISPUTE_ATTACHMENTS = 4;
@@ -63,7 +65,8 @@ async function getDisputeAttachmentCount(disputeId) {
 
 export const CreateDispute = async (req, res) => {
     try {
-        const { booking_id, description} = req.body;
+        const { booking_id } = req.body;
+        const description = sanitizeText(req.body.description);
         const raised_by = req.user.id;
         const status = "open";
 
@@ -490,7 +493,8 @@ export const AdminGetDisputeDetail = async (req, res) => {
 export const AdminUpdateDispute = async (req, res) => {
     try {
         const { id } = req.params;
-        const { status, resolution, refund_percentage } = req.body;
+        const { status, refund_percentage } = req.body;
+        const resolution = sanitizeText(req.body.resolution);
 
         const allowed = ["open", "resolved", "rejected"];
         if (!allowed.includes(status)) {
@@ -596,6 +600,23 @@ export const AdminUpdateDispute = async (req, res) => {
                 );
             }
         }
+
+        // Audit log
+        await logAdminAction({
+            adminId:    req.user.id,
+            adminEmail: req.user.email,
+            action:     `dispute.${status}`,
+            targetType: "dispute",
+            targetId:   id,
+            details: {
+                booking_id:        currentDispute.booking_id,
+                service_title:     currentDispute.service_title,
+                resolution,
+                refund_percentage: status === "resolved" ? parsedPct : undefined,
+                refund_cents:      refundResult?.total_client_refund_cents ?? undefined,
+            },
+            ipAddress: req.ip,
+        });
 
         res.status(200).json({ ...result.rows[0], refund: refundResult });
     } catch (err) {

@@ -1181,6 +1181,10 @@
           "label": "Disputes",
           "description": "Manage booking disputes between clients and workers."
         },
+        "users": {
+          "label": "Users",
+          "description": "Manage user accounts and suspend problematic profiles."
+        },
         "support": {
           "label": "Support",
           "description": "View and respond to user support tickets."

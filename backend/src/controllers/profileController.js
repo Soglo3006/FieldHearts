@@ -2,6 +2,8 @@ import pool from "../config/db.js";
 import { sanitizeText } from "../utils/validate.js";
 import { createClient } from '@supabase/supabase-js';
 import { notifyWelcome } from '../services/emailService.js';
+import { invalidateSuspendedCache } from "../middleware/authMiddleware.js";
+import { logAdminAction } from "../services/auditService.js";
 
 
 const supabaseUrl = process.env.SUPABASE_URL;
@@ -561,5 +563,66 @@ export const searchProfiles = async (req, res) => {
   } catch (err) {
     console.error('Error searching profiles:', err);
     res.status(500).json({ message: 'Server error' });
+  }
+};
+
+export const getAllUsers = async (req, res) => {
+  try {
+    const { q } = req.query;
+    let query = `
+      SELECT id, full_name, company_name, account_type, email, province, is_suspended, created_at,
+             (SELECT COUNT(*) FROM bookings b WHERE b.client_id = u.id OR b.worker_id = u.id) AS booking_count
+      FROM users u
+    `;
+    const params = [];
+    if (q) {
+      query += ` WHERE full_name ILIKE $1 OR company_name ILIKE $1 OR email ILIKE $1`;
+      params.push(`%${q}%`);
+    }
+    query += ` ORDER BY created_at DESC LIMIT 100`;
+    const result = await pool.query(query, params);
+    res.json(result.rows);
+  } catch (err) {
+    console.error("getAllUsers error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+export const suspendUser = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { suspend } = req.body; // true = suspend, false = reactivate
+
+    // Fetch target user info for the audit log before updating
+    const targetResult = await pool.query(
+      "SELECT email, full_name, company_name FROM users WHERE id = $1",
+      [id]
+    );
+    const targetUser = targetResult.rows[0];
+
+    await pool.query(
+      "UPDATE users SET is_suspended = $1 WHERE id = $2",
+      [!!suspend, id]
+    );
+
+    invalidateSuspendedCache(id);
+
+    await logAdminAction({
+      adminId:    req.user.id,
+      adminEmail: req.user.email,
+      action:     suspend ? "user.suspend" : "user.reactivate",
+      targetType: "user",
+      targetId:   id,
+      details: {
+        target_email:    targetUser?.email,
+        target_name:     targetUser?.company_name || targetUser?.full_name,
+      },
+      ipAddress: req.ip,
+    });
+
+    res.json({ success: true, suspended: !!suspend });
+  } catch (err) {
+    console.error("suspendUser error:", err);
+    res.status(500).json({ message: "Server error" });
   }
 };

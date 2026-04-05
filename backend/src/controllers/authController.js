@@ -1,6 +1,7 @@
 import pool from "../config/db.js";
 import bcrypt from "bcryptjs";
 import { notifyPasswordChanged, notifyWaitlistConfirmation } from "../services/emailService.js";
+import { supabaseAdmin } from "../lib/supabase.js";
 
 export const joinWaitlist = async (req, res) => {
   try {
@@ -141,7 +142,7 @@ export const deleteAccount = async (req, res) => {
     try {
         const userId = req.user.id;
 
-        // Supprimer l'utilisateur de la base de données
+        // Delete from custom users table first
         const result = await pool.query(
             'DELETE FROM users WHERE id = $1 RETURNING id, email',
             [userId]
@@ -151,9 +152,11 @@ export const deleteAccount = async (req, res) => {
             return res.status(404).json({ message: "User not found" });
         }
 
+        // Revoke Supabase auth — invalidates all existing JWTs for this user
+        await supabaseAdmin.auth.admin.deleteUser(userId);
 
-        res.json({ 
-            message: "Account deleted successfully" 
+        res.json({
+            message: "Account deleted successfully"
         });
 
     } catch (err) {

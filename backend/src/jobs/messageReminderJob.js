@@ -1,96 +1,70 @@
 import cron from "node-cron";
-import { createClient } from "@supabase/supabase-js";
+import pool from "../config/db.js";
 import { notifyUnreadReminder } from "../services/emailService.js";
-
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
 
 /**
  * Runs every hour.
- * For each user who has unread messages older than 24h, AND hasn't been
- * online in 24h, AND hasn't received a reminder in 24h → send one reminder.
+ * Uses direct DB pool — zero Supabase egress.
  */
 const runReminders = async () => {
   try {
-    const cutoff24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-    const cutoff7d  = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    const cutoff24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const cutoff7d  = new Date(Date.now() - 7  * 24 * 60 * 60 * 1000);
 
-    // Find all (recipient, chat_room) pairs with old unread messages
-    const { data: rows, error } = await supabase
-      .from("chat_room_member")
-      .select("user_id, chat_room_id, last_reminder_sent_at")
-      .or(`last_reminder_sent_at.is.null,last_reminder_sent_at.lt.${cutoff24h}`);
+    // Find all (recipient, chat_room) pairs with unread messages older than 24h
+    // where the recipient hasn't been reminded in the last 24h and wasn't online recently
+    const { rows } = await pool.query(
+      `SELECT
+         crm.user_id,
+         crm.chat_room_id,
+         u.email,
+         COALESCE(NULLIF(u.company_name, ''), u.full_name) AS display_name,
+         up.last_seen,
+         COUNT(m.id) AS unread_count,
+         MAX(m.user_id) AS sender_id
+       FROM chat_room_member crm
+       JOIN users u ON u.id = crm.user_id
+       LEFT JOIN user_presence up ON up.user_id = crm.user_id
+       JOIN messages m
+         ON m.chat_room_id = crm.chat_room_id
+        AND m.user_id <> crm.user_id
+        AND m.read_at IS NULL
+        AND m.deleted_at IS NULL
+        AND m.created_at < $1
+        AND m.created_at > $2
+       WHERE crm.is_deleted = false
+         AND (crm.last_reminder_sent_at IS NULL OR crm.last_reminder_sent_at < $1)
+         AND (up.last_seen IS NULL OR up.last_seen < $1)
+         AND u.email IS NOT NULL
+       GROUP BY crm.user_id, crm.chat_room_id, u.email, u.company_name, u.full_name, up.last_seen
+       HAVING COUNT(m.id) > 0`,
+      [cutoff24h.toISOString(), cutoff7d.toISOString()]
+    );
 
-    if (error) { console.error("Reminder job - fetch error:", error.message); return; }
-    if (!rows?.length) return;
+    if (!rows.length) return;
+
+    // Batch fetch sender names
+    const senderIds = [...new Set(rows.map((r) => r.sender_id).filter(Boolean))];
+    let senderNames = {};
+    if (senderIds.length > 0) {
+      const senders = await pool.query(
+        `SELECT id, COALESCE(NULLIF(company_name, ''), full_name) AS display_name FROM users WHERE id = ANY($1)`,
+        [senderIds]
+      );
+      senders.rows.forEach((s) => { senderNames[s.id] = s.display_name; });
+    }
 
     for (const row of rows) {
-      const userId    = row.user_id;
-      const chatRoomId = row.chat_room_id;
+      const senderName = senderNames[row.sender_id] || "Quelqu'un";
+      await notifyUnreadReminder(row.email, row.display_name, senderName, Number(row.unread_count));
 
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("email, full_name, company_name, account_type")
-        .eq("id", userId)
-        .maybeSingle();
+      await pool.query(
+        `UPDATE chat_room_member SET last_reminder_sent_at = NOW()
+         WHERE user_id = $1 AND chat_room_id = $2`,
+        [row.user_id, row.chat_room_id]
+      );
 
-      if (!profile) continue;
-
-      // Fetch user presence separately (no FK relationship in schema)
-      const { data: presenceData } = await supabase
-        .from("user_presence")
-        .select("last_seen")
-        .eq("user_id", userId)
-        .maybeSingle();
-      const lastSeen = presenceData?.last_seen;
-
-      // Skip if user was online in the last 24h
-      if (lastSeen && new Date(lastSeen) > new Date(cutoff24h)) continue;
-
-      // Get unread messages in this room from the OTHER person, older than 24h
-      const { data: unread, error: msgErr } = await supabase
-        .from("messages")
-        .select("id, user_id, content, created_at")
-        .eq("chat_room_id", chatRoomId)
-        .neq("user_id", userId)
-        .is("read_at", null)
-        .is("deleted_at", null)
-        .lt("created_at", cutoff24h)
-        .gt("created_at", cutoff7d);
-
-      if (msgErr || !unread?.length) continue;
-
-      // Get the sender's profile (the person who sent the unread messages)
-      const senderId = unread[unread.length - 1].user_id; // most recent sender
-      const { data: senderProfile } = await supabase
-        .from("profiles")
-        .select("full_name, company_name, account_type")
-        .eq("id", senderId)
-        .single();
-
-      const receiverName = profile.account_type === "company"
-        ? profile.company_name
-        : profile.full_name || "là";
-
-      const senderName = senderProfile?.account_type === "company"
-        ? senderProfile.company_name
-        : senderProfile?.full_name || "Quelqu'un";
-
-      if (!profile.email) continue;
-
-      // Send reminder email
-      await notifyUnreadReminder(profile.email, receiverName, senderName, unread.length);
-
-      // Update last_reminder_sent_at
-      await supabase
-        .from("chat_room_member")
-        .update({ last_reminder_sent_at: new Date().toISOString() })
-        .eq("user_id", userId)
-        .eq("chat_room_id", chatRoomId);
-
-      console.log(`Reminder sent to ${profile.email} for room ${chatRoomId}`);
+      console.log(`Reminder sent to ${row.email} for room ${row.chat_room_id}`);
     }
   } catch (err) {
     console.error("Reminder job error:", err.message);
@@ -98,11 +72,9 @@ const runReminders = async () => {
 };
 
 export const startMessageReminderJob = () => {
-  // Run every hour at minute 0
   cron.schedule("0 * * * *", () => {
     console.log("[cron] Running 24h unread message reminder job...");
     runReminders();
   });
-
   console.log("[cron] Message reminder job scheduled (every hour)");
 };

@@ -2,6 +2,7 @@ import "./instrument.js";
 import * as Sentry from "@sentry/node";
 import express from "express";
 import cors from "cors";
+import helmet from "helmet";
 import dotenv from "dotenv";
 import rateLimit from "express-rate-limit";
 import serviceRoutes from "./routes/serviceRoutes.js";
@@ -24,6 +25,7 @@ import pool from './config/db.js';
 import { startMessageReminderJob } from './jobs/messageReminderJob.js';
 import { startHealthMonitorJob } from './jobs/healthMonitorJob.js';
 import healthRoutes from './routes/healthRoutes.js';
+import adminRoutes from './routes/adminRoutes.js';
 import cron from 'node-cron';
 import { processAllPayouts, isPayoutDay } from './services/payoutService.js';
 
@@ -76,9 +78,16 @@ const searchLimiter = rateLimit({
   message: { message: "Too many requests, please slow down." },
 });
 
+app.use(helmet());
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin) || origin.endsWith(".ngrok-free.app") || origin.endsWith(".ngrok.io") || origin.endsWith(".vercel.app")) return callback(null, true);
+    if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
+    // Allow ngrok and Vercel previews only in non-production (local dev / staging)
+    if (!isProduction && (
+      origin.endsWith(".ngrok-free.app") ||
+      origin.endsWith(".ngrok.io") ||
+      origin.endsWith(".vercel.app")
+    )) return callback(null, true);
     callback(new Error("Not allowed by CORS"));
   },
   credentials: true,
@@ -104,11 +113,10 @@ app.use('/api/reports', generalLimiter, reportRoutes);
 app.use('/api/payments', generalLimiter, paymentRoutes);
 // Alias Stripe webhook (URL enregistrée dans le Stripe Dashboard)
 app.post('/webhook/stripe', stripeWebhook);
-// Alias Stripe webhook (URL enregistrée dans le Stripe Dashboard)
-app.post('/webhook/stripe', stripeWebhook);
 app.use('/api/wallet', generalLimiter, walletRoutes);
 app.use('/api/notifications', generalLimiter, notificationRoutes);
 app.use('/api/admin/metrics', generalLimiter, metricsRoutes);
+app.use('/api/admin', generalLimiter, adminRoutes);
 app.use('/api/favorites', generalLimiter, favoriteRoutes);
 app.use('/api/billing-addresses', generalLimiter, billingAddressRoutes);
 app.use('/api/health', healthRoutes);

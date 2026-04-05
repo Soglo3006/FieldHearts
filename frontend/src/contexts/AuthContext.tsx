@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
-import { isAdminUser } from "@/lib/auth";
+import { isAdminUser, isSupportOnlyUser } from "@/lib/auth";
 import type { User, Session } from "@supabase/supabase-js";
 
 interface AuthContextType {
@@ -44,6 +44,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return () => clearTimeout(t);
     }
   }, [pathname, isLoggingOut, user]);
+
+  // Support-only accounts must stay within /admin/*
+  // If they navigate to any other page, send them back to /admin
+  useEffect(() => {
+    if (!user || loading) return;
+    if (!isSupportOnlyUser(user)) return;
+    const AUTH_PATHS = ["/login", "/auth/"];
+    const isAuthPath = AUTH_PATHS.some((p) => pathname.startsWith(p));
+    if (!pathname.startsWith("/admin") && !isAuthPath) {
+      router.replace("/admin");
+    }
+  }, [user, pathname, loading]);
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
@@ -87,7 +99,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
 
     if (error) throw new Error(error.message);
-    if (isAdminUser(data.user)) {
+    if (isAdminUser(data.user) || isSupportOnlyUser(data.user)) {
       router.push("/admin");
     } else {
       const profileCompleted = data.user.user_metadata?.profile_completed;

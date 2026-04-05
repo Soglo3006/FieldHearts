@@ -1,8 +1,11 @@
 import pool from "../config/db.js";
+import { sanitizeText } from "../utils/validate.js";
 
 export const reportListing = async (req, res) => {
   try {
-    const { listing_id, reported_user_id, reason, description } = req.body;
+    const { listing_id, reported_user_id } = req.body;
+    const reason      = sanitizeText(req.body.reason);
+    const description = sanitizeText(req.body.description);
     const reporter_id = req.user.id;
 
     if (!listing_id || !reported_user_id || !reason || !description) {

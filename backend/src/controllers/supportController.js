@@ -1,4 +1,5 @@
 import pool from "../config/db.js";
+import { sanitizeText } from "../utils/validate.js";
 
 async function ensureSupportTable() {
   await pool.query(`
@@ -17,7 +18,9 @@ async function ensureSupportTable() {
 export const createSupportTicket = async (req, res) => {
   try {
     await ensureSupportTable();
-    const { subject, category, description } = req.body;
+    const subject     = sanitizeText(req.body.subject);
+    const category    = sanitizeText(req.body.category);
+    const description = sanitizeText(req.body.description);
     if (!description || description.trim().length === 0) {
       return res.status(400).json({ message: "Description is required" });
     }

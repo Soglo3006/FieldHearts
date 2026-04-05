@@ -126,6 +126,14 @@ export default function AdminDashboard() {
       countLabel: t("admin.status.openCount"),
       color: "green",
     },
+    {
+      href: "/admin/users",
+      label: t("admin.dashboard.sections.users.label"),
+      description: t("admin.dashboard.sections.users.description"),
+      count: null,
+      countLabel: "",
+      color: "green",
+    },
   ];
 
   return (

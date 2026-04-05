@@ -446,16 +446,22 @@ export function useMessages(chatRoomId: string | null) {
           .neq('user_id', userId)
           .eq('is_deleted', true);
       },
-      notifyMessage: ({ chatRoomId: targetChatRoomId, senderUserId, messagePreview }) => {
-        fetch(`${process.env.NEXT_PUBLIC_API_URL}/messages/notify`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            chatRoomId: targetChatRoomId,
-            senderUserId,
-            messagePreview,
-          }),
-        }).catch(() => {});
+      notifyMessage: ({ chatRoomId: targetChatRoomId, messagePreview }) => {
+        supabase.auth.getSession().then(({ data }) => {
+          const token = data.session?.access_token;
+          if (!token) return;
+          fetch(`${process.env.NEXT_PUBLIC_API_URL}/messages/notify`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              chatRoomId: targetChatRoomId,
+              messagePreview,
+            }),
+          }).catch(() => {});
+        });
       },
       makeTempId,
     });

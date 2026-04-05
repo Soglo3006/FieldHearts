@@ -1,6 +1,7 @@
 import pool from "../config/db.js";
 import { getNextPayoutDate, subtractBusinessDays, processAllPayouts } from "../services/payoutService.js";
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
+import { logAdminAction } from "../services/auditService.js";
 
 const PERIOD_INTERVAL = {
   "2weeks":  "2 weeks",
@@ -168,41 +169,22 @@ export const exportTransactions = async (req, res) => {
 
     const rows = result.rows;
 
-    // Build workbook
-    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet("Transactions");
 
-    // Column widths
-    ws["!cols"] = [
-      { wch: 38 }, // ID Transaction
-      { wch: 12 }, // Date
-      { wch: 10 }, // Heure
-      { wch: 6  }, // Pays
-      { wch: 9  }, // Province
-      { wch: 38 }, // ID Réservation
-      { wch: 22 }, // Type
-      { wch: 24 }, // Utilisateur
-      { wch: 24 }, // Autre partie
-      { wch: 28 }, // Titre du service
-      { wch: 18 }, // Prix de base
-      { wch: 24 }, // Commission acheteur
-      { wch: 16 }, // Taux de taxes
-      { wch: 16 }, // Total taxes
-      { wch: 26 }, // Total facturé
-      { wch: 28 }, // Commission plateforme
-      { wch: 30 }, // Versement prestataire
-      { wch: 22 }, // Montant transaction
-      { wch: 20 }, // Statut
-    ];
+    if (rows.length > 0) {
+      const cols = Object.keys(rows[0]);
+      const widths = [38,12,10,6,9,38,22,24,24,28,18,24,16,16,26,28,30,22,20];
+      ws.columns = cols.map((header, i) => ({ header, key: header, width: widths[i] ?? 20 }));
+      ws.getRow(1).font = { bold: true };
+      rows.forEach((row) => ws.addRow(row));
+    }
 
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Transactions");
-
-    const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
     const filename = `transactions_${period}_${new Date().toISOString().slice(0, 10)}.xlsx`;
-
     res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
     res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-    res.send(buf);
+    await wb.xlsx.write(res);
+    res.end();
   } catch (err) {
     console.error("exportTransactions error:", err);
     res.status(500).json({ message: "Server error" });
@@ -245,6 +227,16 @@ export const getPayoutDetails = async (req, res) => {
 export const triggerPayout = async (req, res) => {
   try {
     await processAllPayouts();
+
+    await logAdminAction({
+      adminId:    req.user.id,
+      adminEmail: req.user.email,
+      action:     "payout.trigger",
+      targetType: "payout",
+      details:    { triggered_at: new Date().toISOString() },
+      ipAddress:  req.ip,
+    });
+
     res.json({ success: true, message: "Payout run completed" });
   } catch (err) {
     console.error("triggerPayout error:", err);

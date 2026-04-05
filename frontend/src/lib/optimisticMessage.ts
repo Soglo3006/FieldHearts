@@ -48,7 +48,6 @@ interface SendOptimisticMessageOptions<TMessage extends OptimisticMessageLike> {
   restoreConversation: (chatId: string, userId: string) => Promise<void>;
   notifyMessage: (payload: {
     chatRoomId: string;
-    senderUserId: string;
     messagePreview: string;
   }) => void;
   makeTempId?: () => string;
@@ -121,7 +120,6 @@ export async function sendOptimisticMessage<TMessage extends OptimisticMessageLi
 
     notifyMessage({
       chatRoomId: targetChatRoomId,
-      senderUserId: user.id,
       messagePreview: trimmed.substring(0, 100),
     });
   } catch (error) {

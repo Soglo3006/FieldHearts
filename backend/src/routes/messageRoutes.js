@@ -3,14 +3,25 @@ import { createClient } from '@supabase/supabase-js';
 import { notifyNewMessage } from '../services/emailService.js';
 import { pushNewMessage } from '../services/pushService.js';
 import { createNotification, shouldSendEmail } from '../services/notificationService.js';
+import { protect } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 
-router.post('/notify', async (req, res) => {
+router.post('/notify', protect, async (req, res) => {
   try {
-    const { chatRoomId, senderUserId, messagePreview } = req.body;
-    if (!chatRoomId || !senderUserId) return res.status(400).json({ error: 'Missing fields' });
+    const { chatRoomId, messagePreview } = req.body;
+    const senderUserId = req.user.id; // always use the authenticated user, never trust client-supplied sender ID
+    if (!chatRoomId) return res.status(400).json({ error: 'Missing fields' });
+
+    // Verify the authenticated user is actually a member of this chat room
+    const { data: senderMembership } = await supabase
+      .from('chat_room_member')
+      .select('user_id')
+      .eq('chat_room_id', chatRoomId)
+      .eq('user_id', senderUserId)
+      .single();
+    if (!senderMembership) return res.status(403).json({ error: 'Not a member of this chat room' });
 
     // Trouver le destinataire (qui n'a pas supprimé la conversation de son côté)
     const { data: members } = await supabase

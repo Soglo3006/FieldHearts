@@ -2,67 +2,62 @@ import { useEffect } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { PRESENCE_HEARTBEAT_MS } from '@/lib/presence';
 
+const API = process.env.NEXT_PUBLIC_API_URL ?? '';
+
+/**
+ * Sends presence heartbeats through the backend (pool query) instead of
+ * Supabase REST API — eliminates ~1M Supabase egress calls/month per user.
+ */
 export function usePresence(userId: string | null) {
   useEffect(() => {
     if (!userId) return;
 
-    const upsertPresence = async (isOnline: boolean) => {
-      await supabase.from('user_presence').upsert({
-        user_id: userId,
-        is_online: isOnline,
-        last_seen: new Date().toISOString(),
-      }, { onConflict: 'user_id' });
+    const getToken = async () => {
+      const { data } = await supabase.auth.getSession();
+      return data.session?.access_token ?? null;
     };
 
-    const setOnline = async () => {
+    const sendPresence = async (isOnline: boolean, activeChatId?: string | null) => {
+      const token = await getToken();
+      if (!token) return;
+      fetch(`${API}/profiles/presence`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ is_online: isOnline, active_chat_id: activeChatId ?? null }),
+      }).catch(() => {});
+    };
+
+    const setOnline = () => {
       if (document.visibilityState !== 'visible' || !navigator.onLine) return;
-      await upsertPresence(true);
+      sendPresence(true);
     };
 
-    const setOffline = async () => {
+    const setOffline = () => {
       if (!navigator.onLine) return;
-      await upsertPresence(false);
+      sendPresence(false);
     };
 
     setOnline();
 
-    const heartbeat = window.setInterval(() => {
-      void setOnline();
-    }, PRESENCE_HEARTBEAT_MS);
+    const heartbeat = window.setInterval(setOnline, PRESENCE_HEARTBEAT_MS);
 
     const handleVisibility = () => {
-      if (document.visibilityState === 'visible') {
-        void setOnline();
-        return;
-      }
-
-      void setOffline();
-    };
-
-    const handleOnline = () => {
-      void setOnline();
-    };
-
-    const handleOffline = () => {
-      void setOffline();
-    };
-
-    const handlePageHide = () => {
-      void setOffline();
+      if (document.visibilityState === 'visible') { setOnline(); return; }
+      setOffline();
     };
 
     document.addEventListener('visibilitychange', handleVisibility);
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-    window.addEventListener('pagehide', handlePageHide);
+    window.addEventListener('online', setOnline);
+    window.addEventListener('offline', setOffline);
+    window.addEventListener('pagehide', setOffline);
 
     return () => {
       window.clearInterval(heartbeat);
-      void setOffline();
+      setOffline();
       document.removeEventListener('visibilitychange', handleVisibility);
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-      window.removeEventListener('pagehide', handlePageHide);
+      window.removeEventListener('online', setOnline);
+      window.removeEventListener('offline', setOffline);
+      window.removeEventListener('pagehide', setOffline);
     };
   }, [userId]);
 }

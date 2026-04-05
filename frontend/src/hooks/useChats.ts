@@ -67,7 +67,7 @@ export function useChats() {
         { data: chatRooms, error: roomsError },
         { data: unreadMessages },
       ] = await Promise.all([
-        supabase.from('chat_room').select('*').in('id', chatRoomIds),
+        supabase.from('chat_room').select('id, created_at, other_user_id, last_message, last_message_at').in('id', chatRoomIds),
         supabase
           .from('messages')
           .select('chat_room_id')
@@ -187,20 +187,14 @@ export function useChats() {
       .on(
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'messages' },
-        async (payload) => {
-          const updated = payload.new as { chat_room_id: string };
-          const { data: lastMessage } = await supabase
-            .from('messages')
-            .select('content, created_at, user_id')
-            .eq('chat_room_id', updated.chat_room_id)
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .maybeSingle();
-
-          if (!lastMessage) return;
+        (payload) => {
+          // Use the payload directly — no extra REST call needed
+          const updated = payload.new as { chat_room_id: string; content: string; created_at: string; user_id: string; deleted_at?: string };
           setChats((prev) =>
             prev.map((chat) =>
-              chat.id === updated.chat_room_id ? { ...chat, last_message: lastMessage } : chat
+              chat.id === updated.chat_room_id
+                ? { ...chat, last_message: { content: updated.content, created_at: updated.created_at, user_id: updated.user_id } }
+                : chat
             )
           );
         }

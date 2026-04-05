@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabaseClient';
-import { isPresenceOnline, PRESENCE_HEARTBEAT_MS, type PresenceRecord } from '@/lib/presence';
+import { isPresenceOnline, type PresenceRecord } from '@/lib/presence';
 
 export function useUserPresence(otherUserId?: string) {
   const [presenceState, setPresenceState] = useState<{ userId?: string; isOnline: boolean }>({
@@ -28,6 +28,7 @@ export function useUserPresence(otherUserId?: string) {
 
     void fetchPresence();
 
+    // Re-check stale status every 10s using local ref — no API call
     const staleCheckInterval = window.setInterval(() => {
       setPresenceState((current) => {
         if (current.userId !== otherUserId) return current;
@@ -35,10 +36,7 @@ export function useUserPresence(otherUserId?: string) {
       });
     }, 10_000);
 
-    const pollInterval = window.setInterval(() => {
-      void fetchPresence();
-    }, PRESENCE_HEARTBEAT_MS);
-
+    // Realtime handles live updates — no redundant poll needed
     const channel = supabase
       .channel(`presence-${otherUserId}`)
       .on('postgres_changes', {
@@ -55,7 +53,6 @@ export function useUserPresence(otherUserId?: string) {
 
     return () => {
       window.clearInterval(staleCheckInterval);
-      window.clearInterval(pollInterval);
       presenceRef.current = null;
       supabase.removeChannel(channel);
     };

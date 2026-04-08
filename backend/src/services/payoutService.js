@@ -65,7 +65,6 @@ export async function processUserPayout(userId) {
   );
 
   if (stripeAccount.rows.length === 0 || !stripeAccount.rows[0].stripe_account_id) {
-    console.log(`[Payout] No Stripe account for user ${userId} — skipping`);
     createNotification({
       userId,
       type: "payment",
@@ -185,7 +184,6 @@ export async function processUserPayout(userId) {
   const commissionDollars = (Number(grossDollars) - totalTransferredDollars).toFixed(2);
   const nextPayout = getNextPayoutDate(new Date()).toLocaleDateString("fr-CA", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
 
-  console.log(`[Payout] User ${userId}: transferred $${transferredDollars}`);
 
   if (workerEmail) {
     notifyPayoutReceived(workerEmail, workerName, transferredDollars, commissionDollars, grossDollars, processedBookings.length, nextPayout)
@@ -223,7 +221,6 @@ async function recoverMissingCredits() {
 
   if (missing.rows.length === 0) return;
 
-  console.log(`[Payout] Recovering ${missing.rows.length} missing credit transaction(s)...`);
 
   for (const row of missing.rows) {
     try {
@@ -239,7 +236,6 @@ async function recoverMissingCredits() {
          SET balance = wallets.balance + $2, total_earned = wallets.total_earned + $2, updated_at = NOW()`,
         [row.worker_id, row.worker_receives]
       );
-      console.log(`[Payout] Recovered credit for booking ${row.id} — worker ${row.worker_id}`);
     } catch (err) {
       console.error(`[Payout] Failed to recover credit for booking ${row.id}:`, err.message);
     }
@@ -250,7 +246,6 @@ async function recoverMissingCredits() {
  * Process bi-weekly payouts for all eligible workers.
  */
 export async function processAllPayouts() {
-  console.log("[Payout] Starting bi-weekly payout run...");
 
   // Recover any bookings where finalizeCompletion failed silently
   await recoverMissingCredits().catch((err) =>
@@ -281,5 +276,4 @@ export async function processAllPayouts() {
     }
   }
 
-  console.log(`[Payout] Done — processed ${processed} workers`);
 }

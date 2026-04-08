@@ -39,7 +39,6 @@ async function sendAlertEmail(subject, body) {
       `,
     });
     lastAlertSent = Date.now();
-    console.log(`[HealthMonitor] Alert sent: ${subject}`);
   } catch (err) {
     console.error("[HealthMonitor] Failed to send alert email:", err.message);
   }
@@ -65,7 +64,6 @@ async function sendRecoveryEmail(subject) {
         </div>
       `,
     });
-    console.log(`[HealthMonitor] Recovery email sent: ${subject}`);
   } catch (err) {
     console.error("[HealthMonitor] Failed to send recovery email:", err.message);
   }
@@ -110,7 +108,6 @@ export async function runHealthCheck() {
 }
 
 export function startHealthMonitorJob() {
-  console.log("[HealthMonitor] Started — checking every 5 minutes");
   // Run immediately on startup
   runHealthCheck();
   // Then every 5 minutes

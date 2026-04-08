@@ -64,7 +64,6 @@ const runReminders = async () => {
         [row.user_id, row.chat_room_id]
       );
 
-      console.log(`Reminder sent to ${row.email} for room ${row.chat_room_id}`);
     }
   } catch (err) {
     console.error("Reminder job error:", err.message);
@@ -73,8 +72,6 @@ const runReminders = async () => {
 
 export const startMessageReminderJob = () => {
   cron.schedule("0 * * * *", () => {
-    console.log("[cron] Running 24h unread message reminder job...");
     runReminders();
   });
-  console.log("[cron] Message reminder job scheduled (every hour)");
 };

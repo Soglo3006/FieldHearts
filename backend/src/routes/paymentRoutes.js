@@ -4,7 +4,6 @@ import {
   createConnectAccount,
   getConnectStatus,
   createCheckoutSession,
-  stripeWebhook,
   releasePayment,
   refundPayment,
   getPaymentStatus,
@@ -12,9 +11,6 @@ import {
 } from "../controllers/paymentController.js";
 
 const router = express.Router();
-
-// Stripe webhook — must use raw body, no auth middleware
-router.post("/webhook", express.raw({ type: "application/json" }), stripeWebhook);
 
 // All other routes require auth
 router.post("/connect/create", protect, createConnectAccount);

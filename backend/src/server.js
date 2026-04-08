@@ -93,8 +93,6 @@ app.use(cors({
   credentials: true,
 }));
 
-app.use("/api/payments/webhook", express.raw({ type: "application/json" }));
-// Alias pour l'URL configurée dans Stripe Dashboard
 app.use("/webhook/stripe", express.raw({ type: "application/json" }));
 
 app.use(express.json({ limit: '50mb' }));
@@ -137,7 +135,6 @@ app.listen(PORT, () => {
   // and check if it's the correct payout week inside the handler
   cron.schedule("0 16 * * 5", async () => {
     if (isPayoutDay(new Date())) {
-      console.log("[Payout] Bi-weekly payout day — starting...");
       await processAllPayouts();
     }
   });

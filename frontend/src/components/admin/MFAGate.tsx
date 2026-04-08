@@ -63,9 +63,9 @@ export function MFAGate({ children }: { children: React.ReactNode }) {
       setStage("challenge");
     } else {
       // No verified factor — unenroll ALL existing factors (verified or not) then enroll fresh
-      const allFactors = [...(factorsData?.totp ?? [])];
+      const allFactors = [...(factorsData?.all ?? [])];
       for (const f of allFactors) {
-        await supabase.auth.mfa.unenroll({ factorId: f.id }).catch(() => {});
+        await supabase.auth.mfa.unenroll({ factorId: f.id });
       }
       await startEnrollment();
     }
@@ -78,6 +78,30 @@ export function MFAGate({ children }: { children: React.ReactNode }) {
       friendlyName: `Uneden-${Date.now()}`,
     });
     if (error || !data) {
+      // If still hitting the limit, force-unenroll everything and retry once
+      if (error?.message?.includes("Maximum number")) {
+        const { data: factorsData } = await supabase.auth.mfa.listFactors();
+        const allFactors = [...(factorsData?.all ?? [])];
+        for (const f of allFactors) {
+          await supabase.auth.mfa.unenroll({ factorId: f.id });
+        }
+        const { data: retryData, error: retryError } = await supabase.auth.mfa.enroll({
+          factorType: "totp",
+          issuer: "Uneden",
+          friendlyName: `Uneden-${Date.now()}`,
+        });
+        if (retryError || !retryData) {
+          setError(`Erreur: ${retryError?.message ?? "Impossible de démarrer le 2FA. Réessayez."}`);
+          setStage("enroll");
+          return;
+        }
+        setEnrollData({ factorId: retryData.id, qrCode: retryData.totp.qr_code, secret: retryData.totp.secret });
+        const { data: challengeData } = await supabase.auth.mfa.challenge({ factorId: retryData.id });
+        if (challengeData) setChallengeId(challengeData.id);
+        setFactorId(retryData.id);
+        setStage("enroll");
+        return;
+      }
       setError(`Erreur: ${error?.message ?? "Impossible de démarrer le 2FA. Réessayez."}`);
       setStage("enroll");
       return;

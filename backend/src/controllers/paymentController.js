@@ -501,7 +501,6 @@ export const stripeWebhook = async (req, res) => {
           }
         }
 
-        console.log(`Payment confirmed for booking ${bookingId} — now active`);
       } catch (err) {
         console.error("Error processing payment webhook:", err);
       }

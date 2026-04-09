@@ -57,7 +57,7 @@ interface CategoryCount {
   count: number;
 }
 
-function ListingCard({ listing, t }: { listing: Listing; t: (key: string, opts?: Record<string, unknown>) => string }) {
+function ListingCard({ listing, t, priority = false }: { listing: Listing; t: (key: string, opts?: Record<string, unknown>) => string; priority?: boolean }) {
   return (
     <Link href={`/serviceDetail/${listing.id}`} className="block h-full group">
       <div className="h-full border rounded-xl shadow-sm bg-white flex flex-col overflow-hidden hover:shadow-md transition-shadow cursor-pointer">
@@ -69,6 +69,8 @@ function ListingCard({ listing, t }: { listing: Listing; t: (key: string, opts?:
               fill
               sizes="(max-width: 640px) 100vw, (max-width: 1280px) 50vw, 33vw"
               className="object-cover"
+              priority={priority}
+              loading={priority ? undefined : "lazy"}
             />
           ) : (
             <div className="w-full h-full bg-gray-100 flex items-center justify-center">
@@ -275,8 +277,8 @@ export default function HomePage() {
               ) : listings.length === 0 ? (
                 <p className="text-gray-500 col-span-full">{t("home.noListings")}</p>
               ) : (
-                listings.slice(0, 9).map((listing) => (
-                  <ListingCard key={listing.id} listing={listing} t={t} />
+                listings.slice(0, 9).map((listing, i) => (
+                  <ListingCard key={listing.id} listing={listing} t={t} priority={i < 3} />
                 ))
               )}
 

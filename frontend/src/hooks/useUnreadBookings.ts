@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from "react";
-import { supabase } from "@/lib/supabaseClient";
 import { useAuth } from "@/contexts/AuthContext";
 
 export interface BookingNotif {
@@ -83,16 +82,14 @@ export function useUnreadBookings() {
 
     fetchNotifs();
 
-    const channel = supabase
-      .channel("booking-notifs")
-      .on("postgres_changes", { event: "*", schema: "public", table: "bookings" }, () => fetchNotifs())
-      .subscribe();
+    // Poll every 30 s instead of keeping a Supabase Realtime channel open on every page.
+    const interval = setInterval(() => fetchNotifs(), 30_000);
 
     const onSeenUpdated = () => fetchNotifs();
     window.addEventListener("bookings-seen-updated", onSeenUpdated);
 
     return () => {
-      supabase.removeChannel(channel);
+      clearInterval(interval);
       window.removeEventListener("bookings-seen-updated", onSeenUpdated);
     };
   }, [user, fetchNotifs]);

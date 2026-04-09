@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { supabase } from '@/lib/supabaseClient';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTranslation } from 'react-i18next';
 import { formatUnreadMessagePreview } from '@/lib/messagePreview';
@@ -122,24 +121,12 @@ export function useUnreadMessages() {
 
     fetchSummary(false);
 
-    // Realtime: re-fetch on message changes relevant to this user.
-    // RLS on messages table ensures only the user's events are received.
-    const channel = supabase
-      .channel('unread-summary-notif')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
-        const isOwnMessage = payload.new.user_id === user.id;
-        fetchSummary(!isOwnMessage);
-      })
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'messages' }, () => {
-        fetchSummary(false);
-      })
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'chat_room_member' }, (payload) => {
-        if (payload.new.user_id === user.id) fetchSummary(false);
-      })
-      .subscribe();
+    // Poll every 30 s instead of keeping a Supabase Realtime channel open on every page.
+    // The messages page (useChats/useMessages) keeps its own realtime channel for instant updates.
+    const interval = setInterval(() => fetchSummary(true), 30_000);
 
     return () => {
-      supabase.removeChannel(channel);
+      clearInterval(interval);
     };
   }, [user, session, formatMessagePreview, languageCode]);
 

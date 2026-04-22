@@ -185,7 +185,6 @@ export default function TrustSafetyPage() {
           <p className="mb-3">{t("trustSafetyPage.sections.contact.intro")}</p>
           <div className="space-y-1">
             <p className="font-semibold text-gray-900">{t("trustSafetyPage.sections.contact.name")}</p>
-            <p className="font-semibold text-gray-900">{t("trustSafetyPage.sections.contact.address")}</p>
           </div>
         </section>
 

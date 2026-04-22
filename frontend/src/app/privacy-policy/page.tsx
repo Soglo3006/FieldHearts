@@ -186,7 +186,6 @@ export default function PrivacyPolicyPage() {
           <p className="mb-3">{t("privacyPolicyPage.sections.contact.intro")}</p>
           <div className="space-y-1">
             <p className="font-semibold text-gray-900">{t("privacyPolicyPage.sections.contact.name")}</p>
-            <p className="font-semibold text-gray-900">{t("privacyPolicyPage.sections.contact.address")}</p>
           </div>
         </section>
 

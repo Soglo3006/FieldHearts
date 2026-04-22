@@ -243,7 +243,6 @@ export default function TermsOfServicePage() {
               <p className="mb-3">{t("termsPage.sections.contact.intro")}</p>
               <div className="space-y-1">
                 <p className="font-semibold text-gray-900">{t("termsPage.sections.contact.name")}</p>
-                <p className="font-semibold text-gray-900">{t("termsPage.sections.contact.address")}</p>
               </div>
             </section>
           </div>

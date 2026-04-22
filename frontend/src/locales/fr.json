@@ -1565,7 +1565,7 @@
     "heroTitle": "Tout ce dont vous avez besoin pour trouver ou offrir des services locaux",
     "heroSubtitle": "Contactez notre équipe — nous sommes là pour vous aider et répondons généralement dans les 24–48 heures.",
     "addressLabel": "Adresse",
-    "addressValue": "391 Rue Sauve, Repentigny, QC, Canada",
+    "addressValue": "",
     "successTitle": "Message envoyé !",
     "successMessage": "Merci de nous avoir contactés. Nous vous répondrons dans les 24–48 heures.",
     "sendAnother": "Envoyer un autre message",
@@ -1673,7 +1673,7 @@
         "title": "9. Contact",
         "intro": "Pour toute question concernant cette politique, contactez-nous :",
         "name": "Uneden",
-        "address": "391 Rue Sauve, Repentigny, Quebec, Canada"
+        "address": ""
       }
     }
   },
@@ -1748,7 +1748,7 @@
         "title": "11. Contact",
         "intro": "Pour toute question, contactez-nous :",
         "name": "Uneden",
-        "address": "391 Rue Sauve, Repentigny, Quebec, Canada"
+        "address": ""
       }
     }
   },
@@ -1876,7 +1876,7 @@
         "title": "16. Contact",
         "intro": "Pour toute question, contactez-nous :",
         "name": "Uneden",
-        "address": "391 Rue Sauve, Repentigny, Quebec, Canada"
+        "address": ""
       }
     }
   },
@@ -2019,7 +2019,7 @@
         "title": "17. Contact",
         "intro": "Pour toute question, contactez-nous :",
         "name": "Uneden",
-        "address": "391 Rue Sauve, Repentigny, Quebec, Canada"
+        "address": ""
       }
     }
   },

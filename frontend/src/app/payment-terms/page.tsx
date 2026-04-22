@@ -284,7 +284,6 @@ export default function PaymentTermsPage() {
               <p className="mb-3">{t("paymentTermsPage.sections.contact.intro")}</p>
               <div className="space-y-1">
                 <p className="font-semibold text-gray-900">{t("paymentTermsPage.sections.contact.name")}</p>
-                <p className="font-semibold text-gray-900">{t("paymentTermsPage.sections.contact.address")}</p>
               </div>
             </section>
           </div>

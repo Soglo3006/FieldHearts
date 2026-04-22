@@ -79,12 +79,6 @@ export default function ContactPage() {
             </div>
           </div>
 
-          <div className="mt-12 pt-8 border-t border-green-700">
-            <p className="text-xs text-green-300 mb-1 font-medium">
-              {t("contactPage.addressLabel")}
-            </p>
-            <p className="text-green-100 text-sm">{t("contactPage.addressValue")}</p>
-          </div>
         </div>
 
         {/* Right panel — form */}

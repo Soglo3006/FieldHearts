@@ -62,7 +62,8 @@
     "trust3Desc": "3 jours de protection avec une résolution équitable",
     "trust4Title": "Local et transparent",
     "trust4Desc": "Trouvez des personnes de confiance près de chez vous",
-    "locationPrivacyHint": "Facultatif — filtre les annonces par ville ou région sans partager la position du navigateur."
+    "locationPrivacyHint": "Facultatif — filtre les annonces par ville ou région sans partager la position du navigateur.",
+    "extraPhotosAria": "{{count}} de plus dans la galerie"
   },
   "listings": {
     "filters": "Filtres",

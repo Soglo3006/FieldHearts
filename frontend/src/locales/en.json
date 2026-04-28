@@ -62,7 +62,8 @@
     "trust3Desc": "3-day protection with fair resolution",
     "trust4Title": "Local & Transparent",
     "trust4Desc": "Find trusted people near you",
-    "locationPrivacyHint": "Optional — filters listings by city or area without browser location permission."
+    "locationPrivacyHint": "Optional — filters listings by city or area without browser location permission.",
+    "extraPhotosAria": "{{count}} more in gallery"
   },
   "listings": {
     "filters": "Filters",

@@ -71,7 +71,10 @@ function ListingCard({
   i18nLang: string | undefined;
   priority?: boolean;
 }) {
-  const thumb = listing.image_urls?.[0] ?? listing.image_url;
+  const urls = listing.image_urls?.filter(Boolean) ?? [];
+  const thumb = urls[0] ?? listing.image_url;
+  const totalPhotos = urls.length > 0 ? urls.length : listing.image_url ? 1 : 0;
+  const extraPhotos = totalPhotos > 1 ? totalPhotos - 1 : 0;
   const resolvedTitle = resolveListingTitle(listing, i18nLang);
   return (
     <Link href={`/serviceDetail/${listing.id}`} className="block h-full group">
@@ -79,6 +82,14 @@ function ListingCard({
         <AspectRatio ratio={16 / 9}>
           <div className="relative w-full h-full">
             <ListingLangPills service={listing} />
+            {extraPhotos > 0 && (
+              <span
+                className="pointer-events-none absolute bottom-2 right-2 z-10 rounded-full bg-black/65 px-2 py-0.5 text-[11px] font-semibold tabular-nums text-white shadow-sm backdrop-blur-[2px]"
+                aria-label={t("home.extraPhotosAria", { count: extraPhotos })}
+              >
+                +{extraPhotos}
+              </span>
+            )}
             {thumb ? (
               <AppImage
                 src={thumb}

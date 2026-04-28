@@ -61,7 +61,8 @@
     "trust3Title": "Dispute Protection",
     "trust3Desc": "3-day protection with fair resolution",
     "trust4Title": "Local & Transparent",
-    "trust4Desc": "Find trusted people near you"
+    "trust4Desc": "Find trusted people near you",
+    "locationPrivacyHint": "Optional — filters listings by city or area without browser location permission."
   },
   "listings": {
     "filters": "Filters",
@@ -73,12 +74,16 @@
     "clear": "Clear",
     "location": "Location",
     "cityOrArea": "City or area...",
+    "locationRegions": "Regions",
+    "locationCities": "Cities",
+    "locationRegionBadge": "Region",
     "price": "Price",
     "clearAll": "Clear all",
     "filtersActive": "{{count}} filter active",
     "filtersActivePlural": "{{count}} filters active",
     "adPlaceholder": "Ad placeholder",
-    "adjustFilters": "Try adjusting your filters"
+    "adjustFilters": "Try adjusting your filters",
+    "spokenLanguageFilter": "Listing language preference"
   },
   "notFound": {
     "title": "Page not found",
@@ -505,6 +510,17 @@
     "languageFrench": "French",
     "languageEnglish": "English",
     "languageBilingual": "Bilingual",
+    "bilingualDescriptionNotice": "Listings with a title and description in more than one language often get more replies and offers.",
+    "localeFrench": "Fr",
+    "localeEnglish": "Eng",
+    "localeLabel": "Listing language",
+    "addOtherLanguage": "Add title in other language",
+    "addDescriptionOtherLanguage": "Add description in other language",
+    "sameFieldOtherLanguage": "Other language",
+    "serviceTitlePlaceholderOther": "Title in the other language (optional)",
+    "descriptionPlaceholderOther": "Description in the other language (optional)",
+    "jobTitlePlaceholderOther": "Title in the other language (optional)",
+    "jobDescriptionPlaceholderOther": "Description in the other language (optional)",
     "canYouTravel": "Can you travel?",
     "mobilityYes": "Yes",
     "mobilityNo": "No",
@@ -598,7 +614,10 @@
     "requiredFields": "Title, description, category, price, and location are required.",
     "failedUpdate": "Failed to update. Please try again.",
     "networkError": "Network error. Please try again.",
-    "photos": "Photos (optional)"
+    "photos": "Photos (optional)",
+    "availabilityFlexible": "Flexible",
+    "mobilityCity": "Within city limits",
+    "mobilityRegional": "Regional"
   },
   "profile": {
     "editProfile": "Edit Profile",

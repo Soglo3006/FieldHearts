@@ -5,6 +5,11 @@ import { formatTaxRate } from "@/lib/taxes";
 import { useClientTax } from "@/hooks/useClientTax";
 import { Button } from "@/components/ui/button";
 import { Clock, Globe, CheckCircle } from "lucide-react";
+import {
+  formatAvailabilityLabel,
+  formatMobilityLabel,
+  formatSpokenLanguageLabel,
+} from "@/lib/formatServiceDetailFields";
 
 interface Props {
   serviceType: "offer" | "looking";
@@ -122,7 +127,7 @@ export default function BookingSidebar({
                 <span className="text-sm text-gray-600">{t("serviceDetail.availability")}</span>
               </div>
               <span className="max-w-32.5 truncate text-right text-sm font-semibold text-gray-900">
-                {availability}
+                {formatAvailabilityLabel(availability, t)}
               </span>
             </div>
           )}
@@ -132,7 +137,7 @@ export default function BookingSidebar({
                 <Globe className="h-5 w-5 text-green-600" />
                 <span className="text-sm text-gray-600">{t("serviceDetail.language")}</span>
               </div>
-              <span className="font-semibold text-gray-900 text-sm">{language}</span>
+              <span className="font-semibold text-gray-900 text-sm">{formatSpokenLanguageLabel(language, t)}</span>
             </div>
           )}
           {mobility && (
@@ -141,7 +146,7 @@ export default function BookingSidebar({
                 <CheckCircle className="h-5 w-5 text-green-600" />
                 <span className="text-sm text-gray-600">{t("serviceDetail.mobile")}</span>
               </div>
-              <span className="font-semibold text-gray-900 text-sm">{mobility}</span>
+              <span className="font-semibold text-gray-900 text-sm">{formatMobilityLabel(mobility, t)}</span>
             </div>
           )}
         </div>

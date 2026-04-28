@@ -9,8 +9,10 @@ import { AspectRatio } from "@/components/ui/aspect-ratio";
 import AppImage from "@/components/ui/AppImage";
 import { useAuth } from "@/contexts/AuthContext";
 import { getPublicServiceLocation } from "@/lib/serviceLocation";
+import { resolveListingTitle, type ServiceLikeWithI18n } from "@/lib/serviceListingI18n";
+import ListingLangPills from "@/components/ui/ListingLangPills";
 
-interface FavoriteService {
+interface FavoriteService extends Pick<ServiceLikeWithI18n, "language" | "translations"> {
   id: string;
   title: string;
   price: number;
@@ -21,10 +23,11 @@ interface FavoriteService {
   category_name: string | null;
   subcategory: string | null;
   image_url: string | null;
+  image_urls?: string[] | null;
 }
 
 export default function FavoritesPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { user, session } = useAuth();
   const [items, setItems] = useState<FavoriteService[]>([]);
   const [loading, setLoading] = useState(true);
@@ -73,6 +76,9 @@ export default function FavoritesPage() {
                     category_name: data.category_name ?? data.category ?? null,
                     subcategory: data.subcategory ?? null,
                     image_url: data.image_url ?? null,
+                    image_urls: data.image_urls ?? null,
+                    language: data.language ?? null,
+                    translations: data.translations ?? null,
                   });
                 }
               } catch {}
@@ -177,7 +183,8 @@ export default function FavoritesPage() {
                   </div>
                 </div>
               </div>
-            ))}
+            );
+            })}
           </div>
         )}
       </main>

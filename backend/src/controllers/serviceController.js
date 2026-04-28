@@ -1,14 +1,32 @@
 import pool from "../config/db.js";
 import { validateInput, sanitizeText } from "../utils/validate.js";
+import { expandLocationILIKEpatterns } from "../utils/caLocationFilter.js";
+import { sanitizeListingTranslations, canonicalListingTexts } from "../utils/serviceTranslations.js";
+import {
+  canonServiceFieldsInPlace,
+  normalizeAvailability,
+  normalizeMobility,
+} from "../utils/serviceFieldCanonical.js";
 
 export const createService = async (req, res) => {
   try {
-    const { errors, data } = validateInput(req.body, {
-      title:       { required: true, type: "string", maxLen: 200 },
-      description: { required: true, type: "string", maxLen: 5000 },
-      type:        { required: true, enum: ["offer", "looking"] },
-      price:       { required: true, type: "number", min: 0.01 },
-    });
+    const translationsSanitized = sanitizeListingTranslations(req.body.translations);
+    const canon = canonicalListingTexts(translationsSanitized);
+
+    let mergedTitle = canon.title || sanitizeText(String(req.body.title ?? ""));
+    let mergedDesc = canon.description || sanitizeText(String(req.body.description ?? ""));
+    mergedTitle = String(mergedTitle).trim();
+    mergedDesc = String(mergedDesc).trim();
+
+    const { errors, data } = validateInput(
+      { ...req.body, title: mergedTitle, description: mergedDesc },
+      {
+        title: { required: true, type: "string", maxLen: 200 },
+        description: { required: true, type: "string", maxLen: 5000 },
+        type: { required: true, enum: ["offer", "looking"] },
+        price: { required: true, type: "number", min: 0.01 },
+      },
+    );
 
     if (errors) {
       return res.status(400).json({ message: errors[0] });
@@ -51,14 +69,14 @@ export const createService = async (req, res) => {
         user_id, type, title, description, category, category_id, subcategory,
         price, location, address, latitude, longitude, city,
         poster_type, availability,
-        language, mobility, duration, urgency, image_url, image_urls, is_one_time, hide_exact_location
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
+        language, mobility, duration, urgency, image_url, image_urls, is_one_time, hide_exact_location, translations
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24::jsonb)
       RETURNING *`,
       [
         req.user.id,
         type,
-        title,
-        description,
+        data.title,
+        data.description,
         category || null,
         category_id || null,
         subcategory || null,
@@ -69,19 +87,22 @@ export const createService = async (req, res) => {
         longitude || null,
         city || location,
         poster_type || null,
-        availability || null,
+        normalizeAvailability(availability) || null,
         language || null,
-        mobility || null,
+        normalizeMobility(mobility) || null,
         duration || null,
         urgency || null,
         resolvedImageUrl,
         resolvedImageUrls,
         is_one_time === true || is_one_time === "true" ? true : false,
         hide_exact_location === true || hide_exact_location === "true" ? true : false,
+        translationsSanitized,
       ]
     );
 
-    res.status(201).json(result.rows[0]);
+    const created = result.rows[0];
+    canonServiceFieldsInPlace(created);
+    res.status(201).json(created);
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Server error while creating service" });
@@ -90,7 +111,22 @@ export const createService = async (req, res) => {
 
 export const getAllServices = async (req, res) => {
   try {
-    const { category, location, minPrice, maxPrice, search, categoryName, subcategory, type, userLat, userLng, radius, limit, page } = req.query;
+    const {
+      category,
+      location,
+      minPrice,
+      maxPrice,
+      search,
+      categoryName,
+      subcategory,
+      type,
+      userLat,
+      userLng,
+      radius,
+      limit,
+      page,
+      spokenLanguage,
+    } = req.query;
     const categoryNames = String(categoryName || "")
       .split(",")
       .map((value) => value.trim())
@@ -153,10 +189,56 @@ export const getAllServices = async (req, res) => {
       paramCount++;
     }
 
+    /** Filtre langue : codes (french/en/bilingual), anciennes valeurs (fr_en, fr_en, etc.), JSON translations, repli FR si JSON sans clé fr mais titre/desc avec accents. */
+    const tr = "COALESCE(s.translations, '{}'::jsonb)";
+    const sl = String(spokenLanguage || "");
+    if (["french", "english", "bilingual"].includes(sl)) {
+      const txtFr = `(NULLIF(trim(${tr} #>> '{title,fr}'), '') IS NOT NULL OR NULLIF(trim(${tr} #>> '{description,fr}'), '') IS NOT NULL)`;
+      const txtEn = `(NULLIF(trim(${tr} #>> '{title,en}'), '') IS NOT NULL OR NULLIF(trim(${tr} #>> '{description,en}'), '') IS NOT NULL)`;
+      const langNorm = `lower(regexp_replace(trim(coalesce(s.language, '')), '[^a-z]+', '_', 'gi'))`;
+      const langExact = `lower(trim(coalesce(s.language, '')))`;
+      const langFrench = `(${langNorm} IN ('french','fr','francais','bilingual','fr_en','en_fr','fren','enfr'))
+        OR ${langExact} IN (
+          'french','fr','français','francais','bilingual','bilingue','fr_en','fr-en','en_fr','en-fr','fr,en','en,fr','fr en','en fr'
+        )`;
+      const langEnglish = `(${langNorm} IN ('english','en','bilingual','fr_en','en_fr','fren','enfr'))
+        OR ${langExact} IN (
+          'english','anglais','bilingual','bilingue','fr_en','fr-en','en_fr','en-fr','fr,en','en,fr','fr en','en fr'
+        )`;
+      const noFrInJson = `(NULLIF(trim(${tr} #>> '{title,fr}'), '') IS NULL AND NULLIF(trim(${tr} #>> '{description,fr}'), '') IS NULL)`;
+      const heuristicFrCanon = `(${noFrInJson} AND NULLIF(concat(trim(coalesce(s.title,'')), ' ', trim(coalesce(s.description,''))), '') IS NOT NULL
+        AND concat(trim(coalesce(s.title,'')), ' ', trim(coalesce(s.description,''))) ~ '[éèêëàâäùûüôöîïçœÉÈÀÇ]'::text)`;
+      if (sl === "french") {
+        query += ` AND (
+            ${langFrench}
+            OR ${txtFr}
+            OR ${heuristicFrCanon}
+          )`;
+      } else if (sl === "english") {
+        query += ` AND (
+            ${langEnglish}
+            OR ${txtEn}
+          )`;
+      } else if (sl === "bilingual") {
+        query += ` AND (
+            ${langExact} IN ('bilingual','bilingue')
+            OR ${langNorm} IN ('bilingual','fr_en','en_fr','fren','enfr')
+            OR (${txtFr} AND ${txtEn})
+          )`;
+      }
+    }
+
     if (location) {
-      query += ` AND (s.location ILIKE $${paramCount} OR s.city ILIKE $${paramCount})`;
-      params.push(`%${location}%`);
-      paramCount++;
+      const locPatterns = expandLocationILIKEpatterns(String(location));
+      const clauses = locPatterns.map(
+        (_, idx) =>
+          `(s.location ILIKE $${paramCount + idx} OR s.city ILIKE $${paramCount + idx} OR COALESCE(s.address, '') ILIKE $${paramCount + idx})`
+      );
+      query += ` AND (${clauses.join(" OR ")})`;
+      for (const p of locPatterns) {
+        params.push(p);
+      }
+      paramCount += locPatterns.length;
     }
 
     if (minPrice) {
@@ -290,6 +372,7 @@ export const getAllServices = async (req, res) => {
     }
 
     const result = await pool.query(query, params);
+    result.rows.forEach((row) => canonServiceFieldsInPlace(row));
 
     if (isPaginated) {
       const total = parseInt(result.rows[0]?.total_count ?? "0", 10);
@@ -335,6 +418,7 @@ export const getMyServices = async (req, res) => {
       `SELECT * FROM services WHERE user_id = $1 ORDER BY created_at DESC`,
       [req.user.id]
     );
+    result.rows.forEach((row) => canonServiceFieldsInPlace(row));
     res.json(result.rows);
   } catch (err) {
     console.error(err);
@@ -373,7 +457,9 @@ export const getServiceById = async (req, res) => {
       return res.status(404).json({ message: "Service not found" });
     }
 
-    res.json(result.rows[0]);
+    const row = result.rows[0];
+    canonServiceFieldsInPlace(row);
+    res.json(row);
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Server error while fetching service" });
@@ -387,7 +473,7 @@ export const updateService = async (req, res) => {
       title, description, category, category_id, subcategory,
       price, location, address, latitude, longitude, city,
       poster_type, availability, language,
-      mobility, duration, urgency, image_url, image_urls, is_one_time, hide_exact_location,
+      mobility, duration, urgency, image_url, image_urls, is_one_time, hide_exact_location, translations,
     } = req.body;
 
     const check = await pool.query(
@@ -414,6 +500,32 @@ export const updateService = async (req, res) => {
       updResolvedUrls = existing.image_urls || [];
     }
 
+    let translationsOut = sanitizeListingTranslations(existing.translations || {});
+    if (translations !== undefined) {
+      translationsOut = sanitizeListingTranslations(translations);
+    }
+    const canon = canonicalListingTexts(translationsOut);
+    let mergedTitleFinal;
+    let mergedDescFinal;
+    if (translations !== undefined) {
+      mergedTitleFinal =
+        canon.title.trim() !== ""
+          ? canon.title.trim()
+          : title !== undefined
+            ? sanitizeText(String(title))
+            : existing.title;
+      mergedDescFinal =
+        canon.description.trim() !== ""
+          ? canon.description.trim()
+          : description !== undefined
+            ? sanitizeText(String(description))
+            : existing.description;
+    } else {
+      mergedTitleFinal = title !== undefined ? sanitizeText(String(title)) : existing.title;
+      mergedDescFinal =
+        description !== undefined ? sanitizeText(String(description)) : existing.description;
+    }
+
     const updated = await pool.query(
       `UPDATE services
        SET title        = $1,
@@ -436,12 +548,13 @@ export const updateService = async (req, res) => {
            image_url    = $18,
            image_urls          = $19,
            is_one_time         = $20,
-           hide_exact_location = $21
-       WHERE id = $22
+           hide_exact_location = $21,
+           translations       = $22::jsonb
+       WHERE id = $23
        RETURNING *`,
       [
-        title        !== undefined ? title        : existing.title,
-        description  !== undefined ? description  : existing.description,
+        mergedTitleFinal,
+        mergedDescFinal,
         category     !== undefined ? category     : existing.category,
         category_id  !== undefined ? category_id  : existing.category_id,
         subcategory  !== undefined ? subcategory  : existing.subcategory,
@@ -452,20 +565,23 @@ export const updateService = async (req, res) => {
         longitude    !== undefined ? longitude    : existing.longitude,
         city         !== undefined ? (city || location || existing.location) : existing.city,
         poster_type  !== undefined ? poster_type  : existing.poster_type,
-        availability !== undefined ? availability : existing.availability,
+        availability !== undefined ? normalizeAvailability(availability) : existing.availability,
         language     !== undefined ? language     : existing.language,
-        mobility     !== undefined ? mobility     : existing.mobility,
+        mobility     !== undefined ? normalizeMobility(mobility) : existing.mobility,
         duration     !== undefined ? duration     : existing.duration,
         urgency      !== undefined ? urgency      : existing.urgency,
         updResolvedUrl,
         updResolvedUrls,
         is_one_time          !== undefined ? (is_one_time === true || is_one_time === "true") : existing.is_one_time,
         hide_exact_location  !== undefined ? (hide_exact_location === true || hide_exact_location === "true") : existing.hide_exact_location,
+        translationsOut,
         id,
       ]
     );
 
-    res.json(updated.rows[0]);
+    const out = updated.rows[0];
+    canonServiceFieldsInPlace(out);
+    res.json(out);
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Server error while updating service" });
@@ -492,6 +608,7 @@ export const getUserServices = async (req, res) => {
       [userId]
     );
 
+    result.rows.forEach((row) => canonServiceFieldsInPlace(row));
     res.json(result.rows);
   } catch (err) {
     console.error(err);

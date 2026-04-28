@@ -13,10 +13,12 @@ import AppImage from "@/components/ui/AppImage";
 import EditListingModal from "@/components/listings/EditListingModal";
 import { Spinner } from "@/components/ui/Spinner";
 import { getPublicServiceLocation } from "@/lib/serviceLocation";
+import { resolveListingTitle, type ServiceLikeWithI18n } from "@/lib/serviceListingI18n";
+import ListingLangPills from "@/components/ui/ListingLangPills";
 
 const PAGE_SIZE = 9;
 
-interface MyService {
+interface MyService extends ServiceLikeWithI18n {
   id: string;
   type: "offer" | "looking";
   title: string;
@@ -35,6 +37,7 @@ interface MyService {
   duration: string | null;
   urgency: string | null;
   image_url: string | null;
+  image_urls?: string[] | null;
   created_at: string;
   is_active: boolean;
 }
@@ -99,7 +102,7 @@ function Pagination({ page, total, onChange }: { page: number; total: number; on
 }
 
 function ListingCard({
-  s, historical = false, confirmDeleteId, deletingId, onEdit, onConfirmDelete, onDelete, t,
+  s, historical = false, confirmDeleteId, deletingId, onEdit, onConfirmDelete, onDelete, t, i18nLang,
 }: {
   s: MyService;
   historical?: boolean;
@@ -109,18 +112,24 @@ function ListingCard({
   onConfirmDelete: (id: string | null) => void;
   onDelete: (id: string) => void;
   t: (key: string) => string;
+  i18nLang: string | undefined;
 }) {
+  const thumb = s.image_urls?.[0] ?? s.image_url;
+  const displayTitle = resolveListingTitle(s, i18nLang);
   return (
     <div className={`border rounded-xl shadow-sm bg-white flex flex-col overflow-hidden transition-all ${historical ? "opacity-60" : "hover:shadow-lg"}`}>
       <Link href={`/serviceDetail/${s.id}`} className="block">
         <AspectRatio ratio={16 / 9}>
-          {s.image_url ? (
-            <AppImage src={s.image_url} alt={s.title} fill sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw" className="object-cover" />
-          ) : (
-            <div className="w-full h-full bg-gray-100 flex items-center justify-center">
-              <Grid3x3 className="h-12 w-12 text-gray-300" />
-            </div>
-          )}
+          <div className="relative h-full w-full">
+            <ListingLangPills service={s} />
+            {thumb ? (
+              <AppImage src={thumb} alt={displayTitle} fill sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw" className="object-cover" />
+            ) : (
+              <div className="w-full h-full bg-gray-100 flex items-center justify-center">
+                <Grid3x3 className="h-12 w-12 text-gray-300" />
+              </div>
+            )}
+          </div>
         </AspectRatio>
       </Link>
 
@@ -128,7 +137,7 @@ function ListingCard({
         <div className="flex items-start gap-2 mb-1">
           <Link href={`/serviceDetail/${s.id}`} className="flex-1">
             <h3 className="font-semibold text-gray-900 line-clamp-1 hover:text-green-700 transition-colors">
-              {s.title}
+              {displayTitle}
             </h3>
           </Link>
           <div className="flex items-center gap-1.5 shrink-0">
@@ -189,7 +198,7 @@ function ListingCard({
 }
 
 export default function MyListingsPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { user, session, loading: authLoading } = useAuth();
   const router = useRouter();
 
@@ -296,6 +305,7 @@ export default function MyListingsPage() {
                       confirmDeleteId={confirmDeleteId} deletingId={deletingId}
                       onEdit={setEditingService} onConfirmDelete={setConfirmDeleteId} onDelete={handleDelete}
                       t={t}
+                      i18nLang={i18n.language}
                     />
                   ))}
                 </div>
@@ -320,6 +330,7 @@ export default function MyListingsPage() {
                       confirmDeleteId={confirmDeleteId} deletingId={deletingId}
                       onEdit={setEditingService} onConfirmDelete={setConfirmDeleteId} onDelete={handleDelete}
                       t={t}
+                      i18nLang={i18n.language}
                     />
                   ))}
                 </div>

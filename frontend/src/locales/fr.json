@@ -61,7 +61,8 @@
     "trust3Title": "Protection des litiges",
     "trust3Desc": "3 jours de protection avec une résolution équitable",
     "trust4Title": "Local et transparent",
-    "trust4Desc": "Trouvez des personnes de confiance près de chez vous"
+    "trust4Desc": "Trouvez des personnes de confiance près de chez vous",
+    "locationPrivacyHint": "Facultatif — filtre les annonces par ville ou région sans partager la position du navigateur."
   },
   "listings": {
     "filters": "Filtres",
@@ -73,12 +74,16 @@
     "clear": "Effacer",
     "location": "Emplacement",
     "cityOrArea": "Ville ou région...",
+    "locationRegions": "Régions",
+    "locationCities": "Villes",
+    "locationRegionBadge": "Région",
     "price": "Prix",
     "clearAll": "Tout effacer",
     "filtersActive": "{{count}} filtre actif",
     "filtersActivePlural": "{{count}} filtres actifs",
     "adPlaceholder": "Espace publicitaire",
-    "adjustFilters": "Essayez d'ajuster vos filtres"
+    "adjustFilters": "Essayez d'ajuster vos filtres",
+    "spokenLanguageFilter": "Langue préférée pour l’annonce"
   },
   "notFound": {
     "title": "Page introuvable",
@@ -501,6 +506,17 @@
     "languageFrench": "Français",
     "languageEnglish": "Anglais",
     "languageBilingual": "Bilingue",
+    "bilingualDescriptionNotice": "Les annonces dont le titre et la description sont rédigés en plusieurs langues reçoivent souvent davantage de réponses et d’offres.",
+    "localeFrench": "Fr",
+    "localeEnglish": "Ang",
+    "localeLabel": "Langue de l’annonce",
+    "addOtherLanguage": "Ajouter le titre dans l’autre langue",
+    "addDescriptionOtherLanguage": "Ajouter la description dans l’autre langue",
+    "sameFieldOtherLanguage": "Autre langue",
+    "serviceTitlePlaceholderOther": "Titre dans l’autre langue (facultatif)",
+    "descriptionPlaceholderOther": "Description dans l’autre langue (facultatif)",
+    "jobTitlePlaceholderOther": "Titre dans l’autre langue (facultatif)",
+    "jobDescriptionPlaceholderOther": "Description dans l’autre langue (facultatif)",
     "canYouTravel": "Pouvez-vous vous déplacer ?",
     "mobilityYes": "Oui",
     "mobilityNo": "Non",
@@ -594,7 +610,10 @@
     "requiredFields": "Le titre, la description, la catégorie, le prix et l'emplacement sont requis.",
     "failedUpdate": "Échec de la mise à jour. Veuillez réessayer.",
     "networkError": "Erreur réseau. Veuillez réessayer.",
-    "photos": "Photos (optionnel)"
+    "photos": "Photos (optionnel)",
+    "availabilityFlexible": "Flexible",
+    "mobilityCity": "En ville",
+    "mobilityRegional": "Régional"
   },
   "profile": {
     "editProfile": "Modifier le profil",

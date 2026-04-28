@@ -1,4 +1,5 @@
 import pool from "../config/db.js";
+import { canonServiceFieldsInPlace } from "../utils/serviceFieldCanonical.js";
 
 /** GET /favorites/ids — just the service IDs (for "is saved?" checks) */
 export const getFavoriteIds = async (req, res) => {
@@ -18,7 +19,8 @@ export const getFavoriteIds = async (req, res) => {
 export const getFavorites = async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT s.id, s.title, s.price, s.location, s.address, s.city, s.hide_exact_location, s.image_url,
+      `SELECT s.id, s.title, s.price, s.location, s.address, s.city, s.hide_exact_location,
+              s.image_url, s.image_urls, s.language, s.translations,
               COALESCE(c.name, s.category) AS category_name, s.subcategory
        FROM service_favorites f
        JOIN services s ON s.id = f.service_id
@@ -27,6 +29,7 @@ export const getFavorites = async (req, res) => {
        ORDER BY f.created_at DESC`,
       [req.user.id]
     );
+    result.rows.forEach((row) => canonServiceFieldsInPlace(row));
     res.json(result.rows);
   } catch (err) {
     console.error(err);

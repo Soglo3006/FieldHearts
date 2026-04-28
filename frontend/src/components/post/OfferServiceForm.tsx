@@ -2,7 +2,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import MultiImageUploader from "@/components/ui/MultiImageUploader";
 import LocationAutocomplete, { type LocationDetails } from "@/components/post/LocationAutocomplete";
@@ -11,6 +10,12 @@ import AvailabilityLanguageMobilityFields from "@/components/post/AvailabilityLa
 import OneTimeCheckbox from "@/components/post/OneTimeCheckbox";
 import FormSubmitButton from "@/components/post/FormSubmitButton";
 import PostConfirmModal from "@/components/post/PostConfirmModal";
+import type { ListingTranslationsPayload } from "@/lib/serviceListingI18n";
+import BilingualListingFields, {
+  hasRequiredBilingualFields,
+  finalizeListingPayload,
+  canonicalFromTranslations,
+} from "@/components/post/BilingualListingFields";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -24,8 +29,10 @@ export default function OfferServiceForm({ onSuccess }: Props) {
   const { session } = useAuth();
   const router = useRouter();
 
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
+  const [translations, setTranslations] = useState<ListingTranslationsPayload>({
+    title: {},
+    description: {},
+  });
   const [category, setCategory] = useState("");
   const [subcategory, setSubcategory] = useState("");
   const [price, setPrice] = useState("");
@@ -42,9 +49,10 @@ export default function OfferServiceForm({ onSuccess }: Props) {
   const [submitting, setSubmitting] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
 
+  const finalized = finalizeListingPayload(translations);
+  const canonical = canonicalFromTranslations(finalized);
   const isValid =
-    title.trim() !== "" &&
-    description.trim() !== "" &&
+    hasRequiredBilingualFields(translations) &&
     category.trim() !== "" &&
     price.trim() !== "" &&
     Number(price) > 0 &&
@@ -78,8 +86,9 @@ export default function OfferServiceForm({ onSuccess }: Props) {
         },
         body: JSON.stringify({
           type: "offer",
-          title,
-          description,
+          title: canonical.title,
+          description: canonical.description,
+          translations: finalized,
           category,
           category_id: null,
           subcategory,
@@ -117,34 +126,7 @@ export default function OfferServiceForm({ onSuccess }: Props) {
   return (
     <>
     <form onSubmit={handleSubmit} className="space-y-6">
-      <div className="space-y-2">
-        <Label htmlFor="serviceTitle" className="text-base font-medium text-gray-900">
-          {t("post.serviceTitle")} <span className="text-red-500">*</span>
-        </Label>
-        <Input
-          id="serviceTitle"
-          type="text"
-          placeholder={t("post.serviceTitlePlaceholder")}
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          required
-          className="h-12"
-        />
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="serviceDescription" className="text-base font-medium text-gray-900">
-          {t("post.description")} <span className="text-red-500">*</span>
-        </Label>
-        <Textarea
-          id="serviceDescription"
-          placeholder={t("post.descriptionPlaceholder")}
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          required
-          className="min-h-32 resize-none"
-        />
-      </div>
+      <BilingualListingFields value={translations} onChange={setTranslations} mode="offer" />
 
       <div className="space-y-2">
         <Label className="text-base font-medium text-gray-900">
@@ -244,7 +226,7 @@ export default function OfferServiceForm({ onSuccess }: Props) {
     <PostConfirmModal
       open={confirmOpen}
       type="offer"
-      title={title}
+      title={canonical.title}
       price={price}
       location={location}
       category={category}

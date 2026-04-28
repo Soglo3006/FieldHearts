@@ -12,6 +12,8 @@ import AdBanner from "@/components/AdBanner";
 import AppImage from "@/components/ui/AppImage";
 import { formatTranslatedCategoryTrail, categories, toCategoryKey } from "@/lib/categories";
 import { getPublicServiceLocation } from "@/lib/serviceLocation";
+import { resolveListingTitle, type ServiceLikeWithI18n } from "@/lib/serviceListingI18n";
+import ListingLangPills from "@/components/ui/ListingLangPills";
 
 interface ApiService {
   id: string;
@@ -27,6 +29,8 @@ interface ApiService {
   category_name: string | null;
   subcategory: string | null;
   type?: string;
+  translations?: ServiceLikeWithI18n["translations"];
+  language?: string | null;
 }
 
 interface PaginatedListingsResponse {
@@ -45,6 +49,7 @@ export interface ListingsFilters {
   maxPrice?: number;
   serviceType?: string;
   username?: string;
+  spokenLanguage?: string;
 }
 
 function formatRelativeDate(dateStr: string, t: (key: string, opts?: Record<string, unknown>) => string): string {
@@ -91,7 +96,7 @@ function normalizeListingsResponse(
 }
 
 export default function ListingsGrid({ filters }: { filters?: ListingsFilters }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [listings, setListings] = useState<ApiService[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
@@ -112,6 +117,7 @@ export default function ListingsGrid({ filters }: { filters?: ListingsFilters })
     filters?.maxPrice,
     filters?.serviceType,
     filters?.username,
+    filters?.spokenLanguage,
   ]);
 
   useEffect(() => {
@@ -131,6 +137,7 @@ export default function ListingsGrid({ filters }: { filters?: ListingsFilters })
         if (filters?.maxPrice && filters.maxPrice < 1000)  params.set("maxPrice", String(filters.maxPrice));
         if (filters?.serviceType && filters.serviceType !== "all") params.set("type", filters.serviceType);
         if (filters?.username)                                      params.set("username", filters.username);
+        if (filters?.spokenLanguage)                               params.set("spokenLanguage", filters.spokenLanguage);
         params.set("page", String(currentPage));
         params.set("limit", String(LISTINGS_PER_PAGE));
 
@@ -169,6 +176,7 @@ export default function ListingsGrid({ filters }: { filters?: ListingsFilters })
     filters?.maxPrice,
     filters?.serviceType,
     filters?.username,
+    filters?.spokenLanguage,
   ]);
 
   const totalPages = Math.ceil(totalListings / LISTINGS_PER_PAGE);
@@ -237,7 +245,8 @@ export default function ListingsGrid({ filters }: { filters?: ListingsFilters })
                     const extra = (s.image_urls?.length ?? 0) > 1 ? s.image_urls!.length : 0;
                     return thumb ? (
                       <div className="relative w-full h-full">
-                        <AppImage src={thumb} alt={s.title} fill sizes="(max-width: 640px) 100vw, (max-width: 1280px) 50vw, 33vw" className="object-cover" priority={cardIndex < 3} loading={cardIndex < 3 ? undefined : "lazy"} />
+                        <ListingLangPills service={s} />
+                        <AppImage src={thumb} alt={resolveListingTitle(s, i18n.language)} fill sizes="(max-width: 640px) 100vw, (max-width: 1280px) 50vw, 33vw" className="object-cover" priority={cardIndex < 3} loading={cardIndex < 3 ? undefined : "lazy"} />
                         {extra > 1 && (
                           <span className="absolute bottom-1.5 right-1.5 bg-black/55 text-white text-[10px] px-1.5 py-0.5 rounded-full font-medium">
                             +{extra - 1}
@@ -255,7 +264,7 @@ export default function ListingsGrid({ filters }: { filters?: ListingsFilters })
                 <div className="p-3 flex flex-col flex-1">
                   <div className="flex items-start gap-2 mb-1">
                     <h3 className="font-semibold text-gray-900 line-clamp-1 flex-1 group-hover:text-green-700 transition-colors text-sm">
-                      {s.title}
+                      {resolveListingTitle(s, i18n.language)}
                     </h3>
                     {s.type === "looking" ? (
                       <Badge className="shrink-0 border-0 bg-blue-100 text-xs text-blue-700">{t("listings.looking")}</Badge>

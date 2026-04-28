@@ -1,11 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useScrollLock } from "@/hooks/useScrollLock";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import MultiImageUploader from "@/components/ui/MultiImageUploader";
 import LocationAutocomplete, { type LocationDetails } from "@/components/post/LocationAutocomplete";
@@ -13,6 +12,31 @@ import CategorySubcategoryFields from "@/components/post/CategorySubcategoryFiel
 import AvailabilityLanguageMobilityFields from "@/components/post/AvailabilityLanguageMobilityFields";
 import PostSelect from "@/components/post/PostSelect";
 import { X, CheckCircle } from "lucide-react";
+import type { ListingTranslationsPayload, ServiceLikeWithI18n } from "@/lib/serviceListingI18n";
+import BilingualListingFields, {
+  hasRequiredBilingualFields,
+  finalizeListingPayload,
+  canonicalFromTranslations,
+} from "@/components/post/BilingualListingFields";
+import { normalizeAvailability, normalizeMobility } from "@/lib/serviceFieldCanonical";
+
+function seedListingTranslations(service: Service, uiLang: string): ListingTranslationsPayload {
+  const raw = (service as Service & { translations?: unknown }).translations;
+  if (raw && typeof raw === "object" && raw !== null && !Array.isArray(raw)) {
+    const o = raw as Record<string, unknown>;
+    const tt = (o.title && typeof o.title === "object" ? o.title : {}) as Record<string, string>;
+    const dd = (o.description && typeof o.description === "object" ? o.description : {}) as Record<string, string>;
+    return {
+      title: { fr: tt.fr ?? "", en: tt.en ?? "" },
+      description: { fr: dd.fr ?? "", en: dd.en ?? "" },
+    };
+  }
+  const loc = uiLang.startsWith("en") ? "en" : "fr";
+  return {
+    title: { [loc]: service.title ?? "" },
+    description: { [loc]: service.description ?? "" },
+  };
+}
 
 export interface Service {
   id: string;
@@ -38,6 +62,7 @@ export interface Service {
   image_urls?: string[] | null;
   is_one_time?: boolean;
   hide_exact_location?: boolean;
+  translations?: ServiceLikeWithI18n["translations"];
 }
 
 interface Props {
@@ -49,10 +74,12 @@ interface Props {
 
 export default function EditListingModal({ service, accessToken, onClose, onSaved }: Props) {
   useScrollLock(true);
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
 
-  const [title, setTitle] = useState(service.title);
-  const [description, setDescription] = useState(service.description);
+  const [translations, setTranslations] = useState<ListingTranslationsPayload>(() =>
+    seedListingTranslations(service, i18n.language)
+  );
+
   const [price, setPrice] = useState(String(service.price));
   const [location, setLocation] = useState(service.location);
   const [locationDetails, setLocationDetails] = useState<LocationDetails | null>(
@@ -63,9 +90,11 @@ export default function EditListingModal({ service, accessToken, onClose, onSave
   const [category, setCategory] = useState(service.category ?? "");
   const [subcategory, setSubcategory] = useState(service.subcategory ?? "");
   const [posterType, setPosterType] = useState(service.poster_type ?? "");
-  const [availability, setAvailability] = useState(service.availability ?? "");
+  const [availability, setAvailability] = useState(
+    () => normalizeAvailability(service.availability ?? "") || ""
+  );
   const [language, setLanguage] = useState(service.language ?? "");
-  const [mobility, setMobility] = useState(service.mobility ?? "");
+  const [mobility, setMobility] = useState(() => normalizeMobility(service.mobility ?? "") || "");
   const [duration, setDuration] = useState(service.duration ?? "");
   const [urgency, setUrgency] = useState(service.urgency ?? "");
   const [images, setImages] = useState<string[]>(
@@ -78,11 +107,16 @@ export default function EditListingModal({ service, accessToken, onClose, onSave
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
 
+  useEffect(() => {
+    setTranslations(seedListingTranslations(service, i18n.language));
+    setAvailability(normalizeAvailability(service.availability ?? "") || "");
+    setMobility(normalizeMobility(service.mobility ?? "") || "");
+  }, [service.id]);
+
   const isOffer = service.type === "offer";
 
   const isValid =
-    title.trim() !== "" &&
-    description.trim() !== "" &&
+    hasRequiredBilingualFields(translations) &&
     category.trim() !== "" &&
     price.trim() !== "" &&
     Number(price) > 0 &&
@@ -96,6 +130,8 @@ export default function EditListingModal({ service, accessToken, onClose, onSave
     setSaving(true);
     setError("");
     try {
+      const finalized = finalizeListingPayload(translations);
+      const canon = canonicalFromTranslations(finalized);
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/services/${service.id}`,
         {
@@ -105,8 +141,9 @@ export default function EditListingModal({ service, accessToken, onClose, onSave
             Authorization: `Bearer ${accessToken}`,
           },
           body: JSON.stringify({
-            title: title.trim(),
-            description: description.trim(),
+            title: canon.title.trim(),
+            description: canon.description.trim(),
+            translations: finalized,
             price: parseFloat(price),
             location: location.trim(),
             address: locationDetails?.address ?? location.trim(),
@@ -177,31 +214,11 @@ export default function EditListingModal({ service, accessToken, onClose, onSave
             </p>
           )}
 
-          {/* Title */}
-          <div className="space-y-2">
-            <Label className="text-base font-medium text-gray-900">
-              {isOffer ? t("post.serviceTitle") : t("post.jobTitle")} <span className="text-red-500">*</span>
-            </Label>
-            <Input
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder={isOffer ? t("post.serviceTitlePlaceholder") : t("post.jobTitlePlaceholder")}
-              className="h-12"
-            />
-          </div>
-
-          {/* Description */}
-          <div className="space-y-2">
-            <Label className="text-base font-medium text-gray-900">
-              {t("post.description")} <span className="text-red-500">*</span>
-            </Label>
-            <Textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder={isOffer ? t("post.descriptionPlaceholder") : t("post.jobDescriptionPlaceholder")}
-              className="min-h-32 resize-none"
-            />
-          </div>
+          <BilingualListingFields
+            value={translations}
+            onChange={setTranslations}
+            mode={isOffer ? "offer" : "looking"}
+          />
 
           {/* Price */}
           <div className="space-y-2">

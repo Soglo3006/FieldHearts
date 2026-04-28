@@ -14,6 +14,8 @@ import AppImage from "@/components/ui/AppImage";
 import EditListingModal, { type Service as Listing } from "@/components/listings/EditListingModal";
 import { Spinner } from "@/components/ui/Spinner";
 import { getPublicServiceLocation } from "@/lib/serviceLocation";
+import { resolveListingTitle } from "@/lib/serviceListingI18n";
+import ListingLangPills from "@/components/ui/ListingLangPills";
 
 const PAGE_SIZE = 9;
 
@@ -90,7 +92,7 @@ export default function ProfileListings({
   userListings, setUserListings, listingsLoading,
   isOwner, isPerson, profileId, accessToken,
 }: Props) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [editingListing, setEditingListing] = useState<Listing | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -118,17 +120,23 @@ export default function ProfileListings({
     ? userListings.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
     : userListings;
 
-  const ListingCardContent = (listing: Listing) => (
+  const ListingCardContent = (listing: Listing) => {
+    const thumb = listing.image_urls?.[0] ?? listing.image_url;
+    const resolved = resolveListingTitle(listing, i18n.language);
+    return (
     <div className="border rounded-xl shadow-sm bg-white h-full flex flex-col overflow-hidden hover:shadow-lg transition-all">
       <Link href={`/serviceDetail/${listing.id}`} className="block">
         <AspectRatio ratio={16 / 9}>
-          {listing.image_url ? (
-            <AppImage src={listing.image_url} alt={listing.title} fill sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw" className="object-cover" />
-          ) : (
-            <div className="w-full h-full bg-gray-100 flex items-center justify-center">
-              <Grid3x3 className="h-12 w-12 text-gray-300" />
-            </div>
-          )}
+          <div className="relative h-full w-full">
+            <ListingLangPills service={listing} />
+            {thumb ? (
+              <AppImage src={thumb} alt={resolved} fill sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw" className="object-cover" />
+            ) : (
+              <div className="w-full h-full bg-gray-100 flex items-center justify-center">
+                <Grid3x3 className="h-12 w-12 text-gray-300" />
+              </div>
+            )}
+          </div>
         </AspectRatio>
       </Link>
 
@@ -136,7 +144,7 @@ export default function ProfileListings({
         <div className="flex items-center gap-2 mb-2">
           <Link href={`/serviceDetail/${listing.id}`} className="flex-1">
             <h3 className="font-semibold text-gray-900 line-clamp-1 hover:text-green-700 transition-colors">
-              {listing.title}
+              {resolved}
             </h3>
           </Link>
           {listing.type === "looking" && (
@@ -191,6 +199,7 @@ export default function ProfileListings({
       </div>
     </div>
   );
+  };
 
   return (
     <>

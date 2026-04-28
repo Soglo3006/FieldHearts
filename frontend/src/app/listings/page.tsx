@@ -33,6 +33,9 @@ const decodeSubcategoryFilter = (value: string) => {
 function ListingsContent({ username }: { username?: string }) {
   const { t } = useTranslation();
   const searchParams = useSearchParams();
+  const initialSpoken = searchParams.get("spokenLanguage") ?? "";
+  const initialSpokenValid = ["french", "english", "bilingual"].includes(initialSpoken) ? initialSpoken : "";
+
   const initialCategories = parseFilterList(searchParams.get("category"));
   const initialSubcategories = parseFilterList(searchParams.get("subcategory")).map((subcategory) => {
     const matchingCategory = initialCategories.find((category) =>
@@ -48,6 +51,7 @@ function ListingsContent({ username }: { username?: string }) {
   const [location, setLocation] = useState(searchParams.get("location") ?? "");
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 1000]);
   const [serviceType, setServiceType] = useState(searchParams.get("type") ?? "all");
+  const [spokenLanguage, setSpokenLanguage] = useState(initialSpokenValid);
   const [expandedCategories, setExpandedCategories] = useState<string[]>(initialCategories);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
 
@@ -73,6 +77,9 @@ function ListingsContent({ username }: { username?: string }) {
     [urlCategories, urlSubcategoryParam]
   );
   const urlType = searchParams.get("type") ?? "all";
+  const spokenParam = searchParams.get("spokenLanguage") ?? "";
+  const validSpoken = ["french", "english", "bilingual"].includes(spokenParam) ? spokenParam : "";
+
   useEffect(() => {
     setSearch(urlSearch);
     setDebouncedSearch(urlSearch);
@@ -85,6 +92,9 @@ function ListingsContent({ username }: { username?: string }) {
   useEffect(() => {
     setServiceType(urlType);
   }, [urlType]);
+  useEffect(() => {
+    setSpokenLanguage(validSpoken);
+  }, [validSpoken]);
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(search), 400);
@@ -149,6 +159,7 @@ function ListingsContent({ username }: { username?: string }) {
     setLocation("");
     setPriceRange([0, 1000]);
     setServiceType("all");
+    setSpokenLanguage("");
     setExpandedCategories([]);
   };
 
@@ -168,6 +179,15 @@ function ListingsContent({ username }: { username?: string }) {
     }),
     debouncedLocation && { label: ` ${debouncedLocation}`, clear: () => setLocation("") },
     serviceType !== "all" && { label: serviceType === "offer" ? t("listings.offering") : t("listings.looking"), clear: () => setServiceType("all") },
+    spokenLanguage && {
+      label:
+        spokenLanguage === "french"
+          ? t("post.languageFrench")
+          : spokenLanguage === "english"
+            ? t("post.languageEnglish")
+            : t("post.languageBilingual"),
+      clear: () => setSpokenLanguage(""),
+    },
     (debouncedPrice[0] > 0 || debouncedPrice[1] < 1000) && {
       label: `$${debouncedPrice[0]}–$${debouncedPrice[1] >= 1000 ? "1000+" : debouncedPrice[1]}`,
       clear: () => setPriceRange([0, 1000]),
@@ -253,6 +273,32 @@ function ListingsContent({ username }: { username?: string }) {
                     onClick={() => setServiceType(value)}
                     className={`cursor-pointer flex-1 text-xs px-2 py-2 rounded-lg border transition-colors ${
                       serviceType === value
+                        ? "border-green-700 bg-green-50 text-green-800 font-semibold"
+                        : "border-gray-200 text-gray-600 hover:bg-gray-50"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Spoken language (listing preference) */}
+            <div>
+              <h3 className="text-sm font-semibold text-gray-900 mb-2">{t("listings.spokenLanguageFilter")}</h3>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { value: "", label: t("listings.all") },
+                  { value: "french", label: t("post.languageFrench") },
+                  { value: "english", label: t("post.languageEnglish") },
+                  { value: "bilingual", label: t("post.languageBilingual") },
+                ].map(({ value, label }) => (
+                  <button
+                    key={value || "any"}
+                    type="button"
+                    onClick={() => setSpokenLanguage(value)}
+                    className={`cursor-pointer text-xs px-2 py-2 rounded-lg border transition-colors text-center leading-tight ${
+                      spokenLanguage === value
                         ? "border-green-700 bg-green-50 text-green-800 font-semibold"
                         : "border-gray-200 text-gray-600 hover:bg-gray-50"
                     }`}
@@ -399,6 +445,7 @@ function ListingsContent({ username }: { username?: string }) {
               maxPrice: debouncedPrice[1],
               serviceType,
               username,
+              spokenLanguage: spokenLanguage || undefined,
             }}
           />
         </div>

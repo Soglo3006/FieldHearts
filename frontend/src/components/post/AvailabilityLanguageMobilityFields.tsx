@@ -22,6 +22,7 @@ export default function AvailabilityLanguageMobilityFields({
     { value: "weekends", label: t("post.availabilityWeekends") },
     { value: "weekdays", label: t("post.availabilityWeekdays") },
     { value: "evenings", label: t("post.availabilityEvenings") },
+    { value: "flexible", label: t("serviceDetail.availabilityFlexible") },
   ];
   const languageOptions = [
     { value: "french", label: t("post.languageFrench") },
@@ -32,6 +33,8 @@ export default function AvailabilityLanguageMobilityFields({
     { value: "yes", label: t("post.mobilityYes") },
     { value: "no", label: t("post.mobilityNo") },
     { value: "limited", label: t("post.mobilityLimited") },
+    { value: "city", label: t("serviceDetail.mobilityCity") },
+    { value: "regional", label: t("serviceDetail.mobilityRegional") },
   ];
 
   return (

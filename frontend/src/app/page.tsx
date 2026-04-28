@@ -13,6 +13,9 @@ import { useTranslation } from "react-i18next";
 import AdBanner from "@/components/AdBanner";
 import { toast } from "sonner";
 import { getPublicServiceLocation } from "@/lib/serviceLocation";
+import { resolveListingTitle, type ServiceLikeWithI18n } from "@/lib/serviceListingI18n";
+import ListingLangPills from "@/components/ui/ListingLangPills";
+import CityAutocomplete from "@/components/ui/CityAutocomplete";
 
 
 const toKey = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
@@ -36,7 +39,7 @@ function formatRelativeDate(dateStr: string, t: (key: string, opts?: Record<stri
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
-interface Listing {
+interface Listing extends ServiceLikeWithI18n {
   id: string;
   title: string;
   price: number;
@@ -45,6 +48,7 @@ interface Listing {
   city?: string | null;
   hide_exact_location?: boolean;
   image_url?: string;
+  image_urls?: string[] | null;
   created_at: string;
   category: string;
   category_name?: string;
@@ -56,30 +60,45 @@ interface CategoryCount {
   count: number;
 }
 
-function ListingCard({ listing, t, priority = false }: { listing: Listing; t: (key: string, opts?: Record<string, unknown>) => string; priority?: boolean }) {
+function ListingCard({
+  listing,
+  t,
+  i18nLang,
+  priority = false,
+}: {
+  listing: Listing;
+  t: (key: string, opts?: Record<string, unknown>) => string;
+  i18nLang: string | undefined;
+  priority?: boolean;
+}) {
+  const thumb = listing.image_urls?.[0] ?? listing.image_url;
+  const resolvedTitle = resolveListingTitle(listing, i18nLang);
   return (
     <Link href={`/serviceDetail/${listing.id}`} className="block h-full group">
       <div className="h-full border rounded-xl shadow-sm bg-white flex flex-col overflow-hidden hover:shadow-md transition-shadow cursor-pointer">
         <AspectRatio ratio={16 / 9}>
-          {listing.image_url ? (
-            <AppImage
-              src={listing.image_url}
-              alt={listing.title}
-              fill
-              sizes="(max-width: 640px) 100vw, (max-width: 1280px) 50vw, 33vw"
-              className="object-cover"
-              priority={priority}
-              loading={priority ? undefined : "lazy"}
-            />
-          ) : (
-            <div className="w-full h-full bg-gray-100 flex items-center justify-center">
-              <Grid3x3 className="h-12 w-12 text-gray-300" />
-            </div>
-          )}
+          <div className="relative w-full h-full">
+            <ListingLangPills service={listing} />
+            {thumb ? (
+              <AppImage
+                src={thumb}
+                alt={resolvedTitle}
+                fill
+                sizes="(max-width: 640px) 100vw, (max-width: 1280px) 50vw, 33vw"
+                className="object-cover"
+                priority={priority}
+                loading={priority ? undefined : "lazy"}
+              />
+            ) : (
+              <div className="w-full h-full bg-gray-100 flex items-center justify-center">
+                <Grid3x3 className="h-12 w-12 text-gray-300" />
+              </div>
+            )}
+          </div>
         </AspectRatio>
         <div className="p-3 flex flex-1 flex-col gap-1">
           <div className="flex items-start gap-2">
-            <h3 className="flex-1 line-clamp-1 text-sm font-semibold transition-colors group-hover:text-green-700">{listing.title}</h3>
+            <h3 className="flex-1 line-clamp-1 text-sm font-semibold transition-colors group-hover:text-green-700">{resolvedTitle}</h3>
             {listing.type === "looking" ? (
               <span className="bg-blue-100 text-blue-700 text-xs font-semibold px-2 py-0.5 rounded-full shrink-0">{t("listings.looking")}</span>
             ) : (
@@ -118,7 +137,7 @@ function ListingSkeleton() {
 export default function HomePage() {
   const { user, loading } = useAuth();
   const router = useRouter();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [listings, setListings] = useState<Listing[]>([]);
   const [nearbyListings, setNearbyListings] = useState<Listing[]>([]);
   const [sortedCategories, setSortedCategories] = useState(categories);
@@ -126,6 +145,13 @@ export default function HomePage() {
   const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [locationPending, setLocationPending] = useState(true);
   const [locationGranted, setLocationGranted] = useState(false);
+  const [locationInput, setLocationInput] = useState("");
+  const [debouncedLocation, setDebouncedLocation] = useState("");
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedLocation(locationInput), 400);
+    return () => clearTimeout(timer);
+  }, [locationInput]);
 
   // Do not block the whole page on Supabase auth `loading`. Listing data comes from NEXT_PUBLIC_API
   // without a session — a full-screen spinner here made the home feed feel stuck when auth was slow.
@@ -140,20 +166,15 @@ export default function HomePage() {
     }
   }, [user, loading, router]);
 
+  /** Category counts — global totals, fetched once */
   useEffect(() => {
-    const fetchListings = async () => {
+    let cancelled = false;
+    (async () => {
       try {
-        const [servicesRes, countsRes] = await Promise.all([
-          fetch(`${API_URL}/services?limit=12`),
-          fetch(`${API_URL}/services/category-counts`),
-        ]);
-        const data = await servicesRes.json();
+        const countsRes = await fetch(`${API_URL}/services/category-counts`);
         const counts: CategoryCount[] = await countsRes.json();
+        if (cancelled) return;
 
-        setListings(Array.isArray(data) ? data : []);
-        setNearbyListings(Array.isArray(data) ? data.slice(0, 3) : []);
-
-        // Sort categories by real count from backend
         const countMap: Record<string, number> = {};
         (Array.isArray(counts) ? counts : []).forEach((countItem) => {
           countMap[countItem.category_name] = countItem.count;
@@ -162,17 +183,49 @@ export default function HomePage() {
           (a, b) => (countMap[b.name] || 0) - (countMap[a.name] || 0)
         );
         setSortedCategories(sorted);
-
-        // nearbyListings set only after geolocation decision
       } catch {
-        toast.error("Unable to load listings. Please check your connection.");
+        /* keep default category order */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  /** Service list — same `location` query as /listings (backend ILIKE city/location fields) */
+  useEffect(() => {
+    let cancelled = false;
+    const fetchListings = async () => {
+      setDataLoading(true);
+      try {
+        const params = new URLSearchParams({ limit: "12" });
+        const loc = debouncedLocation.trim();
+        if (loc) params.set("location", loc);
+
+        const servicesRes = await fetch(`${API_URL}/services?${params.toString()}`);
+        const data = await servicesRes.json();
+        if (cancelled) return;
+
+        const rows = Array.isArray(data) ? data : [];
+        setListings(rows);
+        /* When GPS is unavailable or declined, reuse first rows as « near you » fallback */
+        setNearbyListings(rows.slice(0, 3));
+      } catch {
+        if (!cancelled) {
+          toast.error("Unable to load listings. Please check your connection.");
+          setListings([]);
+          setNearbyListings([]);
+        }
       } finally {
-        setDataLoading(false);
+        if (!cancelled) setDataLoading(false);
       }
     };
 
     fetchListings();
-  }, []);
+    return () => {
+      cancelled = true;
+    };
+  }, [debouncedLocation]);
 
   // Géolocalisation 
   useEffect(() => {
@@ -221,19 +274,23 @@ export default function HomePage() {
     }
   }, []);
 
-  // Re-fetch annonces proches quand on a les coords
+  /** Distance-sorted nearby — only when user did not choose a manual city filter */
   useEffect(() => {
-    if (!userCoords) return;
+    if (!userCoords || debouncedLocation.trim()) return;
     fetch(`${API_URL}/services?userLat=${userCoords.lat}&userLng=${userCoords.lng}&radius=50`)
       .then((r) => r.json())
       .then((data: Listing[]) => {
         if (Array.isArray(data) && data.length > 0) {
           setNearbyListings(data.slice(0, 3));
         }
-        // sinon on garde le fallback déjà initialisé depuis les listings principaux
       })
       .catch(() => {});
-  }, [userCoords]);
+  }, [userCoords, debouncedLocation]);
+
+  const listingsBrowseHref =
+    debouncedLocation.trim().length > 0
+      ? `/listings?location=${encodeURIComponent(debouncedLocation.trim())}`
+      : "/listings";
 
   return (
     <div className="min-h-screen bg-white text-black">
@@ -260,6 +317,19 @@ export default function HomePage() {
         </div>
 
         <div className="max-w-7xl mx-auto p-5">
+          <div className="mb-6 max-w-xl">
+            <label htmlFor="home-location-filter" className="block text-sm font-medium text-gray-700 mb-1.5">
+              {t("listings.location")}
+            </label>
+            <CityAutocomplete
+              id="home-location-filter"
+              value={locationInput}
+              onChange={setLocationInput}
+              placeholder={t("listings.cityOrArea")}
+            />
+            <p className="mt-2 text-xs text-gray-500">{t("home.locationPrivacyHint")}</p>
+          </div>
+
           <h2 className="text-2xl font-bold mb-5">{t("home.recentlyAdded")}</h2>
 
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
@@ -272,7 +342,7 @@ export default function HomePage() {
                 <p className="text-gray-500 col-span-full">{t("home.noListings")}</p>
               ) : (
                 listings.slice(0, 9).map((listing, i) => (
-                  <ListingCard key={listing.id} listing={listing} t={t} priority={i < 3} />
+                  <ListingCard key={listing.id} listing={listing} t={t} i18nLang={i18n.language} priority={i < 3} />
                 ))
               )}
 
@@ -283,7 +353,11 @@ export default function HomePage() {
                   {sortedCategories.slice(0, 8).map((category) => (
                     <Link
                       key={category.name}
-                      href={`/listings?category=${encodeURIComponent(category.name)}`}
+                      href={
+                        debouncedLocation.trim()
+                          ? `/listings?category=${encodeURIComponent(category.name)}&location=${encodeURIComponent(debouncedLocation.trim())}`
+                          : `/listings?category=${encodeURIComponent(category.name)}`
+                      }
                     >
                       <div className="relative w-full aspect-4/3 rounded-xl overflow-hidden cursor-pointer group">
                         <AppImage
@@ -334,11 +408,11 @@ export default function HomePage() {
                       <p className="text-gray-500 col-span-full">{t("home.noListingsNearYou")}</p>
                     ) : (
                       nearbyListings.map((listing) => (
-                        <ListingCard key={listing.id} listing={listing} t={t} />
+                        <ListingCard key={listing.id} listing={listing} t={t} i18nLang={i18n.language} />
                       ))
                     )}
                   </div>
-                  <Link href="/listings">
+                  <Link href={listingsBrowseHref}>
                     <Button className="mt-6 w-full bg-green-700 text-white hover:bg-green-800 cursor-pointer">
                       {t("home.viewAllListings")}
                     </Button>

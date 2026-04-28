@@ -18,6 +18,7 @@ import BookingModal from "@/components/serviceDetail/BookingModal";
 import LocationMapModal from "@/components/serviceDetail/LocationMapModal";
 import { useTranslation } from "react-i18next";
 import { getPublicServiceLocation, hasApproximateServiceLocation } from "@/lib/serviceLocation";
+import { resolveListingTitle, type ServiceLikeWithI18n } from "@/lib/serviceListingI18n";
 
 interface Service {
   id: string;
@@ -25,6 +26,7 @@ interface Service {
   type: "offer" | "looking";
   title: string;
   description: string;
+  translations?: ServiceLikeWithI18n["translations"];
   category: string | null;
   category_id: number | null;
   subcategory: string | null;
@@ -65,6 +67,9 @@ interface SimilarService {
   city?: string | null;
   hide_exact_location?: boolean;
   image_url: string | null;
+  image_urls?: string[] | null;
+  language?: string | null;
+  translations?: ServiceLikeWithI18n["translations"];
 }
 
 export default function ServiceDetailClient() {
@@ -219,6 +224,7 @@ export default function ServiceDetailClient() {
   }
 
   const price = Number(service.price);
+  const displayTitle = resolveListingTitle(service, i18n.language);
   const providerFirstName = service.owner_account_type === "company"
     ? (service.owner_name ?? "Provider")
     : (service.owner_name?.split(" ")[0] ?? "Provider");
@@ -278,7 +284,8 @@ export default function ServiceDetailClient() {
           <section className="lg:col-span-2 space-y-6 order-1">
             <ServiceHero
               images={service.image_urls?.length ? service.image_urls : service.image_url ? [service.image_url] : []}
-              title={service.title}
+              title={displayTitle}
+              listingForLangPills={service}
             />
             <ServiceTitleCard
               service={service}
@@ -332,7 +339,9 @@ export default function ServiceDetailClient() {
           accessToken={session.access_token}
           onClose={() => setShowEditModal(false)}
           onSaved={(updated) => {
-            setService((prev) => prev ? { ...prev, ...updated, price: Number(updated.price) } : prev);
+            setService((prev) =>
+              prev ? { ...prev, ...updated, price: Number(updated.price) } satisfies Service : prev
+            );
             setShowEditModal(false);
           }}
         />
@@ -344,7 +353,7 @@ export default function ServiceDetailClient() {
           note={bookingNote}
           errorMsg={bookingErrorMsg}
           price={price}
-          serviceTitle={service.title}
+          serviceTitle={displayTitle}
           providerFirstName={providerFirstName}
           workerProvince={service.owner_province}
           onNoteChange={setBookingNote}

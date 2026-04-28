@@ -5,12 +5,20 @@ import { MapPin, Calendar, Globe, Truck, Zap, Tag } from "lucide-react";
 import SaveShareActions from "@/components/serviceDetail/SaveShareActions";
 import { useTranslation } from "react-i18next";
 import { getPublicServiceLocation } from "@/lib/serviceLocation";
+import { resolveListingDescription, resolveListingTitle, type ServiceLikeWithI18n } from "@/lib/serviceListingI18n";
+import {
+  formatAvailabilityLabel,
+  formatMobilityLabel,
+  formatSpokenLanguageLabel,
+  formatUrgencyLabel,
+} from "@/lib/formatServiceDetailFields";
 
 interface Service {
   id: string;
   type: "offer" | "looking";
   title: string;
   description: string;
+  translations?: ServiceLikeWithI18n["translations"];
   category_name: string | null;
   subcategory: string | null;
   price: number;
@@ -42,7 +50,9 @@ interface Props {
 export default function ServiceTitleCard({
   service, price, favoritesCount, providerListingCount, onOpenMap, formatRelativeDate,
 }: Props) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const displayTitle = resolveListingTitle(service, i18n.language);
+  const displayDescription = resolveListingDescription(service, i18n.language);
 
   return (
     <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
@@ -69,7 +79,7 @@ export default function ServiceTitleCard({
             )}
           </div>
 
-          <h1 className="text-3xl font-bold text-gray-900">{service.title}</h1>
+          <h1 className="text-3xl font-bold text-gray-900">{displayTitle}</h1>
 
           <div className="flex flex-wrap items-center gap-3 mt-4 text-sm text-gray-600">
             <button
@@ -84,7 +94,7 @@ export default function ServiceTitleCard({
             <span>{formatRelativeDate(service.created_at)}</span>
           </div>
 
-          <SaveShareActions serviceId={service.id} title={service.title} />
+          <SaveShareActions serviceId={service.id} title={displayTitle} />
 
           {favoritesCount > 0 && (
             <div className="text-sm text-gray-600 mt-2">
@@ -136,7 +146,7 @@ export default function ServiceTitleCard({
       <div className="mt-8 pt-6 border-t border-gray-100">
         <h2 className="text-lg font-semibold text-gray-900 mb-3">{t("serviceDetail.aboutService")}</h2>
         <p className="text-gray-700 leading-relaxed text-base whitespace-pre-line">
-          {service.description}
+          {displayDescription}
         </p>
       </div>
 
@@ -148,25 +158,25 @@ export default function ServiceTitleCard({
             {service.availability && (
               <div className="flex items-center gap-2 text-sm text-gray-700">
                 <Calendar className="h-4 w-4 text-green-600 shrink-0" />
-                <span><span className="font-medium">{t("serviceDetail.availability")}:</span> {service.availability}</span>
+                <span><span className="font-medium">{t("serviceDetail.availability")}:</span> {formatAvailabilityLabel(service.availability, t)}</span>
               </div>
             )}
             {service.language && (
               <div className="flex items-center gap-2 text-sm text-gray-700">
                 <Globe className="h-4 w-4 shrink-0 text-green-600" />
-                <span><span className="font-medium">{t("serviceDetail.language")}:</span> {service.language}</span>
+                <span><span className="font-medium">{t("serviceDetail.language")}:</span> {formatSpokenLanguageLabel(service.language, t)}</span>
               </div>
             )}
             {service.mobility && (
               <div className="flex items-center gap-2 text-sm text-gray-700">
                 <Truck className="h-4 w-4 shrink-0 text-green-600" />
-                <span><span className="font-medium">{t("serviceDetail.mobility")}:</span> {service.mobility}</span>
+                <span><span className="font-medium">{t("serviceDetail.mobility")}:</span> {formatMobilityLabel(service.mobility, t)}</span>
               </div>
             )}
             {service.urgency && (
               <div className="flex items-center gap-2 text-sm text-gray-700">
                 <Zap className="h-4 w-4 shrink-0 text-green-600" />
-                <span><span className="font-medium">{t("serviceDetail.urgency")}:</span> {service.urgency}</span>
+                <span><span className="font-medium">{t("serviceDetail.urgency")}:</span> {formatUrgencyLabel(service.urgency, t)}</span>
               </div>
             )}
           </div>

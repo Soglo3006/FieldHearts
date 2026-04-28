@@ -41,7 +41,7 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/bui
 - Admins are determined by either:
 	- Email allowlist via `NEXT_PUBLIC_ADMIN_EMAILS` (comma-separated)
 	- User ID allowlist via `NEXT_PUBLIC_ADMIN_USER_IDS` (comma-separated)
-	- Supabase `user_metadata.role` or `app_metadata.role` equal to `admin`
+	- Supabase `app_metadata.role` or `app_metadata.roles` (not `user_metadata` — that field is user-editable)
 
 Example `.env.local` values:
 

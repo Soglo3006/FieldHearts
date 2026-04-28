@@ -52,19 +52,23 @@ describe('isAdminUser', () => {
     expect(isAdminUser(makeUser({ id: 'abc-123' }))).toBe(true);
   });
 
-  it('returns true when user_metadata.role is "admin"', () => {
-    expect(isAdminUser(makeUser({ user_metadata: { role: 'admin' } }))).toBe(true);
+  it('returns false when only user_metadata.role is "admin" (not server-controlled)', () => {
+    expect(isAdminUser(makeUser({ user_metadata: { role: 'admin' } }))).toBe(false);
   });
 
   it('returns true when app_metadata.role is "admin"', () => {
     expect(isAdminUser(makeUser({ app_metadata: { role: 'admin' } }))).toBe(true);
   });
 
-  it('returns true when user_metadata.roles includes "admin"', () => {
-    expect(isAdminUser(makeUser({ user_metadata: { roles: ['editor', 'admin'] } }))).toBe(true);
+  it('returns true when app_metadata.roles includes "admin"', () => {
+    expect(isAdminUser(makeUser({ app_metadata: { roles: ['editor', 'admin'] } }))).toBe(true);
   });
 
-  it('returns false when roles array does not include "admin"', () => {
-    expect(isAdminUser(makeUser({ user_metadata: { roles: ['editor'] } }))).toBe(false);
+  it('returns false when only user_metadata.roles includes "admin"', () => {
+    expect(isAdminUser(makeUser({ user_metadata: { roles: ['editor', 'admin'] } }))).toBe(false);
+  });
+
+  it('returns false when app_metadata roles array does not include "admin"', () => {
+    expect(isAdminUser(makeUser({ app_metadata: { roles: ['editor'] } }))).toBe(false);
   });
 });

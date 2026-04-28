@@ -102,12 +102,13 @@ export const adminOnly = (req, res, next) => {
       ...(process.env.SUPPORT_EMAILS || "").split(","),
     ].map((e) => e.trim().toLowerCase()).filter(Boolean);
 
-    const um = (user?.user_metadata || {});
-    const am = (user?.app_metadata  || {});
-    const metaRole = String(um.role || am.role || "").toLowerCase();
-    const roles = Array.isArray(um.roles) ? um.roles : Array.isArray(am.roles) ? am.roles : [];
-
-    const hasAdminRole   = metaRole === "admin" || roles.map((r) => String(r).toLowerCase()).includes("admin");
+    // Role from JWT: only app_metadata is server-controlled. user_metadata is end-user editable
+    // and must not be used for authorization (Supabase product security guidance).
+    const am = user?.app_metadata || {};
+    const metaRole = String(am.role || "").toLowerCase();
+    const roles = Array.isArray(am.roles) ? am.roles : [];
+    const hasAdminRole =
+      metaRole === "admin" || roles.map((r) => String(r).toLowerCase()).includes("admin");
     const allowedByEmail = email && emailList.includes(email);
 
     if (!hasAdminRole && !allowedByEmail) {

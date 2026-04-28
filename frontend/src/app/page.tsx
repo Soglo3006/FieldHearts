@@ -8,7 +8,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Grid3x3, MapPin, Clock } from "lucide-react";
-import { Spinner } from "@/components/ui/Spinner";
 import AppImage from "@/components/ui/AppImage";
 import { useTranslation } from "react-i18next";
 import AdBanner from "@/components/AdBanner";
@@ -128,6 +127,9 @@ export default function HomePage() {
   const [locationPending, setLocationPending] = useState(true);
   const [locationGranted, setLocationGranted] = useState(false);
 
+  // Do not block the whole page on Supabase auth `loading`. Listing data comes from NEXT_PUBLIC_API
+  // without a session — a full-screen spinner here made the home feed feel stuck when auth was slow.
+
   useEffect(() => {
     if (loading) return;
     if (user) {
@@ -232,14 +234,6 @@ export default function HomePage() {
       })
       .catch(() => {});
   }, [userCoords]);
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Spinner size="xl" />
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-white text-black">

@@ -145,7 +145,10 @@ export const getAllServices = async (req, res) => {
       SELECT
         s.*,
         COALESCE(c.name, s.category) AS category_name,
-        c.image_url AS category_image_url
+        c.image_url AS category_image_url,
+        (SELECT COUNT(*)::int FROM bookings b WHERE b.service_id = s.id AND b.status = 'completed') AS completed_bookings_count,
+        (SELECT COUNT(*)::int FROM reviews r WHERE r.target_id = s.user_id) AS review_count,
+        (SELECT ROUND(AVG(r.rating)::numeric, 1) FROM reviews r WHERE r.target_id = s.user_id) AS average_rating
         ${isPaginated ? ", COUNT(*) OVER() AS total_count" : ""}
       FROM services s
       LEFT JOIN categories c ON c.id = s.category_id

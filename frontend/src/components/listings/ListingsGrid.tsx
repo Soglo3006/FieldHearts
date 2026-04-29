@@ -9,11 +9,13 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import AdBanner from "@/components/AdBanner";
-import AppImage from "@/components/ui/AppImage";
 import { formatTranslatedCategoryTrail, categories, toCategoryKey } from "@/lib/categories";
 import { getPublicServiceLocation } from "@/lib/serviceLocation";
 import { resolveListingTitle, type ServiceLikeWithI18n } from "@/lib/serviceListingI18n";
 import ListingLangPills from "@/components/ui/ListingLangPills";
+import { ListingsRegionEmptyState } from "@/components/listings/ListingsRegionEmptyState";
+import { ListingCardImageCarousel, getListingGalleryUrls } from "@/components/listings/ListingCardImageCarousel";
+import { ListingTrustLine } from "@/components/listings/ListingTrustLine";
 
 interface ApiService {
   id: string;
@@ -31,6 +33,9 @@ interface ApiService {
   type?: string;
   translations?: ServiceLikeWithI18n["translations"];
   language?: string | null;
+  review_count?: number | string | null;
+  average_rating?: number | string | null;
+  completed_bookings_count?: number | string | null;
 }
 
 interface PaginatedListingsResponse {
@@ -50,6 +55,21 @@ export interface ListingsFilters {
   serviceType?: string;
   username?: string;
   spokenLanguage?: string;
+}
+
+function hasRestrictiveFilters(f?: ListingsFilters): boolean {
+  if (!f) return false;
+  return Boolean(
+    f.search?.trim() ||
+      (f.categories?.length ?? 0) > 0 ||
+      (f.subcategories?.length ?? 0) > 0 ||
+      f.location?.trim() ||
+      (f.serviceType && f.serviceType !== "all") ||
+      f.spokenLanguage ||
+      (f.minPrice != null && f.minPrice > 0) ||
+      (f.maxPrice != null && f.maxPrice < 1000) ||
+      f.username
+  );
 }
 
 function formatRelativeDate(dateStr: string, t: (key: string, opts?: Record<string, unknown>) => string): string {
@@ -205,10 +225,12 @@ export default function ListingsGrid({ filters }: { filters?: ListingsFilters })
 
   if (listings.length === 0) {
     return (
-      <div ref={gridTopRef} className="text-center py-16 text-gray-500">
-        <Grid3x3 className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-        <p className="text-lg font-medium text-gray-700">{t("common.noResults")}</p>
-        <p className="text-sm mt-1">{t("listings.adjustFilters")}</p>
+      <div ref={gridTopRef} className="w-full flex justify-center py-6 sm:py-8">
+        <ListingsRegionEmptyState
+          locationLabel={filters?.location ?? ""}
+          footerHint={hasRestrictiveFilters(filters) ? t("listings.adjustFilters") : undefined}
+          className="max-w-md"
+        />
       </div>
     );
   }
@@ -236,32 +258,38 @@ export default function ListingsGrid({ filters }: { filters?: ListingsFilters })
 
           const s = item.data;
           const cardIndex = items.slice(0, items.indexOf(item)).filter(i => i.type === "listing").length;
+          const detailHref = `/serviceDetail/${s.id}`;
+          const galleryUrls = getListingGalleryUrls(s.image_urls, s.image_url);
           return (
-            <Link key={s.id} href={`/serviceDetail/${s.id}`} className="block group">
-              <div className="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white hover:shadow-md transition-shadow flex flex-col">
-                <AspectRatio ratio={16 / 9}>
-                  {(() => {
-                    const thumb = s.image_urls?.[0] ?? s.image_url;
-                    const extra = (s.image_urls?.length ?? 0) > 1 ? s.image_urls!.length : 0;
-                    return thumb ? (
-                      <div className="relative w-full h-full">
-                        <ListingLangPills service={s} />
-                        <AppImage src={thumb} alt={resolveListingTitle(s, i18n.language)} fill sizes="(max-width: 640px) 100vw, (max-width: 1280px) 50vw, 33vw" className="object-cover" priority={cardIndex < 3} loading={cardIndex < 3 ? undefined : "lazy"} />
-                        {extra > 1 && (
-                          <span className="absolute bottom-1.5 right-1.5 bg-black/55 text-white text-[10px] px-1.5 py-0.5 rounded-full font-medium">
-                            +{extra - 1}
-                          </span>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="w-full h-full bg-gray-100 flex items-center justify-center">
-                        <Grid3x3 className="h-10 w-10 text-gray-300" />
-                      </div>
-                    );
-                  })()}
-                </AspectRatio>
+            <div key={s.id} className="group flex flex-col border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white hover:shadow-md transition-shadow">
+              <AspectRatio ratio={16 / 9}>
+                {galleryUrls.length > 0 ? (
+                  <div className="relative w-full h-full">
+                    <ListingLangPills service={s} />
+                    <ListingCardImageCarousel
+                      urls={galleryUrls}
+                      alt={resolveListingTitle(s, i18n.language)}
+                      sizes="(max-width: 640px) 100vw, (max-width: 1280px) 50vw, 33vw"
+                      priority={cardIndex < 3}
+                    />
+                    <Link
+                      href={detailHref}
+                      className="absolute inset-0 z-5 outline-none"
+                      aria-label={resolveListingTitle(s, i18n.language)}
+                    />
+                  </div>
+                ) : (
+                  <Link
+                    href={detailHref}
+                    className="flex h-full w-full items-center justify-center bg-gray-100 outline-none"
+                    aria-label={resolveListingTitle(s, i18n.language)}
+                  >
+                    <Grid3x3 className="h-10 w-10 text-gray-300" />
+                  </Link>
+                )}
+              </AspectRatio>
 
-                <div className="p-3 flex flex-col flex-1">
+              <Link href={detailHref} className="flex flex-col flex-1 p-3 text-left outline-none">
                   <div className="flex items-start gap-2 mb-1">
                     <h3 className="font-semibold text-gray-900 line-clamp-1 flex-1 group-hover:text-green-700 transition-colors text-sm">
                       {resolveListingTitle(s, i18n.language)}
@@ -272,6 +300,12 @@ export default function ListingsGrid({ filters }: { filters?: ListingsFilters })
                       <Badge className="shrink-0 border-0 bg-green-100 text-xs text-green-700">{t("listings.offering")}</Badge>
                     )}
                   </div>
+                  <ListingTrustLine
+                    reviewCount={s.review_count}
+                    averageRating={s.average_rating}
+                    completedBookingsCount={s.completed_bookings_count}
+                    className="mb-1"
+                  />
 
                   {(s.category_name || s.subcategory) && (
                     <p className="text-xs text-gray-400 mb-1 line-clamp-1">
@@ -291,9 +325,8 @@ export default function ListingsGrid({ filters }: { filters?: ListingsFilters })
                       <span>{formatRelativeDate(s.created_at, t)}</span>
                     </div>
                   </div>
-                </div>
-              </div>
-            </Link>
+              </Link>
+            </div>
           );
         })}
       </div>

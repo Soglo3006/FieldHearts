@@ -140,7 +140,7 @@ export default function AboutPage() {
             <div className="mx-auto w-full max-w-md overflow-hidden rounded-2xl border border-gray-200 bg-gray-50 lg:max-w-none">
               <div className="relative aspect-5/4 overflow-hidden bg-gray-200 sm:aspect-4/3">
                 <Image
-                  src="/team/george.png"
+                  src="/team/george.jpg"
                   alt="Georges Rychel Moung"
                   fill
                   sizes="(max-width: 1024px) 100vw, 50vw"

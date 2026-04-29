@@ -27,27 +27,27 @@ export function useProtectedRoute(options: UseProtectedRouteOptions = {}) {
     if (loading || isLoggingOut) return;
 
     if (requireAuth && !user) {
-      router.push(redirectTo);
+      router.replace(redirectTo);
       return;
     }
 
     if (requireProfileCompleted && user) {
       const profileCompleted = user.user_metadata?.profile_completed;
       if (!profileCompleted) {
-        router.push("/choose_type");
+        router.replace("/choose_type");
         return;
       }
     }
 
     if (!requireAuth && user) {
       if (isAdminUser(user)) {
-        router.push("/admin");
+        router.replace("/admin");
       } else {
         const profileCompleted = user.user_metadata?.profile_completed;
         if (!profileCompleted) {
-          router.push("/choose_type");
+          router.replace("/choose_type");
         } else {
-          router.push(redirectAfterLogin ?? "/");
+          router.replace(redirectAfterLogin ?? "/");
         }
       }
     }

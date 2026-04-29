@@ -8,6 +8,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Grid3x3, MapPin, Clock } from "lucide-react";
+import { ListingsRegionEmptyState } from "@/components/listings/ListingsRegionEmptyState";
 import AppImage from "@/components/ui/AppImage";
 import { useTranslation } from "react-i18next";
 import AdBanner from "@/components/AdBanner";
@@ -16,6 +17,8 @@ import { getPublicServiceLocation } from "@/lib/serviceLocation";
 import { resolveListingTitle, type ServiceLikeWithI18n } from "@/lib/serviceListingI18n";
 import ListingLangPills from "@/components/ui/ListingLangPills";
 import CityAutocomplete from "@/components/ui/CityAutocomplete";
+import { ListingCardImageCarousel, getListingGalleryUrls } from "@/components/listings/ListingCardImageCarousel";
+import { ListingTrustLine } from "@/components/listings/ListingTrustLine";
 
 
 const toKey = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
@@ -53,6 +56,9 @@ interface Listing extends ServiceLikeWithI18n {
   category: string;
   category_name?: string;
   type?: "offer" | "looking";
+  review_count?: number | string | null;
+  average_rating?: number | string | null;
+  completed_bookings_count?: number | string | null;
 }
 
 interface CategoryCount {
@@ -71,43 +77,36 @@ function ListingCard({
   i18nLang: string | undefined;
   priority?: boolean;
 }) {
-  const urls = listing.image_urls?.filter(Boolean) ?? [];
-  const thumb = urls[0] ?? listing.image_url;
-  const totalPhotos = urls.length > 0 ? urls.length : listing.image_url ? 1 : 0;
-  const extraPhotos = totalPhotos > 1 ? totalPhotos - 1 : 0;
+  const galleryUrls = getListingGalleryUrls(listing.image_urls, listing.image_url);
   const resolvedTitle = resolveListingTitle(listing, i18nLang);
+  const detailHref = `/serviceDetail/${listing.id}`;
   return (
-    <Link href={`/serviceDetail/${listing.id}`} className="block h-full group">
-      <div className="h-full border rounded-xl shadow-sm bg-white flex flex-col overflow-hidden hover:shadow-md transition-shadow cursor-pointer">
-        <AspectRatio ratio={16 / 9}>
-          <div className="relative w-full h-full">
-            <ListingLangPills service={listing} />
-            {extraPhotos > 0 && (
-              <span
-                className="pointer-events-none absolute bottom-2 right-2 z-10 rounded-full bg-black/65 px-2 py-0.5 text-[11px] font-semibold tabular-nums text-white shadow-sm backdrop-blur-[2px]"
-                aria-label={t("home.extraPhotosAria", { count: extraPhotos })}
-              >
-                +{extraPhotos}
-              </span>
-            )}
-            {thumb ? (
-              <AppImage
-                src={thumb}
+    <div className="group h-full border rounded-xl shadow-sm bg-white flex flex-col overflow-hidden hover:shadow-md transition-shadow">
+      <AspectRatio ratio={16 / 9}>
+        <div className="relative w-full h-full">
+          <ListingLangPills service={listing} />
+          {galleryUrls.length > 0 ? (
+            <>
+              <ListingCardImageCarousel
+                urls={galleryUrls}
                 alt={resolvedTitle}
-                fill
                 sizes="(max-width: 640px) 100vw, (max-width: 1280px) 50vw, 33vw"
-                className="object-cover"
                 priority={priority}
-                loading={priority ? undefined : "lazy"}
               />
-            ) : (
-              <div className="w-full h-full bg-gray-100 flex items-center justify-center">
-                <Grid3x3 className="h-12 w-12 text-gray-300" />
-              </div>
-            )}
-          </div>
-        </AspectRatio>
-        <div className="p-3 flex flex-1 flex-col gap-1">
+              <Link
+                href={detailHref}
+                className="absolute inset-0 z-5 outline-none"
+                aria-label={resolvedTitle}
+              />
+            </>
+          ) : (
+            <Link href={detailHref} className="flex h-full w-full items-center justify-center bg-gray-100 outline-none" aria-label={resolvedTitle}>
+              <Grid3x3 className="h-12 w-12 text-gray-300" />
+            </Link>
+          )}
+        </div>
+      </AspectRatio>
+      <Link href={detailHref} className="flex flex-1 flex-col gap-1 p-3 text-left outline-none">
           <div className="flex items-start gap-2">
             <h3 className="flex-1 line-clamp-1 text-sm font-semibold transition-colors group-hover:text-green-700">{resolvedTitle}</h3>
             {listing.type === "looking" ? (
@@ -116,6 +115,11 @@ function ListingCard({
               <span className="bg-green-100 text-green-700 text-xs font-semibold px-2 py-0.5 rounded-full shrink-0">{t("listings.offering")}</span>
             )}
           </div>
+          <ListingTrustLine
+            reviewCount={listing.review_count}
+            averageRating={listing.average_rating}
+            completedBookingsCount={listing.completed_bookings_count}
+          />
           <p className="text-green-700 font-semibold">{Number(listing.price).toFixed(2)} $</p>
           <div className="flex items-center justify-between text-xs text-gray-500 mt-auto">
             <div className="flex items-center gap-1 min-w-0">
@@ -127,9 +131,8 @@ function ListingCard({
               <span>{formatRelativeDate(listing.created_at, t)}</span>
             </div>
           </div>
-        </div>
-      </div>
-    </Link>
+      </Link>
+    </div>
   );
 }
 
@@ -350,7 +353,7 @@ export default function HomePage() {
               {dataLoading ? (
                 Array.from({ length: 9 }).map((_, i) => <ListingSkeleton key={i} />)
               ) : listings.length === 0 ? (
-                <p className="text-gray-500 col-span-full">{t("home.noListings")}</p>
+                <ListingsRegionEmptyState locationLabel={debouncedLocation} className="col-span-full" />
               ) : (
                 listings.slice(0, 9).map((listing, i) => (
                   <ListingCard key={listing.id} listing={listing} t={t} i18nLang={i18n.language} priority={i < 3} />
@@ -359,7 +362,7 @@ export default function HomePage() {
 
               {/* Popular categories */}
               <div className="col-span-full mt-10">
-                <h1 className="text-3xl font-bold mb-5">{t("home.popularCategories")}</h1>
+                <h2 className="text-2xl font-bold mb-5">{t("home.popularCategories")}</h2>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 sm:gap-5">
                   {sortedCategories.slice(0, 8).map((category) => (
                     <Link
@@ -393,9 +396,9 @@ export default function HomePage() {
               {/* CTA for non-logged-in users */}
               {!user && (
                 <div className="col-span-full mt-10 bg-green-800 rounded-2xl p-5 sm:p-10 text-center text-white">
-                  <h1 className="text-xl sm:text-3xl font-bold mb-2">
+                  <h2 className="text-2xl font-bold mb-2">
                     {t("home.ctaTitle")}
-                  </h1>
+                  </h2>
                   <p>{t("home.ctaSubtitle")}</p>
                   <Link href="/login">
                     <Button className="mt-4 cursor-pointer">{t("home.signIn")}</Button>
@@ -411,7 +414,7 @@ export default function HomePage() {
               {/* Listings near you — only if location pending or granted */}
               {(locationPending || locationGranted) && (
                 <div className="col-span-full mt-10">
-                  <h1 className="text-2xl font-bold mb-5">{t("home.listingsNearYou")}</h1>
+                  <h2 className="text-2xl font-bold mb-5">{t("home.listingsNearYou")}</h2>
                   <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
                     {dataLoading ? (
                       Array.from({ length: 3 }).map((_, i) => <ListingSkeleton key={i} />)
@@ -423,11 +426,9 @@ export default function HomePage() {
                       ))
                     )}
                   </div>
-                  <Link href={listingsBrowseHref}>
-                    <Button className="mt-6 w-full bg-green-700 text-white hover:bg-green-800 cursor-pointer">
-                      {t("home.viewAllListings")}
-                    </Button>
-                  </Link>
+                  <Button asChild className="mt-6 w-full bg-green-700 text-white hover:bg-green-800 cursor-pointer">
+                    <Link href={listingsBrowseHref}>{t("home.viewAllListings")}</Link>
+                  </Button>
                 </div>
               )}
 

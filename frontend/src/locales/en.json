@@ -37,6 +37,10 @@
     "heroSubtitle": "Connect with your local community for services and opportunities",
     "recentlyAdded": "Recently added",
     "noListings": "No listings yet.",
+    "emptyGlobalTitle": "No listings yet.",
+    "emptyRegionTitle": "No listings in {{location}} yet",
+    "emptyRegionSubtitle": "Be the first in your area",
+    "postListing": "Post a listing",
     "popularCategories": "Popular Categories",
     "ctaTitle": "Together, we all bring something valuable",
     "ctaSubtitle": "Join now to discover nearby help and new earning opportunities",
@@ -84,7 +88,11 @@
     "filtersActivePlural": "{{count}} filters active",
     "adPlaceholder": "Ad placeholder",
     "adjustFilters": "Try adjusting your filters",
-    "spokenLanguageFilter": "Listing language preference"
+    "spokenLanguageFilter": "Listing language preference",
+    "cardTrustReviews": "⭐ {{rating}} ({{count}} review)",
+    "cardTrustReviews_plural": "⭐ {{rating}} ({{count}} reviews)",
+    "cardTrustClients": "{{count}} client",
+    "cardTrustClients_plural": "{{count}} clients"
   },
   "notFound": {
     "title": "Page not found",

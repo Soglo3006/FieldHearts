@@ -21,6 +21,7 @@ import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { isAdminUser } from "@/lib/auth";
 import Link from "next/link";
+import { PostPublishLink } from "@/components/navigation/PostPublishLink";
 import { createPortal } from "react-dom";
 import SettingsPage from "@/components/profile/Settings";
 import { useRef, useState, useEffect, useLayoutEffect } from "react";
@@ -538,18 +539,18 @@ export default function Header() {
               </div>
 
               {/* md+: bouton + */}
-              <Link href="/post" className="hidden md:block">
+              <PostPublishLink className="hidden md:block">
                 <Button className="bg-green-700 text-white hover:bg-green-800 cursor-pointer">
                   {t("header.post")}
                 </Button>
-              </Link>
+              </PostPublishLink>
 
               {/* Mobile only: bouton + */}
-              <Link href="/post" className="md:hidden">
+              <PostPublishLink className="md:hidden">
                 <Button size="icon" className="bg-green-700 text-white hover:bg-green-800 cursor-pointer font-bold text-lg">
                   +
                 </Button>
-              </Link>
+              </PostPublishLink>
 
               {/* Mobile only: hamburger */}
               <div className="relative md:hidden">

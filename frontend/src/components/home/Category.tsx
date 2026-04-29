@@ -1,13 +1,14 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition, type MouseEvent } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useTranslation } from "react-i18next";
-import { Button } from "@/components/ui/button";
 import AppImage from "@/components/ui/AppImage";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { categories } from "@/lib/categories";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 const toKey = (value: string) =>
   value.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
@@ -23,6 +24,19 @@ const chunkItems = <T,>(items: T[], chunkSize: number) => {
 
   return chunks;
 };
+
+function isModifiedLinkClick(e: MouseEvent<HTMLAnchorElement>) {
+  return e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0;
+}
+
+/** Same query shape as navigateAfterClosingMenu / openCategoryListings */
+function listingsBrowseHref(categoryName?: string, subcategory?: string) {
+  if (!categoryName) return "/listings";
+  const p = new URLSearchParams();
+  p.set("category", categoryName);
+  if (subcategory) p.set("subcategory", subcategory);
+  return `/listings?${p.toString()}`;
+}
 
 export default function CategoryNav() {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -92,13 +106,14 @@ export default function CategoryNav() {
 
   const isPageTransitioning = pendingNavigationPath !== null || isNavigating;
 
-  const openCategoryListings = (categoryName: string, subcategory?: string) => {
-    const categoryParam = encodeURIComponent(categoryName);
-    const subcategoryQuery = subcategory
-      ? `&subcategory=${encodeURIComponent(subcategory)}`
-      : "";
-
-    navigateAfterClosingMenu(`/listings?category=${categoryParam}${subcategoryQuery}`);
+  const onNavLinkClick = (e: MouseEvent<HTMLAnchorElement>, path: string) => {
+    if (isPageTransitioning) {
+      e.preventDefault();
+      return;
+    }
+    if (isModifiedLinkClick(e)) return;
+    e.preventDefault();
+    navigateAfterClosingMenu(path);
   };
 
   return (
@@ -120,14 +135,17 @@ export default function CategoryNav() {
             ref={scrollRef}
             className="flex items-center overflow-x-auto py-4 scroll-smooth no-scrollbar"
           >
-            <Button
-              type="button"
-              className="shrink-0 cursor-pointer bg-green-700 text-xs text-white hover:bg-green-800 sm:text-sm"
-              onClick={() => navigateAfterClosingMenu("/listings")}
-              disabled={isPageTransitioning}
+            <Link
+              href="/listings"
+              className={cn(
+                "inline-flex h-9 shrink-0 items-center justify-center rounded-md px-4 py-2 text-xs font-medium transition-colors",
+                "bg-green-700 text-white hover:bg-green-800 sm:text-sm",
+                isPageTransitioning && "pointer-events-none opacity-50"
+              )}
+              onClick={(e) => onNavLinkClick(e, "/listings")}
             >
               {t("home.viewAllListings")}
-            </Button>
+            </Link>
 
             <div
               className="mx-2 h-4 w-px shrink-0 self-center bg-gray-200 sm:mx-3 sm:h-5"
@@ -199,13 +217,13 @@ export default function CategoryNav() {
                 <div className="flex flex-col lg:flex-1 lg:overflow-hidden lg:grid lg:grid-cols-[240px_1px_minmax(0,1.15fr)_1px_minmax(280px,0.85fr)] lg:items-stretch">
                   <aside className="flex flex-col bg-gray-50/70 lg:h-full lg:min-h-0">
                     <div className="border-b border-gray-200 px-5 py-5">
-                      <button
-                        type="button"
-                        className="cursor-pointer text-sm font-medium text-green-700 transition-colors hover:text-green-800 hover:underline"
-                        onClick={() => navigateAfterClosingMenu("/listings")}
+                      <Link
+                        href="/listings"
+                        className="text-sm font-medium text-green-700 transition-colors hover:text-green-800 hover:underline"
+                        onClick={(e) => onNavLinkClick(e, "/listings")}
                       >
                         {t("home.viewAllListings")}
-                      </button>
+                      </Link>
                     </div>
 
                     <div className="space-y-1 p-3 lg:flex-1 lg:overflow-y-auto">
@@ -238,13 +256,16 @@ export default function CategoryNav() {
 
                   <div className="flex flex-col bg-white p-5 sm:p-6 lg:h-full lg:pr-5">
                     <div className="mb-5 border-b border-gray-200 pb-4">
-                      <button
-                        type="button"
+                      <Link
+                        href={listingsBrowseHref(activeCategory.name)}
                         className="cursor-pointer text-sm font-medium text-gray-600 transition-colors hover:text-green-700 hover:underline"
-                        onClick={() => openCategoryListings(activeCategory.name)}
+                        onClick={(e) =>
+                          onNavLinkClick(e, listingsBrowseHref(activeCategory.name))
+                        }
                       >
-                        {t("home.viewAllIn", { defaultValue: "See all in" })} {t(`categories.${toKey(activeCategory.name)}`, { defaultValue: activeCategory.name })}
-                      </button>
+                        {t("home.viewAllIn", { defaultValue: "See all in" })}{" "}
+                        {t(`categories.${toKey(activeCategory.name)}`, { defaultValue: activeCategory.name })}
+                      </Link>
                     </div>
 
                     <div className={`hidden ${desktopSubcategoryGridClass} gap-x-10 gap-y-6 overflow-hidden lg:grid`}>
@@ -254,16 +275,21 @@ export default function CategoryNav() {
                             const subKey = `${toKey(activeCategory.name)}_${toKey(subcategory)}`;
 
                             return (
-                              <button
+                              <Link
                                 key={subcategory}
-                                type="button"
-                                onClick={() => openCategoryListings(activeCategory.name, subcategory)}
-                                className="block w-fit max-w-full cursor-pointer border-b-2 border-transparent pb-1 text-left text-sm text-gray-600 transition-colors hover:border-green-500 hover:text-gray-900"
+                                href={listingsBrowseHref(activeCategory.name, subcategory)}
+                                className="block w-fit max-w-full border-b-2 border-transparent pb-1 text-left text-sm text-gray-600 transition-colors hover:border-green-500 hover:text-gray-900"
+                                onClick={(e) =>
+                                  onNavLinkClick(
+                                    e,
+                                    listingsBrowseHref(activeCategory.name, subcategory)
+                                  )
+                                }
                               >
                                 <span className="block leading-snug">
                                   {t(`categories.${subKey}`, { defaultValue: subcategory })}
                                 </span>
-                              </button>
+                              </Link>
                             );
                           })}
                         </div>
@@ -275,16 +301,21 @@ export default function CategoryNav() {
                         const subKey = `${toKey(activeCategory.name)}_${toKey(subcategory)}`;
 
                         return (
-                          <button
+                          <Link
                             key={subcategory}
-                            type="button"
-                            onClick={() => openCategoryListings(activeCategory.name, subcategory)}
+                            href={listingsBrowseHref(activeCategory.name, subcategory)}
                             className="block w-fit max-w-full justify-self-start border-b-2 border-transparent pb-1 text-left text-sm text-gray-600 transition-colors hover:border-green-500 hover:text-gray-900"
+                            onClick={(e) =>
+                              onNavLinkClick(
+                                e,
+                                listingsBrowseHref(activeCategory.name, subcategory)
+                              )
+                            }
                           >
                             <span className="block leading-snug">
                               {t(`categories.${subKey}`, { defaultValue: subcategory })}
                             </span>
-                          </button>
+                          </Link>
                         );
                       })}
                     </div>

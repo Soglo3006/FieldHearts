@@ -37,6 +37,10 @@
     "heroSubtitle": "Connectez-vous avec votre communauté locale pour des services et des opportunités",
     "recentlyAdded": "Ajoutés récemment",
     "noListings": "Aucune annonce pour l'instant.",
+    "emptyGlobalTitle": "Aucune annonce pour l'instant.",
+    "emptyRegionTitle": "Aucune annonce à {{location}} pour l'instant",
+    "emptyRegionSubtitle": "Soyez le premier dans votre secteur",
+    "postListing": "Publier une annonce",
     "popularCategories": "Catégories populaires",
     "ctaTitle": "Ensemble, nous apportons tous quelque chose de précieux",
     "ctaSubtitle": "Rejoignez-nous pour découvrir de l'aide à proximité et de nouvelles opportunités",
@@ -84,7 +88,11 @@
     "filtersActivePlural": "{{count}} filtres actifs",
     "adPlaceholder": "Espace publicitaire",
     "adjustFilters": "Essayez d'ajuster vos filtres",
-    "spokenLanguageFilter": "Langue préférée pour l’annonce"
+    "spokenLanguageFilter": "Langue préférée pour l’annonce",
+    "cardTrustReviews": "⭐ {{rating}} ({{count}} avis)",
+    "cardTrustReviews_plural": "⭐ {{rating}} ({{count}} avis)",
+    "cardTrustClients": "{{count}} client",
+    "cardTrustClients_plural": "{{count}} clients"
   },
   "notFound": {
     "title": "Page introuvable",

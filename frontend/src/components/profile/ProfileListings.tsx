@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import Link from "next/link";
+import { PostPublishLink } from "@/components/navigation/PostPublishLink";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -209,11 +210,11 @@ export default function ProfileListings({
             {isPerson ? t("profile.listings") : t("profile.ourServices")}
           </h2>
           {isOwner && (
-            <Link href="/post">
+            <PostPublishLink>
               <Button className="bg-green-700 hover:bg-green-800 text-white cursor-pointer">
                 {t("profile.createNewListing")}
               </Button>
-            </Link>
+            </PostPublishLink>
           )}
         </div>
 
@@ -272,11 +273,11 @@ export default function ProfileListings({
               {isOwner ? t("profile.yourListingsEmpty") : t("profile.userNoListings")}
             </p>
             {isOwner && (
-              <Link href="/post">
+              <PostPublishLink>
                 <Button className="mt-4 bg-green-700 hover:bg-green-800 text-white cursor-pointer">
                   {t("profile.createFirstListing")}
                 </Button>
-              </Link>
+              </PostPublishLink>
             )}
           </div>
         )}

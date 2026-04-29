@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
+import { PostPublishLink } from "@/components/navigation/PostPublishLink";
 import { Plus, Grid3x3, MapPin, ChevronLeft, ChevronRight } from "lucide-react";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import AppImage from "@/components/ui/AppImage";
@@ -260,12 +261,12 @@ export default function MyListingsPage() {
       <main className="max-w-5xl mx-auto px-3 sm:px-4 py-4 sm:py-8">
         <div className="flex items-center justify-between mb-4 sm:mb-6">
           <h1 className="text-xl sm:text-2xl font-bold text-gray-900">{t("myListings.title")}</h1>
-          <Link href="/post">
+          <PostPublishLink>
             <Button className="bg-green-700 hover:bg-green-800 text-white gap-2">
               <Plus className="h-4 w-4" />
               {t("myListings.newListing")}
             </Button>
-          </Link>
+          </PostPublishLink>
         </div>
 
         {loading ? (
@@ -286,9 +287,9 @@ export default function MyListingsPage() {
           <div className="text-center py-16 text-gray-500">
             <Grid3x3 className="h-12 w-12 mx-auto mb-3 text-gray-300" />
             <p className="font-medium text-gray-700">{t("myListings.noListings")}</p>
-            <Link href="/post" className="text-sm text-green-700 hover:underline mt-2 inline-block">
+            <PostPublishLink className="text-sm text-green-700 hover:underline mt-2 inline-block">
               {t("myListings.postFirstListing")}
-            </Link>
+            </PostPublishLink>
           </div>
         ) : (
           <div className="space-y-10">

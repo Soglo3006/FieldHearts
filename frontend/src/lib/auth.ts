@@ -1,6 +1,17 @@
 import type { User } from "@supabase/supabase-js";
 
 /**
+ * Allow only same-origin path redirects (open redirects protection).
+ */
+export function safeInternalPath(path: string | null | undefined, fallback: string): string {
+  if (path == null || typeof path !== "string") return fallback;
+  const p = path.trim();
+  if (!p.startsWith("/") || p.startsWith("//")) return fallback;
+  if (/^[a-zA-Z][a-zA-Z\d+.-]*:/.test(p)) return fallback;
+  return p;
+}
+
+/**
  * Determines whether a given Supabase user should be treated as an admin.
  *
  * Supported criteria:

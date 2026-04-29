@@ -76,7 +76,7 @@ export default function LoginPage() {
     setError("");
     setLoggingIn(true);
     try {
-      await signInWithEmail(email, password);
+      await signInWithEmail(email, password, { redirectTo: redirectAfterLogin });
     } catch (err: unknown) {
       setLoggingIn(false);
       const msg = err instanceof Error ? err.message : "";
@@ -170,7 +170,12 @@ export default function LoginPage() {
                   <Button variant="outline" type="button" className="cursor-pointer w-full" onClick={() => signInWithGoogle()}>
                     <FcGoogle /> {t("login.loginWithGoogle")}
                   </Button>
-                  <Button variant="outline" type="button" className="cursor-pointer w-full" onClick={() => signInWithFacebook()}>
+                  <Button
+                    variant="outline"
+                    type="button"
+                    className="cursor-pointer w-full"
+                    onClick={() => signInWithFacebook({ redirectTo: redirectAfterLogin })}
+                  >
                     <FaFacebookF className="text-blue-600 h-5 w-5" /> {t("login.loginWithFacebook")}
                   </Button>
                 </div>

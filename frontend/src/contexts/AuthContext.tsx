@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
-import { isAdminUser, isSupportOnlyUser } from "@/lib/auth";
+import { isAdminUser, isSupportOnlyUser, safeInternalPath } from "@/lib/auth";
 import type { User, Session } from "@supabase/supabase-js";
 
 interface AuthContextType {
@@ -13,10 +13,14 @@ interface AuthContextType {
   isLoggingOut: boolean;
   profilesById: Record<string, unknown>;
   setProfileInCache: (id: string, profile: unknown) => void;
-  signInWithEmail: (email: string, password: string) => Promise<void>;
+  signInWithEmail: (
+    email: string,
+    password: string,
+    options?: { redirectTo?: string }
+  ) => Promise<void>;
   signUpWithEmail: (email: string, password: string, fullName: string) => Promise<void>;
-  signInWithGoogle: () => Promise<void>;
-  signInWithFacebook: () => Promise<void>;
+  signInWithGoogle: (options?: { redirectTo?: string }) => Promise<void>;
+  signInWithFacebook: (options?: { redirectTo?: string }) => Promise<void>;
   signInWithApple: () => Promise<void>;
   signOut: () => Promise<void>;
 }
@@ -92,7 +96,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  const signInWithEmail = async (email: string, password: string) => {
+  const authCallbackHref = (redirectTo?: string) => {
+    const origin = window.location.origin;
+    if (!redirectTo) return `${origin}/auth/callback`;
+    const next = safeInternalPath(redirectTo, "");
+    if (!next) return `${origin}/auth/callback`;
+    return `${origin}/auth/callback?next=${encodeURIComponent(next)}`;
+  };
+
+  const signInWithEmail = async (
+    email: string,
+    password: string,
+    options?: { redirectTo?: string }
+  ) => {
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
@@ -103,7 +119,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       router.push("/admin");
     } else {
       const profileCompleted = data.user.user_metadata?.profile_completed;
-      router.push(profileCompleted ? "/" : "/choose_type");
+      if (!profileCompleted) {
+        router.push("/choose_type");
+        return;
+      }
+      const dest = safeInternalPath(options?.redirectTo ?? "", "/");
+      router.push(dest);
     }
   };
 
@@ -123,22 +144,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (error) throw new Error(error.message);
   };
 
-  const signInWithGoogle = async () => {
+  const signInWithGoogle = async (oauthOpts?: { redirectTo?: string }) => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
+        redirectTo: authCallbackHref(oauthOpts?.redirectTo),
       },
     });
 
     if (error) throw new Error(error.message);
   };
 
-  const signInWithFacebook = async () => {
+  const signInWithFacebook = async (oauthOpts?: { redirectTo?: string }) => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "facebook",
       options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
+        redirectTo: authCallbackHref(oauthOpts?.redirectTo),
       },
     });
 

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
-import { isAdminUser } from "@/lib/auth";
+import { isAdminUser, safeInternalPath } from "@/lib/auth";
 import { Spinner } from "@/components/ui/Spinner";
 
 export default function AuthCallbackPage() {
@@ -38,7 +38,12 @@ export default function AuthCallbackPage() {
             router.replace("/admin");
           } else {
             const profileCompleted = session.user.user_metadata?.profile_completed;
-            router.replace(profileCompleted ? "/" : "/choose_type");
+            if (!profileCompleted) {
+              router.replace("/choose_type");
+            } else {
+              const next = new URLSearchParams(window.location.search).get("next");
+              router.replace(safeInternalPath(next, "/"));
+            }
           }
         } else {
           // Implicit/hash flow fallback — listen for auth state change
@@ -49,7 +54,12 @@ export default function AuthCallbackPage() {
                 router.replace("/admin");
               } else {
                 const profileCompleted = session.user.user_metadata?.profile_completed;
-                router.replace(profileCompleted ? "/" : "/choose_type");
+                if (!profileCompleted) {
+                  router.replace("/choose_type");
+                } else {
+                  const next = new URLSearchParams(window.location.search).get("next");
+                  router.replace(safeInternalPath(next, "/"));
+                }
               }
             }
           });

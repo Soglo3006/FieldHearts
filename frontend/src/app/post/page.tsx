@@ -1,7 +1,10 @@
 "use client";
-import { useState, useEffect } from "react";
+
+import { useState, useEffect, useLayoutEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
-import { useProtectedRoute } from "@/hooks/useProtectedRoute";
+import { supabase } from "@/lib/supabaseClient";
+import { POST_LOGIN_REDIRECT } from "@/lib/postRoutes";
 import OfferServiceForm from "@/components/post/OfferServiceForm";
 import LookingForWorkerForm from "@/components/post/LookingForWorkerForm";
 import SuccessPopup from "@/components/post/SuccessPopup";
@@ -18,33 +21,74 @@ const CANADIAN_PROVINCES = [
 
 type PostMode = "offer" | "looking";
 
+type AccessGate = "checking" | "denied" | "allowed";
+
 export default function PostServicePage() {
-  const { loading } = useProtectedRoute({ requireAuth: true, requireProfileCompleted: true });
+  const router = useRouter();
   const { t } = useTranslation();
   const { session } = useAuth();
+  const [access, setAccess] = useState<AccessGate>("checking");
   const [mode, setMode] = useState<PostMode>("offer");
   const [success, setSuccess] = useState<{ type: PostMode; id: string } | null>(null);
   const [locationAllowed, setLocationAllowed] = useState<boolean | null>(null);
 
+  useLayoutEffect(() => {
+    let alive = true;
+    void supabase.auth.getSession().then(({ data: { session: s } }) => {
+      if (!alive) return;
+      if (!s?.user) {
+        router.replace(POST_LOGIN_REDIRECT);
+        setAccess("denied");
+        return;
+      }
+      if (!s.user.user_metadata?.profile_completed) {
+        router.replace("/choose_type");
+        setAccess("denied");
+        return;
+      }
+      setAccess("allowed");
+    });
+    return () => {
+      alive = false;
+    };
+  }, [router]);
+
   useEffect(() => {
-    if (loading || !session?.access_token) return;
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "SIGNED_OUT") {
+        router.replace(POST_LOGIN_REDIRECT);
+        setAccess("denied");
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, [router]);
+
+  useEffect(() => {
+    if (access !== "allowed" || !session?.access_token) return;
     fetch(`${process.env.NEXT_PUBLIC_API_URL}/profiles/me`, {
       headers: { Authorization: `Bearer ${session.access_token}` },
     })
       .then((r) => r.json())
       .then((data) => {
         const province = (data?.province || "").trim();
-        const allowed = CANADIAN_PROVINCES.some(
-          (p) => p.toLowerCase() === province.toLowerCase()
-        );
+        const allowed = CANADIAN_PROVINCES.some((p) => p.toLowerCase() === province.toLowerCase());
         setLocationAllowed(province === "" ? false : allowed);
       })
       .catch(() => setLocationAllowed(false));
-  }, [loading, session]);
+  }, [access, session]);
 
-  if (loading || locationAllowed === null) {
+  if (access === "checking") {
+    return <div className="min-h-screen bg-gray-50" aria-busy="true" />;
+  }
+  if (access === "denied") {
+    return null;
+  }
+
+  if (locationAllowed === null) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <Spinner size="xl" />
       </div>
     );
@@ -57,12 +101,8 @@ export default function PostServicePage() {
           <div className="flex items-center justify-center w-16 h-16 bg-red-100 rounded-full mx-auto mb-4">
             <MapPin className="h-8 w-8 text-red-600" />
           </div>
-          <h2 className="text-xl font-bold text-gray-900 mb-2">
-            {t("post.canadaOnly")}
-          </h2>
-          <p className="text-gray-600 text-sm">
-            {t("post.canadaOnlyDesc")}
-          </p>
+          <h2 className="text-xl font-bold text-gray-900 mb-2">{t("post.canadaOnly")}</h2>
+          <p className="text-gray-600 text-sm">{t("post.canadaOnlyDesc")}</p>
         </div>
       </div>
     );

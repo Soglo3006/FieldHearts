@@ -55,7 +55,6 @@ export default function LookingForWorkerForm({ onSuccess }: Props) {
   const [availability, setAvailability] = useState("");
   const [language, setLanguage] = useState("");
   const [mobility, setMobility] = useState("");
-  const [duration, setDuration] = useState("");
   const [images, setImages] = useState<string[]>([]);
   const [isOneTime, setIsOneTime] = useState(false);
   const [hideExactLocation, setHideExactLocation] = useState(false);
@@ -108,7 +107,7 @@ export default function LookingForWorkerForm({ onSuccess }: Props) {
           availability,
           language,
           mobility,
-          duration,
+          duration: null,
           urgency,
           image_url: images[0] ?? null,
           image_urls: images,
@@ -213,17 +212,6 @@ export default function LookingForWorkerForm({ onSuccess }: Props) {
         onLanguageChange={setLanguage}
         onMobilityChange={setMobility}
       />
-
-      <div className="space-y-2">
-        <Label className="text-base font-medium text-gray-900">{t("post.jobDuration")}</Label>
-        <Input
-          type="text"
-          placeholder={t("post.jobDurationPlaceholder")}
-          value={duration}
-          onChange={(e) => setDuration(e.target.value)}
-          className="h-12"
-        />
-      </div>
 
       <div className="space-y-2">
         <Label className="text-base font-medium text-gray-900">{t("post.uploadImage")}</Label>

@@ -26,7 +26,8 @@ interface Service {
   address?: string | null;
   city?: string | null;
   hide_exact_location?: boolean;
-  duration: string | null;
+  /** Présent dans l’API ; non affiché (durée approximative masquée produit). */
+  duration?: string | null;
   availability: string | null;
   language: string | null;
   mobility: string | null;
@@ -108,11 +109,6 @@ export default function ServiceTitleCard({
 
           <p className="text-3xl font-extrabold text-green-700 mt-4">
             {price.toFixed(2)} $
-            {service.duration && (
-              <span className="text-base font-normal text-gray-500 ml-1">
-                / {service.duration}
-              </span>
-            )}
           </p>
         </div>
 

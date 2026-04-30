@@ -55,6 +55,8 @@ interface Service {
   favorites_count?: number;
   is_one_time?: boolean;
   hide_exact_location?: boolean;
+  /** Toujours `fixed` côté API (tarif horaire désactivé). */
+  pricing_kind?: string;
 }
 
 interface SimilarService {

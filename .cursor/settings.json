@@ -1,0 +1,13 @@
+{
+  "plugins": {
+    "supabase": {
+      "enabled": true
+    },
+    "shadcn": {
+      "enabled": true
+    },
+    "resend": {
+      "enabled": true
+    }
+  }
+}

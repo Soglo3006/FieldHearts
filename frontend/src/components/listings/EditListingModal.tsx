@@ -95,7 +95,6 @@ export default function EditListingModal({ service, accessToken, onClose, onSave
   );
   const [language, setLanguage] = useState(service.language ?? "");
   const [mobility, setMobility] = useState(() => normalizeMobility(service.mobility ?? "") || "");
-  const [duration, setDuration] = useState(service.duration ?? "");
   const [urgency, setUrgency] = useState(service.urgency ?? "");
   const [images, setImages] = useState<string[]>(
     service.image_urls?.length ? service.image_urls : service.image_url ? [service.image_url] : []
@@ -156,7 +155,7 @@ export default function EditListingModal({ service, accessToken, onClose, onSave
             availability: availability || null,
             language: language || null,
             mobility: mobility || null,
-            duration: duration || null,
+            duration: null,
             urgency: urgency || null,
             image_url: images[0] ?? null,
             image_urls: images,
@@ -304,17 +303,6 @@ export default function EditListingModal({ service, accessToken, onClose, onSave
             onLanguageChange={setLanguage}
             onMobilityChange={setMobility}
           />
-
-          {/* Duration */}
-          <div className="space-y-2">
-            <Label className="text-base font-medium text-gray-900">{t("post.jobDuration")}</Label>
-            <Input
-              value={duration}
-              onChange={(e) => setDuration(e.target.value)}
-              placeholder={t("post.jobDurationPlaceholder")}
-              className="h-12"
-            />
-          </div>
 
           {/* Images */}
           <div className="space-y-2">

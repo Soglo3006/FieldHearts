@@ -36,6 +36,8 @@ interface ApiService {
   review_count?: number | string | null;
   average_rating?: number | string | null;
   completed_bookings_count?: number | string | null;
+  /** Toujours `fixed` côté API (tarif horaire désactivé). */
+  pricing_kind?: string;
 }
 
 interface PaginatedListingsResponse {

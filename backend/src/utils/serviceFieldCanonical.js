@@ -1,4 +1,17 @@
 /**
+ * Mode de tarification annonce : uniquement forfait pour l’instant (hourly masqué produit + API).
+ * La colonne `pricing_kind` est normalisée en lecture ; les écritures imposent toujours `fixed`.
+ */
+export const SERVICE_PRICING_KIND_FIXED = "fixed";
+
+/**
+ * Valeur unique autorisée en base / API jusqu’à ce qu’un vrai flux horaire existe.
+ */
+export function normalizePricingKindForRow(_raw) {
+  return SERVICE_PRICING_KIND_FIXED;
+}
+
+/**
  * Clés canoniques pour services.availability et services.mobility (anglais stable).
  * Libellés FR/EN uniquement dans les fichiers i18n du frontend.
  */
@@ -85,5 +98,6 @@ export function canonServiceFieldsInPlace(row) {
   if (!row || typeof row !== "object") return row;
   if ("availability" in row) row.availability = normalizeAvailability(row.availability);
   if ("mobility" in row) row.mobility = normalizeMobility(row.mobility);
+  row.pricing_kind = normalizePricingKindForRow(row.pricing_kind);
   return row;
 }

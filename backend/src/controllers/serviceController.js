@@ -6,6 +6,7 @@ import {
   canonServiceFieldsInPlace,
   normalizeAvailability,
   normalizeMobility,
+  SERVICE_PRICING_KIND_FIXED,
 } from "../utils/serviceFieldCanonical.js";
 
 export const createService = async (req, res) => {
@@ -69,8 +70,8 @@ export const createService = async (req, res) => {
         user_id, type, title, description, category, category_id, subcategory,
         price, location, address, latitude, longitude, city,
         poster_type, availability,
-        language, mobility, duration, urgency, image_url, image_urls, is_one_time, hide_exact_location, translations
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24::jsonb)
+        language, mobility, duration, urgency, image_url, image_urls, is_one_time, hide_exact_location, pricing_kind, translations
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25::jsonb)
       RETURNING *`,
       [
         req.user.id,
@@ -96,6 +97,7 @@ export const createService = async (req, res) => {
         resolvedImageUrls,
         is_one_time === true || is_one_time === "true" ? true : false,
         hide_exact_location === true || hide_exact_location === "true" ? true : false,
+        SERVICE_PRICING_KIND_FIXED,
         translationsSanitized,
       ]
     );
@@ -552,8 +554,9 @@ export const updateService = async (req, res) => {
            image_urls          = $19,
            is_one_time         = $20,
            hide_exact_location = $21,
-           translations       = $22::jsonb
-       WHERE id = $23
+           translations       = $22::jsonb,
+           pricing_kind       = $23
+       WHERE id = $24
        RETURNING *`,
       [
         mergedTitleFinal,
@@ -578,6 +581,7 @@ export const updateService = async (req, res) => {
         is_one_time          !== undefined ? (is_one_time === true || is_one_time === "true") : existing.is_one_time,
         hide_exact_location  !== undefined ? (hide_exact_location === true || hide_exact_location === "true") : existing.hide_exact_location,
         translationsOut,
+        SERVICE_PRICING_KIND_FIXED,
         id,
       ]
     );

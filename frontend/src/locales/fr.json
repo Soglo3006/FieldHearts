@@ -94,6 +94,11 @@
     "cardTrustClients": "{{count}} client",
     "cardTrustClients_plural": "{{count}} clients"
   },
+  "listingPrice": {
+    "quote": "Prix à convenir",
+    "rangeCurrency": "{{min}} – {{max}} $",
+    "quoteTotalsHint": "Le total est fixé après accord sur le prix — commission et taxes au paiement une fois le montant confirmé."
+  },
   "notFound": {
     "title": "Page introuvable",
     "description": "Cette page n'existe pas ou a été supprimée. Il s'agit peut-être d'une annonce supprimée ou d'un lien expiré.",
@@ -475,6 +480,15 @@
     "confirmCancel": "Revoir",
     "confirmLabelTitle": "Titre",
     "confirmLabelPrice": "Prix",
+    "pricingModeLabel": "Comment fixez-vous le prix?",
+    "pricingModeFixed": "Prix fixe",
+    "pricingModeRange": "Fourchette de prix",
+    "pricingModeQuote": "À discuter d’abord — prix après accord",
+    "priceMinLabel": "Minimum ($)",
+    "priceMaxLabel": "Maximum ($)",
+    "pricingRangeHint": "Indiquez les montants minimum et maximum demandés.",
+    "pricingQuoteHint": "L’annonce affichera « prix à convenir ». Le montant est fixé avant le paiement.",
+    "invalidPriceRange": "Le maximum doit être supérieur ou égal au minimum.",
     "confirmLabelBudget": "Budget",
     "confirmLabelLocation": "Emplacement",
     "confirmLabelCategory": "Catégorie",

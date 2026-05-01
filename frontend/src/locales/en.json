@@ -94,6 +94,11 @@
     "cardTrustClients": "{{count}} client",
     "cardTrustClients_plural": "{{count}} clients"
   },
+  "listingPrice": {
+    "quote": "Price negotiable",
+    "rangeCurrency": "{{min}} – {{max}} $",
+    "quoteTotalsHint": "Totals are finalized after you agree on the price — commission and taxes are calculated at checkout on the confirmed amount."
+  },
   "notFound": {
     "title": "Page not found",
     "description": "This page doesn't exist or has been removed. It might be a listing that was deleted or a link that has expired.",
@@ -479,6 +484,15 @@
     "confirmCancel": "Review again",
     "confirmLabelTitle": "Title",
     "confirmLabelPrice": "Price",
+    "pricingModeLabel": "How do you price this listing?",
+    "pricingModeFixed": "Fixed price",
+    "pricingModeRange": "Price range",
+    "pricingModeQuote": "Discuss first — price confirmed later",
+    "priceMinLabel": "Minimum ($)",
+    "priceMaxLabel": "Maximum ($)",
+    "pricingRangeHint": "Enter the lowest and highest amount you charge for this service.",
+    "pricingQuoteHint": "The listing will say “price negotiable”. You’ll agree on an amount before payment.",
+    "invalidPriceRange": "Maximum must be greater than or equal to minimum.",
     "confirmLabelBudget": "Budget",
     "confirmLabelLocation": "Location",
     "confirmLabelCategory": "Category",

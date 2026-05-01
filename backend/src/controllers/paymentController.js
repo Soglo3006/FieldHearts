@@ -311,6 +311,14 @@ export const createCheckoutSession = async (req, res) => {
     // normalizeProvince ensures we always store a 2-letter code (e.g. "QC" not "Quebec")
     const effectiveProvince    = normalizeProvince(billingAddress?.province ?? billing_province ?? b.client_province ?? "QC");
     const effectivePrice       = Number(b.custom_price ?? b.price);
+    if (!Number.isFinite(effectivePrice) || effectivePrice < 0.01) {
+      return res.status(400).json({
+        message:
+          req.lang === "en"
+            ? "A confirmed price ($0.01 CAD or more) is required before checkout. Negotiate with the seller or update the booking."
+            : "Un montant confirmé (0,01 $ ou plus) est requis avant le paiement. Négociez avec le vendeur ou mettez à jour la réservation.",
+      });
+    }
     const servicePriceCents    = Math.round(effectivePrice * 100);
     const buyerCommissionCents = Math.round(servicePriceCents * BUYER_COMMISSION_RATE);
     const taxRate              = getTaxRate(effectiveProvince);

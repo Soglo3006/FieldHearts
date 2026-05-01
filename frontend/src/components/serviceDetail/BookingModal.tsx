@@ -12,7 +12,8 @@ interface Props {
   state: "idle" | "loading" | "success" | "error";
   note: string;
   errorMsg: string;
-  price: number;
+  displayPriceLabel: string;
+  estimatedTotalBase: number | null;
   serviceTitle: string;
   providerFirstName: string;
   workerProvince?: string | null;
@@ -23,7 +24,7 @@ interface Props {
 }
 
 export default function BookingModal({
-  state, note, errorMsg, price, serviceTitle, providerFirstName, workerProvince,
+  state, note, errorMsg, displayPriceLabel, estimatedTotalBase, serviceTitle, providerFirstName,
   onNoteChange, onSubmit, onClose, onMessageProvider,
 }: Props) {
   const { t, i18n } = useTranslation();
@@ -70,38 +71,49 @@ export default function BookingModal({
           <>
             <div className="bg-gray-50 rounded-lg p-4 mb-4">
               <p className="font-medium text-gray-900 text-sm mb-3 line-clamp-2">{serviceTitle}</p>
-              {(() => {
-                const buyerCommission = price * 0.05;
-                const taxes           = price * taxRate;
-                const total           = price + buyerCommission + taxes;
-                const fmt = (n: number) => n.toFixed(2);
-                return (
-                  <div className="space-y-1.5 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">{t("serviceDetail.servicePrice")}</span>
-                      <span className="font-semibold">{fmt(price)} $</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <div>
-                        <div className="text-gray-500">{t("serviceDetail.buyerCommission")}</div>
-                        <div className="text-xs text-red-500">{t("payment.nonRefundable")}</div>
-                      </div>
-                      <span className="text-gray-700">{fmt(buyerCommission)} $</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <div>
-                        <div className="text-gray-500">{t("serviceDetail.taxes")} ({formatTaxRate(taxRate)}%)</div>
-                        <div className="text-xs text-gray-400">{taxLabel}</div>
-                      </div>
-                      <span className="text-gray-700">{fmt(taxes)} $</span>
-                    </div>
-                    <div className="flex justify-between font-bold border-t border-gray-200 pt-2">
-                      <span>{t("serviceDetail.total")}</span>
-                      <span className="text-green-700">{fmt(total)} $</span>
-                    </div>
+              {estimatedTotalBase === null ? (
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between gap-2">
+                    <span className="text-gray-600">{t("serviceDetail.servicePrice")}</span>
+                    <span className="font-semibold text-right">{displayPriceLabel}</span>
                   </div>
-                );
-              })()}
+                  <p className="text-xs text-gray-600 leading-relaxed">{t("listingPrice.quoteTotalsHint")}</p>
+                </div>
+              ) : (
+                (() => {
+                  const price = estimatedTotalBase;
+                  const buyerCommission = price * 0.05;
+                  const taxes           = price * taxRate;
+                  const total           = price + buyerCommission + taxes;
+                  const fmt = (n: number) => n.toFixed(2);
+                  return (
+                    <div className="space-y-1.5 text-sm">
+                      <div className="flex justify-between gap-2">
+                        <span className="text-gray-600">{t("serviceDetail.servicePrice")}</span>
+                        <span className="font-semibold text-right">{displayPriceLabel}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <div>
+                          <div className="text-gray-500">{t("serviceDetail.buyerCommission")}</div>
+                          <div className="text-xs text-red-500">{t("payment.nonRefundable")}</div>
+                        </div>
+                        <span className="text-gray-700">{fmt(buyerCommission)} $</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <div>
+                          <div className="text-gray-500">{t("serviceDetail.taxes")} ({formatTaxRate(taxRate)}%)</div>
+                          <div className="text-xs text-gray-400">{taxLabel}</div>
+                        </div>
+                        <span className="text-gray-700">{fmt(taxes)} $</span>
+                      </div>
+                      <div className="flex justify-between font-bold border-t border-gray-200 pt-2">
+                        <span>{t("serviceDetail.total")}</span>
+                        <span className="text-green-700">{fmt(total)} $</span>
+                      </div>
+                    </div>
+                  );
+                })()
+              )}
             </div>
 
             <div className="mb-4">

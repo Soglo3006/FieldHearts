@@ -6,8 +6,8 @@ import {
   canonServiceFieldsInPlace,
   normalizeAvailability,
   normalizeMobility,
-  SERVICE_PRICING_KIND_FIXED,
 } from "../utils/serviceFieldCanonical.js";
+import { resolveServicePricingFields } from "../utils/servicePricing.js";
 
 export const createService = async (req, res) => {
   try {
@@ -25,12 +25,16 @@ export const createService = async (req, res) => {
         title: { required: true, type: "string", maxLen: 200 },
         description: { required: true, type: "string", maxLen: 5000 },
         type: { required: true, enum: ["offer", "looking"] },
-        price: { required: true, type: "number", min: 0.01 },
       },
     );
 
     if (errors) {
       return res.status(400).json({ message: errors[0] });
+    }
+
+    const pricingResolved = resolveServicePricingFields({ ...req.body, ...data }, { isCreate: true });
+    if (pricingResolved.error) {
+      return res.status(400).json({ message: pricingResolved.error });
     }
 
     const {
@@ -40,7 +44,6 @@ export const createService = async (req, res) => {
       category,
       category_id,
       subcategory,
-      price,
       location,
       address,
       latitude,
@@ -70,8 +73,10 @@ export const createService = async (req, res) => {
         user_id, type, title, description, category, category_id, subcategory,
         price, location, address, latitude, longitude, city,
         poster_type, availability,
-        language, mobility, duration, urgency, image_url, image_urls, is_one_time, hide_exact_location, pricing_kind, translations
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25::jsonb)
+        language, mobility, duration, urgency, image_url, image_urls, is_one_time, hide_exact_location,
+        pricing_mode, price_min, price_max,
+        translations
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27::jsonb)
       RETURNING *`,
       [
         req.user.id,
@@ -81,7 +86,7 @@ export const createService = async (req, res) => {
         category || null,
         category_id || null,
         subcategory || null,
-        price,
+        pricingResolved.price,
         location,
         address || location,
         latitude || null,
@@ -97,7 +102,9 @@ export const createService = async (req, res) => {
         resolvedImageUrls,
         is_one_time === true || is_one_time === "true" ? true : false,
         hide_exact_location === true || hide_exact_location === "true" ? true : false,
-        SERVICE_PRICING_KIND_FIXED,
+        pricingResolved.pricing_mode,
+        pricingResolved.price_min,
+        pricingResolved.price_max,
         translationsSanitized,
       ]
     );
@@ -246,14 +253,21 @@ export const getAllServices = async (req, res) => {
       paramCount += locPatterns.length;
     }
 
+    /** Filtre prix : listings « quote » inclus·es ; sinon borne basse / haute. */
     if (minPrice) {
-      query += ` AND s.price >= $${paramCount}`;
+      query += ` AND (
+          COALESCE(s.pricing_mode, 'fixed') = 'quote'
+          OR COALESCE(s.price_min, s.price)::numeric >= $${paramCount}::numeric
+        )`;
       params.push(minPrice);
       paramCount++;
     }
 
     if (maxPrice) {
-      query += ` AND s.price <= $${paramCount}`;
+      query += ` AND (
+          COALESCE(s.pricing_mode, 'fixed') = 'quote'
+          OR COALESCE(s.price_max, s.price)::numeric <= $${paramCount}::numeric
+        )`;
       params.push(maxPrice);
       paramCount++;
     }
@@ -531,6 +545,39 @@ export const updateService = async (req, res) => {
         description !== undefined ? sanitizeText(String(description)) : existing.description;
     }
 
+    const touchesPricing =
+      req.body.pricing_mode !== undefined ||
+      req.body.pricingMode !== undefined ||
+      req.body.price !== undefined ||
+      req.body.price_min !== undefined ||
+      req.body.priceMin !== undefined ||
+      req.body.price_max !== undefined ||
+      req.body.priceMax !== undefined;
+
+    let mergedPm = existing.pricing_mode ?? "fixed";
+    let mergedPrice = existing.price;
+    let mergedPriceMin = existing.price_min;
+    let mergedPriceMax = existing.price_max;
+
+    if (touchesPricing) {
+      const merged = {
+        pricing_mode: req.body.pricing_mode ?? req.body.pricingMode ?? mergedPm,
+        price: req.body.price !== undefined ? req.body.price : existing.price,
+        price_min:
+          req.body.price_min !== undefined ? req.body.price_min
+            : req.body.priceMin !== undefined ? req.body.priceMin : existing.price_min,
+        price_max:
+          req.body.price_max !== undefined ? req.body.price_max
+            : req.body.priceMax !== undefined ? req.body.priceMax : existing.price_max,
+      };
+      const r = resolveServicePricingFields(merged, { isCreate: false, existing });
+      if (r.error) return res.status(400).json({ message: r.error });
+      mergedPm = r.pricing_mode;
+      mergedPrice = r.price;
+      mergedPriceMin = r.price_min;
+      mergedPriceMax = r.price_max;
+    }
+
     const updated = await pool.query(
       `UPDATE services
        SET title        = $1,
@@ -555,8 +602,10 @@ export const updateService = async (req, res) => {
            is_one_time         = $20,
            hide_exact_location = $21,
            translations       = $22::jsonb,
-           pricing_kind       = $23
-       WHERE id = $24
+           pricing_mode       = $23,
+           price_min          = $24,
+           price_max          = $25
+       WHERE id = $26
        RETURNING *`,
       [
         mergedTitleFinal,
@@ -564,7 +613,7 @@ export const updateService = async (req, res) => {
         category     !== undefined ? category     : existing.category,
         category_id  !== undefined ? category_id  : existing.category_id,
         subcategory  !== undefined ? subcategory  : existing.subcategory,
-        price        !== undefined ? price        : existing.price,
+        mergedPrice,
         location     !== undefined ? location     : existing.location,
         address      !== undefined ? (address || location || existing.location) : existing.address,
         latitude     !== undefined ? latitude     : existing.latitude,
@@ -581,7 +630,9 @@ export const updateService = async (req, res) => {
         is_one_time          !== undefined ? (is_one_time === true || is_one_time === "true") : existing.is_one_time,
         hide_exact_location  !== undefined ? (hide_exact_location === true || hide_exact_location === "true") : existing.hide_exact_location,
         translationsOut,
-        SERVICE_PRICING_KIND_FIXED,
+        mergedPm,
+        mergedPriceMin,
+        mergedPriceMax,
         id,
       ]
     );

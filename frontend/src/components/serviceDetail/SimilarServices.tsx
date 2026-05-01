@@ -6,12 +6,16 @@ import { useTranslation } from "react-i18next";
 import AppImage from "@/components/ui/AppImage";
 import { getPublicServiceLocation } from "@/lib/serviceLocation";
 import { resolveListingTitle, type ServiceLikeWithI18n } from "@/lib/serviceListingI18n";
+import { formatListingPriceLine } from "@/lib/listingPrice";
 import ListingLangPills from "@/components/ui/ListingLangPills";
 
 interface SimilarService {
   id: string;
   title: string;
-  price: number;
+  pricing_mode?: string | null;
+  price: number | string | null;
+  price_min?: number | string | null;
+  price_max?: number | string | null;
   location: string;
   address?: string | null;
   city?: string | null;
@@ -55,7 +59,7 @@ export default function SimilarServices({ services }: Props) {
                 </AspectRatio>
                 <div className="p-3">
                   <p className="font-semibold text-gray-900 line-clamp-1 group-hover:text-green-700 transition-colors">{resolved}</p>
-                  <p className="text-green-700 font-bold text-sm mt-1">{Number(s.price).toFixed(2)} $</p>
+                  <p className="text-green-700 font-bold text-sm mt-1">{formatListingPriceLine(t, s)}</p>
                   {getPublicServiceLocation(s) && (
                     <p className="text-xs text-gray-500 mt-0.5 flex items-center gap-1">
                       <MapPin className="h-3 w-3 shrink-0" />

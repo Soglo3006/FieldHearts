@@ -10,12 +10,14 @@ import { supabase } from "@/lib/supabaseClient";
 import AppImage from "@/components/ui/AppImage";
 import { toast } from "sonner";
 
-interface Listing { id: string; title: string; price: string | number; image_url?: string | null; }
+import { formatListingPriceLine, type ListingPricingFields } from "@/lib/listingPrice";
+
+type ReportListing = ListingPricingFields & { id: string; title: string; image_url?: string | null };
 
 interface Props {
   profileId: string;
   displayName: string;
-  userListings: Listing[];
+  userListings: ReportListing[];
   onClose: () => void;
 }
 
@@ -83,7 +85,7 @@ export default function ReportListingPage({ profileId, displayName, userListings
                   <div className="flex items-center gap-2">
                     {listing.image_url && <AppImage src={listing.image_url} alt="" width={24} height={24} className="h-6 w-6 rounded object-cover" />}
                     <span className="truncate max-w-[250px]">{listing.title}</span>
-                    <span className="text-gray-400 text-xs">${listing.price}</span>
+                    <span className="text-gray-400 text-xs shrink-0">{formatListingPriceLine(t, listing)}</span>
                   </div>
                 </SelectItem>
               ))}

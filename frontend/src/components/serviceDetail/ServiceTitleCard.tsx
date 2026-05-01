@@ -6,6 +6,7 @@ import SaveShareActions from "@/components/serviceDetail/SaveShareActions";
 import { useTranslation } from "react-i18next";
 import { getPublicServiceLocation } from "@/lib/serviceLocation";
 import { resolveListingDescription, resolveListingTitle, type ServiceLikeWithI18n } from "@/lib/serviceListingI18n";
+import { formatListingPriceLine } from "@/lib/listingPrice";
 import {
   formatAvailabilityLabel,
   formatMobilityLabel,
@@ -21,7 +22,10 @@ interface Service {
   translations?: ServiceLikeWithI18n["translations"];
   category_name: string | null;
   subcategory: string | null;
-  price: number;
+  pricing_mode?: string | null;
+  price: number | string | null;
+  price_min?: number | string | null;
+  price_max?: number | string | null;
   location: string;
   address?: string | null;
   city?: string | null;
@@ -41,7 +45,6 @@ interface Service {
 
 interface Props {
   service: Service;
-  price: number;
   favoritesCount: number;
   providerListingCount: number;
   onOpenMap: () => void;
@@ -49,7 +52,7 @@ interface Props {
 }
 
 export default function ServiceTitleCard({
-  service, price, favoritesCount, providerListingCount, onOpenMap, formatRelativeDate,
+  service, favoritesCount, providerListingCount, onOpenMap, formatRelativeDate,
 }: Props) {
   const { t, i18n } = useTranslation();
   const displayTitle = resolveListingTitle(service, i18n.language);
@@ -108,7 +111,7 @@ export default function ServiceTitleCard({
           )}
 
           <p className="text-3xl font-extrabold text-green-700 mt-4">
-            {price.toFixed(2)} $
+            {formatListingPriceLine(t, service)}
           </p>
         </div>
 

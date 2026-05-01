@@ -19,6 +19,7 @@ import ListingLangPills from "@/components/ui/ListingLangPills";
 import CityAutocomplete from "@/components/ui/CityAutocomplete";
 import { ListingCardImageCarousel, getListingGalleryUrls } from "@/components/listings/ListingCardImageCarousel";
 import { ListingTrustLine } from "@/components/listings/ListingTrustLine";
+import { formatListingPriceLine } from "@/lib/listingPrice";
 
 
 const toKey = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
@@ -45,7 +46,10 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL;
 interface Listing extends ServiceLikeWithI18n {
   id: string;
   title: string;
-  price: number;
+  price: number | null;
+  pricing_mode?: string | null;
+  price_min?: number | string | null;
+  price_max?: number | string | null;
   location: string;
   address?: string | null;
   city?: string | null;
@@ -120,7 +124,7 @@ function ListingCard({
             averageRating={listing.average_rating}
             completedBookingsCount={listing.completed_bookings_count}
           />
-          <p className="text-green-700 font-semibold">{Number(listing.price).toFixed(2)} $</p>
+          <p className="text-green-700 font-semibold">{formatListingPriceLine(t, listing)}</p>
           <div className="flex items-center justify-between text-xs text-gray-500 mt-auto">
             <div className="flex items-center gap-1 min-w-0">
               <MapPin className="h-3 w-3 shrink-0" />

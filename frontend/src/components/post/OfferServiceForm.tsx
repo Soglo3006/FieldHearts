@@ -19,6 +19,9 @@ import BilingualListingFields, {
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import type { PricingMode } from "@/lib/listingPrice";
+import { formatListingPriceLine, type ListingPricingFields } from "@/lib/listingPrice";
+import { cn } from "@/lib/utils";
 
 interface Props {
   onSuccess: (id: string) => void;
@@ -35,7 +38,10 @@ export default function OfferServiceForm({ onSuccess }: Props) {
   });
   const [category, setCategory] = useState("");
   const [subcategory, setSubcategory] = useState("");
+  const [pricingMode, setPricingMode] = useState<PricingMode>("fixed");
   const [price, setPrice] = useState("");
+  const [priceMin, setPriceMin] = useState("");
+  const [priceMax, setPriceMax] = useState("");
   const [location, setLocation] = useState("");
   const [locationDetails, setLocationDetails] = useState<LocationDetails | null>(null);
   const [posterType, setPosterType] = useState("");
@@ -50,11 +56,30 @@ export default function OfferServiceForm({ onSuccess }: Props) {
 
   const finalized = finalizeListingPayload(translations);
   const canonical = canonicalFromTranslations(finalized);
+
+  function offerPricingFields(): ListingPricingFields {
+    if (pricingMode === "quote") return { pricing_mode: "quote" };
+    if (pricingMode === "fixed") return { pricing_mode: "fixed", price: parseFloat(price) };
+    const lo = parseFloat(priceMin);
+    const hi = parseFloat(priceMax);
+    return { pricing_mode: "range", price_min: lo, price_max: hi, price: lo };
+  }
+
+  const pricingOk =
+    pricingMode === "quote" ||
+    (pricingMode === "fixed" && price.trim() !== "" && Number(price) >= 0.01) ||
+    (pricingMode === "range" &&
+      priceMin.trim() !== "" &&
+      priceMax.trim() !== "" &&
+      Number(priceMin) >= 0.01 &&
+      Number(priceMax) >= Number(priceMin));
+
+  const confirmPriceSummary = formatListingPriceLine(t, offerPricingFields());
+
   const isValid =
     hasRequiredBilingualFields(translations) &&
     category.trim() !== "" &&
-    price.trim() !== "" &&
-    Number(price) > 0 &&
+    pricingOk &&
     location.trim() !== "";
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -91,7 +116,7 @@ export default function OfferServiceForm({ onSuccess }: Props) {
           category,
           category_id: null,
           subcategory,
-          price: parseFloat(price),
+          ...offerPricingFields(),
           location,
           address: locationDetails?.address ?? location,
           latitude: locationDetails?.lat ?? null,
@@ -129,7 +154,40 @@ export default function OfferServiceForm({ onSuccess }: Props) {
 
       <div className="space-y-2">
         <Label className="text-base font-medium text-gray-900">
-          {t("post.priceRange")} <span className="text-red-500">*</span>
+          {t("post.pricingModeLabel")} <span className="text-red-500">*</span>
+        </Label>
+        <div className="flex flex-col sm:flex-row gap-2">
+          {(
+            [
+              ["fixed", t("post.pricingModeFixed")],
+              ["range", t("post.pricingModeRange")],
+              ["quote", t("post.pricingModeQuote")],
+            ] as const
+          ).map(([value, label]) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => setPricingMode(value)}
+              className={cn(
+                "flex-1 rounded-lg border px-3 py-2.5 text-sm font-medium transition-colors",
+                pricingMode === value
+                  ? "border-green-600 bg-green-50 text-green-900"
+                  : "border-gray-200 bg-white text-gray-700 hover:border-gray-300"
+              )}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        {pricingMode === "quote" && (
+          <p className="text-xs text-gray-500">{t("post.pricingQuoteHint")}</p>
+        )}
+      </div>
+
+      {pricingMode === "fixed" && (
+      <div className="space-y-2">
+        <Label className="text-base font-medium text-gray-900">
+          {t("post.price")} <span className="text-red-500">*</span>
         </Label>
         <div className="flex gap-4">
           <div className="flex-1 relative">
@@ -139,16 +197,61 @@ export default function OfferServiceForm({ onSuccess }: Props) {
               placeholder={t("post.amount")}
               value={price}
               onChange={(e) => setPrice(e.target.value)}
-              required
+              required={pricingMode === "fixed"}
               min="0"
+              step="0.01"
               className="h-12 pl-8"
             />
           </div>
         </div>
-        {price && Number(price) <= 0 && (
+        {price && Number(price) < 0.01 && (
           <p className="text-red-600 text-sm">{t("post.priceMustBePositive")}</p>
         )}
       </div>
+      )}
+
+      {pricingMode === "range" && (
+      <>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label className="text-base font-medium text-gray-900">
+            {t("post.priceMinLabel")} <span className="text-red-500">*</span>
+          </Label>
+          <div className="relative">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-medium">$</span>
+            <Input
+              type="number"
+              value={priceMin}
+              onChange={(e) => setPriceMin(e.target.value)}
+              min="0"
+              step="0.01"
+              className="h-12 pl-8"
+            />
+          </div>
+        </div>
+        <div className="space-y-2">
+          <Label className="text-base font-medium text-gray-900">
+            {t("post.priceMaxLabel")} <span className="text-red-500">*</span>
+          </Label>
+          <div className="relative">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-medium">$</span>
+            <Input
+              type="number"
+              value={priceMax}
+              onChange={(e) => setPriceMax(e.target.value)}
+              min="0"
+              step="0.01"
+              className="h-12 pl-8"
+            />
+          </div>
+        </div>
+      </div>
+      <p className="text-xs text-gray-500">{t("post.pricingRangeHint")}</p>
+      {priceMin && priceMax && Number(priceMax) < Number(priceMin) && (
+        <p className="text-red-600 text-sm">{t("post.invalidPriceRange")}</p>
+      )}
+      </>
+      )}
 
       <div className="space-y-2">
         <Label htmlFor="serviceLocation" className="text-base font-medium text-gray-900">
@@ -215,7 +318,7 @@ export default function OfferServiceForm({ onSuccess }: Props) {
       open={confirmOpen}
       type="offer"
       title={canonical.title}
-      price={price}
+      priceSummary={confirmPriceSummary}
       location={location}
       category={category}
       subcategory={subcategory}

@@ -1,6 +1,7 @@
 import { Metadata } from "next";
 import ServiceDetailClient from "./ServiceDetailClient";
 import { getSafeMetadataImageUrl } from "@/lib/image";
+import { listingMetaPriceSegment } from "@/lib/listingPrice";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -15,7 +16,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     if (!res.ok) return {};
     const service = await res.json();
 
-    const title = `${service.title} — ${Number(service.price).toFixed(2)} $ | Uneden`;
+    const priceSeg = listingMetaPriceSegment(service, "fr");
+    const title = `${service.title} — ${priceSeg} | Uneden`;
     const description = service.description
       ? service.description.slice(0, 155)
       : `Découvre ce service sur Uneden — ${service.city ?? service.location ?? "Québec"}.`;

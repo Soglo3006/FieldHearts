@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { DraftMessagePreparationError, prepareDraftMessageTarget } from './draftMessage';
+import { prepareDraftMessageTarget } from './draftMessage';
 
 describe('prepareDraftMessageTarget', () => {
   it('does not create a chat when attachment upload fails', async () => {
@@ -14,7 +14,7 @@ describe('prepareDraftMessageTarget', () => {
         ensureChat,
         removeUploadedAttachment,
       })
-    ).rejects.toMatchObject<DraftMessagePreparationError>({ code: 'upload' });
+    ).rejects.toMatchObject({ code: 'upload' });
 
     expect(ensureChat).not.toHaveBeenCalled();
     expect(removeUploadedAttachment).not.toHaveBeenCalled();
@@ -31,7 +31,7 @@ describe('prepareDraftMessageTarget', () => {
         ensureChat: vi.fn().mockResolvedValue(null),
         removeUploadedAttachment,
       })
-    ).rejects.toMatchObject<DraftMessagePreparationError>({ code: 'chat' });
+    ).rejects.toMatchObject({ code: 'chat' });
 
     expect(removeUploadedAttachment).toHaveBeenCalledWith('user/voice.webm');
   });

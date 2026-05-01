@@ -19,6 +19,7 @@ import LocationMapModal from "@/components/serviceDetail/LocationMapModal";
 import { useTranslation } from "react-i18next";
 import { getPublicServiceLocation, hasApproximateServiceLocation } from "@/lib/serviceLocation";
 import { resolveListingTitle, type ServiceLikeWithI18n } from "@/lib/serviceListingI18n";
+import { estimateBaseAmountForTotals, formatListingPriceLine } from "@/lib/listingPrice";
 
 interface Service {
   id: string;
@@ -30,7 +31,10 @@ interface Service {
   category: string | null;
   category_id: number | null;
   subcategory: string | null;
-  price: number;
+  pricing_mode?: string | null;
+  price: number | string | null;
+  price_min?: number | string | null;
+  price_max?: number | string | null;
   location: string;
   address?: string | null;
   latitude?: number | null;
@@ -55,14 +59,15 @@ interface Service {
   favorites_count?: number;
   is_one_time?: boolean;
   hide_exact_location?: boolean;
-  /** Toujours `fixed` côté API (tarif horaire désactivé). */
-  pricing_kind?: string;
 }
 
 interface SimilarService {
   id: string;
   title: string;
-  price: number;
+  pricing_mode?: string | null;
+  price: number | string | null;
+  price_min?: number | string | null;
+  price_max?: number | string | null;
   location: string;
   address?: string | null;
   created_at: string;
@@ -225,7 +230,8 @@ export default function ServiceDetailClient() {
     );
   }
 
-  const price = Number(service.price);
+  const displayPriceLabel = formatListingPriceLine(t, service);
+  const estimatedTotalBase = estimateBaseAmountForTotals(service);
   const displayTitle = resolveListingTitle(service, i18n.language);
   const providerFirstName = service.owner_account_type === "company"
     ? (service.owner_name ?? "Provider")
@@ -291,7 +297,6 @@ export default function ServiceDetailClient() {
             />
             <ServiceTitleCard
               service={service}
-              price={price}
               favoritesCount={favoritesCount}
               providerListingCount={providerListingCount}
               onOpenMap={() => setIsMapOpen(true)}
@@ -313,7 +318,8 @@ export default function ServiceDetailClient() {
             ) : (
               <BookingSidebar
                 serviceType={service.type}
-                price={price}
+                displayPriceLabel={displayPriceLabel}
+                estimatedTotalBase={estimatedTotalBase}
                 ownerId={service.owner_id}
                 workerProvince={service.owner_province}
                 providerFirstName={providerFirstName}
@@ -342,7 +348,7 @@ export default function ServiceDetailClient() {
           onClose={() => setShowEditModal(false)}
           onSaved={(updated) => {
             setService((prev) =>
-              prev ? { ...prev, ...updated, price: Number(updated.price) } satisfies Service : prev
+              prev ? { ...prev, ...updated } satisfies Service : prev
             );
             setShowEditModal(false);
           }}
@@ -354,7 +360,8 @@ export default function ServiceDetailClient() {
           state={bookingState}
           note={bookingNote}
           errorMsg={bookingErrorMsg}
-          price={price}
+          displayPriceLabel={displayPriceLabel}
+          estimatedTotalBase={estimatedTotalBase}
           serviceTitle={displayTitle}
           providerFirstName={providerFirstName}
           workerProvince={service.owner_province}

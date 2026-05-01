@@ -35,6 +35,7 @@ import { useNotifications } from "@/hooks/useNotifications";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { useWalletBadge } from "@/hooks/useWalletBadge";
 import { formatTranslatedCategoryTrail, categories, toCategoryKey } from "@/lib/categories";
+import { formatListingPriceLine } from "@/lib/listingPrice";
 import { getLanguageCode, getLanguageToggleValue } from "@/lib/locale";
 import AppImage from "@/components/ui/AppImage";
 import frLocale from "@/locales/fr.json";
@@ -43,7 +44,10 @@ import enLocale from "@/locales/en.json";
 interface SearchResult {
   id: string;
   title: string;
-  price: number;
+  pricing_mode?: string | null;
+  price: number | null;
+  price_min?: number | string | null;
+  price_max?: number | string | null;
   location: string;
   image_url: string | null;
   category_name: string | null;
@@ -927,7 +931,9 @@ export default function Header() {
                         </p>
                       )}
                     </div>
-                    <p className="text-sm font-bold text-green-700 shrink-0 ml-2">${Number(result.price)}</p>
+                    <p className="text-sm font-bold text-green-700 shrink-0 ml-2 max-w-[7rem] text-right truncate">
+                      {formatListingPriceLine(t, result)}
+                    </p>
                   </button>
                 );
               })}

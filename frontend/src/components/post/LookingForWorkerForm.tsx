@@ -20,6 +20,9 @@ import BilingualListingFields, {
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import type { PricingMode } from "@/lib/listingPrice";
+import { formatListingPriceLine, type ListingPricingFields } from "@/lib/listingPrice";
+import { cn } from "@/lib/utils";
 
 const urgencyLevels = [
   { value: "anytime", labelKey: "post.urgencyAnytime" },
@@ -47,7 +50,10 @@ export default function LookingForWorkerForm({ onSuccess }: Props) {
   });
   const [category, setCategory] = useState("");
   const [subcategory, setSubcategory] = useState("");
+  const [pricingMode, setPricingMode] = useState<PricingMode>("fixed");
   const [budget, setBudget] = useState("");
+  const [budgetMin, setBudgetMin] = useState("");
+  const [budgetMax, setBudgetMax] = useState("");
   const [location, setLocation] = useState("");
   const [locationDetails, setLocationDetails] = useState<LocationDetails | null>(null);
   const [urgency, setUrgency] = useState("");
@@ -63,11 +69,29 @@ export default function LookingForWorkerForm({ onSuccess }: Props) {
 
   const finalized = finalizeListingPayload(translations);
   const canonical = canonicalFromTranslations(finalized);
+  function jobPricingFields(): ListingPricingFields {
+    if (pricingMode === "quote") return { pricing_mode: "quote" };
+    if (pricingMode === "fixed") return { pricing_mode: "fixed", price: parseFloat(budget) };
+    const lo = parseFloat(budgetMin);
+    const hi = parseFloat(budgetMax);
+    return { pricing_mode: "range", price_min: lo, price_max: hi, price: lo };
+  }
+
+  const pricingOk =
+    pricingMode === "quote" ||
+    (pricingMode === "fixed" && budget.trim() !== "" && Number(budget) >= 0.01) ||
+    (pricingMode === "range" &&
+      budgetMin.trim() !== "" &&
+      budgetMax.trim() !== "" &&
+      Number(budgetMin) >= 0.01 &&
+      Number(budgetMax) >= Number(budgetMin));
+
+  const confirmPriceSummary = formatListingPriceLine(t, jobPricingFields());
+
   const isValid =
     hasRequiredBilingualFields(translations) &&
     category.trim() !== "" &&
-    budget.trim() !== "" &&
-    Number(budget) > 0 &&
+    pricingOk &&
     location.trim() !== "";
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -97,7 +121,7 @@ export default function LookingForWorkerForm({ onSuccess }: Props) {
           category,
           category_id: null,
           subcategory,
-          price: parseFloat(budget),
+          ...jobPricingFields(),
           location,
           address: locationDetails?.address ?? location,
           latitude: locationDetails?.lat ?? null,
@@ -136,6 +160,39 @@ export default function LookingForWorkerForm({ onSuccess }: Props) {
 
       <div className="space-y-2">
         <Label className="text-base font-medium text-gray-900">
+          {t("post.pricingModeLabel")} <span className="text-red-500">*</span>
+        </Label>
+        <div className="flex flex-col sm:flex-row gap-2">
+          {(
+            [
+              ["fixed", t("post.pricingModeFixed")],
+              ["range", t("post.pricingModeRange")],
+              ["quote", t("post.pricingModeQuote")],
+            ] as const
+          ).map(([value, label]) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => setPricingMode(value)}
+              className={cn(
+                "flex-1 rounded-lg border px-3 py-2.5 text-sm font-medium transition-colors",
+                pricingMode === value
+                  ? "border-green-600 bg-green-50 text-green-900"
+                  : "border-gray-200 bg-white text-gray-700 hover:border-gray-300"
+              )}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        {pricingMode === "quote" && (
+          <p className="text-xs text-gray-500">{t("post.pricingQuoteHint")}</p>
+        )}
+      </div>
+
+      {pricingMode === "fixed" && (
+      <div className="space-y-2">
+        <Label className="text-base font-medium text-gray-900">
           {t("post.budget")} <span className="text-red-500">*</span>
         </Label>
         <div className="flex gap-4">
@@ -146,16 +203,61 @@ export default function LookingForWorkerForm({ onSuccess }: Props) {
               placeholder={t("post.amount")}
               value={budget}
               onChange={(e) => setBudget(e.target.value)}
-              required
+              required={pricingMode === "fixed"}
               min="0"
+              step="0.01"
               className="h-12 pl-8"
             />
           </div>
         </div>
-        {budget && Number(budget) <= 0 && (
+        {budget && Number(budget) < 0.01 && (
           <p className="text-red-600 text-sm">{t("post.budgetMustBePositive")}</p>
         )}
       </div>
+      )}
+
+      {pricingMode === "range" && (
+      <>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label className="text-base font-medium text-gray-900">
+            {t("post.priceMinLabel")} <span className="text-red-500">*</span>
+          </Label>
+          <div className="relative">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-medium">$</span>
+            <Input
+              type="number"
+              value={budgetMin}
+              onChange={(e) => setBudgetMin(e.target.value)}
+              min="0"
+              step="0.01"
+              className="h-12 pl-8"
+            />
+          </div>
+        </div>
+        <div className="space-y-2">
+          <Label className="text-base font-medium text-gray-900">
+            {t("post.priceMaxLabel")} <span className="text-red-500">*</span>
+          </Label>
+          <div className="relative">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-medium">$</span>
+            <Input
+              type="number"
+              value={budgetMax}
+              onChange={(e) => setBudgetMax(e.target.value)}
+              min="0"
+              step="0.01"
+              className="h-12 pl-8"
+            />
+          </div>
+        </div>
+      </div>
+      <p className="text-xs text-gray-500">{t("post.pricingRangeHint")}</p>
+      {budgetMin && budgetMax && Number(budgetMax) < Number(budgetMin) && (
+        <p className="text-red-600 text-sm">{t("post.invalidPriceRange")}</p>
+      )}
+      </>
+      )}
 
       <div className="space-y-2">
         <Label htmlFor="jobLocation" className="text-base font-medium text-gray-900">
@@ -232,7 +334,7 @@ export default function LookingForWorkerForm({ onSuccess }: Props) {
       open={confirmOpen}
       type="looking"
       title={canonical.title}
-      price={budget}
+      priceSummary={confirmPriceSummary}
       location={location}
       category={category}
       subcategory={subcategory}

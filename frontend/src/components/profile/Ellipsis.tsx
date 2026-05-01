@@ -14,7 +14,7 @@ interface Props {
   onClose: () => void;
   profileId: string;
   displayName: string;
-  userListings: { id: string; title: string; price: string | number; image_url?: string | null }[];
+  userListings: { id: string; title: string; price: string | number | null; image_url?: string | null }[];
 }
 
 export default function EllipsisPage({ onClose, profileId, displayName, userListings }: Props) {

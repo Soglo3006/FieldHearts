@@ -19,6 +19,30 @@ import BilingualListingFields, {
   canonicalFromTranslations,
 } from "@/components/post/BilingualListingFields";
 import { normalizeAvailability, normalizeMobility } from "@/lib/serviceFieldCanonical";
+import type { PricingMode } from "@/lib/listingPrice";
+import { normalizePricingMode } from "@/lib/listingPrice";
+import type { ListingPricingFields } from "@/lib/listingPrice";
+import { cn } from "@/lib/utils";
+
+function stringNumPrice(v: unknown): string {
+  if (v === null || v === undefined || v === "") return "";
+  const n = Number(v);
+  return Number.isFinite(n) ? String(n) : "";
+}
+
+function seedPricingFromService(service: Service): { mode: PricingMode; price: string; min: string; max: string } {
+  const mode = normalizePricingMode(service.pricing_mode);
+  if (mode === "quote") return { mode: "quote", price: "", min: "", max: "" };
+  if (mode === "range") {
+    return {
+      mode: "range",
+      price: "",
+      min: stringNumPrice(service.price_min ?? service.price),
+      max: stringNumPrice(service.price_max),
+    };
+  }
+  return { mode: "fixed", price: stringNumPrice(service.price), min: "", max: "" };
+}
 
 function seedListingTranslations(service: Service, uiLang: string): ListingTranslationsPayload {
   const raw = (service as Service & { translations?: unknown }).translations;
@@ -43,7 +67,10 @@ export interface Service {
   type: "offer" | "looking";
   title: string;
   description: string;
-  price: string | number;
+  pricing_mode?: string | null;
+  price: string | number | null;
+  price_min?: number | string | null;
+  price_max?: number | string | null;
   location: string;
   address?: string | null;
   latitude?: number | null;
@@ -80,7 +107,10 @@ export default function EditListingModal({ service, accessToken, onClose, onSave
     seedListingTranslations(service, i18n.language)
   );
 
-  const [price, setPrice] = useState(String(service.price));
+  const [pricingMode, setPricingMode] = useState<PricingMode>(() => seedPricingFromService(service).mode);
+  const [price, setPrice] = useState(() => seedPricingFromService(service).price);
+  const [priceMin, setPriceMin] = useState(() => seedPricingFromService(service).min);
+  const [priceMax, setPriceMax] = useState(() => seedPricingFromService(service).max);
   const [location, setLocation] = useState(service.location);
   const [locationDetails, setLocationDetails] = useState<LocationDetails | null>(
     service.latitude != null && service.longitude != null
@@ -107,6 +137,11 @@ export default function EditListingModal({ service, accessToken, onClose, onSave
   const [success, setSuccess] = useState(false);
 
   useEffect(() => {
+    const seed = seedPricingFromService(service);
+    setPricingMode(seed.mode);
+    setPrice(seed.price);
+    setPriceMin(seed.min);
+    setPriceMax(seed.max);
     setTranslations(seedListingTranslations(service, i18n.language));
     setAvailability(normalizeAvailability(service.availability ?? "") || "");
     setMobility(normalizeMobility(service.mobility ?? "") || "");
@@ -114,11 +149,27 @@ export default function EditListingModal({ service, accessToken, onClose, onSave
 
   const isOffer = service.type === "offer";
 
+  function editPricingFields(): ListingPricingFields {
+    if (pricingMode === "quote") return { pricing_mode: "quote" };
+    if (pricingMode === "fixed") return { pricing_mode: "fixed", price: parseFloat(price) };
+    const lo = parseFloat(priceMin);
+    const hi = parseFloat(priceMax);
+    return { pricing_mode: "range", price_min: lo, price_max: hi, price: lo };
+  }
+
+  const pricingOk =
+    pricingMode === "quote" ||
+    (pricingMode === "fixed" && price.trim() !== "" && Number(price) >= 0.01) ||
+    (pricingMode === "range" &&
+      priceMin.trim() !== "" &&
+      priceMax.trim() !== "" &&
+      Number(priceMin) >= 0.01 &&
+      Number(priceMax) >= Number(priceMin));
+
   const isValid =
     hasRequiredBilingualFields(translations) &&
     category.trim() !== "" &&
-    price.trim() !== "" &&
-    Number(price) > 0 &&
+    pricingOk &&
     location.trim() !== "";
 
   const handleSave = async () => {
@@ -143,7 +194,7 @@ export default function EditListingModal({ service, accessToken, onClose, onSave
             title: canon.title.trim(),
             description: canon.description.trim(),
             translations: finalized,
-            price: parseFloat(price),
+            ...editPricingFields(),
             location: location.trim(),
             address: locationDetails?.address ?? location.trim(),
             latitude: locationDetails?.lat ?? null,
@@ -219,7 +270,39 @@ export default function EditListingModal({ service, accessToken, onClose, onSave
             mode={isOffer ? "offer" : "looking"}
           />
 
-          {/* Price */}
+          <div className="space-y-2">
+            <Label className="text-base font-medium text-gray-900">
+              {t("post.pricingModeLabel")} <span className="text-red-500">*</span>
+            </Label>
+            <div className="flex flex-col sm:flex-row gap-2">
+              {(
+                [
+                  ["fixed", t("post.pricingModeFixed")],
+                  ["range", t("post.pricingModeRange")],
+                  ["quote", t("post.pricingModeQuote")],
+                ] as const
+              ).map(([value, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setPricingMode(value)}
+                  className={cn(
+                    "flex-1 rounded-lg border px-3 py-2.5 text-sm font-medium transition-colors",
+                    pricingMode === value
+                      ? "border-green-600 bg-green-50 text-green-900"
+                      : "border-gray-200 bg-white text-gray-700 hover:border-gray-300"
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            {pricingMode === "quote" && (
+              <p className="text-xs text-gray-500">{t("post.pricingQuoteHint")}</p>
+            )}
+          </div>
+
+          {pricingMode === "fixed" && (
           <div className="space-y-2">
             <Label className="text-base font-medium text-gray-900">
               {isOffer ? t("post.price") : t("post.budget")} <span className="text-red-500">*</span>
@@ -232,13 +315,58 @@ export default function EditListingModal({ service, accessToken, onClose, onSave
                 onChange={(e) => setPrice(e.target.value)}
                 placeholder={t("post.amount")}
                 min="0"
+                step="0.01"
                 className="h-12 pl-8"
               />
             </div>
-            {price && Number(price) <= 0 && (
+            {price && Number(price) < 0.01 && (
               <p className="text-red-600 text-sm">{t("post.priceMustBePositive")}</p>
             )}
           </div>
+          )}
+
+          {pricingMode === "range" && (
+          <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label className="text-base font-medium text-gray-900">
+                {t("post.priceMinLabel")} <span className="text-red-500">*</span>
+              </Label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-medium">$</span>
+                <Input
+                  type="number"
+                  value={priceMin}
+                  onChange={(e) => setPriceMin(e.target.value)}
+                  min="0"
+                  step="0.01"
+                  className="h-12 pl-8"
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-base font-medium text-gray-900">
+                {t("post.priceMaxLabel")} <span className="text-red-500">*</span>
+              </Label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-medium">$</span>
+                <Input
+                  type="number"
+                  value={priceMax}
+                  onChange={(e) => setPriceMax(e.target.value)}
+                  min="0"
+                  step="0.01"
+                  className="h-12 pl-8"
+                />
+              </div>
+            </div>
+          </div>
+          <p className="text-xs text-gray-500">{t("post.pricingRangeHint")}</p>
+          {priceMin && priceMax && Number(priceMax) < Number(priceMin) && (
+            <p className="text-red-600 text-sm">{t("post.invalidPriceRange")}</p>
+          )}
+          </>
+          )}
 
           {/* Location */}
           <div className="space-y-2">

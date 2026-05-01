@@ -16,6 +16,7 @@ import { Spinner } from "@/components/ui/Spinner";
 import { getPublicServiceLocation } from "@/lib/serviceLocation";
 import { resolveListingTitle, type ServiceLikeWithI18n } from "@/lib/serviceListingI18n";
 import ListingLangPills from "@/components/ui/ListingLangPills";
+import { formatListingPriceLine } from "@/lib/listingPrice";
 
 const PAGE_SIZE = 9;
 
@@ -24,7 +25,10 @@ interface MyService extends ServiceLikeWithI18n {
   type: "offer" | "looking";
   title: string;
   description: string;
-  price: string | number;
+  price: string | number | null;
+  pricing_mode?: string | null;
+  price_min?: number | string | null;
+  price_max?: number | string | null;
   location: string;
   address?: string | null;
   city?: string | null;
@@ -112,7 +116,7 @@ function ListingCard({
   onEdit: (s: MyService) => void;
   onConfirmDelete: (id: string | null) => void;
   onDelete: (id: string) => void;
-  t: (key: string) => string;
+  t: (key: string, opts?: Record<string, unknown>) => string;
   i18nLang: string | undefined;
 }) {
   const thumb = s.image_urls?.[0] ?? s.image_url;
@@ -151,7 +155,7 @@ function ListingCard({
           </div>
         </div>
 
-        <p className="text-green-700 font-bold text-lg mb-2">{Number(s.price).toFixed(2)} $</p>
+        <p className="text-green-700 font-bold text-lg mb-2">{formatListingPriceLine(t, s)}</p>
 
         <div className="flex items-center text-sm text-gray-500 mb-2">
           <MapPin className="h-4 w-4 mr-1 flex-shrink-0" />

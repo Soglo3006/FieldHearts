@@ -17,6 +17,7 @@ import { Spinner } from "@/components/ui/Spinner";
 import { getPublicServiceLocation } from "@/lib/serviceLocation";
 import { resolveListingTitle } from "@/lib/serviceListingI18n";
 import ListingLangPills from "@/components/ui/ListingLangPills";
+import { formatListingPriceLine } from "@/lib/listingPrice";
 
 const PAGE_SIZE = 9;
 
@@ -155,7 +156,7 @@ export default function ProfileListings({
           )}
         </div>
 
-        <p className="text-green-700 font-bold text-lg mb-2">{Number(listing.price).toFixed(2)} $</p>
+        <p className="text-green-700 font-bold text-lg mb-2">{formatListingPriceLine(t, listing)}</p>
 
         <div className="flex items-center text-sm text-gray-500 mb-2">
           <MapPin className="h-4 w-4 mr-1 shrink-0" />

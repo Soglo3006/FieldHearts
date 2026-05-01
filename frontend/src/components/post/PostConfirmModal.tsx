@@ -8,7 +8,8 @@ interface Props {
   open: boolean;
   type: "offer" | "looking";
   title: string;
-  price: string;
+  /** Preformatted listing price summary (fixed, range, or quote). */
+  priceSummary: string;
   location: string;
   category: string;
   subcategory?: string;
@@ -18,7 +19,7 @@ interface Props {
 }
 
 export default function PostConfirmModal({
-  open, type, title, price, location, category, subcategory, submitting, onConfirm, onCancel,
+  open, type, title, priceSummary, location, category, subcategory, submitting, onConfirm, onCancel,
 }: Props) {
   const { t } = useTranslation();
   useScrollLock(open);
@@ -31,7 +32,7 @@ export default function PostConfirmModal({
     { label: t("post.confirmLabelTitle"), value: title },
     {
       label: isOffer ? t("post.confirmLabelPrice") : t("post.confirmLabelBudget"),
-      value: `${Number(price).toFixed(2)} $`,
+      value: priceSummary,
     },
     { label: t("post.confirmLabelLocation"), value: location },
     {

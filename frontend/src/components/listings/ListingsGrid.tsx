@@ -16,11 +16,15 @@ import ListingLangPills from "@/components/ui/ListingLangPills";
 import { ListingsRegionEmptyState } from "@/components/listings/ListingsRegionEmptyState";
 import { ListingCardImageCarousel, getListingGalleryUrls } from "@/components/listings/ListingCardImageCarousel";
 import { ListingTrustLine } from "@/components/listings/ListingTrustLine";
+import { formatListingPriceLine } from "@/lib/listingPrice";
 
 interface ApiService {
   id: string;
   title: string;
-  price: number;
+  price: number | null;
+  pricing_mode?: string | null;
+  price_min?: number | string | null;
+  price_max?: number | string | null;
   location: string;
   address?: string | null;
   city?: string | null;
@@ -36,8 +40,6 @@ interface ApiService {
   review_count?: number | string | null;
   average_rating?: number | string | null;
   completed_bookings_count?: number | string | null;
-  /** Toujours `fixed` côté API (tarif horaire désactivé). */
-  pricing_kind?: string;
 }
 
 interface PaginatedListingsResponse {
@@ -315,7 +317,7 @@ export default function ListingsGrid({ filters }: { filters?: ListingsFilters })
                     </p>
                   )}
 
-                  <p className="text-green-700 font-bold text-base mb-2">{Number(s.price).toFixed(2)} $</p>
+                  <p className="text-green-700 font-bold text-base mb-2">{formatListingPriceLine(t, s)}</p>
 
                   <div className="flex items-center justify-between text-xs text-gray-500 mt-auto">
                     <div className="flex items-center gap-1 min-w-0">

@@ -11,12 +11,16 @@ import { useTranslation } from "react-i18next";
 import { resolveListingTitle, type ServiceLikeWithI18n } from "@/lib/serviceListingI18n";
 import ListingLangPills from "@/components/ui/ListingLangPills";
 import { getPublicServiceLocation } from "@/lib/serviceLocation";
+import { formatListingPriceLine } from "@/lib/listingPrice";
 
 interface Service extends ServiceLikeWithI18n {
   id: string;
   type: "offer" | "looking";
   title: string;
-  price: string | number;
+  price: string | number | null;
+  pricing_mode?: string | null;
+  price_min?: number | string | null;
+  price_max?: number | string | null;
   location: string;
   address?: string | null;
   city?: string | null;
@@ -117,7 +121,7 @@ export default function UserListingsPage() {
                       )}
                     </div>
 
-                    <p className="text-green-700 font-bold text-lg mb-2">{Number(s.price).toFixed(2)} $</p>
+                    <p className="text-green-700 font-bold text-lg mb-2">{formatListingPriceLine(t, s)}</p>
 
                     <div className="flex items-center text-sm text-gray-500 mb-2">
                       <MapPin className="h-4 w-4 mr-1 flex-shrink-0" />

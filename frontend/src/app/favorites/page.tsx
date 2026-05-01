@@ -11,11 +11,15 @@ import { useAuth } from "@/contexts/AuthContext";
 import { getPublicServiceLocation } from "@/lib/serviceLocation";
 import { resolveListingTitle, type ServiceLikeWithI18n } from "@/lib/serviceListingI18n";
 import ListingLangPills from "@/components/ui/ListingLangPills";
+import { formatListingPriceLine } from "@/lib/listingPrice";
 
 interface FavoriteService extends Pick<ServiceLikeWithI18n, "language" | "translations"> {
   id: string;
   title: string;
-  price: number;
+  price: number | null;
+  pricing_mode?: string | null;
+  price_min?: number | string | null;
+  price_max?: number | string | null;
   location: string;
   address?: string | null;
   city?: string | null;
@@ -68,11 +72,14 @@ export default function FavoritesPage() {
                   results.push({
                     id: data.id,
                     title: data.title,
-                    price: Number(data.price),
+                    price: data.price != null && data.price !== "" ? Number(data.price) : null,
+                    pricing_mode: data.pricing_mode ?? null,
+                    price_min: data.price_min ?? null,
+                    price_max: data.price_max ?? null,
                     location: data.location,
-                      address: data.address ?? null,
-                      city: data.city ?? null,
-                      hide_exact_location: data.hide_exact_location ?? false,
+                    address: data.address ?? null,
+                    city: data.city ?? null,
+                    hide_exact_location: data.hide_exact_location ?? false,
                     category_name: data.category_name ?? data.category ?? null,
                     subcategory: data.subcategory ?? null,
                     image_url: data.image_url ?? null,
@@ -157,7 +164,7 @@ export default function FavoritesPage() {
                     </h3>
                   </Link>
 
-                  <p className="text-green-700 font-bold text-lg mb-2">{Number(s.price).toFixed(2)} $</p>
+                  <p className="text-green-700 font-bold text-lg mb-2">{formatListingPriceLine(t, s)}</p>
 
                   <div className="flex items-center text-sm text-gray-500 mb-2">
                     <MapPin className="h-4 w-4 mr-1 shrink-0" />

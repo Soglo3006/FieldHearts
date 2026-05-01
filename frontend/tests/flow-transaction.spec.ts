@@ -9,7 +9,6 @@ async function getBuyerPage() {
   const browser = await chromium.launch();
   const context = await browser.newContext({ storageState: authFile2 });
   const page = await context.newPage();
-  page.baseURL = process.env.TEST_BASE_URL || 'http://localhost:3000';
   return { browser, page };
 }
 

@@ -220,10 +220,7 @@ export default function HomePage() {
         const loc = debouncedLocation.trim();
         if (loc) params.set("location", loc);
 
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 12000);
-        const servicesRes = await fetch(`${API_URL}/services?${params.toString()}`, { signal: controller.signal })
-          .finally(() => clearTimeout(timeoutId));
+        const servicesRes = await fetch(`${API_URL}/services?${params.toString()}`);
         const data = await servicesRes.json();
         if (cancelled) return;
 

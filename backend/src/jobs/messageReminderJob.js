@@ -21,7 +21,7 @@ const runReminders = async () => {
          COALESCE(NULLIF(u.company_name, ''), u.full_name) AS display_name,
          up.last_seen,
          COUNT(m.id) AS unread_count,
-         MAX(m.user_id) AS sender_id
+         MAX(m.user_id::text)::uuid AS sender_id
        FROM chat_room_member crm
        JOIN users u ON u.id = crm.user_id
        LEFT JOIN user_presence up ON up.user_id = crm.user_id

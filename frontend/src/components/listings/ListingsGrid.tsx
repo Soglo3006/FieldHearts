@@ -166,9 +166,7 @@ export default function ListingsGrid({ filters }: { filters?: ListingsFilters })
         params.set("limit", String(LISTINGS_PER_PAGE));
 
         const url = `${process.env.NEXT_PUBLIC_API_URL}/services?${params.toString()}`;
-        const timeoutId = setTimeout(() => controller.abort(), 12000);
-        const res = await fetch(url, { signal: controller.signal })
-          .finally(() => clearTimeout(timeoutId));
+        const res = await fetch(url, { signal: controller.signal });
         if (res.ok) {
           const json = await res.json();
           const normalized = normalizeListingsResponse(json, currentPage, LISTINGS_PER_PAGE);

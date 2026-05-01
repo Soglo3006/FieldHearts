@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, type MouseEvent, type TransitionEvent } from "react";
+import { useState, useRef, useEffect, type MouseEvent, type TouchEvent, type TransitionEvent } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import AppImage from "@/components/ui/AppImage";
 import { cn } from "@/lib/utils";
@@ -41,7 +41,11 @@ export function ListingCardImageCarousel({
   /** Physical slide index on extended track (0..n+1), starts at first real slide */
   const [physical, setPhysical] = useState(1);
   const [disableTransition, setDisableTransition] = useState(false);
+  const [dragPx, setDragPx] = useState(0);
   const physicalRef = useRef(physical);
+  const touchStartXRef = useRef<number | null>(null);
+  const touchDraggingRef = useRef(false);
+  const trackRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     physicalRef.current = physical;
@@ -72,6 +76,38 @@ export function ListingCardImageCarousel({
     if (n <= 1 || disableTransition) return;
     setDisableTransition(false);
     setPhysical(logical + 1);
+  };
+
+  const handleTouchStart = (e: TouchEvent<HTMLDivElement>) => {
+    if (n <= 1) return;
+    touchStartXRef.current = e.touches[0]?.clientX ?? null;
+    touchDraggingRef.current = true;
+    setDisableTransition(true);
+    setDragPx(0);
+  };
+
+  const handleTouchMove = (e: TouchEvent<HTMLDivElement>) => {
+    if (!touchDraggingRef.current || touchStartXRef.current == null) return;
+    const currentX = e.touches[0]?.clientX ?? touchStartXRef.current;
+    setDragPx(currentX - touchStartXRef.current);
+  };
+
+  const handleTouchEnd = () => {
+    if (!touchDraggingRef.current) return;
+    touchDraggingRef.current = false;
+
+    const threshold = 40;
+    const delta = dragPx;
+    setDragPx(0);
+    setDisableTransition(false);
+
+    if (delta <= -threshold) {
+      setPhysical((p) => (p >= n + 1 ? p : p + 1));
+      return;
+    }
+    if (delta >= threshold) {
+      setPhysical((p) => (p <= 0 ? p : p - 1));
+    }
   };
 
   const handleTransitionEnd = (e: TransitionEvent<HTMLDivElement>) => {
@@ -110,6 +146,8 @@ export function ListingCardImageCarousel({
 
   const extended = buildExtendedUrls(urls);
   const total = extended.length;
+  const trackWidth = trackRef.current?.clientWidth ?? 0;
+  const dragPercent = trackWidth > 0 ? (dragPx / trackWidth) * (100 / total) : 0;
 
   const logicalActive =
     physical === 0 ? n - 1 : physical === n + 1 ? 0 : physical - 1;
@@ -118,13 +156,19 @@ export function ListingCardImageCarousel({
     <>
       <div className="absolute inset-0 overflow-hidden">
         <div
+          ref={trackRef}
           className={cn(
             "flex h-full ease-out motion-reduce:transition-none",
             !disableTransition && "transition-transform duration-300 motion-reduce:transition-none",
           )}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+          onTouchCancel={handleTouchEnd}
           style={{
             width: `${total * 100}%`,
-            transform: `translateX(-${(physical * 100) / total}%)`,
+            transform: `translateX(calc(-${(physical * 100) / total}% + ${dragPercent}%))`,
+            touchAction: "pan-y",
           }}
           onTransitionEnd={handleTransitionEnd}
         >

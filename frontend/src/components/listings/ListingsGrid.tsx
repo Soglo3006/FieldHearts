@@ -166,7 +166,9 @@ export default function ListingsGrid({ filters }: { filters?: ListingsFilters })
         params.set("limit", String(LISTINGS_PER_PAGE));
 
         const url = `${process.env.NEXT_PUBLIC_API_URL}/services?${params.toString()}`;
-        const res = await fetch(url, { signal: controller.signal });
+        const timeoutId = setTimeout(() => controller.abort(), 12000);
+        const res = await fetch(url, { signal: controller.signal })
+          .finally(() => clearTimeout(timeoutId));
         if (res.ok) {
           const json = await res.json();
           const normalized = normalizeListingsResponse(json, currentPage, LISTINGS_PER_PAGE);
@@ -261,7 +263,7 @@ export default function ListingsGrid({ filters }: { filters?: ListingsFilters })
           }
 
           const s = item.data;
-          const cardIndex = items.slice(0, items.indexOf(item)).filter(i => i.type === "listing").length;
+          const cardIndex = currentListings.findIndex((x) => x.id === s.id);
           const detailHref = `/serviceDetail/${s.id}`;
           const galleryUrls = getListingGalleryUrls(s.image_urls, s.image_url);
           return (
@@ -278,7 +280,7 @@ export default function ListingsGrid({ filters }: { filters?: ListingsFilters })
                     />
                     <Link
                       href={detailHref}
-                      className="absolute inset-0 z-5 outline-none"
+                      className="absolute inset-0 z-5 outline-none hidden sm:block"
                       aria-label={resolveListingTitle(s, i18n.language)}
                     />
                   </div>

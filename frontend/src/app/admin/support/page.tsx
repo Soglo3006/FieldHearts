@@ -258,7 +258,7 @@ export default function SupportAdminPage() {
                   <div className="text-sm text-gray-700"><span className="font-semibold">{t("admin.support.createdLabel")}</span> {new Date(ticket.created_at).toLocaleString()}</div>
                   <div className="text-sm text-gray-700"><span className="font-semibold">{t("admin.support.statusLabel")}</span> {statusBadge(ticket.status)}</div>
                   <div className="text-sm text-gray-900"><span className="font-semibold">{t("admin.support.descriptionLabel")}</span></div>
-                  <div className="text-gray-800 whitespace-pre-wrap border rounded p-3 bg-gray-50">{ticket.description}</div>
+                  <div className="text-gray-800 whitespace-pre-wrap border rounded p-3 bg-white">{ticket.description}</div>
 
                   <div className="pt-2">
                     <Select value={ticket.status} onValueChange={(v) => updateStatus(ticket.id, v)}>

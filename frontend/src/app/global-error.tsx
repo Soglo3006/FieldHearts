@@ -23,7 +23,7 @@ export default function GlobalError({
   return (
     <html lang={i18n.resolvedLanguage || "fr"}>
       <body>
-        <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+        <div className="min-h-screen bg-white flex items-center justify-center px-4">
           <div className="text-center max-w-md">
             <div className="flex justify-center mb-6">
               <div className="bg-red-100 rounded-full p-5">

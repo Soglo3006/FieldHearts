@@ -287,7 +287,7 @@ export default function WalletPage() {
 
   if (authLoading || loading) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-white">
         <main className="max-w-3xl mx-auto px-3 sm:px-4 py-6 sm:py-10">
           <WalletSkeleton />
         </main>
@@ -298,7 +298,7 @@ export default function WalletPage() {
   const currentPeriodLabel = t(PERIODS.find((p) => p.key === period)?.labelKey ?? "wallet.last2weeks");
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-white">
       <main className="max-w-3xl mx-auto px-3 sm:px-4 py-6 sm:py-10 space-y-5">
 
         {/* Page title */}
@@ -621,7 +621,7 @@ export default function WalletPage() {
               </button>
             </div>
             {/* Date */}
-            <div className="px-5 py-2.5 bg-gray-50 border-b border-gray-100 shrink-0">
+            <div className="px-5 py-2.5 bg-white border-b border-gray-100 shrink-0">
               <p className="text-xs text-gray-500">{formatDate(payoutModal.date, lang)}</p>
             </div>
             {/* Items */}
@@ -647,7 +647,7 @@ export default function WalletPage() {
               ))}
             </div>
             {/* Total */}
-            <div className="flex items-center justify-between px-5 py-4 border-t border-gray-200 bg-gray-50 shrink-0">
+            <div className="flex items-center justify-between px-5 py-4 border-t border-gray-200 bg-white shrink-0">
               <span className="text-sm font-semibold text-gray-700">{t("wallet.totalPayout")}</span>
               <span className="text-base font-bold text-gray-900">−{fmt(payoutModal.total)} $</span>
             </div>

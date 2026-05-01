@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, type MouseEvent, type TouchEvent, type TransitionEvent } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ArrowLeft, ArrowRight } from "lucide-react";
 import AppImage from "@/components/ui/AppImage";
 import { cn } from "@/lib/utils";
 
@@ -219,26 +219,28 @@ export function ListingCardImageCarousel({
         aria-label="Previous photo"
         onClick={goDelta(-1)}
         className={cn(
-          "absolute left-1.5 top-1/2 z-10 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full",
-          "border border-gray-200/80 bg-white/90 text-gray-700 shadow-md backdrop-blur-sm",
-          "transition-opacity hover:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/90",
+          "absolute left-3 top-1/2 z-10 flex size-8 -translate-y-1/2 items-center justify-center rounded-full",
+          "border-0 bg-black/40 text-white shadow-none",
+          "hover:bg-black/60 hover:text-white",
+          "transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70",
           "pointer-events-auto opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
         )}
       >
-        <ChevronLeft className="h-4 w-4 shrink-0" />
+        <ArrowLeft className="h-4 w-4 shrink-0" aria-hidden />
       </button>
       <button
         type="button"
         aria-label="Next photo"
         onClick={goDelta(1)}
         className={cn(
-          "absolute right-1.5 top-1/2 z-10 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full",
-          "border border-gray-200/80 bg-white/90 text-gray-700 shadow-md backdrop-blur-sm",
-          "transition-opacity hover:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/90",
+          "absolute right-3 top-1/2 z-10 flex size-8 -translate-y-1/2 items-center justify-center rounded-full",
+          "border-0 bg-black/40 text-white shadow-none",
+          "hover:bg-black/60 hover:text-white",
+          "transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70",
           "pointer-events-auto opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
         )}
       >
-        <ChevronRight className="h-4 w-4 shrink-0" />
+        <ArrowRight className="h-4 w-4 shrink-0" aria-hidden />
       </button>
     </>
   );

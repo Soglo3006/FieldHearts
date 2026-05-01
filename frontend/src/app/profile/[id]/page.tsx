@@ -135,7 +135,7 @@ export default function UserProfilePage() {
   if (loading || isLoggingOut) {
     return (
       <div className="min-h-screen bg-white">
-        <div className="bg-gray-50 flex items-center justify-center min-h-[60vh]">
+        <div className="flex items-center justify-center min-h-[60vh]">
           <Spinner size="xl" />
         </div>
       </div>
@@ -181,7 +181,7 @@ export default function UserProfilePage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="min-h-screen bg-white flex flex-col">
       <main className="flex-1 py-4 sm:py-8 px-3 sm:px-6 lg:px-8">
         <div className="max-w-6xl mx-auto">
           <div className="flex items-center text-sm text-gray-500 mb-4">

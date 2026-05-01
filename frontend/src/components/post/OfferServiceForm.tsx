@@ -266,7 +266,7 @@ export default function OfferServiceForm({ onSuccess }: Props) {
         />
       </div>
 
-      <div className="flex items-start gap-3 px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg">
+      <div className="flex items-start gap-3 px-4 py-3 bg-white border border-gray-200 rounded-lg">
         <input
           type="checkbox"
           id="offerHideLocation"

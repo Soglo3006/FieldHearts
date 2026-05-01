@@ -29,7 +29,7 @@ type Screen = "default" | "changePassword" | "blockedUsers" | "paymentMethods" |
 function PaymentMethodsPage({ onBack, onClose }: { onBack: () => void; onClose: () => void }) {
   const { t } = useTranslation();
   return (
-    <div className="bg-gray-50">
+    <div className="bg-white">
       <div className="bg-white border-b relative">
         <button onClick={onClose} className="absolute top-3 right-3 sm:top-4 sm:right-4 text-gray-500 hover:text-gray-900 text-xl cursor-pointer">✕</button>
         <button onClick={onBack} className="absolute top-3 left-3 sm:top-4 sm:left-4 text-gray-600 hover:text-gray-900 cursor-pointer text-sm sm:text-base">← {t("common.back")}</button>
@@ -225,14 +225,14 @@ export default function SettingsPage({ onClose, scrollRef }: { onClose: () => vo
 
   if (loading) {
     return (
-      <div className="flex min-h-[70vh] w-full items-center justify-center bg-gray-50">
+      <div className="flex min-h-[70vh] w-full items-center justify-center bg-white">
         <Spinner size="xl" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-full w-full bg-gray-50">
+    <div className="min-h-full w-full bg-white">
       {/* Header */}
       <div className="bg-white border-b relative">
         {/* Bottom-sheet handle (mobile only) */}

@@ -626,7 +626,7 @@ export default function BookingDetailModal({
                       <div className="space-y-3">
                         {/* What the client paid */}
                         <Card className="overflow-hidden shadow-none">
-                          <div className="flex items-center gap-2 bg-gray-50 px-4 py-2.5 border-b border-gray-100">
+                          <div className="flex items-center gap-2 bg-white px-4 py-2.5 border-b border-gray-100">
                             <TrendingDown className="h-3.5 w-3.5 text-gray-500" />
                             <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{t("bookings.clientPaid")}</span>
                           </div>
@@ -696,7 +696,7 @@ export default function BookingDetailModal({
                   return (
                     <div className="space-y-3">
                       <Card className="overflow-hidden shadow-none">
-                        <div className="flex items-center gap-2 bg-gray-50 px-4 py-2.5 border-b border-gray-100">
+                        <div className="flex items-center gap-2 bg-white px-4 py-2.5 border-b border-gray-100">
                           <TrendingDown className="h-3.5 w-3.5 text-gray-500" />
                           <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{t("bookings.totalPaid")}</span>
                         </div>
@@ -764,7 +764,7 @@ export default function BookingDetailModal({
                     <div className="space-y-3">
                       {/* Full payment breakdown — what the client paid */}
                       <Card className="overflow-hidden shadow-none">
-                        <div className="flex items-center gap-2 bg-gray-50 px-4 py-2.5 border-b border-gray-100">
+                        <div className="flex items-center gap-2 bg-white px-4 py-2.5 border-b border-gray-100">
                           <TrendingDown className="h-3.5 w-3.5 text-gray-500" />
                           <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{t("bookings.clientPaid")}</span>
                         </div>
@@ -829,7 +829,7 @@ export default function BookingDetailModal({
                 // Client view (pending/accepted/active): payment summary
                 return (
                   <Card className="overflow-hidden shadow-none">
-                    <div className="flex items-center gap-2 bg-gray-50 px-4 py-2.5 border-b border-gray-100">
+                    <div className="flex items-center gap-2 bg-white px-4 py-2.5 border-b border-gray-100">
                       <TrendingDown className="h-3.5 w-3.5 text-gray-500" />
                       <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{t("bookings.paymentSummary")}</span>
                     </div>
@@ -869,7 +869,7 @@ export default function BookingDetailModal({
             </div>
 
             {serviceDescription && (
-              <div className="text-sm text-gray-600 leading-relaxed bg-gray-50 rounded-lg px-4 py-3 border border-gray-100">
+              <div className="text-sm text-gray-600 leading-relaxed bg-white rounded-lg px-4 py-3 border border-gray-100">
                 {serviceDescription.length > 240 ? serviceDescription.slice(0, 240) + "…" : serviceDescription}
               </div>
             )}
@@ -974,7 +974,7 @@ export default function BookingDetailModal({
               if (remainingMs <= 0) {
                 if (booking.has_dispute) return null;
                 return (
-                  <div className="bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs text-gray-600 space-y-1">
+                  <div className="bg-white border border-gray-200 rounded-lg px-3 py-2 text-xs text-gray-600 space-y-1">
                     <div className="flex items-center gap-1.5 font-semibold text-gray-700">
                       <AlertTriangle className="h-3.5 w-3.5" />
                       {t('bookings.disputeWindowTitle')}
@@ -1002,7 +1002,7 @@ export default function BookingDetailModal({
                 disputeStatus === "resolved"
                   ? "bg-green-50 border-green-200 text-green-800"
                   : disputeStatus === "rejected"
-                    ? "bg-gray-50 border-gray-200 text-gray-700"
+                    ? "bg-white border-gray-200 text-gray-700"
                     : "bg-red-50 border-red-200 text-red-700"
               }`}>
                 <div className="flex items-center gap-1.5 font-semibold">

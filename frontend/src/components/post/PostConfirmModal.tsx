@@ -64,7 +64,7 @@ export default function PostConfirmModal({
         {/* Summary rows */}
         <div className="mx-6 mb-5 border border-gray-100 rounded-xl divide-y divide-gray-100 overflow-hidden">
           {rows.map((row) => (
-            <div key={row.label} className="px-4 py-3 bg-gray-50">
+            <div key={row.label} className="px-4 py-3 bg-white">
               <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">{row.label}</p>
               <p className="text-sm font-semibold text-gray-800 truncate">{row.value || "—"}</p>
             </div>

@@ -14,7 +14,7 @@ export default function SuccessScreen() {
   const profilePath = user ? `/profile/${user.id}` : "/";
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-white flex items-center justify-center p-4">
       <Card className="max-w-md w-full p-8 text-center">
         <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
           <Check className="h-10 w-10 text-green-700" />

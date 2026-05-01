@@ -53,7 +53,7 @@ export default function ContactPage() {
   const features = t("contactPage.features", { returnObjects: true }) as ContactFeature[];
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12 px-4">
+    <div className="min-h-screen bg-white py-12 px-4">
       <div className="max-w-5xl mx-auto border-2 border-green-700 rounded-2xl overflow-hidden shadow-sm bg-white grid grid-cols-1 lg:grid-cols-2">
 
         {/* Left panel */}

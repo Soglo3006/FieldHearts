@@ -140,7 +140,7 @@ export default function PaymentSheet({
         </SheetHeader>
 
         {/* Price summary */}
-        <div className="bg-gray-50 rounded-xl border border-gray-100 px-4 py-3 mb-5 space-y-1.5 text-sm">
+        <div className="bg-white rounded-xl border border-gray-100 px-4 py-3 mb-5 space-y-1.5 text-sm">
           <div className="flex justify-between text-gray-600">
             <span>{t("payment.servicePrice")}</span>
             <span className="font-medium text-gray-900">{fmt(price)} $</span>

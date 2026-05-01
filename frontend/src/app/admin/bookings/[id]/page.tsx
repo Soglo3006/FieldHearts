@@ -266,7 +266,7 @@ export default function AdminBookingDetailPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-white">
       <div className="max-w-6xl mx-auto p-5 space-y-5">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -338,11 +338,11 @@ export default function AdminBookingDetailPage() {
                     )}
 
                     <div className="grid gap-3 sm:grid-cols-2">
-                      <div className="rounded-xl border bg-gray-50 p-3">
+                      <div className="rounded-xl border bg-white p-3">
                         <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">{t("admin.bookings.priceLabel", { defaultValue: "Price" })}</p>
                         <p className="mt-1 text-base font-semibold text-gray-900">{displayPrice}</p>
                       </div>
-                      <div className="rounded-xl border bg-gray-50 p-3">
+                      <div className="rounded-xl border bg-white p-3">
                         <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">{t("admin.bookings.categoryLabel", { defaultValue: "Category" })}</p>
                         <p className="mt-1 text-base text-gray-900">{booking.category || t("admin.support.notAvailable")}</p>
                       </div>
@@ -410,7 +410,7 @@ export default function AdminBookingDetailPage() {
 
                     {/* Client — right */}
                     <div className="space-y-0">
-                      <div className="flex items-center gap-2 px-4 py-2.5 bg-gray-50 border-b">
+                      <div className="flex items-center gap-2 px-4 py-2.5 bg-white border-b">
                         <TrendingDown className="h-3.5 w-3.5 text-gray-500 shrink-0" />
                         <span className="text-xs font-bold uppercase tracking-wide text-gray-500">{t("admin.bookings.clientPayment", { defaultValue: "Ce que le client a payé" })}</span>
                       </div>
@@ -510,7 +510,7 @@ export default function AdminBookingDetailPage() {
                     </div>
 
                     <ScrollArea className="h-[520px]">
-                      <div className="p-4 space-y-1 bg-gray-50 min-h-full">
+                      <div className="p-4 space-y-1 bg-white min-h-full">
                         {disputeDetail.messages.length === 0 ? (
                           <div className="flex items-center justify-center h-32 text-sm text-gray-400">
                             {t("admin.disputes.evidenceEmpty")}
@@ -608,7 +608,7 @@ export default function AdminBookingDetailPage() {
                     </div>
 
                     {isLocked && (
-                      <div className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-500 flex items-center gap-2">
+                      <div className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs text-gray-500 flex items-center gap-2">
                         <span>🔒</span>
                         <span>{t("admin.disputes.decisionLocked", { defaultValue: "Decision already made — editing will be available in a future update." })}</span>
                       </div>
@@ -698,7 +698,7 @@ export default function AdminBookingDetailPage() {
                               </div>
                               {/* Client */}
                               <div className="space-y-0">
-                                <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 border-b">
+                                <div className="flex items-center gap-2 px-3 py-2 bg-white border-b">
                                   <TrendingDown className="h-3 w-3 text-gray-500 shrink-0" />
                                   <span className="font-bold uppercase tracking-wide text-gray-500 text-[10px]">{t("admin.bookings.clientPayment", { defaultValue: "Ce que le client a payé" })}</span>
                                 </div>

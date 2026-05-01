@@ -146,9 +146,9 @@ export function ConversationSettings({
   const successRowClass = 'w-full flex items-center gap-3 px-4 py-3 text-left transition-colors cursor-pointer text-green-700 hover:bg-green-50';
 
   return (
-    <div className="w-full h-full flex flex-col bg-gray-50">
+    <div className="w-full h-full flex flex-col bg-white">
       {/* Header */}
-      <div className="shrink-0 p-4 bg-gray-50 border-b flex items-center justify-between h-18.25">
+      <div className="shrink-0 p-4 bg-white border-b flex items-center justify-between h-18.25">
         <Button variant="ghost" size="icon" onClick={onClose} className='cursor-pointer'>
           {backButton ? <ArrowLeft className="h-5 w-5" /> : <X className="h-5 w-5" />}
         </Button>

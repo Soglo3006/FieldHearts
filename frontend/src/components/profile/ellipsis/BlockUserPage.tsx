@@ -59,7 +59,7 @@ export default function BlockUserPage({ profileId, displayName, onBack, onClose 
         <p className="text-base font-bold text-gray-900">{t("block.message", { name: displayName })}</p>
       </div>
 
-      <div className="bg-gray-50 rounded-xl px-4 py-3 space-y-1.5">
+      <div className="bg-white rounded-xl px-4 py-3 space-y-1.5 border border-gray-100">
         <p className="text-sm font-medium text-gray-700">{t("block.consequencesTitle")}</p>
         <ul className="space-y-1 text-sm text-gray-600">
           <li className="flex items-start gap-2"><span className="text-gray-400 mt-0.5">•</span>{t("block.consequenceContact")}</li>

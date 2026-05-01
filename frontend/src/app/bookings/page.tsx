@@ -317,7 +317,7 @@ function BookingsContent() {
         </div>
       )}
       {paymentBanner === "cancelled" && (
-        <div className="flex items-center gap-3 bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 mb-4 text-gray-700">
+        <div className="flex items-center gap-3 bg-white border border-gray-200 rounded-lg px-4 py-3 mb-4 text-gray-700">
           <XCircle className="h-5 w-5 shrink-0 text-gray-400" />
           <p className="text-sm">{t("bookings.paymentCancelled")}</p>
           <button type="button" aria-label="Dismiss" onClick={() => setPaymentBanner(null)} className="cursor-pointer ml-auto text-gray-400 hover:text-gray-600">
@@ -577,7 +577,7 @@ function BookingsContent() {
 
 export default function BookingsPage() {
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-white">
       <Suspense fallback={
         <main className="max-w-5xl mx-auto px-4 py-8">
           <div className="animate-pulse space-y-4">

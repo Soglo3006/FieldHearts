@@ -46,7 +46,7 @@ export default function BookingSidebar({
         </h3>
 
         {estimatedTotalBase === null ? (
-          <div className="bg-gray-50 rounded-lg p-3 space-y-3 mb-6 text-sm">
+          <div className="bg-white rounded-lg p-3 space-y-3 mb-6 text-sm border border-gray-100">
             <div className="flex justify-between gap-2">
               <span className="text-gray-600">
                 {serviceType === "offer" ? t("serviceDetail.servicePrice") : t("serviceDetail.budget")}
@@ -64,7 +64,7 @@ export default function BookingSidebar({
             const fmt = (n: number) => n.toFixed(2);
             const skeletonCls = "h-3.5 rounded bg-gray-200 animate-pulse";
             return (
-              <div className="bg-gray-50 rounded-lg p-3 space-y-1.5 mb-6 text-sm">
+              <div className="bg-white rounded-lg p-3 space-y-1.5 mb-6 text-sm border border-gray-100">
                 <div className="flex justify-between gap-2">
                   <span className="text-gray-600">{serviceType === "offer" ? t("serviceDetail.servicePrice") : t("serviceDetail.budget")}</span>
                   <span className="font-semibold text-gray-900 text-right">{displayPriceLabel}</span>

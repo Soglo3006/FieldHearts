@@ -51,7 +51,7 @@ export default function RegisterPage() {
   });
 
   if (loading) return (
-    <div className="min-h-screen flex flex-col bg-gray-50">
+    <div className="min-h-screen flex flex-col bg-white">
         <div className="flex-1 flex items-center justify-center">
           <Spinner size="xl" />
         </div>
@@ -100,7 +100,7 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50">
+    <div className="min-h-screen flex flex-col bg-white">
       <div className="absolute top-4 right-4 flex items-center gap-1 bg-white border border-gray-200 rounded-full px-1 py-1 shadow-sm">
         <button
           type="button"

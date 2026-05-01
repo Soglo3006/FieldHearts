@@ -117,7 +117,7 @@ export default function ServiceTitleCard({
 
         {/* Provider mini-card */}
         <div className="w-full shrink-0 md:w-48">
-          <div className="text-center p-4 bg-gray-50 rounded-xl border border-gray-100">
+          <div className="text-center p-4 bg-white rounded-xl border border-gray-100">
             <Link href={`/profile/${service.owner_id}`} className="group block">
               <Avatar className="w-16 h-16 mx-auto mb-3">
                 {service.owner_avatar && (

@@ -69,7 +69,7 @@ export default function BookingModal({
           </div>
         ) : (
           <>
-            <div className="bg-gray-50 rounded-lg p-4 mb-4">
+            <div className="bg-white rounded-lg p-4 mb-4 border border-gray-100">
               <p className="font-medium text-gray-900 text-sm mb-3 line-clamp-2">{serviceTitle}</p>
               {estimatedTotalBase === null ? (
                 <div className="space-y-2 text-sm">

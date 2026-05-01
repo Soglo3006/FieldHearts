@@ -35,7 +35,7 @@ export function ReplyPreview({ repliedMessage, onCancel }: ReplyPreviewProps) {
   const preview = getReplyPreview(repliedMessage.content);
 
   return (
-    <div className="border-t border-gray-200 bg-gray-50 px-4 py-3 overflow-hidden">
+    <div className="border-t border-gray-200 bg-white px-4 py-3 overflow-hidden">
       <div className="flex items-start gap-2 min-w-0">
         {/* Barre verticale verte */}
         <div className="w-1 bg-green-700 rounded-full self-stretch shrink-0" />

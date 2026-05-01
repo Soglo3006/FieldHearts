@@ -70,7 +70,7 @@ export function ChatInputArea({
         </div>
       ) : isBlockedByOther ? (
         <div className="border-t bg-white">
-          <div className="flex items-center gap-2 px-4 py-3 bg-gray-50">
+          <div className="flex items-center gap-2 px-4 py-3 bg-white">
             <Ban className="h-4 w-4 text-gray-400 shrink-0" />
             <p className="text-sm text-gray-500">
               {t("messages.blockedByOtherNotice")}

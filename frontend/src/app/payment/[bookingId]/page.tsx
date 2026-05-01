@@ -173,7 +173,7 @@ export default function PaymentPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-white flex items-center justify-center">
         <Spinner size="lg" />
       </div>
     );
@@ -181,7 +181,7 @@ export default function PaymentPage() {
 
   if (!booking) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-white flex items-center justify-center p-4">
         <div className="text-center">
           <AlertCircle className="h-12 w-12 text-red-400 mx-auto mb-3" />
           <h2 className="text-lg font-semibold text-gray-900 mb-1">{t("payment.bookingNotFound")}</h2>
@@ -195,7 +195,7 @@ export default function PaymentPage() {
 
   if (booking.payment_status === "paid") {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-white flex items-center justify-center p-4">
         <div className="text-center">
           <CheckCircle className="h-12 w-12 text-green-600 mx-auto mb-3" />
           <h2 className="text-lg font-semibold text-gray-900 mb-1">{t("payment.alreadyPaid")}</h2>
@@ -219,7 +219,7 @@ export default function PaymentPage() {
   const fmt = (n: number) => n.toFixed(2);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-white">
       <div className="max-w-6xl mx-auto px-4 py-10 lg:py-12">
         {/* Back */}
         <button
@@ -244,7 +244,7 @@ export default function PaymentPage() {
             <div className="lg:sticky lg:top-24">
               <div className="bg-white rounded-[28px] border border-gray-200 shadow-sm overflow-hidden">
                 <div className="p-4 sm:p-5">
-                  <div className="overflow-hidden rounded-2xl border border-gray-100 bg-gray-50">
+                  <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white">
                     <AspectRatio ratio={16 / 9}>
                       {booking.image_url ? (
                         <AppImage

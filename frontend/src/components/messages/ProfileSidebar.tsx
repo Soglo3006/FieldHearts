@@ -124,7 +124,7 @@ export function ProfileSidebar({ otherUser, onClose, onOpenSettings, isBlocked, 
 
   if (!otherUser) {
     return (
-      <div className="w-full border-l bg-gray-50 flex flex-col h-full">
+      <div className="w-full border-l bg-white flex flex-col h-full">
         <div className="flex items-center justify-center h-full text-gray-500">
           <p className="text-sm text-center px-4">
             {t("messages.selectConversation")}
@@ -146,9 +146,9 @@ export function ProfileSidebar({ otherUser, onClose, onOpenSettings, isBlocked, 
   const blocked = isBlocked || isBlockedByOther;
 
   return (
-    <div className="w-full border-l bg-gray-50 flex flex-col h-full overflow-hidden">
+    <div className="w-full border-l bg-white flex flex-col h-full overflow-hidden">
       {/* Header */}
-      <div className="flex h-18.25 shrink-0 items-center justify-between border-b bg-gray-50 px-4">
+      <div className="flex h-18.25 shrink-0 items-center justify-between border-b bg-white px-4">
         {onClose ? (
           <Button variant="ghost" size="icon" onClick={onClose} className="cursor-pointer">
             <X className="h-5 w-5" />
@@ -332,7 +332,7 @@ export function ProfileSidebar({ otherUser, onClose, onOpenSettings, isBlocked, 
       </div>
 
       {/* Bouton fixe en bas */}
-      <div className="shrink-0 p-4 bg-gray-50 border-t">
+      <div className="shrink-0 p-4 bg-white border-t">
         <Link href={`/profile/${otherUser.id}`}>
           <Button className="w-full bg-green-700 hover:bg-green-800 text-white cursor-pointer">
             {t("messages.viewFullProfile")}

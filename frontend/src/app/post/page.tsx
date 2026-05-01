@@ -80,7 +80,7 @@ export default function PostServicePage() {
   }, [access, session]);
 
   if (access === "checking") {
-    return <div className="min-h-screen bg-gray-50" aria-busy="true" />;
+    return <div className="min-h-screen bg-white" aria-busy="true" />;
   }
   if (access === "denied") {
     return null;
@@ -88,7 +88,7 @@ export default function PostServicePage() {
 
   if (locationAllowed === null) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-white">
         <Spinner size="xl" />
       </div>
     );
@@ -96,7 +96,7 @@ export default function PostServicePage() {
 
   if (!locationAllowed) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-white flex items-center justify-center p-4">
         <div className="bg-white rounded-xl shadow-md p-8 max-w-md w-full text-center">
           <div className="flex items-center justify-center w-16 h-16 bg-red-100 rounded-full mx-auto mb-4">
             <MapPin className="h-8 w-8 text-red-600" />
@@ -109,7 +109,7 @@ export default function PostServicePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="min-h-screen bg-white flex flex-col">
       {success && (
         <SuccessPopup type={success.type} id={success.id} onClose={() => setSuccess(null)} />
       )}

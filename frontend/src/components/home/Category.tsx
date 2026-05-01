@@ -215,7 +215,7 @@ export default function CategoryNav() {
             {activeCategory && (
               <div className="flex min-h-full w-full flex-col bg-white lg:h-full">
                 <div className="flex flex-col lg:flex-1 lg:overflow-hidden lg:grid lg:grid-cols-[240px_1px_minmax(0,1.15fr)_1px_minmax(280px,0.85fr)] lg:items-stretch">
-                  <aside className="flex flex-col bg-gray-50/70 lg:h-full lg:min-h-0">
+                  <aside className="flex flex-col bg-white lg:h-full lg:min-h-0">
                     <div className="border-b border-gray-200 px-5 py-5">
                       <Link
                         href="/listings"

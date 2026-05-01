@@ -41,7 +41,7 @@ export default function LoginPage() {
   const { loading } = useProtectedRoute({ requireAuth: false, redirectAfterLogin });
 
   if (loading) return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+    <div className="min-h-screen flex items-center justify-center bg-white">
       <Spinner size="xl" />
     </div>
   );
@@ -97,7 +97,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50">
+    <div className="min-h-screen flex flex-col bg-white">
       <div className="absolute top-4 right-4 flex items-center gap-1 bg-white border border-gray-200 rounded-full px-1 py-1 shadow-sm">
         <button
           type="button"
@@ -206,7 +206,7 @@ export default function LoginPage() {
                   )}
 
                   {/* Email confirmé (read-only) */}
-                  <div className="flex items-center gap-2 text-sm text-gray-600 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
+                  <div className="flex items-center gap-2 text-sm text-gray-600 bg-white border border-gray-200 rounded-lg px-3 py-2">
                     <span className="flex-1 truncate">{email}</span>
                     <button
                       type="button"
@@ -260,7 +260,7 @@ export default function LoginPage() {
             {step === "not-found" && (
               <div className="flex flex-col gap-4">
                 {/* Email affiché */}
-                <div className="flex items-center gap-2 text-sm text-gray-600 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
+                <div className="flex items-center gap-2 text-sm text-gray-600 bg-white border border-gray-200 rounded-lg px-3 py-2">
                   <span className="flex-1 truncate">{email}</span>
                   <button
                     type="button"

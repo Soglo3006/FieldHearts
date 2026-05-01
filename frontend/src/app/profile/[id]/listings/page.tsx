@@ -53,7 +53,7 @@ export default function UserListingsPage() {
   }, [id]);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-white">
       <main className="max-w-5xl mx-auto px-4 py-8">
         <div className="flex items-center gap-3 mb-6">
           <Link href={`/profile/${id}`} className="text-gray-500 hover:text-gray-700 transition-colors">

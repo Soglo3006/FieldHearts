@@ -116,7 +116,7 @@ export default function BillingAddressSelector({ addresses, selectedId, onSelect
   const getDisplayLabel = (label: string) => SYSTEM_DEFAULT_BILLING_LABELS.has(label) ? defaultBillingLabel : label;
 
   const renderForm = () => (
-    <div className="mt-3 border border-gray-200 rounded-xl p-4 bg-gray-50 space-y-3">
+    <div className="mt-3 border border-gray-200 rounded-xl p-4 bg-white space-y-3">
       <div className="grid grid-cols-2 gap-3">
         <div className="col-span-2">
           <label className="block text-xs text-gray-500 mb-1">{t("payment.billingAddressLabel")}</label>

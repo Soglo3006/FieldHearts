@@ -72,7 +72,7 @@ export default function PaymentSuccessPage() {
   }, [bookingId, session?.access_token]);
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-start justify-center px-4 py-10">
+    <div className="min-h-screen bg-white flex items-start justify-center px-4 py-10">
       <div className="max-w-md w-full">
         {/* Success icon */}
         <div className="text-center mb-6">

@@ -17,7 +17,7 @@ export default function MessagesLoading() {
 
       {/* Chat area skeleton */}
       <div className="flex-1 flex flex-col">
-        <div className="h-16 border-b bg-gray-50 animate-pulse" />
+        <div className="h-16 border-b bg-white animate-pulse" />
         <div className="flex-1 p-4 space-y-4">
           {Array.from({ length: 5 }).map((_, i) => (
             <div key={i} className={`flex ${i % 2 === 0 ? "justify-start" : "justify-end"}`}>

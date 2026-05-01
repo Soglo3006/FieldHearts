@@ -30,7 +30,7 @@ export default function EllipsisPage({ onClose, profileId, displayName, userList
   };
 
   return (
-    <div className="flex min-h-full w-full flex-col bg-gray-50">
+    <div className="flex min-h-full w-full flex-col bg-white">
       {/* Header */}
       <div className="bg-white border-b shrink-0">
         {/* Drag handle — mobile only */}

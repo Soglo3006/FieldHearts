@@ -224,7 +224,7 @@ export function MessageInput({
     <div className="sticky bottom-0 p-4 border-t bg-white">
       {/* Preview fichier */}
       {attachedFile && (
-        <div className="mb-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+        <div className="mb-3 p-3 bg-white rounded-lg border border-gray-200">
           <div className="flex items-center gap-3">
             {attachmentPreview ? (
               <AppImage src={attachmentPreview} alt={t('common.preview')} width={64} height={64} className="h-16 w-16 object-cover rounded" />

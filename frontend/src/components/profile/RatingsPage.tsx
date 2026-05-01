@@ -101,7 +101,7 @@ export default function RatingsPage({ onClose, profileId, displayName }: Ratings
         <div className="flex flex-col md:flex-row flex-1 min-h-0 overflow-hidden">
 
           {/* Left — Summary */}
-          <div className="md:w-56 lg:w-64 shrink-0 border-b md:border-b-0 md:border-r bg-gray-50 px-6 py-6 flex flex-col items-center gap-4">
+          <div className="md:w-56 lg:w-64 shrink-0 border-b md:border-b-0 md:border-r bg-white px-6 py-6 flex flex-col items-center gap-4">
             {/* Big number */}
             <div className="text-center">
               <p className="text-6xl font-bold text-gray-900 leading-none">{avgDisplay}</p>

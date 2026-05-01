@@ -137,7 +137,7 @@ export default function AboutPage() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
 
             {/* Georges */}
-            <div className="mx-auto w-full max-w-md overflow-hidden rounded-2xl border border-gray-200 bg-gray-50 lg:max-w-none">
+            <div className="mx-auto w-full max-w-md overflow-hidden rounded-2xl border border-gray-200 bg-white lg:max-w-none">
               <div className="relative aspect-5/4 overflow-hidden bg-gray-200 sm:aspect-4/3">
                 <Image
                   src="/team/george.jpg"
@@ -181,7 +181,7 @@ export default function AboutPage() {
             </div>
 
             {/* Alexandre */}
-            <div className="mx-auto w-full max-w-md overflow-hidden rounded-2xl border border-gray-200 bg-gray-50 lg:max-w-none">
+            <div className="mx-auto w-full max-w-md overflow-hidden rounded-2xl border border-gray-200 bg-white lg:max-w-none">
               <div className="relative aspect-5/4 overflow-hidden bg-gray-200 sm:aspect-4/3">
                 <Image
                   src="/team/alexandre.jpg"

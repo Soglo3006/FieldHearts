@@ -58,7 +58,7 @@ export default function ChooseTypePage() {
   if (loading || user?.user_metadata?.profile_completed) return null;
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 bg-gray-50 relative">
+    <div className="min-h-screen flex items-center justify-center px-4 bg-white relative">
       <div className="absolute top-3 right-4">
         <LanguageToggle />
       </div>

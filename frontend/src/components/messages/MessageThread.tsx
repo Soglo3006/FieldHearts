@@ -250,7 +250,7 @@ export function MessageThread({
 
   if (!otherUser) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-gray-50">
+      <div className="flex-1 flex items-center justify-center bg-white">
         <div className="text-center">
           <div className="text-gray-400 mb-4">
             <div className="w-24 h-24 mx-auto bg-gray-100 rounded-full flex items-center justify-center">
@@ -279,7 +279,7 @@ export function MessageThread({
         const viewport = node.querySelector?.("[data-radix-scroll-area-viewport]");
         if (viewport) scrollViewportRef.current = viewport as HTMLDivElement;
       }}>
-        <div className="p-4 bg-gray-50">
+        <div className="p-4 bg-white">
           {loadingMore && (
             <div className="flex justify-center py-3">
               <Loader2 className="h-5 w-5 animate-spin text-gray-400" />

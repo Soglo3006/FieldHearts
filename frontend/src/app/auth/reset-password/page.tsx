@@ -68,7 +68,7 @@ export default function ResetPasswordPage() {
 
   if (done) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4 bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center p-4 bg-white">
         <Card className="w-full max-w-sm text-center">
           <CardContent className="pt-8 pb-6 space-y-4">
             <div className="flex justify-center">
@@ -84,7 +84,7 @@ export default function ResetPasswordPage() {
 
   if (expired) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4 bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center p-4 bg-white">
         <Card className="w-full max-w-sm text-center">
           <CardContent className="pt-8 pb-6 space-y-4">
             <KeyRound className="h-12 w-12 text-red-400 mx-auto" />
@@ -106,7 +106,7 @@ export default function ResetPasswordPage() {
 
   if (!ready) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4 bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center p-4 bg-white">
         <Card className="w-full max-w-sm text-center">
           <CardContent className="pt-8 pb-6">
             <Spinner size="md" className="mx-auto mb-4" />
@@ -118,7 +118,7 @@ export default function ResetPasswordPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-gray-50">
+    <div className="min-h-screen flex items-center justify-center p-4 bg-white">
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-3">

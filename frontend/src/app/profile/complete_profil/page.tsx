@@ -246,7 +246,7 @@ function OnboardingContent() {
   if (showSuccess) return <SuccessScreen />;
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="min-h-screen bg-white flex flex-col">
       <div className="flex items-center justify-between px-4 pt-3">
         <Link
           href="/choose_type"

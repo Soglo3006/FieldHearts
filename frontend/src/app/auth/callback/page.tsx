@@ -79,7 +79,7 @@ export default function AuthCallbackPage() {
   }, [router]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+    <div className="min-h-screen flex items-center justify-center bg-white">
       <div className="text-center">
         <Spinner size="xl" className="mx-auto mb-4" />
         <p className="text-gray-600 text-lg">{message}</p>

@@ -88,7 +88,7 @@ export default function BlockedUsersPage({ onBack, onClose }: Props) {
     : `${blockedUsers.length} ${blockedUsers.length > 1 ? t("settings.blockedUsers") : t("settings.blockedUsers")}`;
 
   return (
-    <div className="bg-gray-50">
+    <div className="bg-white">
       <SubPageHeader
         title={t("settings.blockedUsers")}
         subtitle={subtitle}

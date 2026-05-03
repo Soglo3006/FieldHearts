@@ -20,6 +20,7 @@ import BlockedBanner from "@/components/profile/BlockedBanner";
 import { toast } from "sonner";
 import { type Service as Listing } from "@/components/listings/EditListingModal";
 import { Spinner } from "@/components/ui/Spinner";
+import { OverlayModal } from "@/components/ui/OverlayModal";
 
 interface ProfileUser {
   account_type?: string;
@@ -57,17 +58,11 @@ export default function UserProfilePage() {
   const [showEllipsis, setShowEllipsis] = useState(false);
   const [showRatings, setShowRatings] = useState(false);
 
-  const swipeTouchStartY = useRef(0);
-  const makeSwipeHandlers = (onClose: () => void) => ({
-    onTouchStart: (e: React.TouchEvent) => { swipeTouchStartY.current = e.touches[0].clientY; },
-    onTouchMove: (e: React.TouchEvent) => {
-      if (e.touches[0].clientY - swipeTouchStartY.current > 80) onClose();
-    },
-  });
-
   const [isBlocked, setIsBlocked] = useState(false);
   const [isBlockedByOther, setIsBlockedByOther] = useState(false);
   const [blockLoading, setBlockLoading] = useState(false);
+  /** False until we know block state for logged-in visitors (avoids flashing name/avatar before Supabase). */
+  const [blockResolved, setBlockResolved] = useState(false);
 
   const settingsScrollRef = useRef<HTMLDivElement>(null);
   const isOwner = user?.id === profileId;
@@ -118,23 +113,39 @@ export default function UserProfilePage() {
   }, [profileId]);
 
   useEffect(() => {
-    if (!user || isOwner || !profileId) return;
+    if (!profileId || authLoading) return;
+
+    if (!user || user.id === profileId) {
+      setIsBlocked(false);
+      setIsBlockedByOther(false);
+      setBlockResolved(true);
+      return;
+    }
+
+    let cancelled = false;
+    setBlockResolved(false);
+    setIsBlocked(false);
+    setIsBlockedByOther(false);
     (async () => {
       const [{ data: iBlockedThem }, { data: theyBlockedMe }] = await Promise.all([
         supabase.from("blocked_users").select("id").eq("blocker_id", user.id).eq("blocked_user_id", profileId).maybeSingle(),
         supabase.from("blocked_users").select("id").eq("blocker_id", profileId).eq("blocked_user_id", user.id).maybeSingle(),
       ]);
+      if (cancelled) return;
       setIsBlocked(!!iBlockedThem);
       setIsBlockedByOther(!!theyBlockedMe);
+      setBlockResolved(true);
     })();
-  }, [user, profileId, isOwner]);
 
-  useEffect(() => {
-    document.body.style.overflow = showEllipsis ? "hidden" : "auto";
-    return () => { document.body.style.overflow = "auto"; };
-  }, [showEllipsis]);
+    return () => {
+      cancelled = true;
+    };
+  }, [profileId, user, authLoading]);
 
-  if (loading || isLoggingOut) {
+  const viewingOtherWhileLoggedIn = Boolean(user && user.id !== profileId);
+  const blockStatusPending = viewingOtherWhileLoggedIn && !blockResolved;
+
+  if (loading || isLoggingOut || authLoading || blockStatusPending) {
     return (
       <div className="min-h-screen bg-white">
         <div className="flex items-center justify-center min-h-[60vh]">
@@ -191,6 +202,13 @@ export default function UserProfilePage() {
     }
   };
 
+  const hidePublicHeader = !isOwner && (isBlocked || isBlockedByOther);
+  const breadcrumbLabel = isOwner
+    ? (isPerson ? t("profile.yourProfile") : t("profile.yourCompanyProfile"))
+    : hidePublicHeader
+      ? t("profile.breadcrumbRestricted")
+      : t("profile.sProfile", { name: displayName });
+
   return (
     <div className="min-h-screen bg-white flex flex-col">
       <main className="flex-1 py-4 sm:py-8 px-3 sm:px-6 lg:px-8">
@@ -199,29 +217,31 @@ export default function UserProfilePage() {
             <Link href="/"><span className="hover:text-green-700 cursor-pointer">{t("notFound.goHome")}</span></Link>
             <ChevronRight className="h-4 w-4 mx-1" />
             <span className="text-green-700 font-medium">
-              {isOwner ? (isPerson ? t("profile.yourProfile") : t("profile.yourCompanyProfile")) : t("profile.sProfile", { name: displayName })}
+              {breadcrumbLabel}
             </span>
           </div>
 
-          <ProfileHeader
-            profileUser={profileUser}
-            displayName={displayName}
-            displayTitle={displayTitle}
-            isPerson={isPerson}
-            isCompany={isCompany}
-            isOwner={isOwner}
-            isBlocked={isBlocked}
-            isBlockedByOther={isBlockedByOther}
-            blockLoading={blockLoading}
-            profileId={profileId}
-            listingsCount={userListings.length}
-            sendMessageLoading={sendMessageLoading}
-            onSendMessage={() => startConversation(profileId, pathname)}
-            onSettings={() => setShowSettings(true)}
-            onEllipsis={openProfileOptions}
-            onRatings={() => setShowRatings(true)}
-            onUnblock={handleUnblock}
-          />
+          {!hidePublicHeader && (
+            <ProfileHeader
+              profileUser={profileUser}
+              displayName={displayName}
+              displayTitle={displayTitle}
+              isPerson={isPerson}
+              isCompany={isCompany}
+              isOwner={isOwner}
+              isBlocked={isBlocked}
+              isBlockedByOther={isBlockedByOther}
+              blockLoading={blockLoading}
+              profileId={profileId}
+              listingsCount={userListings.length}
+              sendMessageLoading={sendMessageLoading}
+              onSendMessage={() => startConversation(profileId, pathname)}
+              onSettings={() => setShowSettings(true)}
+              onEllipsis={openProfileOptions}
+              onRatings={() => setShowRatings(true)}
+              onUnblock={handleUnblock}
+            />
+          )}
 
           {!isBlocked && !isBlockedByOther && (
             <>
@@ -233,27 +253,7 @@ export default function UserProfilePage() {
                 languages={languages}
                 memberSince={memberSince}
               />
-              <ProfilePortfolio
-                portfolio={portfolio}
-                isPerson={isPerson}
-                isOwner={isOwner}
-                onPortfolioSave={async (updated) => {
-                  if (!session?.access_token) return;
-                  const meRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/profiles/me`, {
-                    headers: { Authorization: `Bearer ${session.access_token}` },
-                  });
-                  if (!meRes.ok) { toast.error(t("profile.failedUpdate", "Échec de la mise à jour")); return; }
-                  const full = await meRes.json();
-                  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/profiles/me`, {
-                    method: "PUT",
-                    headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
-                    body: JSON.stringify({ ...full, portfolio: updated }),
-                  });
-                  if (!res.ok) { toast.error(t("profile.failedUpdate", "Échec de la mise à jour")); return; }
-                  setProfileUser((prev) => prev ? { ...prev, portfolio: updated } : prev);
-                  toast.success(t("profile.portfolioUpdated", "Portfolio mis à jour"));
-                }}
-              />
+              <ProfilePortfolio portfolio={portfolio} isPerson={isPerson} isOwner={isOwner} />
               <ProfileListings
                 userListings={userListings}
                 setUserListings={setUserListings}
@@ -276,32 +276,21 @@ export default function UserProfilePage() {
       </main>
 
       {showSettings && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex justify-center items-end sm:items-center z-50" onClick={() => setShowSettings(false)}>
-          <div
-            className="w-full sm:max-w-3xl max-h-[88dvh] sm:max-h-[90vh] bg-white rounded-t-2xl sm:rounded-xl shadow-xl overflow-y-auto animate-in slide-in-from-bottom sm:zoom-in-95 duration-200"
-            ref={settingsScrollRef}
-            onClick={(e) => e.stopPropagation()}
-            {...makeSwipeHandlers(() => setShowSettings(false))}
-          >
-            <SettingsPage onClose={() => setShowSettings(false)} scrollRef={settingsScrollRef} />
-          </div>
-        </div>
+        <OverlayModal open={showSettings} onClose={() => setShowSettings(false)} scrollRef={settingsScrollRef}>
+          <SettingsPage onClose={() => setShowSettings(false)} scrollRef={settingsScrollRef} />
+        </OverlayModal>
       )}
 
       {showEllipsis && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex justify-center items-end sm:items-center z-50" onClick={() => setShowEllipsis(false)}>
-          <div className="w-full sm:max-w-3xl max-h-[88dvh] sm:max-h-[90vh] bg-white rounded-t-2xl sm:rounded-xl shadow-xl overflow-y-auto animate-in slide-in-from-bottom sm:zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()} {...makeSwipeHandlers(() => setShowEllipsis(false))}>
-            <EllipsisPage onClose={() => setShowEllipsis(false)} profileId={profileId} displayName={displayName} userListings={userListings} />
-          </div>
-        </div>
+        <OverlayModal open={showEllipsis} onClose={() => setShowEllipsis(false)}>
+          <EllipsisPage onClose={() => setShowEllipsis(false)} profileId={profileId} displayName={displayName} userListings={userListings} />
+        </OverlayModal>
       )}
 
       {showRatings && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex justify-center items-end sm:items-center z-50" onClick={() => setShowRatings(false)}>
-          <div className="w-full sm:max-w-3xl max-h-[88dvh] sm:max-h-[90vh] bg-white rounded-t-2xl sm:rounded-xl shadow-xl overflow-y-auto animate-in slide-in-from-bottom sm:zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()} {...makeSwipeHandlers(() => setShowRatings(false))}>
-            <RatingsPage onClose={() => setShowRatings(false)} profileId={profileId} displayName={displayName} />
-          </div>
-        </div>
+        <OverlayModal open={showRatings} onClose={() => setShowRatings(false)}>
+          <RatingsPage onClose={() => setShowRatings(false)} profileId={profileId} displayName={displayName} />
+        </OverlayModal>
       )}
     </div>
   );

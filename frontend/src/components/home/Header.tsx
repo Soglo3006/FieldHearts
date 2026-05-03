@@ -3,7 +3,6 @@
 import { useTranslation } from "react-i18next";
 import { Search, User, Settings, LogOut, Building2, List, Wallet, X, CalendarDays, Menu, Heart, MessageCircle, MessageSquareText, Bell, ChevronLeft, ChevronDown, Check, Trash2, Loader2, ShieldCheck } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import {
   DropdownMenu,
@@ -29,6 +28,7 @@ import { Spinner } from "@/components/ui/Spinner";
 import MessageNotifications from "@/components/messages/MessageNotifications";
 import NotificationBell from "@/components/notifications/NotificationBell";
 import SupportModal from "@/components/support/SupportModal";
+import { OverlayModal } from "@/components/ui/OverlayModal";
 import { useUnreadBookings } from "@/hooks/useUnreadBookings";
 import { useUnreadMessages } from "@/hooks/useUnreadMessages";
 import { useNotifications } from "@/hooks/useNotifications";
@@ -797,21 +797,20 @@ export default function Header() {
           </SheetContent>
         </Sheet>
 
-        <Dialog open={showSettings} onOpenChange={setShowSettings}>
-          <DialogContent
-            unstyled
-            showCloseButton={false}
-            className="data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed top-1/2 left-1/2 z-50 h-[90vh] w-[min(96vw,72rem)] max-w-6xl -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-xl border-0 bg-white p-0 shadow-lg duration-200"
+        {showSettings && (
+          <OverlayModal
+            open={showSettings}
+            onClose={() => setShowSettings(false)}
+            scrollRef={settingsScrollRef}
+            maxWidthClassName="max-w-[min(96vw,72rem)]"
           >
-            <DialogTitle className="sr-only">{t("settings.title")}</DialogTitle>
-            <div ref={settingsScrollRef} className="h-full overflow-y-auto">
-              <SettingsPage
-                onClose={() => setShowSettings(false)}
-                scrollRef={settingsScrollRef}
-              />
-            </div>
-          </DialogContent>
-        </Dialog>
+            <span className="sr-only">{t("settings.title")}</span>
+            <SettingsPage
+              onClose={() => setShowSettings(false)}
+              scrollRef={settingsScrollRef}
+            />
+          </OverlayModal>
+        )}
 
         <SupportModal open={showSupport} onClose={() => setShowSupport(false)} />
       </div>

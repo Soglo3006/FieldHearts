@@ -1,8 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import { supabase } from "@/lib/supabaseClient";
+import { useAuth } from "@/contexts/AuthContext";
+import { Spinner } from "@/components/ui/Spinner";
 import { Grid3x3, MapPin, ArrowLeft } from "lucide-react";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { Badge } from "@/components/ui/badge";
@@ -34,23 +37,85 @@ interface Service extends ServiceLikeWithI18n {
 
 export default function UserListingsPage() {
   const { id } = useParams<{ id: string }>();
+  const router = useRouter();
+  const { user, loading: authLoading } = useAuth();
   const { t, i18n } = useTranslation();
   const [listings, setListings] = useState<Service[]>([]);
   const [ownerName, setOwnerName] = useState("");
   const [loading, setLoading] = useState(true);
+  const [blockResolved, setBlockResolved] = useState(false);
+  const [blockedByMe, setBlockedByMe] = useState(false);
 
   useEffect(() => {
+    if (!id || authLoading) return;
+
+    if (!user || user.id === id) {
+      setBlockedByMe(false);
+      setBlockResolved(true);
+      return;
+    }
+
+    let cancelled = false;
+    setBlockResolved(false);
+    setBlockedByMe(false);
+    (async () => {
+      const { data } = await supabase
+        .from("blocked_users")
+        .select("id")
+        .eq("blocker_id", user.id)
+        .eq("blocked_user_id", id)
+        .maybeSingle();
+      if (cancelled) return;
+      setBlockedByMe(!!data);
+      setBlockResolved(true);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [id, user, authLoading]);
+
+  useEffect(() => {
+    if (!blockResolved || !user || user.id === id || !blockedByMe) return;
+    router.replace(`/profile/${id}`);
+  }, [blockResolved, blockedByMe, user, id, router]);
+
+  useEffect(() => {
+    if (!id) return;
+    const guestOrOwner = !user || user.id === id;
+    if (!guestOrOwner && !blockResolved) return;
+    if (user && user.id !== id && blockedByMe) return;
+
+    setLoading(true);
     fetch(`${process.env.NEXT_PUBLIC_API_URL}/services/user/${id}`)
       .then((r) => r.json())
       .then((data) => {
         if (Array.isArray(data)) {
           setListings(data);
           if (data.length > 0) setOwnerName(data[0].owner_name ?? "");
+        } else {
+          setListings([]);
+          setOwnerName("");
         }
       })
-      .catch(() => {})
+      .catch(() => {
+        setListings([]);
+        setOwnerName("");
+      })
       .finally(() => setLoading(false));
-  }, [id]);
+  }, [id, blockResolved, user, blockedByMe]);
+
+  const viewingOtherWhileLoggedIn = Boolean(user && id && user.id !== id);
+  const blockPending = viewingOtherWhileLoggedIn && !blockResolved;
+  const redirecting = Boolean(blockResolved && user && id && user.id !== id && blockedByMe);
+
+  if (authLoading || blockPending || redirecting) {
+    return (
+      <div className="min-h-[60vh] bg-white flex items-center justify-center">
+        <Spinner size="xl" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-white">

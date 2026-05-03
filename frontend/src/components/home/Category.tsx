@@ -89,13 +89,42 @@ export default function CategoryNav() {
     };
   }, [activeCategoryName, pendingNavigationPath, router]);
 
-  const scroll = (direction: "left" | "right") => {
-    if (!scrollRef.current) return;
+  /** Une ancre par catégorie (wrapper) — les flèches ne font défiler que ces blocs-là. */
+  const CATEGORY_SCROLL_SEL = "[data-category-scroll-anchor]";
 
-    scrollRef.current.scrollBy({
-      left: direction === "left" ? -300 : 300,
-      behavior: "smooth",
-    });
+  const scroll = (direction: "left" | "right") => {
+    const container = scrollRef.current;
+    if (!container) return;
+
+    const targets = Array.from(container.querySelectorAll<HTMLElement>(CATEGORY_SCROLL_SEL));
+    if (targets.length === 0) return;
+
+    const sl = container.scrollLeft;
+    const maxScroll = Math.max(0, container.scrollWidth - container.clientWidth);
+    const eps = 2;
+    const hostRect = container.getBoundingClientRect();
+
+    /** Position dans le contenu scrollable du bord gauche de l’élément (cohérent avec scrollLeft). */
+    const contentLeft = (el: HTMLElement) => sl + (el.getBoundingClientRect().left - hostRect.left);
+
+    const scrollToAlign = (el: HTMLElement) => {
+      const left = Math.max(0, Math.min(contentLeft(el), maxScroll));
+      container.scrollTo({ left, behavior: "smooth" });
+    };
+
+    if (direction === "right") {
+      if (sl >= maxScroll - eps) return;
+      const next = targets.find((t) => contentLeft(t) > sl + eps);
+      if (next) scrollToAlign(next);
+    } else {
+      if (sl <= eps) return;
+      const prev = [...targets].reverse().find((t) => contentLeft(t) < sl - eps);
+      if (prev) {
+        scrollToAlign(prev);
+      } else {
+        container.scrollTo({ left: 0, behavior: "smooth" });
+      }
+    }
   };
 
   const navigateAfterClosingMenu = (path: string) => {
@@ -157,7 +186,11 @@ export default function CategoryNav() {
               const isActive = activeCategoryName === category.name;
 
               return (
-                <div key={category.name} className="flex shrink-0 items-center">
+                <div
+                  key={category.name}
+                  data-category-scroll-anchor
+                  className="flex shrink-0 items-center"
+                >
                   {index > 0 && (
                     <div
                       className="mx-2 h-4 w-px self-center bg-gray-200 sm:mx-3 sm:h-5"

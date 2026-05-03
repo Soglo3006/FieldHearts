@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { ArrowLeft, X, KeyRound, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, X, CheckCircle2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/AuthContext";
@@ -81,15 +81,9 @@ export default function ChangePasswordPage({ onBack, onClose }: Props) {
       <div className="flex-1 overflow-y-auto">
         <div className="max-w-md mx-auto px-6 py-10 space-y-8">
 
-          {/* Icon + Title */}
-          <div className="text-center space-y-3">
-            <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-green-50">
-              <KeyRound className="h-6 w-6 text-green-600" />
-            </div>
-            <div>
-              <h2 className="text-xl font-semibold text-gray-900">{t("settings.changePassword")}</h2>
-              <p className="text-sm text-gray-500 mt-1 leading-relaxed">{t("settings.updatePassword")}</p>
-            </div>
+          <div className="text-center space-y-1">
+            <h2 className="text-xl font-semibold text-gray-900">{t("settings.changePassword")}</h2>
+            <p className="text-sm text-gray-500 leading-relaxed">{t("settings.updatePassword")}</p>
           </div>
 
           {/* Success state */}
@@ -124,8 +118,6 @@ export default function ChangePasswordPage({ onBack, onClose }: Props) {
               />
               {errors.oldPassword && <p className="text-xs text-red-500">{errors.oldPassword}</p>}
             </div>
-
-            <div className="h-px bg-gray-100" />
 
             <div className="space-y-1.5">
               <Label htmlFor="newPassword" className="text-sm font-medium text-gray-700">

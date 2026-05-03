@@ -720,6 +720,7 @@
     "yourProfile": "Votre profil",
     "yourCompanyProfile": "Votre profil d'entreprise",
     "sProfile": "Profil de {{name}}",
+    "breadcrumbRestricted": "Profil",
     "failedUnblock": "Impossible de débloquer l'utilisateur. Veuillez réessayer.",
     "serviceProvider": "Prestataire de services",
     "reviewsCount": "avis",

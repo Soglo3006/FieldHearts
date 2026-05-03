@@ -724,6 +724,7 @@
     "yourProfile": "Your Profile",
     "yourCompanyProfile": "Your Company Profile",
     "sProfile": "{{name}}'s Profile",
+    "breadcrumbRestricted": "Profile",
     "failedUnblock": "Failed to unblock user. Please try again.",
     "serviceProvider": "Service Provider",
     "reviewsCount": "reviews",

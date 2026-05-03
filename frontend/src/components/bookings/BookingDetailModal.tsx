@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useScrollLock } from "@/hooks/useScrollLock";
 import Link from "next/link";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import {
   X, MapPin, CalendarDays, Tag, CheckCircle, CreditCard, FileText, Grid3x3,
-  TrendingDown, TrendingUp, ChevronLeft, ChevronRight, AlertTriangle, Star,
+  TrendingDown, TrendingUp, ChevronLeft, AlertTriangle, Star,
   ImagePlus, Loader2,
 } from "lucide-react";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
@@ -26,6 +26,14 @@ import { getIntlLocale } from "@/lib/locale";
 import { sanitizePlainText } from "@/lib/sanitize";
 import AppImage from "@/components/ui/AppImage";
 import PaymentInlinePanel from "@/components/payment/PaymentInlinePanel";
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
+  type CarouselApi,
+} from "@/components/ui/carousel";
 
 type BookingStatus = "pending" | "accepted" | "active" | "completed" | "cancelled" | "rejected";
 type BookingStep = "detail" | "payment" | "review" | "dispute";
@@ -94,6 +102,77 @@ function formatDate(dateStr: string, lang: string) {
       weekday: "long", month: "long", day: "numeric", year: "numeric",
     });
   } catch { return dateStr; }
+}
+
+/** Même principe que ServiceHero (page détail service) : Embla, flèches, compteur 1/n. */
+function BookingDetailHeroCarousel({ images, title }: { images: string[]; title: string }) {
+  const validImages = images.filter(Boolean);
+  const count = validImages.length;
+  const [api, setApi] = useState<CarouselApi>();
+  const [index, setIndex] = useState(0);
+
+  useEffect(() => {
+    if (!api) return;
+    const handleSelect = () => setIndex(api.selectedScrollSnap());
+    handleSelect();
+    api.on("select", handleSelect);
+    api.on("reInit", handleSelect);
+    return () => {
+      api.off("select", handleSelect);
+      api.off("reInit", handleSelect);
+    };
+  }, [api]);
+
+  if (count === 0) {
+    return (
+      <div className="w-full h-full bg-linear-to-br from-gray-50 to-gray-100 flex items-center justify-center">
+        <Grid3x3 className="h-10 w-10 text-gray-300" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative h-full w-full">
+      <Carousel
+        key={validImages.join("|")}
+        setApi={setApi}
+        opts={{ align: "start", loop: count > 1 }}
+        className="h-full w-full"
+      >
+        <CarouselContent className="ml-0 h-full">
+          {validImages.map((image, imageIndex) => (
+            <CarouselItem key={`${image}-${imageIndex}`} className="pl-0 h-full">
+              <AppImage
+                src={image}
+                alt={`${title} - ${imageIndex + 1}`}
+                width={1600}
+                height={900}
+                sizes="(max-width: 1024px) 100vw, 512px"
+                className="h-full w-full object-cover"
+              />
+            </CarouselItem>
+          ))}
+        </CarouselContent>
+
+        {count > 1 && (
+          <>
+            <CarouselPrevious
+              className="left-3 top-1/2 z-10 border-0 bg-black/40 text-white hover:bg-black/60 hover:text-white disabled:pointer-events-none disabled:opacity-40"
+            />
+            <CarouselNext
+              className="right-3 top-1/2 z-10 border-0 bg-black/40 text-white hover:bg-black/60 hover:text-white disabled:pointer-events-none disabled:opacity-40"
+            />
+          </>
+        )}
+      </Carousel>
+
+      {count > 1 && (
+        <span className="absolute top-3 right-3 z-11 bg-black/50 text-white text-xs px-2 py-0.5 rounded-full pointer-events-none">
+          {index + 1} / {count}
+        </span>
+      )}
+    </div>
+  );
 }
 
 export default function BookingDetailModal({
@@ -201,9 +280,6 @@ export default function BookingDetailModal({
   };
 
   const images = booking.image_urls?.length ? booking.image_urls : booking.image_url ? [booking.image_url] : [];
-  const [imgIndex, setImgIndex] = useState(0);
-  const prevImg = useCallback(() => setImgIndex((i) => (i - 1 + images.length) % images.length), [images.length]);
-  const nextImg = useCallback(() => setImgIndex((i) => (i + 1) % images.length), [images.length]);
 
   const currentUserId = userRole === "worker" ? booking.worker_id : booking.client_id;
   const otherUserName = userRole === "worker" ? (booking.client_name ?? t("bookings.clientLabel")) : (booking.worker_name ?? t("bookings.providerLabel"));
@@ -538,52 +614,7 @@ export default function BookingDetailModal({
         {/* Scrollable body */}
         <div className="overflow-y-auto flex-1">
           <AspectRatio ratio={16 / 9}>
-            {images.length > 0 ? (
-              <div className="relative w-full h-full">
-                <AppImage src={images[imgIndex]} alt={booking.title} fill sizes="(max-width: 1024px) 100vw, 512px" className="object-cover" />
-                {images.length > 1 && (
-                  <>
-                    <button
-                      type="button"
-                      onClick={prevImg}
-                      aria-label={t('messages.previousImage')}
-                      title={t('messages.previousImage')}
-                      className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 text-white rounded-full p-1 transition-colors"
-                    >
-                      <ChevronLeft className="h-4 w-4" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={nextImg}
-                      aria-label={t('messages.nextImage')}
-                      title={t('messages.nextImage')}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 text-white rounded-full p-1 transition-colors"
-                    >
-                      <ChevronRight className="h-4 w-4" />
-                    </button>
-                    <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1.5">
-                      {images.map((_, i) => (
-                        <button
-                          key={i}
-                          type="button"
-                          onClick={() => setImgIndex(i)}
-                          aria-label={t('messages.viewImage', { number: i + 1 })}
-                          title={t('messages.viewImage', { number: i + 1 })}
-                          className={`h-1.5 rounded-full transition-all ${i === imgIndex ? "w-4 bg-white" : "w-1.5 bg-white/50"}`}
-                        />
-                      ))}
-                    </div>
-                    <span className="absolute top-2 right-2 bg-black/50 text-white text-[10px] px-1.5 py-0.5 rounded-full">
-                      {imgIndex + 1} / {images.length}
-                    </span>
-                  </>
-                )}
-              </div>
-            ) : (
-              <div className="w-full h-full bg-linear-to-br from-gray-50 to-gray-100 flex items-center justify-center">
-                <Grid3x3 className="h-10 w-10 text-gray-300" />
-              </div>
-            )}
+            <BookingDetailHeroCarousel images={images} title={booking.title} />
           </AspectRatio>
 
           <div className="px-5 py-4 space-y-4">

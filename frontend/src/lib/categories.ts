@@ -201,6 +201,7 @@ export function formatTranslatedCategoryTrail(
   categoryName: string | null | undefined,
   subcategory: string | null | undefined,
   t: (key: string, options?: { defaultValue?: string }) => string,
+  separator = " | ",
 ) {
   const resolvedCategoryKey = resolveCategoryKey(categoryName, subcategory);
 
@@ -217,7 +218,7 @@ export function formatTranslatedCategoryTrail(
       : subcategory
     : null;
 
-  return [translatedCategory, translatedSubcategory].filter(Boolean).join(" | ");
+  return [translatedCategory, translatedSubcategory].filter(Boolean).join(separator);
 }
 
 

@@ -8,6 +8,7 @@ import { getPublicServiceLocation } from "@/lib/serviceLocation";
 import { resolveListingDescription, resolveListingTitle, type ServiceLikeWithI18n } from "@/lib/serviceListingI18n";
 import { formatListingPriceLine, normalizePricingMode } from "@/lib/listingPrice";
 import { cn } from "@/lib/utils";
+import { formatTranslatedCategoryTrail } from "@/lib/categories";
 import {
   formatAvailabilityLabel,
   formatMobilityLabel,
@@ -73,8 +74,7 @@ export default function ServiceTitleCard({
             </span>
             {service.category_name && (
               <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-700">
-                {service.category_name}
-                {service.subcategory && ` · ${service.subcategory}`}
+                {formatTranslatedCategoryTrail(service.category_name, service.subcategory, t, " · ")}
               </span>
             )}
             {service.is_one_time && (
@@ -127,17 +127,23 @@ export default function ServiceTitleCard({
         {/* Provider mini-card */}
         <div className="w-full shrink-0 md:w-52 lg:w-56 md:pt-1">
           <div className="text-center p-4 bg-white rounded-xl border border-gray-100">
-            <Link href={`/profile/${service.owner_id}`} className="group block">
+            <Link
+              href={`/profile/${service.owner_id}`}
+              aria-label={t("serviceDetail.goToProfile", { name: service.owner_name })}
+              className="group block rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-green-600 focus-visible:ring-offset-2"
+            >
               <Avatar className="w-16 h-16 mx-auto mb-3">
                 {service.owner_avatar && (
-                  <AvatarImage src={service.owner_avatar} alt={service.owner_name} />
+                  <AvatarImage src={service.owner_avatar} alt="" />
                 )}
                 <AvatarFallback className="text-xl bg-green-100 text-green-800 font-semibold">
                   {service.owner_name?.charAt(0)?.toUpperCase() ?? "?"}
                 </AvatarFallback>
               </Avatar>
+              <div className="font-semibold text-gray-900 text-sm leading-tight group-hover:text-green-700 group-hover:underline">
+                {service.owner_name}
+              </div>
             </Link>
-            <div className="font-semibold text-gray-900 text-sm leading-tight">{service.owner_name}</div>
             <div className="mt-2">
               <Link
                 href={`/profile/${service.owner_id}/listings`}

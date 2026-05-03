@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import Link from "next/link";
 import { PostPublishLink } from "@/components/navigation/PostPublishLink";
@@ -99,6 +99,14 @@ export default function ProfileListings({
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
+  const listingsSectionTopRef = useRef<HTMLDivElement>(null);
+
+  const handleListingsPageChange = (p: number) => {
+    setPage(p);
+    requestAnimationFrame(() => {
+      listingsSectionTopRef.current?.scrollIntoView({ block: "start" });
+    });
+  };
 
   const deleteListing = async (id: string) => {
     setDeletingId(id);
@@ -206,7 +214,7 @@ export default function ProfileListings({
   return (
     <>
       <Card className="p-4 sm:p-6">
-        <div className="flex items-center justify-between mb-4">
+        <div ref={listingsSectionTopRef} className="flex items-center justify-between mb-4 scroll-mt-24">
           <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
             {isPerson ? t("profile.listings") : t("profile.ourServices")}
           </h2>
@@ -233,7 +241,7 @@ export default function ProfileListings({
                     <div key={listing.id}>{ListingCardContent(listing)}</div>
                   ))}
                 </div>
-                <Pagination page={page} total={userListings.length} onChange={setPage} />
+                <Pagination page={page} total={userListings.length} onChange={handleListingsPageChange} />
               </>
             ) : (
               /* — Carousel (≤9 listings) — */

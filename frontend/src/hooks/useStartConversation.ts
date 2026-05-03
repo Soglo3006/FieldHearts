@@ -6,13 +6,16 @@ import { toast } from 'sonner';
 
 export function useStartConversation() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(false);
 
   const startConversation = async (otherUserId: string, redirectBack?: string) => {
+    if (authLoading) return;
     if (!user) {
-      const loginUrl = redirectBack ? `/login?redirect=${encodeURIComponent(redirectBack)}` : '/login';
-      router.push(loginUrl);
+      const q = new URLSearchParams();
+      if (redirectBack) q.set("redirect", redirectBack);
+      q.set("from", "contact");
+      router.push(`/login?${q.toString()}`);
       return;
     }
 

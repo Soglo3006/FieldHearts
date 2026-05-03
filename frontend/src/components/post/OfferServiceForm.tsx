@@ -59,10 +59,18 @@ export default function OfferServiceForm({ onSuccess }: Props) {
 
   function offerPricingFields(): ListingPricingFields {
     if (pricingMode === "quote") return { pricing_mode: "quote" };
-    if (pricingMode === "fixed") return { pricing_mode: "fixed", price: parseFloat(price) };
-    const lo = parseFloat(priceMin);
-    const hi = parseFloat(priceMax);
-    return { pricing_mode: "range", price_min: lo, price_max: hi, price: lo };
+    if (pricingMode === "fixed") {
+      const p = Number(price);
+      return { pricing_mode: "fixed", price: Number.isFinite(p) ? p : null };
+    }
+    const lo = Number(priceMin);
+    const hi = Number(priceMax);
+    return {
+      pricing_mode: "range",
+      price_min: Number.isFinite(lo) ? lo : null,
+      price_max: Number.isFinite(hi) ? hi : null,
+      price: Number.isFinite(lo) ? lo : null,
+    };
   }
 
   const pricingOk =
@@ -74,7 +82,11 @@ export default function OfferServiceForm({ onSuccess }: Props) {
       Number(priceMin) >= 0.01 &&
       Number(priceMax) >= Number(priceMin));
 
-  const confirmPriceSummary = formatListingPriceLine(t, offerPricingFields());
+  /** Same wording as the pricing mode buttons on the form (not listingCard « Prix à convenir »). */
+  const confirmPriceSummary =
+    pricingMode === "quote"
+      ? t("post.pricingModeQuote")
+      : formatListingPriceLine(t, offerPricingFields());
 
   const isValid =
     hasRequiredBilingualFields(translations) &&

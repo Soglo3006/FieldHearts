@@ -6,7 +6,7 @@ import { ChevronRight } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { useStartConversation } from "@/hooks/useStartConversation";
 import { useState, useEffect, useRef } from "react";
-import { useParams } from "next/navigation";
+import { useParams, usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTranslation } from "react-i18next";
 import SettingsPage from "@/components/profile/Settings";
@@ -41,7 +41,9 @@ interface ProfileUser {
 export default function UserProfilePage() {
   const params = useParams();
   const profileId = params.id as string;
-  const { user, session, isLoggingOut } = useAuth();
+  const pathname = usePathname();
+  const router = useRouter();
+  const { user, session, isLoggingOut, loading: authLoading } = useAuth();
 
   const [profileUser, setProfileUser] = useState<ProfileUser | null>(null);
   const [loading, setLoading] = useState(true);
@@ -167,6 +169,15 @@ export default function UserProfilePage() {
   const languages = typeof profileUser.languages === "string" ? JSON.parse(profileUser.languages) : profileUser.languages || [];
   const portfolio = typeof profileUser.portfolio === "string" ? JSON.parse(profileUser.portfolio) : profileUser.portfolio || [];
 
+  const openProfileOptions = () => {
+    if (authLoading) return;
+    if (!user) {
+      router.push(`/login?redirect=${encodeURIComponent(pathname)}`);
+      return;
+    }
+    setShowEllipsis(true);
+  };
+
   const handleUnblock = async () => {
     if (!user || !window.confirm(t("settings.unblockConfirm"))) return;
     setBlockLoading(true);
@@ -205,9 +216,9 @@ export default function UserProfilePage() {
             profileId={profileId}
             listingsCount={userListings.length}
             sendMessageLoading={sendMessageLoading}
-            onSendMessage={() => startConversation(profileId)}
+            onSendMessage={() => startConversation(profileId, pathname)}
             onSettings={() => setShowSettings(true)}
-            onEllipsis={() => setShowEllipsis(true)}
+            onEllipsis={openProfileOptions}
             onRatings={() => setShowRatings(true)}
             onUnblock={handleUnblock}
           />

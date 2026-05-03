@@ -208,12 +208,14 @@ export default function ListingsGrid({ filters }: { filters?: ListingsFilters })
 
   const handlePageChange = (newPage: number) => {
     setCurrentPage(newPage);
-    gridTopRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    requestAnimationFrame(() => {
+      gridTopRef.current?.scrollIntoView({ block: "start" });
+    });
   };
 
   if (loading) {
     return (
-      <div ref={gridTopRef} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div ref={gridTopRef} className="scroll-mt-24 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {[...Array(6)].map((_, i) => (
           <div key={i} className="border rounded-xl shadow-sm bg-white animate-pulse overflow-hidden">
             <div className="w-full aspect-video bg-gray-200" />
@@ -249,7 +251,7 @@ export default function ListingsGrid({ filters }: { filters?: ListingsFilters })
   });
 
   return (
-    <div className="space-y-6" ref={gridTopRef}>
+    <div className="space-y-6 scroll-mt-24" ref={gridTopRef}>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {items.map((item) => {
           if (item.type === "ad") {

@@ -6,7 +6,8 @@ import SaveShareActions from "@/components/serviceDetail/SaveShareActions";
 import { useTranslation } from "react-i18next";
 import { getPublicServiceLocation } from "@/lib/serviceLocation";
 import { resolveListingDescription, resolveListingTitle, type ServiceLikeWithI18n } from "@/lib/serviceListingI18n";
-import { formatListingPriceLine } from "@/lib/listingPrice";
+import { formatListingPriceLine, normalizePricingMode } from "@/lib/listingPrice";
+import { cn } from "@/lib/utils";
 import {
   formatAvailabilityLabel,
   formatMobilityLabel,
@@ -57,11 +58,12 @@ export default function ServiceTitleCard({
   const { t, i18n } = useTranslation();
   const displayTitle = resolveListingTitle(service, i18n.language);
   const displayDescription = resolveListingDescription(service, i18n.language);
+  const isQuotePricing = normalizePricingMode(service.pricing_mode) === "quote";
 
   return (
     <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
-      <div className="flex flex-col md:flex-row items-start justify-between gap-6">
-        <div className="flex-1">
+      <div className="flex flex-col md:flex-row md:items-start gap-6 md:gap-8">
+        <div className="min-w-0 flex-1">
           {/* Badges */}
           <div className="flex flex-wrap gap-2 mb-3">
             <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${
@@ -110,13 +112,20 @@ export default function ServiceTitleCard({
             </div>
           )}
 
-          <p className="text-3xl font-extrabold text-green-700 mt-4">
-            {formatListingPriceLine(t, service)}
+          <p
+            className={cn(
+              "mt-4 text-green-700 font-bold leading-snug",
+              isQuotePricing
+                ? "text-lg sm:text-xl max-w-2xl text-green-800"
+                : "text-2xl sm:text-3xl font-extrabold text-green-700"
+            )}
+          >
+            {formatListingPriceLine(t, service, "detail")}
           </p>
         </div>
 
         {/* Provider mini-card */}
-        <div className="w-full shrink-0 md:w-48">
+        <div className="w-full shrink-0 md:w-52 lg:w-56 md:pt-1">
           <div className="text-center p-4 bg-white rounded-xl border border-gray-100">
             <Link href={`/profile/${service.owner_id}`} className="group block">
               <Avatar className="w-16 h-16 mx-auto mb-3">

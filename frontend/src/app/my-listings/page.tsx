@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
@@ -215,6 +215,8 @@ export default function MyListingsPage() {
 
   const [activePage, setActivePage] = useState(1);
   const [historyPage, setHistoryPage] = useState(1);
+  const activeSectionRef = useRef<HTMLDivElement>(null);
+  const historySectionRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (authLoading) return;
@@ -299,7 +301,7 @@ export default function MyListingsPage() {
           <div className="space-y-10">
             {/* Active listings */}
             {activeListings.length > 0 && (
-              <div>
+              <div ref={activeSectionRef} className="scroll-mt-24">
                 <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-4">
                   {t("myListings.active")} ({activeListings.length})
                 </h2>
@@ -317,14 +319,19 @@ export default function MyListingsPage() {
                 <Pagination
                   page={activePage}
                   total={activeListings.length}
-                  onChange={(p) => { setActivePage(p); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+                  onChange={(p) => {
+                    setActivePage(p);
+                    requestAnimationFrame(() => {
+                      activeSectionRef.current?.scrollIntoView({ block: "start" });
+                    });
+                  }}
                 />
               </div>
             )}
 
             {/* Historical listings */}
             {historyListings.length > 0 && (
-              <div>
+              <div ref={historySectionRef} className="scroll-mt-24">
                 <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-4">
                   {t("myListings.history")} ({historyListings.length})
                 </h2>
@@ -342,7 +349,12 @@ export default function MyListingsPage() {
                 <Pagination
                   page={historyPage}
                   total={historyListings.length}
-                  onChange={(p) => setHistoryPage(p)}
+                  onChange={(p) => {
+                    setHistoryPage(p);
+                    requestAnimationFrame(() => {
+                      historySectionRef.current?.scrollIntoView({ block: "start" });
+                    });
+                  }}
                 />
               </div>
             )}

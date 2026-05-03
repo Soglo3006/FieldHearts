@@ -71,10 +71,18 @@ export default function LookingForWorkerForm({ onSuccess }: Props) {
   const canonical = canonicalFromTranslations(finalized);
   function jobPricingFields(): ListingPricingFields {
     if (pricingMode === "quote") return { pricing_mode: "quote" };
-    if (pricingMode === "fixed") return { pricing_mode: "fixed", price: parseFloat(budget) };
-    const lo = parseFloat(budgetMin);
-    const hi = parseFloat(budgetMax);
-    return { pricing_mode: "range", price_min: lo, price_max: hi, price: lo };
+    if (pricingMode === "fixed") {
+      const p = Number(budget);
+      return { pricing_mode: "fixed", price: Number.isFinite(p) ? p : null };
+    }
+    const lo = Number(budgetMin);
+    const hi = Number(budgetMax);
+    return {
+      pricing_mode: "range",
+      price_min: Number.isFinite(lo) ? lo : null,
+      price_max: Number.isFinite(hi) ? hi : null,
+      price: Number.isFinite(lo) ? lo : null,
+    };
   }
 
   const pricingOk =
@@ -86,7 +94,10 @@ export default function LookingForWorkerForm({ onSuccess }: Props) {
       Number(budgetMin) >= 0.01 &&
       Number(budgetMax) >= Number(budgetMin));
 
-  const confirmPriceSummary = formatListingPriceLine(t, jobPricingFields());
+  const confirmPriceSummary =
+    pricingMode === "quote"
+      ? t("post.pricingModeQuote")
+      : formatListingPriceLine(t, jobPricingFields());
 
   const isValid =
     hasRequiredBilingualFields(translations) &&

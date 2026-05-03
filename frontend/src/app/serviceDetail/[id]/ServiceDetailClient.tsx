@@ -19,7 +19,11 @@ import LocationMapModal from "@/components/serviceDetail/LocationMapModal";
 import { useTranslation } from "react-i18next";
 import { getPublicServiceLocation, hasApproximateServiceLocation } from "@/lib/serviceLocation";
 import { resolveListingTitle, type ServiceLikeWithI18n } from "@/lib/serviceListingI18n";
-import { estimateBaseAmountForTotals, formatListingPriceLine } from "@/lib/listingPrice";
+import {
+  estimateBaseAmountForTotals,
+  estimateMaxBaseAmountForTotals,
+  formatListingPriceLine,
+} from "@/lib/listingPrice";
 
 interface Service {
   id: string;
@@ -230,12 +234,15 @@ export default function ServiceDetailClient() {
     );
   }
 
-  const displayPriceLabel = formatListingPriceLine(t, service);
+  const displayPriceLabel = formatListingPriceLine(t, service, "detail");
   const estimatedTotalBase = estimateBaseAmountForTotals(service);
+  const estimatedTotalBaseMax = estimateMaxBaseAmountForTotals(service);
   const displayTitle = resolveListingTitle(service, i18n.language);
-  const providerFirstName = service.owner_account_type === "company"
-    ? (service.owner_name ?? "Provider")
-    : (service.owner_name?.split(" ")[0] ?? "Provider");
+  const providerIsCompany = service.owner_account_type === "company";
+  const providerFirstName = providerIsCompany
+    ? (service.owner_name ?? "")
+    : (service.owner_name?.split(/\s+/)[0] ?? "");
+  const providerShortName = providerFirstName || t("serviceDetail.anonymousProvider");
   const isOwner = !!user && user.id === service.user_id;
 
   const handleOwnerDelete = async () => {
@@ -320,9 +327,11 @@ export default function ServiceDetailClient() {
                 serviceType={service.type}
                 displayPriceLabel={displayPriceLabel}
                 estimatedTotalBase={estimatedTotalBase}
+                estimatedTotalBaseMax={estimatedTotalBaseMax}
                 ownerId={service.owner_id}
                 workerProvince={service.owner_province}
-                providerFirstName={providerFirstName}
+                providerFirstName={providerShortName}
+                providerIsCompany={providerIsCompany}
                 availability={service.availability}
                 language={service.language}
                 mobility={service.mobility}
@@ -362,8 +371,9 @@ export default function ServiceDetailClient() {
           errorMsg={bookingErrorMsg}
           displayPriceLabel={displayPriceLabel}
           estimatedTotalBase={estimatedTotalBase}
+          estimatedTotalBaseMax={estimatedTotalBaseMax}
           serviceTitle={displayTitle}
-          providerFirstName={providerFirstName}
+          providerFirstName={providerShortName}
           workerProvince={service.owner_province}
           onNoteChange={setBookingNote}
           onSubmit={submitBooking}

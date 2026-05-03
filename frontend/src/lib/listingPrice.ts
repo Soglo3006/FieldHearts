@@ -23,26 +23,50 @@ export function normalizePricingMode(raw: unknown): PricingMode {
   return "fixed";
 }
 
+/** Distinct bounds (e.g. 21–32 $) — used for commission/tax/total ranges on service detail. */
+export function hasDistinctPriceRange(s: ListingPricingFields): boolean {
+  const lo = parseListingPriceNum(s.price_min ?? s.price);
+  const hi = parseListingPriceNum(s.price_max);
+  return lo != null && hi != null && hi > lo + 1e-9;
+}
+
 /** Lower bound used for sidebar/modal totals (buyer commission, tax). Null for quote. */
 export function estimateBaseAmountForTotals(s: ListingPricingFields): number | null {
   const mode = normalizePricingMode(s.pricing_mode);
   if (mode === "quote") return null;
-  if (mode === "range") {
+  if (mode === "range" || hasDistinctPriceRange(s)) {
     return parseListingPriceNum(s.price_min ?? s.price);
   }
   return parseListingPriceNum(s.price);
 }
 
+/** Upper bound for range pricing (max commission / tax / total). Null for fixed or quote. */
+export function estimateMaxBaseAmountForTotals(s: ListingPricingFields): number | null {
+  const mode = normalizePricingMode(s.pricing_mode);
+  if (mode === "quote") return null;
+  if (mode !== "range" && !hasDistinctPriceRange(s)) return null;
+  const hi = parseListingPriceNum(s.price_max);
+  const lo = parseListingPriceNum(s.price_min ?? s.price);
+  if (hi == null || lo == null || hi < lo) return null;
+  return hi;
+}
+
+/** `compact` = short label on cards; `detail` = same wording as post form (service detail, booking). */
+export type ListingPriceLineVariant = "compact" | "detail";
+
 /**
- * Unified display line for grids, hero price, bookmarks, etc.
+ * Unified display line for grids, detail page, bookmarks, etc.
  * Accepts react-i18next `t` or any `(key, opts?) => string` wrapper.
  */
 export function formatListingPriceLine(
   t: (key: string, opts?: Record<string, unknown>) => string,
-  s: ListingPricingFields
+  s: ListingPricingFields,
+  variant: ListingPriceLineVariant = "compact"
 ): string {
   const mode = normalizePricingMode(s.pricing_mode);
-  if (mode === "quote") return t("listingPrice.quote");
+  if (mode === "quote") {
+    return variant === "detail" ? t("post.pricingModeQuote") : t("listingPrice.quote");
+  }
 
   const lo = parseListingPriceNum(s.price_min ?? s.price);
   const hi = parseListingPriceNum(s.price_max);
@@ -54,7 +78,9 @@ export function formatListingPriceLine(
   }
 
   const p = parseListingPriceNum(s.price);
-  if (p == null) return t("listingPrice.quote");
+  if (p == null) {
+    return variant === "detail" ? t("post.pricingModeQuote") : t("listingPrice.quote");
+  }
   return `${p.toFixed(2)} $`;
 }
 

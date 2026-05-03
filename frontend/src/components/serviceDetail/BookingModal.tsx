@@ -1,6 +1,5 @@
 "use client";
 import { useTranslation } from "react-i18next";
-import { useScrollLock } from "@/hooks/useScrollLock";
 import { formatTaxRate } from "@/lib/taxes";
 import { useClientTax } from "@/hooks/useClientTax";
 import { Button } from "@/components/ui/button";
@@ -14,6 +13,7 @@ interface Props {
   errorMsg: string;
   displayPriceLabel: string;
   estimatedTotalBase: number | null;
+  estimatedTotalBaseMax?: number | null;
   serviceTitle: string;
   providerFirstName: string;
   workerProvince?: string | null;
@@ -24,12 +24,21 @@ interface Props {
 }
 
 export default function BookingModal({
-  state, note, errorMsg, displayPriceLabel, estimatedTotalBase, serviceTitle, providerFirstName,
-  onNoteChange, onSubmit, onClose, onMessageProvider,
+  state,
+  note,
+  errorMsg,
+  displayPriceLabel,
+  estimatedTotalBase,
+  estimatedTotalBaseMax,
+  serviceTitle,
+  providerFirstName,
+  onNoteChange,
+  onSubmit,
+  onClose,
+  onMessageProvider,
 }: Props) {
   const { t, i18n } = useTranslation();
   const { taxRate, taxLabel } = useClientTax(getLanguageCode(i18n.language));
-  useScrollLock(true);
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div
@@ -81,35 +90,48 @@ export default function BookingModal({
                 </div>
               ) : (
                 (() => {
-                  const price = estimatedTotalBase;
-                  const buyerCommission = price * 0.05;
-                  const taxes           = price * taxRate;
-                  const total           = price + buyerCommission + taxes;
+                  const minB = estimatedTotalBase;
+                  const maxB = estimatedTotalBaseMax ?? minB;
+                  const showRangeTotals =
+                    minB != null &&
+                    estimatedTotalBaseMax != null &&
+                    estimatedTotalBaseMax > minB + 0.001;
+                  const buyerCommissionMin = minB * 0.05;
+                  const buyerCommissionMax = maxB * 0.05;
+                  const taxesMin = minB * taxRate;
+                  const taxesMax = maxB * taxRate;
+                  const totalMin = minB + buyerCommissionMin + taxesMin;
+                  const totalMax = maxB + buyerCommissionMax + taxesMax;
                   const fmt = (n: number) => n.toFixed(2);
+                  const fmtRange = (lo: number, hi: number) =>
+                    showRangeTotals && hi > lo + 0.001 ? `${fmt(lo)} $ – ${fmt(hi)} $` : `${fmt(lo)} $`;
                   return (
                     <div className="space-y-1.5 text-sm">
                       <div className="flex justify-between gap-2">
                         <span className="text-gray-600">{t("serviceDetail.servicePrice")}</span>
                         <span className="font-semibold text-right">{displayPriceLabel}</span>
                       </div>
-                      <div className="flex justify-between">
+                      <div className="flex justify-between gap-2">
                         <div>
                           <div className="text-gray-500">{t("serviceDetail.buyerCommission")}</div>
                           <div className="text-xs text-red-500">{t("payment.nonRefundable")}</div>
                         </div>
-                        <span className="text-gray-700">{fmt(buyerCommission)} $</span>
+                        <span className="text-gray-700 text-right tabular-nums shrink-0">{fmtRange(buyerCommissionMin, buyerCommissionMax)}</span>
                       </div>
-                      <div className="flex justify-between">
+                      <div className="flex justify-between gap-2">
                         <div>
                           <div className="text-gray-500">{t("serviceDetail.taxes")} ({formatTaxRate(taxRate)}%)</div>
                           <div className="text-xs text-gray-400">{taxLabel}</div>
                         </div>
-                        <span className="text-gray-700">{fmt(taxes)} $</span>
+                        <span className="text-gray-700 text-right tabular-nums shrink-0">{fmtRange(taxesMin, taxesMax)}</span>
                       </div>
-                      <div className="flex justify-between font-bold border-t border-gray-200 pt-2">
+                      <div className="flex justify-between gap-2 font-bold border-t border-gray-200 pt-2">
                         <span>{t("serviceDetail.total")}</span>
-                        <span className="text-green-700">{fmt(total)} $</span>
+                        <span className="text-green-700 text-right tabular-nums shrink-0">{fmtRange(totalMin, totalMax)}</span>
                       </div>
+                      {showRangeTotals && (
+                        <p className="text-xs text-gray-500 leading-snug">{t("serviceDetail.rangeTotalsHint")}</p>
+                      )}
                     </div>
                   );
                 })()

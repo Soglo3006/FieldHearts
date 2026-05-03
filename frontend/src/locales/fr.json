@@ -108,6 +108,28 @@
   "login": {
     "title": "Bon retour !",
     "subtitle": "Connectez-vous pour accéder aux opportunités locales et aux services communautaires",
+    "context": {
+      "publish": {
+        "title": "Publier une annonce",
+        "subtitle": "Connectez-vous pour publier une offre ou une demande et la partager avec la communauté."
+      },
+      "profile": {
+        "title": "Continuer sur ce profil",
+        "subtitle": "Connectez-vous pour envoyer un message, ouvrir le menu du profil (signaler, partager, etc.) et poursuivre où vous en étiez."
+      },
+      "service": {
+        "title": "Accéder à cette annonce",
+        "subtitle": "Connectez-vous pour contacter l'annonceur, demander une réservation ou finaliser votre démarche."
+      },
+      "favorite": {
+        "title": "Enregistrer cette annonce",
+        "subtitle": "Connectez-vous pour ajouter ce service à vos favoris et le retrouver plus tard."
+      },
+      "contact": {
+        "title": "Envoyer un message",
+        "subtitle": "Connectez-vous pour ouvrir la messagerie et échanger avec l'annonceur."
+      }
+    },
     "email": "Courriel",
     "password": "Mot de passe",
     "forgotPassword": "Mot de passe oublié ?",
@@ -562,6 +584,7 @@
     "buyerCommission": "Commission acheteur (5%)",
     "taxes": "Taxes",
     "total": "Total",
+    "rangeTotalsHint": "Fourchette estimée tout compris (commission acheteur et taxes) selon le prix du service convenu.",
     "describeRequest": "Décrivez votre demande",
     "optional": "(facultatif)",
     "describeWhatYouNeed": "Décrivez ce dont vous avez besoin de {{name}}…",
@@ -594,6 +617,9 @@
     "makeAnOffer": "Faire une offre",
     "applyToJob": "Postuler pour ce travail",
     "contact": "Contacter {{name}}",
+    "contactPerson": "Contacter {{name}}",
+    "contactBusiness": "Contacter {{name}}",
+    "anonymousProvider": "l'annonceur",
     "aboutProvider": "À propos de {{name}}",
     "availability": "Disponibilité",
     "language": "Langue",

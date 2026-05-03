@@ -108,6 +108,28 @@
   "login": {
     "title": "Welcome Back",
     "subtitle": "Sign in to access local opportunities and community services",
+    "context": {
+      "publish": {
+        "title": "Post a listing",
+        "subtitle": "Sign in to publish an offer or a request and share it with the community."
+      },
+      "profile": {
+        "title": "Continue on this profile",
+        "subtitle": "Sign in to send a message, open profile options (report, share, etc.), and pick up where you left off."
+      },
+      "service": {
+        "title": "View this listing",
+        "subtitle": "Sign in to contact the poster, request a booking, or continue what you started."
+      },
+      "favorite": {
+        "title": "Save this listing",
+        "subtitle": "Sign in to add this service to your favorites and find it again anytime."
+      },
+      "contact": {
+        "title": "Send a message",
+        "subtitle": "Sign in to open your inbox and chat with the poster."
+      }
+    },
     "email": "Email",
     "password": "Password",
     "forgotPassword": "Forgot your password?",
@@ -566,6 +588,7 @@
     "buyerCommission": "Buyer commission (5%)",
     "taxes": "Taxes",
     "total": "Total",
+    "rangeTotalsHint": "Estimated range including buyer commission and taxes, based on the service price you agree on.",
     "describeRequest": "Describe your request",
     "optional": "(optional)",
     "describeWhatYouNeed": "Describe what you need from {{name}}…",
@@ -598,6 +621,9 @@
     "makeAnOffer": "Make an Offer",
     "applyToJob": "Apply for this Job",
     "contact": "Contact {{name}}",
+    "contactPerson": "Message {{name}}",
+    "contactBusiness": "Contact {{name}}",
+    "anonymousProvider": "the poster",
     "aboutProvider": "About {{name}}",
     "availability": "Availability",
     "language": "Language",

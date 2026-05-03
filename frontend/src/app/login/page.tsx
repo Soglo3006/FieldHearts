@@ -20,6 +20,7 @@ import { ArrowLeft, Loader2, Eye, EyeOff } from "lucide-react";
 import { Spinner } from "@/components/ui/Spinner";
 import { getLanguageCode } from "@/lib/locale";
 import { useSearchParams } from "next/navigation";
+import { getLoginPageContext } from "@/lib/loginRedirectContext";
 
 type Step = "email" | "password" | "not-found";
 
@@ -38,6 +39,12 @@ export default function LoginPage() {
   const selectedLanguage = getLanguageCode(i18n.language);
   const searchParams = useSearchParams();
   const redirectAfterLogin = searchParams.get("redirect") ?? undefined;
+  const loginFrom = searchParams.get("from");
+  const loginCtx = getLoginPageContext(redirectAfterLogin, loginFrom);
+  const headlineTitle =
+    loginCtx === "default" ? t("login.title") : t(`login.context.${loginCtx}.title`);
+  const headlineSubtitle =
+    loginCtx === "default" ? t("login.subtitle") : t(`login.context.${loginCtx}.subtitle`);
   const { loading } = useProtectedRoute({ requireAuth: false, redirectAfterLogin });
 
   if (loading) return (
@@ -124,12 +131,12 @@ export default function LoginPage() {
         <Card className="w-full max-w-sm">
           <CardHeader className="text-center pb-4">
             <CardTitle className="text-2xl font-bold">
-              {step === "not-found" ? t("login.noAccountFound") : t("login.title")}
+              {step === "not-found" ? t("login.noAccountFound") : headlineTitle}
             </CardTitle>
             <CardDescription className="text-xs font-semibold">
               {step === "not-found"
                 ? t("login.noAccountFoundSubtitle")
-                : t("login.subtitle")}
+                : headlineSubtitle}
             </CardDescription>
           </CardHeader>
 
@@ -167,7 +174,7 @@ export default function LoginPage() {
                   <div className="flex-1 h-px bg-gray-300" />
                 </div>
                 <div className="flex flex-col gap-2">
-                  <Button variant="outline" type="button" className="cursor-pointer w-full" onClick={() => signInWithGoogle()}>
+                  <Button variant="outline" type="button" className="cursor-pointer w-full" onClick={() => signInWithGoogle({ redirectTo: redirectAfterLogin })}>
                     <FcGoogle /> {t("login.loginWithGoogle")}
                   </Button>
                   <Button

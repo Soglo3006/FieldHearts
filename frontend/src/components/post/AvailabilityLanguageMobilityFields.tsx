@@ -47,6 +47,7 @@ export default function AvailabilityLanguageMobilityFields({
             onValueChange={onAvailabilityChange}
             placeholder={t("post.selectAvailability")}
             options={availabilityOptions}
+            allowClear
           />
         </div>
 
@@ -57,6 +58,7 @@ export default function AvailabilityLanguageMobilityFields({
             onValueChange={onLanguageChange}
             placeholder={t("post.preferredLanguage")}
             options={languageOptions}
+            allowClear
           />
         </div>
 
@@ -67,6 +69,7 @@ export default function AvailabilityLanguageMobilityFields({
             onValueChange={onMobilityChange}
             placeholder={t("post.canYouTravel")}
             options={mobilityOptions}
+            allowClear
           />
         </div>
       </div>

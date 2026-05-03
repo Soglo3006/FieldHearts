@@ -26,6 +26,15 @@ import { toast } from "sonner";
 import type { PricingMode } from "@/lib/listingPrice";
 import { formatListingPriceLine, type ListingPricingFields } from "@/lib/listingPrice";
 import { cn } from "@/lib/utils";
+import {
+  labelPosterType,
+  labelAvailability,
+  labelSpokenLanguage,
+  labelMobility,
+  labelUrgency,
+} from "@/lib/postFormConfirmLabels";
+
+const categoryToKey = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
 
 const urgencyLevels = [
   { value: "anytime", labelKey: "post.urgencyAnytime" },
@@ -102,11 +111,20 @@ export default function LookingForWorkerForm({ onSuccess }: Props) {
       ? t("post.pricingModeQuote")
       : formatListingPriceLine(t, jobPricingFields());
 
+  const locationOk = location.trim() !== "" && isResolvedLocationDetails(locationDetails);
+
+  const categoryDisplay = category ? t(`categories.${categoryToKey(category)}`, { defaultValue: category }) : "";
+  const subcategoryDisplay =
+    subcategory && category
+      ? t(`categories.${categoryToKey(category)}_${categoryToKey(subcategory)}`, { defaultValue: subcategory })
+      : "";
+  const confirmCategoryLine = subcategoryDisplay ? `${categoryDisplay} · ${subcategoryDisplay}` : categoryDisplay;
+
   const isValid =
     hasRequiredBilingualFields(translations) &&
     category.trim() !== "" &&
     pricingOk &&
-    location.trim() !== "";
+    locationOk;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -286,7 +304,7 @@ export default function LookingForWorkerForm({ onSuccess }: Props) {
         />
         <p className="text-xs text-gray-500">{t("post.locationPickerHint")}</p>
         {location.trim() !== "" && !isResolvedLocationDetails(locationDetails) && (
-          <p className="text-sm text-amber-700">{t("post.locationMustSelectSuggestion")}</p>
+          <p className="text-sm font-medium text-red-600">{t("post.locationMustSelectSuggestion")}</p>
         )}
       </div>
 
@@ -297,6 +315,7 @@ export default function LookingForWorkerForm({ onSuccess }: Props) {
           onValueChange={setUrgency}
           placeholder={t("post.selectUrgency")}
           options={urgencyOptions}
+          allowClear
         />
       </div>
 
@@ -351,11 +370,19 @@ export default function LookingForWorkerForm({ onSuccess }: Props) {
     <PostConfirmModal
       open={confirmOpen}
       type="looking"
-      title={canonical.title}
+      titlesByLang={finalized.title ?? {}}
+      descriptionsByLang={finalized.description ?? {}}
       priceSummary={confirmPriceSummary}
       location={location}
-      category={category}
-      subcategory={subcategory}
+      hideExactLocation={hideExactLocation}
+      categoryLine={confirmCategoryLine}
+      posterTypeLabel={labelPosterType(t, posterType)}
+      availabilityLabel={labelAvailability(t, availability)}
+      spokenLanguageLabel={labelSpokenLanguage(t, language)}
+      mobilityLabel={labelMobility(t, mobility)}
+      urgencyLabel={labelUrgency(t, urgency)}
+      isOneTime={isOneTime}
+      imageUrls={images}
       submitting={submitting}
       onConfirm={doSubmit}
       onCancel={() => setConfirmOpen(false)}

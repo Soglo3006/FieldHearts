@@ -25,6 +25,14 @@ import { toast } from "sonner";
 import type { PricingMode } from "@/lib/listingPrice";
 import { formatListingPriceLine, type ListingPricingFields } from "@/lib/listingPrice";
 import { cn } from "@/lib/utils";
+import {
+  labelPosterType,
+  labelAvailability,
+  labelSpokenLanguage,
+  labelMobility,
+} from "@/lib/postFormConfirmLabels";
+
+const categoryToKey = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
 
 interface Props {
   onSuccess: (id: string) => void;
@@ -85,13 +93,20 @@ export default function OfferServiceForm({ onSuccess }: Props) {
       Number(priceMin) >= 0.01 &&
       Number(priceMax) >= Number(priceMin));
 
-  /** Same wording as the pricing mode buttons on the form (not listingCard « Prix à discuter »). */
+  /** Short quote-pricing label; aligned with listing cards (`listingPrice.quote`). */
   const confirmPriceSummary =
     pricingMode === "quote"
       ? t("post.pricingModeQuote")
       : formatListingPriceLine(t, offerPricingFields());
 
   const locationOk = location.trim() !== "" && isResolvedLocationDetails(locationDetails);
+
+  const categoryDisplay = category ? t(`categories.${categoryToKey(category)}`, { defaultValue: category }) : "";
+  const subcategoryDisplay =
+    subcategory && category
+      ? t(`categories.${categoryToKey(category)}_${categoryToKey(subcategory)}`, { defaultValue: subcategory })
+      : "";
+  const confirmCategoryLine = subcategoryDisplay ? `${categoryDisplay} · ${subcategoryDisplay}` : categoryDisplay;
 
   const isValid =
     hasRequiredBilingualFields(translations) &&
@@ -283,7 +298,7 @@ export default function OfferServiceForm({ onSuccess }: Props) {
         />
         <p className="text-xs text-gray-500">{t("post.locationPickerHint")}</p>
         {location.trim() !== "" && !isResolvedLocationDetails(locationDetails) && (
-          <p className="text-sm text-amber-700">{t("post.locationMustSelectSuggestion")}</p>
+          <p className="text-sm font-medium text-red-600">{t("post.locationMustSelectSuggestion")}</p>
         )}
       </div>
 
@@ -338,11 +353,18 @@ export default function OfferServiceForm({ onSuccess }: Props) {
     <PostConfirmModal
       open={confirmOpen}
       type="offer"
-      title={canonical.title}
+      titlesByLang={finalized.title ?? {}}
+      descriptionsByLang={finalized.description ?? {}}
       priceSummary={confirmPriceSummary}
       location={location}
-      category={category}
-      subcategory={subcategory}
+      hideExactLocation={hideExactLocation}
+      categoryLine={confirmCategoryLine}
+      posterTypeLabel={labelPosterType(t, posterType)}
+      availabilityLabel={labelAvailability(t, availability)}
+      spokenLanguageLabel={labelSpokenLanguage(t, language)}
+      mobilityLabel={labelMobility(t, mobility)}
+      isOneTime={isOneTime}
+      imageUrls={images}
       submitting={submitting}
       onConfirm={doSubmit}
       onCancel={() => setConfirmOpen(false)}

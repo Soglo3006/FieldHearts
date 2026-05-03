@@ -6,13 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import PostSelect from "@/components/post/PostSelect";
 import { Plus, X } from "lucide-react";
 import type { ListingTranslationsPayload } from "@/lib/serviceListingI18n";
 
@@ -93,6 +87,11 @@ export default function BilingualListingFields({ value, onChange, mode = "offer"
   const descPhOther =
     mode === "looking" ? t("post.jobDescriptionPlaceholderOther") : t("post.descriptionPlaceholderOther");
 
+  const localeSelectOptions = [
+    { value: "fr" as const, label: labelFor("fr") },
+    { value: "en" as const, label: labelFor("en") },
+  ];
+
   return (
     <div className="space-y-8">
       <div className="space-y-3">
@@ -101,18 +100,14 @@ export default function BilingualListingFields({ value, onChange, mode = "offer"
           <span className="text-red-500">*</span>
         </Label>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-          <Select value={firstTitleLang} onValueChange={(v) => setFirstTitleLang(v as Locale)}>
-            <SelectTrigger
-              className="h-12! min-h-12 w-full shrink-0 justify-between px-3 sm:w-[min(100%,12.5rem)]"
-              aria-label={t("post.localeLabel")}
-            >
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="fr">{labelFor("fr")}</SelectItem>
-              <SelectItem value="en">{labelFor("en")}</SelectItem>
-            </SelectContent>
-          </Select>
+          <PostSelect
+            value={firstTitleLang}
+            onValueChange={(v) => setFirstTitleLang(v as Locale)}
+            placeholder={t("post.localeLabel")}
+            options={localeSelectOptions}
+            ariaLabel={t("post.localeLabel")}
+            className="w-full shrink-0 sm:w-[min(100%,12.5rem)]"
+          />
           <Input
             className="h-12 min-h-12 flex-1"
             placeholder={titlePh}
@@ -171,19 +166,14 @@ export default function BilingualListingFields({ value, onChange, mode = "offer"
               <span id="desc-lang-hint" className="text-xs font-medium text-gray-500">
                 {t("post.localeLabel")}
               </span>
-              <Select value={firstDescLang} onValueChange={(v) => setFirstDescLang(v as Locale)}>
-                <SelectTrigger
-                  className="h-11! min-h-11 w-full justify-between px-3"
-                  aria-labelledby="desc-lang-hint"
-                  aria-label={t("post.localeLabel")}
-                >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="fr">{labelFor("fr")}</SelectItem>
-                  <SelectItem value="en">{labelFor("en")}</SelectItem>
-                </SelectContent>
-              </Select>
+              <PostSelect
+                value={firstDescLang}
+                onValueChange={(v) => setFirstDescLang(v as Locale)}
+                placeholder={t("post.localeLabel")}
+                options={localeSelectOptions}
+                ariaLabel={t("post.localeLabel")}
+                className="w-full"
+              />
             </div>
             <div className="flex min-w-0 flex-col gap-1.5">
               <span

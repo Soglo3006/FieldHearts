@@ -58,6 +58,7 @@ export default function CategorySubcategoryFields({
             placeholder={t("post.selectSubcategory")}
             options={subcategoryOptions}
             disabled={!category}
+            allowClear
           />
         </div>
 
@@ -68,6 +69,7 @@ export default function CategorySubcategoryFields({
             onValueChange={onPosterTypeChange}
             placeholder={t("post.selectPosterType")}
             options={posterTypeOptions}
+            allowClear
           />
         </div>
       </div>

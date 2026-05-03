@@ -1,25 +1,144 @@
 "use client";
+
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
-import { CheckCircle2 } from "lucide-react";
 import { useScrollLock } from "@/hooks/useScrollLock";
+import AppImage from "@/components/ui/AppImage";
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
+  type CarouselApi,
+} from "@/components/ui/carousel";
+import { cn } from "@/lib/utils";
+
+type LangCode = "fr" | "en";
+
+export type PostConfirmLangStrings = Partial<Record<LangCode, string>>;
+
+interface SummaryRow {
+  key: string;
+  label: string;
+  value: string;
+  multiline?: boolean;
+  /** Red explanatory text (e.g. annonce unique) */
+  valueDanger?: boolean;
+  /** Red badge beside label when exact address is hidden on the map */
+  showAddressHiddenBadge?: boolean;
+}
 
 interface Props {
   open: boolean;
   type: "offer" | "looking";
-  title: string;
+  titlesByLang: PostConfirmLangStrings;
+  descriptionsByLang: PostConfirmLangStrings;
   /** Preformatted listing price summary (fixed, range, or quote). */
   priceSummary: string;
   location: string;
-  category: string;
-  subcategory?: string;
+  hideExactLocation: boolean;
+  /** Localised category line, e.g. "Maison · Ménage profond". */
+  categoryLine: string;
+  posterTypeLabel: string | null;
+  availabilityLabel: string | null;
+  spokenLanguageLabel: string | null;
+  mobilityLabel: string | null;
+  urgencyLabel?: string | null;
+  /** Annexe « annonce unique » cochée sur le formulaire */
+  isOneTime?: boolean;
+  imageUrls: string[];
   submitting: boolean;
   onConfirm: () => void;
   onCancel: () => void;
 }
 
+/** Aligné sur ServiceHero (page détail service) : flèches et compteur */
+function ConfirmImagesCarousel({ urls }: { urls: string[] }) {
+  const validImages = urls.filter(Boolean);
+  const count = validImages.length;
+  const [api, setApi] = useState<CarouselApi>();
+  const [index, setIndex] = useState(0);
+
+  useEffect(() => {
+    if (!api) return;
+    const handleSelect = () => setIndex(api.selectedScrollSnap());
+    handleSelect();
+    api.on("select", handleSelect);
+    api.on("reInit", handleSelect);
+    return () => {
+      api.off("select", handleSelect);
+      api.off("reInit", handleSelect);
+    };
+  }, [api]);
+
+  if (count === 0) return null;
+
+  if (count === 1) {
+    return (
+      <div className="relative mt-2 aspect-video w-full overflow-hidden rounded-lg border border-gray-100 bg-gray-50">
+        <AppImage
+          src={validImages[0]}
+          alt=""
+          fill
+          className="object-cover"
+          sizes="(max-width: 512px) 100vw, 512px"
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative mt-2 aspect-video w-full overflow-hidden rounded-lg border border-gray-100 bg-gray-50">
+      <Carousel
+        setApi={setApi}
+        opts={{ align: "start", loop: count > 1 }}
+        className="h-full w-full"
+      >
+        <CarouselContent className="ml-0 h-full">
+          {validImages.map((src, imageIndex) => (
+            <CarouselItem key={`${src}-${imageIndex}`} className="h-full pl-0">
+              <AppImage
+                src={src}
+                alt=""
+                width={1600}
+                height={900}
+                sizes="(max-width: 512px) 100vw, 512px"
+                className="h-full w-full object-cover"
+              />
+            </CarouselItem>
+          ))}
+        </CarouselContent>
+        <CarouselPrevious className="left-3 top-1/2 z-10 border-0 bg-black/40 text-white hover:bg-black/60 hover:text-white disabled:pointer-events-none disabled:opacity-40" />
+        <CarouselNext className="right-3 top-1/2 z-10 border-0 bg-black/40 text-white hover:bg-black/60 hover:text-white disabled:pointer-events-none disabled:opacity-40" />
+      </Carousel>
+      <span className="absolute top-3 right-3 z-11 rounded-full bg-black/50 px-2 py-0.5 text-xs text-white">
+        {index + 1} / {count}
+      </span>
+    </div>
+  );
+}
+
 export default function PostConfirmModal({
-  open, type, title, priceSummary, location, category, subcategory, submitting, onConfirm, onCancel,
+  open,
+  type,
+  titlesByLang,
+  descriptionsByLang,
+  priceSummary,
+  location,
+  hideExactLocation,
+  categoryLine,
+  posterTypeLabel,
+  availabilityLabel,
+  spokenLanguageLabel,
+  mobilityLabel,
+  urgencyLabel,
+  isOneTime = false,
+  imageUrls,
+  submitting,
+  onConfirm,
+  onCancel,
 }: Props) {
   const { t } = useTranslation();
   useScrollLock(open);
@@ -28,51 +147,169 @@ export default function PostConfirmModal({
 
   const isOffer = type === "offer";
 
-  const rows = [
-    { label: t("post.confirmLabelTitle"), value: title },
-    {
-      label: isOffer ? t("post.confirmLabelPrice") : t("post.confirmLabelBudget"),
-      value: priceSummary,
-    },
-    { label: t("post.confirmLabelLocation"), value: location },
-    {
-      label: t("post.confirmLabelCategory"),
-      value: subcategory ? `${category} · ${subcategory}` : category,
-    },
-  ];
+  const langNames: Record<LangCode, string> = {
+    fr: t("post.languageFrench"),
+    en: t("post.languageEnglish"),
+  };
+
+  const rows: SummaryRow[] = [];
+
+  /** Par langue : titre puis description (FR ensemble, puis EN, etc.) */
+  (["fr", "en"] as const).forEach((lang) => {
+    const tit = titlesByLang[lang]?.trim();
+    if (tit) {
+      rows.push({
+        key: `title-${lang}`,
+        label: `${t("post.confirmLabelTitle")} (${langNames[lang]})`,
+        value: tit,
+      });
+    }
+    const desc = descriptionsByLang[lang]?.trim();
+    if (desc) {
+      rows.push({
+        key: `desc-${lang}`,
+        label: `${t("post.confirmLabelDescription")} (${langNames[lang]})`,
+        value: desc,
+        multiline: true,
+      });
+    }
+  });
+
+  rows.push({
+    key: "price",
+    label: isOffer ? t("post.confirmLabelPrice") : t("post.confirmLabelBudget"),
+    value: priceSummary,
+  });
+
+  const locationPrivacy = hideExactLocation
+    ? t("post.confirmLocationPrivacyHidden")
+    : t("post.confirmLocationPrivacyVisible");
+
+  rows.push({
+    key: "location",
+    label: t("post.confirmLabelLocation"),
+    value: `${location.trim()}\n${locationPrivacy}`,
+    multiline: true,
+    showAddressHiddenBadge: hideExactLocation,
+  });
+
+  rows.push({
+    key: "category",
+    label: t("post.confirmLabelCategory"),
+    value: categoryLine.trim() || "—",
+  });
+
+  const optionalRows: SummaryRow[] = [];
+
+  if (posterTypeLabel) {
+    optionalRows.push({
+      key: "poster",
+      label: t("post.typeOfPoster"),
+      value: posterTypeLabel,
+    });
+  }
+  if (availabilityLabel) {
+    optionalRows.push({
+      key: "availability",
+      label: t("post.availability"),
+      value: availabilityLabel,
+    });
+  }
+  if (spokenLanguageLabel) {
+    optionalRows.push({
+      key: "language",
+      label: t("post.spokenLanguage"),
+      value: spokenLanguageLabel,
+    });
+  }
+  if (mobilityLabel) {
+    optionalRows.push({
+      key: "mobility",
+      label: t("post.mobility"),
+      value: mobilityLabel,
+    });
+  }
+  if (!isOffer && urgencyLabel) {
+    optionalRows.push({
+      key: "urgency",
+      label: t("post.urgencyLevel"),
+      value: urgencyLabel,
+    });
+  }
+
+  if (isOneTime) {
+    optionalRows.push({
+      key: "one-time",
+      label: t("post.oneTimeListing"),
+      value: t("post.oneTimeListingDesc"),
+      multiline: true,
+      valueDanger: true,
+    });
+  }
+
+  const allRows = [...rows, ...optionalRows];
 
   return (
     <div
-      className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
       onClick={onCancel}
     >
       <div
-        className="bg-white rounded-2xl shadow-xl w-full max-w-md animate-in fade-in slide-in-from-bottom-4 duration-200"
+        className="bg-white animate-in fade-in slide-in-from-bottom-4 max-h-[90vh] w-full max-w-lg overflow-hidden rounded-2xl shadow-xl duration-200"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="px-6 pt-6 pb-4 text-center">
-          <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-3">
-            <CheckCircle2 className="h-6 w-6 text-green-600" />
-          </div>
+        <div className="px-6 pb-4 pt-6 text-center">
           <h2 className="text-lg font-bold text-gray-900">{t("post.confirmTitle")}</h2>
-          <p className="text-sm text-gray-500 mt-1">
+          <p className="mt-1 text-sm text-gray-500">
             {isOffer ? t("post.confirmServiceDesc") : t("post.confirmJobDesc")}
           </p>
         </div>
 
-        {/* Summary rows */}
-        <div className="mx-6 mb-5 border border-gray-100 rounded-xl divide-y divide-gray-100 overflow-hidden">
-          {rows.map((row) => (
-            <div key={row.label} className="px-4 py-3 bg-white">
-              <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">{row.label}</p>
-              <p className="text-sm font-semibold text-gray-800 truncate">{row.value || "—"}</p>
-            </div>
-          ))}
+        {/* Summary */}
+        <div className="mx-6 mb-5 max-h-[min(52vh,26rem)] overflow-y-auto rounded-xl border border-gray-100">
+          <div className="divide-y divide-gray-100">
+            {allRows.map((row) => (
+              <div key={row.key} className="bg-white px-4 py-3">
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                  <p className="text-xs font-medium uppercase tracking-wide text-gray-400">{row.label}</p>
+                  {row.showAddressHiddenBadge && (
+                    <>
+                      <span className="text-xs font-medium text-gray-400" aria-hidden>
+                        ·
+                      </span>
+                      <span className="text-xs font-semibold uppercase tracking-wide text-red-600">
+                        {t("post.confirmAddressHiddenBadge")}
+                      </span>
+                    </>
+                  )}
+                </div>
+                <p
+                  className={cn(
+                    "text-sm wrap-break-word leading-snug",
+                    row.valueDanger
+                      ? "mt-1 font-medium text-red-600 whitespace-pre-wrap"
+                      : cn("font-semibold text-gray-800", row.multiline && "mt-1 whitespace-pre-wrap")
+                  )}
+                >
+                  {row.value || "—"}
+                </p>
+              </div>
+            ))}
+
+            {imageUrls.length > 0 && (
+              <div className="bg-white px-4 py-3">
+                <p className="text-xs font-medium uppercase tracking-wide text-gray-400">
+                  {t("post.confirmLabelImages")}
+                </p>
+                <ConfirmImagesCarousel urls={imageUrls} />
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Footer */}
-        <div className="px-6 pb-6 flex gap-3">
+        <div className="flex gap-3 px-6 pb-6">
           <Button
             variant="outline"
             className="flex-1 cursor-pointer"
@@ -82,19 +319,21 @@ export default function PostConfirmModal({
             {t("post.confirmCancel")}
           </Button>
           <Button
-            className="flex-1 bg-green-700 hover:bg-green-800 text-white cursor-pointer"
+            className="flex-1 cursor-pointer bg-green-700 text-white hover:bg-green-800"
             onClick={onConfirm}
             disabled={submitting}
           >
             {submitting ? (
               <span className="flex items-center gap-2">
-                <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                 </svg>
                 {t("profileEdit.saving")}
               </span>
-            ) : t("post.confirmPublish")}
+            ) : (
+              t("post.confirmPublish")
+            )}
           </Button>
         </div>
       </div>

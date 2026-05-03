@@ -97,7 +97,7 @@
   "listingPrice": {
     "quote": "Prix à discuter",
     "rangeCurrency": "{{min}} – {{max}} $",
-    "quoteTotalsHint": "Le total est fixé après discussion du prix — commission et taxes au paiement une fois le montant confirmé."
+    "quoteTotalsHint": "Le total est fixé après discussion du prix. Commission et taxes au paiement une fois le montant confirmé."
   },
   "notFound": {
     "title": "Page introuvable",
@@ -458,6 +458,7 @@
     "subcategory": "Sous-catégorie",
     "selectCategory": "Choisir une catégorie",
     "selectSubcategory": "Choisir une sous-catégorie",
+    "selectClearChoice": "Effacer le choix",
     "images": "Images",
     "submit": "Publier l'annonce",
     "submitting": "Publication...",
@@ -508,7 +509,7 @@
     "pricingModeLabel": "Comment fixez-vous le prix?",
     "pricingModeFixed": "Prix fixe",
     "pricingModeRange": "Fourchette de prix",
-    "pricingModeQuote": "À discuter d’abord — prix après accord",
+    "pricingModeQuote": "Prix à discuter",
     "priceMinLabel": "Minimum ($)",
     "priceMaxLabel": "Maximum ($)",
     "pricingRangeHint": "Indiquez les montants minimum et maximum demandés.",
@@ -517,6 +518,11 @@
     "confirmLabelBudget": "Budget",
     "confirmLabelLocation": "Emplacement",
     "confirmLabelCategory": "Catégorie",
+    "confirmLabelDescription": "Description",
+    "confirmLabelImages": "Images",
+    "confirmAddressHiddenBadge": "Adresse masquée",
+    "confirmLocationPrivacyHidden": "Carte : emplacement approximatif uniquement (adresse exacte masquée)",
+    "confirmLocationPrivacyVisible": "Carte : emplacement exact visible",
     "failedPostService": "Échec de la publication du service : {{message}}",
     "failedPostJob": "Échec de la publication de la demande : {{message}}",
     "urgencyLevel": "Niveau d'urgence",

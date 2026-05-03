@@ -97,7 +97,7 @@
   "listingPrice": {
     "quote": "Price to discuss",
     "rangeCurrency": "{{min}} – {{max}} $",
-    "quoteTotalsHint": "Totals are finalized after you discuss the price — commission and taxes are calculated at checkout on the confirmed amount."
+    "quoteTotalsHint": "Totals are finalized after you discuss the price. Commission and taxes are calculated at checkout on the confirmed amount."
   },
   "notFound": {
     "title": "Page not found",
@@ -462,6 +462,7 @@
     "subcategory": "Subcategory",
     "selectCategory": "Select a category",
     "selectSubcategory": "Select a subcategory",
+    "selectClearChoice": "Clear selection",
     "images": "Images",
     "submit": "Submit Listing",
     "submitting": "Submitting...",
@@ -512,7 +513,7 @@
     "pricingModeLabel": "How do you price this listing?",
     "pricingModeFixed": "Fixed price",
     "pricingModeRange": "Price range",
-    "pricingModeQuote": "Discuss first — price confirmed later",
+    "pricingModeQuote": "Price to discuss",
     "priceMinLabel": "Minimum ($)",
     "priceMaxLabel": "Maximum ($)",
     "pricingRangeHint": "Enter the lowest and highest amount you charge for this service.",
@@ -521,6 +522,11 @@
     "confirmLabelBudget": "Budget",
     "confirmLabelLocation": "Location",
     "confirmLabelCategory": "Category",
+    "confirmLabelDescription": "Description",
+    "confirmLabelImages": "Images",
+    "confirmAddressHiddenBadge": "Address hidden",
+    "confirmLocationPrivacyHidden": "Map: approximate area only (exact address hidden)",
+    "confirmLocationPrivacyVisible": "Map: exact location shown",
     "failedPostService": "Failed to post service: {{message}}",
     "failedPostJob": "Failed to post job request: {{message}}",
     "urgencyLevel": "Urgency Level",

@@ -391,7 +391,7 @@ export default function EditListingModal({ service, accessToken, onClose, onSave
             />
             <p className="text-xs text-gray-500">{t("post.locationPickerHint")}</p>
             {location.trim() !== "" && !isResolvedLocationDetails(locationDetails) && (
-              <p className="text-sm text-amber-700">{t("post.locationMustSelectSuggestion")}</p>
+              <p className="text-sm font-medium text-red-600">{t("post.locationMustSelectSuggestion")}</p>
             )}
           </div>
 
@@ -419,6 +419,7 @@ export default function EditListingModal({ service, accessToken, onClose, onSave
                 onValueChange={setUrgency}
                 placeholder={t("post.selectUrgency")}
                 options={urgencyOptions}
+                allowClear
               />
             </div>
           )}

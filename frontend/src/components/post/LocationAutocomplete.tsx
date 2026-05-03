@@ -7,6 +7,7 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { MapPin } from "lucide-react";
+import { repairUtf8MojibakeIfNeeded } from "@/lib/repairUtf8Mojibake";
 
 const LIBRARIES: Libraries = ["places"];
 
@@ -75,16 +76,18 @@ function PlacesInput({ value, onChange, placeholder, id, required }: Props) {
       </div>
       {status === "OK" && data.length > 0 && (
         <ul className="absolute z-50 w-full bg-white border border-gray-200 rounded-lg shadow-lg mt-1 max-h-60 overflow-auto">
-          {data.map(({ place_id, description }) => (
+          {data.map(({ place_id, description }) => {
+            const descriptionFixed = repairUtf8MojibakeIfNeeded(description);
+            return (
             <li
               key={place_id}
               className="flex items-center gap-2 px-4 py-3 hover:bg-green-50 cursor-pointer text-sm text-gray-700"
               onMouseDown={async (e) => {
                 e.preventDefault();
-                setValue(description, false);
+                setValue(descriptionFixed, false);
                 clearSuggestions();
                 try {
-                  const results = await getGeocode({ address: description });
+                  const results = await getGeocode({ address: descriptionFixed });
                   const { lat, lng } = await getLatLng(results[0]);
                   const components = results[0].address_components;
                   const cityComp = components.find(
@@ -96,19 +99,21 @@ function PlacesInput({ value, onChange, placeholder, id, required }: Props) {
                       c.types.includes("administrative_area_level_2")
                   );
                   // fallback: second part of description (city is after first comma for full addresses)
-                  const fallbackCity = description.split(",")[1]?.trim() ?? description.split(",")[0].trim();
+                  const fallbackCity =
+                    descriptionFixed.split(",")[1]?.trim() ?? descriptionFixed.split(",")[0].trim();
                   const city = cityComp?.long_name ?? fallbackCity;
-                  onChange(description, { address: description, lat, lng, city });
+                  onChange(descriptionFixed, { address: descriptionFixed, lat, lng, city });
                 } catch {
                   toast.error(t("post.locationGeocodeFailed"));
-                  onChange(description, undefined);
+                  onChange(descriptionFixed, undefined);
                 }
               }}
             >
               <MapPin className="w-3 h-3 text-green-600 flex-shrink-0" />
-              {description}
+              {descriptionFixed}
             </li>
-          ))}
+            );
+          })}
         </ul>
       )}
     </div>

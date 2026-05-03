@@ -475,39 +475,46 @@ export default function BookingDetailModal({
 
       <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col z-10 overflow-hidden">
         {/* Header — changes based on step */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 shrink-0">
-          {step !== "detail" ? (
-            <button
-              type="button"
-              onClick={() => setStep("detail")}
-              className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 transition-colors cursor-pointer"
-            >
-              <ChevronLeft className="h-4 w-4" />
-              {step === "payment"
-                ? t("payment.completePayment")
-                : step === "review"
-                  ? t("bookings.leaveReview")
-                  : t("bookings.openDispute")}
-            </button>
-          ) : (
-            <div className="flex items-center gap-2">
-              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${displayStatusBadge.className}`}>
-                {displayStatusBadge.label}
-              </span>
-              {booking.is_one_time && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-800">
-                  <Tag className="h-3 w-3" /> {t("bookings.oneTime")}
-                </span>
-              )}
-              {displayPaymentBadge && (
-                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold border ${displayPaymentBadge.className}`}>
-                  <CreditCard className="h-3 w-3" />
-                  {displayPaymentBadge.label}
-                </span>
-              )}
-            </div>
-          )}
-          <button type="button" onClick={onClose} aria-label={t("common.close")} className="cursor-pointer text-gray-400 hover:text-gray-600 transition-colors">
+        <div className="flex items-start justify-between gap-3 px-5 py-4 border-b border-gray-100 shrink-0">
+          <div className="min-w-0 flex-1">
+            {step !== "detail" ? (
+              <button
+                type="button"
+                onClick={() => setStep("detail")}
+                className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 transition-colors cursor-pointer"
+              >
+                <ChevronLeft className="h-4 w-4" />
+                {step === "payment"
+                  ? t("payment.completePayment")
+                  : step === "review"
+                    ? t("bookings.leaveReview")
+                    : t("bookings.openDispute")}
+              </button>
+            ) : (
+              <>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${displayStatusBadge.className}`}>
+                    {displayStatusBadge.label}
+                  </span>
+                  {booking.is_one_time && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-800">
+                      <Tag className="h-3 w-3" /> {t("bookings.oneTime")}
+                    </span>
+                  )}
+                  {displayPaymentBadge && (
+                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold border ${displayPaymentBadge.className}`}>
+                      <CreditCard className="h-3 w-3" />
+                      {displayPaymentBadge.label}
+                    </span>
+                  )}
+                </div>
+                <h2 className="mt-2 text-lg font-bold text-gray-900 leading-snug line-clamp-2">
+                  {booking.title}
+                </h2>
+              </>
+            )}
+          </div>
+          <button type="button" onClick={onClose} aria-label={t("common.close")} className="cursor-pointer shrink-0 text-gray-400 hover:text-gray-600 transition-colors mt-0.5">
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -612,10 +619,13 @@ export default function BookingDetailModal({
           <div className={`flex flex-col overflow-hidden w-1/4 ${orderClasses[panelOrders.detail]}`}>
 
         {/* Scrollable body */}
-        <div className="overflow-y-auto flex-1">
-          <AspectRatio ratio={16 / 9}>
-            <BookingDetailHeroCarousel images={images} title={booking.title} />
-          </AspectRatio>
+        <div className="overflow-y-auto flex-1 min-h-0">
+          {/* Même principe que ServiceHero / images annonce : 16/9 (largeur du modal → hauteur proportionnelle) */}
+          <div className="relative w-full shrink-0 overflow-hidden bg-gray-100">
+            <AspectRatio ratio={16 / 9}>
+              <BookingDetailHeroCarousel images={images} title={booking.title} />
+            </AspectRatio>
+          </div>
 
           <div className="px-5 py-4 space-y-4">
             {/* Modification banner */}
@@ -626,9 +636,8 @@ export default function BookingDetailModal({
               </div>
             )}
 
-            {/* Service info */}
+            {/* Service info (titre dans l’en-tête du modal) */}
             <div>
-              <h2 className="text-lg font-bold text-gray-900 mb-1">{booking.title}</h2>
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-gray-500 mb-2">
                 {booking.category && <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full text-xs">{booking.category}</span>}
                 {booking.service_location && (

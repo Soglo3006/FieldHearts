@@ -1,18 +1,12 @@
 "use client";
 import { useState } from "react";
-import { Trans, useTranslation } from "react-i18next";
+import { useTranslation } from "react-i18next";
 import { supabase } from "@/lib/supabaseClient";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import PostSelect from "@/components/post/PostSelect";
 import { CheckCircle } from "lucide-react";
 
 type ContactSubject = { value: string; label: string };
@@ -50,6 +44,7 @@ export default function ContactPage() {
   };
 
   const subjects = t("contactPage.subjects", { returnObjects: true }) as ContactSubject[];
+  const subjectOptions = subjects.map((s) => ({ value: s.value, label: s.label }));
   const features = t("contactPage.features", { returnObjects: true }) as ContactFeature[];
 
   return (
@@ -157,25 +152,18 @@ export default function ContactPage() {
                     />
                   </div>
 
-                  {/* Subject */}
-                  <div className="space-y-1.5">
-                    <Label htmlFor="subject">
+                  {/* Subject — même composant que la catégorie sur la page Publier */}
+                  <div className="space-y-2">
+                    <Label className="text-base font-medium text-gray-900">
                       {t("contactPage.subjectLabel")} <span className="text-red-500">*</span>
                     </Label>
-                    <Select
-                      required
+                    <PostSelect
                       value={form.subject}
                       onValueChange={(val) => setForm({ ...form, subject: val })}
-                    >
-                      <SelectTrigger id="subject" className="w-full">
-                        <SelectValue placeholder={t("contactPage.subjectPlaceholder")} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {subjects.map((s) => (
-                          <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      placeholder={t("contactPage.subjectPlaceholder")}
+                      options={subjectOptions}
+                      ariaLabel={t("contactPage.subjectLabel")}
+                    />
                   </div>
 
                   {/* Message */}
@@ -207,15 +195,6 @@ export default function ContactPage() {
                       <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                     ) : t("contactPage.submit")}
                   </Button>
-
-                  <p className="text-xs text-gray-400 text-center">
-                    <Trans
-                      i18nKey="contactPage.privacyNotice"
-                      components={{
-                        link: <a href="/privacy-policy" title={t("footer.privacyPolicy")} aria-label={t("footer.privacyPolicy")} className="text-green-600 hover:underline" />,
-                      }}
-                    />
-                  </p>
                 </form>
               </>
             )}

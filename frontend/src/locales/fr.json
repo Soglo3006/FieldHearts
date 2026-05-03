@@ -25,6 +25,7 @@
   "footer": {
     "about": "À propos",
     "contact": "Contact",
+    "supportEmail": "support@uneden.ca",
     "privacyPolicy": "Politique de confidentialité",
     "termsOfUse": "Conditions d'utilisation",
     "paymentTerms": "Conditions de paiement",
@@ -1639,7 +1640,7 @@
   },
   "contactPage": {
     "heroTitle": "Tout ce dont vous avez besoin pour trouver ou offrir des services locaux",
-    "heroSubtitle": "Contactez notre équipe — nous sommes là pour vous aider et répondons généralement dans les 24–48 heures.",
+    "heroSubtitle": "Contactez notre équipe. Nous sommes là pour vous aider et répondons généralement dans les 24–48 heures.",
     "addressLabel": "Adresse",
     "addressValue": "",
     "successTitle": "Message envoyé !",
@@ -1659,7 +1660,6 @@
     "messagePlaceholder": "Donnez-nous plus de détails sur votre question ou problème...",
     "submit": "Nous contacter",
     "error": "Une erreur est survenue. Veuillez réessayer.",
-    "privacyNotice": "En soumettant ce formulaire, vous acceptez notre <link>politique de confidentialité</link>.",
     "subjects": [
       { "value": "account", "label": "Problème de compte" },
       { "value": "payment", "label": "Problème de paiement" },
@@ -1748,7 +1748,6 @@
       "contact": {
         "title": "9. Contact",
         "intro": "Pour toute question concernant cette politique, contactez-nous :",
-        "name": "Uneden",
         "address": ""
       }
     }
@@ -1823,7 +1822,6 @@
       "contact": {
         "title": "11. Contact",
         "intro": "Pour toute question, contactez-nous :",
-        "name": "Uneden",
         "address": ""
       }
     }
@@ -1951,7 +1949,6 @@
       "contact": {
         "title": "16. Contact",
         "intro": "Pour toute question, contactez-nous :",
-        "name": "Uneden",
         "address": ""
       }
     }
@@ -2094,7 +2091,6 @@
       "contact": {
         "title": "17. Contact",
         "intro": "Pour toute question, contactez-nous :",
-        "name": "Uneden",
         "address": ""
       }
     }

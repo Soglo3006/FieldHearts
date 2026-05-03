@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Pencil, Save } from "lucide-react";
+import { Pencil } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 interface Booking {
@@ -73,8 +73,8 @@ export default function WorkerCustomizeSection({ booking, accessToken, onSaved }
             />
           </div>
           <div className="flex gap-2">
-            <Button size="sm" className="bg-green-700 hover:bg-green-800 text-white gap-1" onClick={save} disabled={saving}>
-              <Save className="h-3.5 w-3.5" />{saving ? t("customizeBooking.saving") : t("common.save")}
+            <Button size="sm" className="bg-green-700 hover:bg-green-800 text-white" onClick={save} disabled={saving}>
+              {saving ? t("customizeBooking.saving") : t("common.save")}
             </Button>
             <Button size="sm" variant="outline" onClick={() => setEditing(false)} disabled={saving}>{t("common.cancel")}</Button>
           </div>

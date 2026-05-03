@@ -241,9 +241,11 @@ export default function TermsOfServicePage() {
             <section id="contact">
               <h2 className="mb-4 text-xl font-bold text-gray-900">{t("termsPage.sections.contact.title")}</h2>
               <p className="mb-3">{t("termsPage.sections.contact.intro")}</p>
-              <div className="space-y-1">
-                <p className="font-semibold text-gray-900">{t("termsPage.sections.contact.name")}</p>
-              </div>
+              <p>
+                <a href="mailto:support@uneden.ca" className="text-green-700 hover:underline font-medium">
+                  {t("footer.supportEmail")}
+                </a>
+              </p>
             </section>
           </div>
         </div>

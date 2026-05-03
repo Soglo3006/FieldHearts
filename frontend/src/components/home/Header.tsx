@@ -34,12 +34,10 @@ import { useUnreadMessages } from "@/hooks/useUnreadMessages";
 import { useNotifications } from "@/hooks/useNotifications";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { useWalletBadge } from "@/hooks/useWalletBadge";
-import { formatTranslatedCategoryTrail, categories, toCategoryKey } from "@/lib/categories";
+import { formatTranslatedCategoryTrail } from "@/lib/categories";
 import { formatListingPriceLine } from "@/lib/listingPrice";
 import { getLanguageCode, getLanguageToggleValue } from "@/lib/locale";
 import AppImage from "@/components/ui/AppImage";
-import frLocale from "@/locales/fr.json";
-import enLocale from "@/locales/en.json";
 
 interface SearchResult {
   id: string;
@@ -267,7 +265,7 @@ export default function Header() {
 
   useLayoutEffect(() => {
     const updateSearchDropdownPosition = () => {
-      const hasContent = showRecent || categorySuggestions.length > 0 || searchResults.length > 0 || searchLoading || headerSearch.trim().length > 0;
+      const hasContent = showRecent || searchResults.length > 0 || searchLoading || headerSearch.trim().length > 0;
       if (!searchRef.current || !showSearchDrop || !hasContent) {
         setSearchDropdownStyle(null);
         return;
@@ -294,29 +292,8 @@ export default function Header() {
     };
   }, [showSearchDrop, searchResults.length, headerSearch]);
 
-  // Category suggestions — client-side, instant
   const lang = getLanguageCode(i18n.language);
   const languageToggleValue = getLanguageToggleValue(i18n.language);
-  const catLocale = (lang === "fr" ? frLocale : enLocale).categories as Record<string, string>;
-  const categorySuggestions = headerSearch.trim().length > 0
-    ? categories.flatMap((cat) => {
-        const key = toCategoryKey(cat.name);
-        const catLabel = catLocale[key] ?? cat.name;
-        const q = headerSearch.toLowerCase();
-        const results: { catName: string; subName?: string; label: string; catLabel?: string }[] = [];
-        if (cat.name.toLowerCase().includes(q) || catLabel.toLowerCase().includes(q)) {
-          results.push({ catName: cat.name, label: catLabel });
-        }
-        cat.subcategories?.forEach((sub) => {
-          const subKey = `${key}_${toCategoryKey(sub)}`;
-          const subLabel = catLocale[subKey] ?? sub;
-          if (sub.toLowerCase().includes(q) || subLabel.toLowerCase().includes(q)) {
-            results.push({ catName: cat.name, subName: sub, label: subLabel, catLabel });
-          }
-        });
-        return results;
-      }).slice(0, 3)
-    : [];
 
   // Highlight matching text
   const highlight = (text: string, query: string) => {
@@ -353,19 +330,11 @@ export default function Header() {
     router.push(`/listings?search=${encodeURIComponent(q.trim())}`);
   };
 
-  const goToCategory = (catName: string, subName?: string) => {
-    setShowSearchDrop(false);
-    setHeaderSearch("");
-    const params = new URLSearchParams({ category: catName });
-    if (subName) params.set("subcategory", subName);
-    router.push(`/listings?${params.toString()}`);
-  };
-
   // Total items for keyboard nav
   const showRecent = headerSearch.trim().length === 0 && recentSearches.length > 0;
   const navItems = showRecent
     ? recentSearches
-    : [...categorySuggestions.map(() => "cat"), ...searchResults.map(() => "listing"), "seeAll"];
+    : [...searchResults.map(() => "listing"), "seeAll"];
 
   const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (!showSearchDrop && e.key !== "Enter") return;
@@ -379,6 +348,12 @@ export default function Header() {
       e.preventDefault();
       if (focusedIndex >= 0 && showRecent) {
         goToSearch(recentSearches[focusedIndex]);
+      } else if (!showRecent && focusedIndex >= 0 && focusedIndex < searchResults.length) {
+        const r = searchResults[focusedIndex];
+        saveRecentSearch(headerSearch);
+        setShowSearchDrop(false);
+        setHeaderSearch("");
+        router.push(`/serviceDetail/${r.id}`);
       } else {
         goToSearch(headerSearch);
       }
@@ -878,40 +853,16 @@ export default function Header() {
             </>
           )}
 
-          {/* ── Category suggestions (instant, client-side) ── */}
-          {!showRecent && categorySuggestions.length > 0 && (
-            <>
-              <div className="px-4 pt-3 pb-1">
-                <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                  {lang === "fr" ? "Catégories" : "Categories"}
-                </span>
-              </div>
-              {categorySuggestions.map((s, i) => (
-                <button
-                  key={i}
-                  onClick={() => goToCategory(s.catName, s.subName)}
-                  className={`cursor-pointer w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors ${focusedIndex === i ? "bg-gray-50" : "hover:bg-gray-50"}`}
-                >
-                  <div className="w-7 h-7 rounded-lg bg-green-50 flex items-center justify-center shrink-0 text-sm">🗂️</div>
-                  <div className="min-w-0">
-                    <span className="text-sm text-gray-800">{highlight(s.label, headerSearch)}</span>
-                    {s.catLabel && <span className="text-xs text-gray-400 ml-1.5">· {s.catLabel}</span>}
-                  </div>
-                </button>
-              ))}
-            </>
-          )}
-
           {/* ── Listing results (from API) ── */}
           {!showRecent && searchResults.length > 0 && (
             <>
-              <div className={`px-4 pb-1 ${categorySuggestions.length > 0 ? "pt-2 border-t border-gray-100 mt-1" : "pt-3"}`}>
+              <div className="px-4 pb-1 pt-3">
                 <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
                   {lang === "fr" ? "Annonces" : "Listings"}
                 </span>
               </div>
               {searchResults.map((result, i) => {
-                const navIdx = categorySuggestions.length + i;
+                const navIdx = i;
                 return (
                   <button
                     key={result.id}
@@ -941,14 +892,14 @@ export default function Header() {
           )}
 
           {/* ── Loading state ── */}
-          {!showRecent && searchLoading && categorySuggestions.length === 0 && searchResults.length === 0 && (
+          {!showRecent && searchLoading && searchResults.length === 0 && (
             <div className="flex items-center justify-center py-6 gap-2 text-gray-400 text-sm">
               <Spinner size="xs" /> {lang === "fr" ? "Recherche..." : "Searching..."}
             </div>
           )}
 
           {/* ── No results ── */}
-          {!showRecent && !searchLoading && headerSearch.trim().length > 0 && categorySuggestions.length === 0 && searchResults.length === 0 && (
+          {!showRecent && !searchLoading && headerSearch.trim().length > 0 && searchResults.length === 0 && (
             <div className="px-4 py-5 text-center text-sm text-gray-500">
               {lang === "fr" ? `Aucun résultat pour « ${headerSearch} »` : `No results for "${headerSearch}"`}
             </div>

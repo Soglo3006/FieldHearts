@@ -35,6 +35,8 @@ function ListingsContent({ username }: { username?: string }) {
   const searchParams = useSearchParams();
   const initialSpoken = searchParams.get("spokenLanguage") ?? "";
   const initialSpokenValid = ["french", "english", "bilingual"].includes(initialSpoken) ? initialSpoken : "";
+  const initialPricing = searchParams.get("pricingMode") ?? "";
+  const initialPricingValid = ["fixed", "range", "quote"].includes(initialPricing) ? initialPricing : "";
 
   const initialCategories = parseFilterList(searchParams.get("category"));
   const initialSubcategories = parseFilterList(searchParams.get("subcategory")).map((subcategory) => {
@@ -52,6 +54,7 @@ function ListingsContent({ username }: { username?: string }) {
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 1000]);
   const [serviceType, setServiceType] = useState(searchParams.get("type") ?? "all");
   const [spokenLanguage, setSpokenLanguage] = useState(initialSpokenValid);
+  const [pricingMode, setPricingMode] = useState(initialPricingValid);
   const [expandedCategories, setExpandedCategories] = useState<string[]>(initialCategories);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
 
@@ -79,6 +82,8 @@ function ListingsContent({ username }: { username?: string }) {
   const urlType = searchParams.get("type") ?? "all";
   const spokenParam = searchParams.get("spokenLanguage") ?? "";
   const validSpoken = ["french", "english", "bilingual"].includes(spokenParam) ? spokenParam : "";
+  const pricingParam = searchParams.get("pricingMode") ?? "";
+  const validPricing = ["fixed", "range", "quote"].includes(pricingParam) ? pricingParam : "";
 
   useEffect(() => {
     setSearch(urlSearch);
@@ -95,6 +100,9 @@ function ListingsContent({ username }: { username?: string }) {
   useEffect(() => {
     setSpokenLanguage(validSpoken);
   }, [validSpoken]);
+  useEffect(() => {
+    setPricingMode(validPricing);
+  }, [validPricing]);
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(search), 400);
@@ -160,6 +168,7 @@ function ListingsContent({ username }: { username?: string }) {
     setPriceRange([0, 1000]);
     setServiceType("all");
     setSpokenLanguage("");
+    setPricingMode("");
     setExpandedCategories([]);
   };
 
@@ -187,6 +196,15 @@ function ListingsContent({ username }: { username?: string }) {
             ? t("post.languageEnglish")
             : t("post.languageBilingual"),
       clear: () => setSpokenLanguage(""),
+    },
+    pricingMode && {
+      label:
+        pricingMode === "fixed"
+          ? t("post.pricingModeFixed")
+          : pricingMode === "range"
+            ? t("post.pricingModeRange")
+            : t("post.pricingModeQuote"),
+      clear: () => setPricingMode(""),
     },
     (debouncedPrice[0] > 0 || debouncedPrice[1] < 1000) && {
       label: `$${debouncedPrice[0]}–$${debouncedPrice[1] >= 1000 ? "1000+" : debouncedPrice[1]}`,
@@ -273,6 +291,32 @@ function ListingsContent({ username }: { username?: string }) {
                     onClick={() => setServiceType(value)}
                     className={`cursor-pointer flex-1 text-xs px-2 py-2 rounded-lg border transition-colors ${
                       serviceType === value
+                        ? "border-green-700 bg-green-50 text-green-800 font-semibold"
+                        : "border-gray-200 text-gray-600 hover:bg-gray-50"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Pricing mode (fixed / range / discuss) */}
+            <div>
+              <h3 className="text-sm font-semibold text-gray-900 mb-2">{t("listings.pricingTypeFilter")}</h3>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { value: "", label: t("listings.all") },
+                  { value: "fixed", label: t("post.pricingModeFixed") },
+                  { value: "range", label: t("post.pricingModeRange") },
+                  { value: "quote", label: t("post.pricingModeQuote") },
+                ].map(({ value, label }) => (
+                  <button
+                    key={value || "any-pricing"}
+                    type="button"
+                    onClick={() => setPricingMode(value)}
+                    className={`cursor-pointer text-xs px-2 py-2 rounded-lg border transition-colors text-center leading-tight ${
+                      pricingMode === value
                         ? "border-green-700 bg-green-50 text-green-800 font-semibold"
                         : "border-gray-200 text-gray-600 hover:bg-gray-50"
                     }`}
@@ -446,6 +490,7 @@ function ListingsContent({ username }: { username?: string }) {
               serviceType,
               username,
               spokenLanguage: spokenLanguage || undefined,
+              pricingMode: pricingMode || undefined,
             }}
           />
         </div>

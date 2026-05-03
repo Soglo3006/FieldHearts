@@ -83,6 +83,7 @@
     "locationCities": "Cities",
     "locationRegionBadge": "Region",
     "price": "Price",
+    "pricingTypeFilter": "Price type",
     "clearAll": "Clear all",
     "filtersActive": "{{count}} filter active",
     "filtersActivePlural": "{{count}} filters active",

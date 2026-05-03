@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import AdBanner from "@/components/AdBanner";
-import { formatTranslatedCategoryTrail, categories, toCategoryKey } from "@/lib/categories";
+import { formatTranslatedCategoryTrail } from "@/lib/categories";
 import { getPublicServiceLocation } from "@/lib/serviceLocation";
 import { resolveListingTitle, type ServiceLikeWithI18n } from "@/lib/serviceListingI18n";
 import ListingLangPills from "@/components/ui/ListingLangPills";
@@ -56,6 +56,8 @@ export interface ListingsFilters {
   location?: string;
   minPrice?: number;
   maxPrice?: number;
+  /** `fixed` | `range` | `quote` — omit or empty for all */
+  pricingMode?: string;
   serviceType?: string;
   username?: string;
   spokenLanguage?: string;
@@ -70,6 +72,7 @@ function hasRestrictiveFilters(f?: ListingsFilters): boolean {
       f.location?.trim() ||
       (f.serviceType && f.serviceType !== "all") ||
       f.spokenLanguage ||
+      (f.pricingMode && ["fixed", "range", "quote"].includes(f.pricingMode)) ||
       (f.minPrice != null && f.minPrice > 0) ||
       (f.maxPrice != null && f.maxPrice < 1000) ||
       f.username
@@ -119,8 +122,91 @@ function normalizeListingsResponse(
   };
 }
 
-export default function ListingsGrid({ filters }: { filters?: ListingsFilters }) {
+function gridVacancyPads(count: number) {
+  const padSm = count > 0 ? (2 - (count % 2)) % 2 : 0;
+  const padLg = count > 0 ? (3 - (count % 3)) % 3 : 0;
+  return { padSm, padLg };
+}
+
+function ListingGridCard({ s, globalIndex }: { s: ApiService; globalIndex: number }) {
   const { t, i18n } = useTranslation();
+  const detailHref = `/serviceDetail/${s.id}`;
+  const galleryUrls = getListingGalleryUrls(s.image_urls, s.image_url);
+  return (
+    <div className="group flex flex-col border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white hover:shadow-md transition-shadow">
+      <AspectRatio ratio={16 / 9}>
+        {galleryUrls.length > 0 ? (
+          <div className="relative w-full h-full">
+            <ListingLangPills service={s} />
+            <ListingCardImageCarousel
+              urls={galleryUrls}
+              alt={resolveListingTitle(s, i18n.language)}
+              sizes="(max-width: 640px) 100vw, (max-width: 1280px) 50vw, 33vw"
+              priority={globalIndex < 3}
+            />
+            <Link
+              href={detailHref}
+              className="absolute inset-0 z-5 outline-none hidden sm:block"
+              aria-label={resolveListingTitle(s, i18n.language)}
+            />
+          </div>
+        ) : (
+          <div className="relative h-full w-full">
+            <ListingLangPills service={s} />
+            <Link
+              href={detailHref}
+              className="flex h-full w-full items-center justify-center bg-gray-100 outline-none"
+              aria-label={resolveListingTitle(s, i18n.language)}
+            >
+              <Grid3x3 className="h-10 w-10 text-gray-300" />
+            </Link>
+          </div>
+        )}
+      </AspectRatio>
+
+      <Link href={detailHref} className="flex flex-col flex-1 p-3 text-left outline-none">
+        <div className="flex items-start gap-2 mb-1">
+          <h3 className="font-semibold text-gray-900 line-clamp-1 flex-1 group-hover:text-green-700 transition-colors text-sm">
+            {resolveListingTitle(s, i18n.language)}
+          </h3>
+          {s.type === "looking" ? (
+            <Badge className="shrink-0 border-0 bg-blue-100 text-xs text-blue-700">{t("listings.looking")}</Badge>
+          ) : (
+            <Badge className="shrink-0 border-0 bg-green-100 text-xs text-green-700">{t("listings.offering")}</Badge>
+          )}
+        </div>
+        <ListingTrustLine
+          reviewCount={s.review_count}
+          averageRating={s.average_rating}
+          completedBookingsCount={s.completed_bookings_count}
+          className="mb-1"
+        />
+
+        {(s.category_name || s.subcategory) && (
+          <p className="text-xs text-gray-400 mb-1 line-clamp-1">
+            {formatTranslatedCategoryTrail(s.category_name, s.subcategory, t)}
+          </p>
+        )}
+
+        <p className="text-green-700 font-bold text-base mb-2">{formatListingPriceLine(t, s)}</p>
+
+        <div className="flex items-center justify-between text-xs text-gray-500 mt-auto">
+          <div className="flex items-center gap-1 min-w-0">
+            <MapPin className="h-3 w-3 shrink-0" />
+            <span className="line-clamp-1">{getPublicServiceLocation(s)}</span>
+          </div>
+          <div className="ml-2 flex shrink-0 items-center gap-1">
+            <Clock className="h-3 w-3" />
+            <span>{formatRelativeDate(s.created_at, t)}</span>
+          </div>
+        </div>
+      </Link>
+    </div>
+  );
+}
+
+export default function ListingsGrid({ filters }: { filters?: ListingsFilters }) {
+  const { t } = useTranslation();
   const [listings, setListings] = useState<ApiService[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
@@ -139,6 +225,7 @@ export default function ListingsGrid({ filters }: { filters?: ListingsFilters })
     filters?.location,
     filters?.minPrice,
     filters?.maxPrice,
+    filters?.pricingMode,
     filters?.serviceType,
     filters?.username,
     filters?.spokenLanguage,
@@ -162,6 +249,9 @@ export default function ListingsGrid({ filters }: { filters?: ListingsFilters })
         if (filters?.serviceType && filters.serviceType !== "all") params.set("type", filters.serviceType);
         if (filters?.username)                                      params.set("username", filters.username);
         if (filters?.spokenLanguage)                               params.set("spokenLanguage", filters.spokenLanguage);
+        if (filters?.pricingMode && ["fixed", "range", "quote"].includes(filters.pricingMode)) {
+          params.set("pricingMode", filters.pricingMode);
+        }
         params.set("page", String(currentPage));
         params.set("limit", String(LISTINGS_PER_PAGE));
 
@@ -198,6 +288,7 @@ export default function ListingsGrid({ filters }: { filters?: ListingsFilters })
     filters?.location,
     filters?.minPrice,
     filters?.maxPrice,
+    filters?.pricingMode,
     filters?.serviceType,
     filters?.username,
     filters?.spokenLanguage,
@@ -241,101 +332,61 @@ export default function ListingsGrid({ filters }: { filters?: ListingsFilters })
     );
   }
 
-  // Build rows interleaved with ad placeholders
-  const items: Array<{ type: "listing"; data: ApiService } | { type: "ad"; key: number }> = [];
-  currentListings.forEach((listing, index) => {
-    items.push({ type: "listing", data: listing });
-    if ((index + 1) % AD_INTERVAL === 0 && index !== currentListings.length - 1) {
-      items.push({ type: "ad", key: index });
-    }
-  });
+  const firstListings = currentListings.slice(0, AD_INTERVAL);
+  const restListings = currentListings.slice(AD_INTERVAL);
+  const showMidPageAd = restListings.length > 0;
+  const { padSm: padFirstSm, padLg: padFirstLg } = gridVacancyPads(firstListings.length);
+  const { padSm: padRestSm, padLg: padRestLg } = gridVacancyPads(restListings.length);
 
   return (
     <div className="space-y-6 scroll-mt-24" ref={gridTopRef}>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {items.map((item) => {
-          if (item.type === "ad") {
-            return (
-              <div key={`ad-${item.key}`} className="sm:col-span-2 lg:col-span-3">
-                <AdBanner slot="LISTINGS_GRID_AD_SLOT" format="horizontal" style={{ minHeight: 90 }} />
-              </div>
-            );
-          }
-
-          const s = item.data;
-          const cardIndex = currentListings.findIndex((x) => x.id === s.id);
-          const detailHref = `/serviceDetail/${s.id}`;
-          const galleryUrls = getListingGalleryUrls(s.image_urls, s.image_url);
-          return (
-            <div key={s.id} className="group flex flex-col border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white hover:shadow-md transition-shadow">
-              <AspectRatio ratio={16 / 9}>
-                {galleryUrls.length > 0 ? (
-                  <div className="relative w-full h-full">
-                    <ListingLangPills service={s} />
-                    <ListingCardImageCarousel
-                      urls={galleryUrls}
-                      alt={resolveListingTitle(s, i18n.language)}
-                      sizes="(max-width: 640px) 100vw, (max-width: 1280px) 50vw, 33vw"
-                      priority={cardIndex < 3}
-                    />
-                    <Link
-                      href={detailHref}
-                      className="absolute inset-0 z-5 outline-none hidden sm:block"
-                      aria-label={resolveListingTitle(s, i18n.language)}
-                    />
-                  </div>
-                ) : (
-                  <Link
-                    href={detailHref}
-                    className="flex h-full w-full items-center justify-center bg-gray-100 outline-none"
-                    aria-label={resolveListingTitle(s, i18n.language)}
-                  >
-                    <Grid3x3 className="h-10 w-10 text-gray-300" />
-                  </Link>
-                )}
-              </AspectRatio>
-
-              <Link href={detailHref} className="flex flex-col flex-1 p-3 text-left outline-none">
-                  <div className="flex items-start gap-2 mb-1">
-                    <h3 className="font-semibold text-gray-900 line-clamp-1 flex-1 group-hover:text-green-700 transition-colors text-sm">
-                      {resolveListingTitle(s, i18n.language)}
-                    </h3>
-                    {s.type === "looking" ? (
-                      <Badge className="shrink-0 border-0 bg-blue-100 text-xs text-blue-700">{t("listings.looking")}</Badge>
-                    ) : (
-                      <Badge className="shrink-0 border-0 bg-green-100 text-xs text-green-700">{t("listings.offering")}</Badge>
-                    )}
-                  </div>
-                  <ListingTrustLine
-                    reviewCount={s.review_count}
-                    averageRating={s.average_rating}
-                    completedBookingsCount={s.completed_bookings_count}
-                    className="mb-1"
-                  />
-
-                  {(s.category_name || s.subcategory) && (
-                    <p className="text-xs text-gray-400 mb-1 line-clamp-1">
-                      {formatTranslatedCategoryTrail(s.category_name, s.subcategory, t)}
-                    </p>
-                  )}
-
-                  <p className="text-green-700 font-bold text-base mb-2">{formatListingPriceLine(t, s)}</p>
-
-                  <div className="flex items-center justify-between text-xs text-gray-500 mt-auto">
-                    <div className="flex items-center gap-1 min-w-0">
-                      <MapPin className="h-3 w-3 shrink-0" />
-                      <span className="line-clamp-1">{getPublicServiceLocation(s)}</span>
-                    </div>
-                    <div className="ml-2 flex shrink-0 items-center gap-1">
-                      <Clock className="h-3 w-3" />
-                      <span>{formatRelativeDate(s.created_at, t)}</span>
-                    </div>
-                  </div>
-              </Link>
-            </div>
-          );
-        })}
+        {firstListings.map((s, i) => (
+          <ListingGridCard key={s.id} s={s} globalIndex={i} />
+        ))}
+        {Array.from({ length: padFirstSm }).map((_, i) => (
+          <div
+            key={`vac-first-sm-${i}`}
+            aria-hidden
+            className="pointer-events-none hidden min-h-0 border-0 bg-transparent shadow-none sm:block lg:hidden"
+          />
+        ))}
+        {Array.from({ length: padFirstLg }).map((_, i) => (
+          <div
+            key={`vac-first-lg-${i}`}
+            aria-hidden
+            className="pointer-events-none hidden min-h-0 border-0 bg-transparent shadow-none lg:block"
+          />
+        ))}
       </div>
+
+      {showMidPageAd && (
+        <div className="w-full">
+          <AdBanner slot="LISTINGS_GRID_AD_SLOT" format="horizontal" style={{ minHeight: 90 }} />
+        </div>
+      )}
+
+      {restListings.length > 0 && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {restListings.map((s, i) => (
+            <ListingGridCard key={s.id} s={s} globalIndex={AD_INTERVAL + i} />
+          ))}
+          {Array.from({ length: padRestSm }).map((_, i) => (
+            <div
+              key={`vac-rest-sm-${i}`}
+              aria-hidden
+              className="pointer-events-none hidden min-h-0 border-0 bg-transparent shadow-none sm:block lg:hidden"
+            />
+          ))}
+          {Array.from({ length: padRestLg }).map((_, i) => (
+            <div
+              key={`vac-rest-lg-${i}`}
+              aria-hidden
+              className="pointer-events-none hidden min-h-0 border-0 bg-transparent shadow-none lg:block"
+            />
+          ))}
+        </div>
+      )}
 
       {/* Pagination */}
       {totalPages > 1 && (

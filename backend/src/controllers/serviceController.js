@@ -135,6 +135,8 @@ export const getAllServices = async (req, res) => {
       limit,
       page,
       spokenLanguage,
+      pricingMode,
+      pricing_mode,
     } = req.query;
     const categoryNames = String(categoryName || "")
       .split(",")
@@ -238,6 +240,15 @@ export const getAllServices = async (req, res) => {
             OR (${txtFr} AND ${txtEn})
           )`;
       }
+    }
+
+    const pricingModeRaw = String(pricingMode || pricing_mode || "")
+      .trim()
+      .toLowerCase();
+    if (["fixed", "range", "quote"].includes(pricingModeRaw)) {
+      query += ` AND COALESCE(NULLIF(trim(s.pricing_mode), ''), 'fixed') = $${paramCount}`;
+      params.push(pricingModeRaw);
+      paramCount++;
     }
 
     if (location) {

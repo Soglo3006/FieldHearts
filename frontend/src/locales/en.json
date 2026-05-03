@@ -95,9 +95,9 @@
     "cardTrustClients_plural": "{{count}} clients"
   },
   "listingPrice": {
-    "quote": "Price negotiable",
+    "quote": "Price to discuss",
     "rangeCurrency": "{{min}} – {{max}} $",
-    "quoteTotalsHint": "Totals are finalized after you agree on the price — commission and taxes are calculated at checkout on the confirmed amount."
+    "quoteTotalsHint": "Totals are finalized after you discuss the price — commission and taxes are calculated at checkout on the confirmed amount."
   },
   "notFound": {
     "title": "Page not found",
@@ -455,6 +455,9 @@
     "price": "Price ($)",
     "location": "Location",
     "locationPlaceholder": "ex: 123 Rue Sainte-Catherine, Montreal, QC",
+    "locationPickerHint": "Pick an address from the suggestions list to confirm the location.",
+    "locationMustSelectSuggestion": "Select an address from the list to continue.",
+    "locationGeocodeFailed": "We couldn’t confirm that address. Try another suggestion or try again.",
     "category": "Category",
     "subcategory": "Subcategory",
     "selectCategory": "Select a category",
@@ -513,7 +516,7 @@
     "priceMinLabel": "Minimum ($)",
     "priceMaxLabel": "Maximum ($)",
     "pricingRangeHint": "Enter the lowest and highest amount you charge for this service.",
-    "pricingQuoteHint": "The listing will say “price negotiable”. You’ll agree on an amount before payment.",
+    "pricingQuoteHint": "The listing will show “price to discuss”. The amount is set before payment.",
     "invalidPriceRange": "Maximum must be greater than or equal to minimum.",
     "confirmLabelBudget": "Budget",
     "confirmLabelLocation": "Location",

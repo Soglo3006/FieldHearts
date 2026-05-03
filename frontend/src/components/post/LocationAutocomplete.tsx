@@ -3,6 +3,8 @@
 import { useEffect } from "react";
 import usePlacesAutocomplete, { getGeocode, getLatLng } from "use-places-autocomplete";
 import { useJsApiLoader, type Libraries } from "@react-google-maps/api";
+import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { MapPin } from "lucide-react";
 
@@ -13,6 +15,17 @@ export interface LocationDetails {
   lat: number;
   lng: number;
   city: string;
+}
+
+/** True when the user picked a suggestion and geocoding produced coordinates. */
+export function isResolvedLocationDetails(d: LocationDetails | null | undefined): boolean {
+  return (
+    d != null &&
+    typeof d.lat === "number" &&
+    typeof d.lng === "number" &&
+    Number.isFinite(d.lat) &&
+    Number.isFinite(d.lng)
+  );
 }
 
 interface Props {
@@ -48,8 +61,9 @@ function PlacesInput({ value, onChange, placeholder, id, required }: Props) {
           id={id}
           value={inputValue}
           onChange={(e) => {
-            setValue(e.target.value);
-            onChange(e.target.value);
+            const v = e.target.value;
+            setValue(v);
+            onChange(v, undefined);
           }}
           disabled={!ready}
           placeholder={placeholder}
@@ -85,7 +99,8 @@ function PlacesInput({ value, onChange, placeholder, id, required }: Props) {
                   const city = cityComp?.long_name ?? fallbackCity;
                   onChange(description, { address: description, lat, lng, city });
                 } catch {
-                  onChange(description);
+                  toast.error(t("post.locationGeocodeFailed"));
+                  onChange(description, undefined);
                 }
               }}
             >
@@ -111,7 +126,7 @@ export default function LocationAutocomplete(props: Props) {
         <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
         <Input
           value={props.value}
-          onChange={(e) => props.onChange(e.target.value)}
+          onChange={(e) => props.onChange(e.target.value, undefined)}
           placeholder={props.placeholder}
           id={props.id}
           required={props.required}

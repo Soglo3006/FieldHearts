@@ -95,9 +95,9 @@
     "cardTrustClients_plural": "{{count}} clients"
   },
   "listingPrice": {
-    "quote": "Prix à convenir",
+    "quote": "Prix à discuter",
     "rangeCurrency": "{{min}} – {{max}} $",
-    "quoteTotalsHint": "Le total est fixé après accord sur le prix — commission et taxes au paiement une fois le montant confirmé."
+    "quoteTotalsHint": "Le total est fixé après discussion du prix — commission et taxes au paiement une fois le montant confirmé."
   },
   "notFound": {
     "title": "Page introuvable",
@@ -451,6 +451,9 @@
     "price": "Prix ($)",
     "location": "Emplacement",
     "locationPlaceholder": "ex : 123 Rue Sainte-Catherine, Montréal, QC",
+    "locationPickerHint": "Choisissez une adresse dans la liste de suggestions pour valider l’emplacement.",
+    "locationMustSelectSuggestion": "Sélectionnez une adresse dans la liste pour continuer.",
+    "locationGeocodeFailed": "Impossible de confirmer cette adresse. Choisissez une autre suggestion ou réessayez.",
     "category": "Catégorie",
     "subcategory": "Sous-catégorie",
     "selectCategory": "Choisir une catégorie",
@@ -509,7 +512,7 @@
     "priceMinLabel": "Minimum ($)",
     "priceMaxLabel": "Maximum ($)",
     "pricingRangeHint": "Indiquez les montants minimum et maximum demandés.",
-    "pricingQuoteHint": "L’annonce affichera « prix à convenir ». Le montant est fixé avant le paiement.",
+    "pricingQuoteHint": "L’annonce affichera « prix à discuter ». Le montant est fixé avant le paiement.",
     "invalidPriceRange": "Le maximum doit être supérieur ou égal au minimum.",
     "confirmLabelBudget": "Budget",
     "confirmLabelLocation": "Emplacement",

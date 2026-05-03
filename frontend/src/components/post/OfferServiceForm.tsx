@@ -4,7 +4,10 @@ import { useTranslation } from "react-i18next";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import MultiImageUploader from "@/components/ui/MultiImageUploader";
-import LocationAutocomplete, { type LocationDetails } from "@/components/post/LocationAutocomplete";
+import LocationAutocomplete, {
+  type LocationDetails,
+  isResolvedLocationDetails,
+} from "@/components/post/LocationAutocomplete";
 import CategorySubcategoryFields from "@/components/post/CategorySubcategoryFields";
 import AvailabilityLanguageMobilityFields from "@/components/post/AvailabilityLanguageMobilityFields";
 import OneTimeCheckbox from "@/components/post/OneTimeCheckbox";
@@ -82,17 +85,19 @@ export default function OfferServiceForm({ onSuccess }: Props) {
       Number(priceMin) >= 0.01 &&
       Number(priceMax) >= Number(priceMin));
 
-  /** Same wording as the pricing mode buttons on the form (not listingCard « Prix à convenir »). */
+  /** Same wording as the pricing mode buttons on the form (not listingCard « Prix à discuter »). */
   const confirmPriceSummary =
     pricingMode === "quote"
       ? t("post.pricingModeQuote")
       : formatListingPriceLine(t, offerPricingFields());
 
+  const locationOk = location.trim() !== "" && isResolvedLocationDetails(locationDetails);
+
   const isValid =
     hasRequiredBilingualFields(translations) &&
     category.trim() !== "" &&
     pricingOk &&
-    location.trim() !== "";
+    locationOk;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -276,6 +281,10 @@ export default function OfferServiceForm({ onSuccess }: Props) {
           placeholder={t("post.locationPlaceholder")}
           required
         />
+        <p className="text-xs text-gray-500">{t("post.locationPickerHint")}</p>
+        {location.trim() !== "" && !isResolvedLocationDetails(locationDetails) && (
+          <p className="text-sm text-amber-700">{t("post.locationMustSelectSuggestion")}</p>
+        )}
       </div>
 
       <div className="flex items-start gap-3 px-4 py-3 bg-white border border-gray-200 rounded-lg">

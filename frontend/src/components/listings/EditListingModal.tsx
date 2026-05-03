@@ -7,7 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import MultiImageUploader from "@/components/ui/MultiImageUploader";
-import LocationAutocomplete, { type LocationDetails } from "@/components/post/LocationAutocomplete";
+import LocationAutocomplete, {
+  type LocationDetails,
+  isResolvedLocationDetails,
+} from "@/components/post/LocationAutocomplete";
 import CategorySubcategoryFields from "@/components/post/CategorySubcategoryFields";
 import AvailabilityLanguageMobilityFields from "@/components/post/AvailabilityLanguageMobilityFields";
 import PostSelect from "@/components/post/PostSelect";
@@ -112,11 +115,17 @@ export default function EditListingModal({ service, accessToken, onClose, onSave
   const [priceMin, setPriceMin] = useState(() => seedPricingFromService(service).min);
   const [priceMax, setPriceMax] = useState(() => seedPricingFromService(service).max);
   const [location, setLocation] = useState(service.location);
-  const [locationDetails, setLocationDetails] = useState<LocationDetails | null>(
-    service.latitude != null && service.longitude != null
-      ? { address: service.address ?? service.location, lat: service.latitude, lng: service.longitude, city: service.city ?? service.location }
-      : null
-  );
+  const [locationDetails, setLocationDetails] = useState<LocationDetails | null>(() => {
+    const lat = service.latitude != null ? Number(service.latitude) : NaN;
+    const lng = service.longitude != null ? Number(service.longitude) : NaN;
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+    return {
+      address: service.address ?? service.location,
+      lat,
+      lng,
+      city: service.city ?? service.location,
+    };
+  });
   const [category, setCategory] = useState(service.category ?? "");
   const [subcategory, setSubcategory] = useState(service.subcategory ?? "");
   const [posterType, setPosterType] = useState(service.poster_type ?? "");
@@ -166,11 +175,13 @@ export default function EditListingModal({ service, accessToken, onClose, onSave
       Number(priceMin) >= 0.01 &&
       Number(priceMax) >= Number(priceMin));
 
+  const locationOk = location.trim() !== "" && isResolvedLocationDetails(locationDetails);
+
   const isValid =
     hasRequiredBilingualFields(translations) &&
     category.trim() !== "" &&
     pricingOk &&
-    location.trim() !== "";
+    locationOk;
 
   const handleSave = async () => {
     if (!isValid) {
@@ -378,6 +389,10 @@ export default function EditListingModal({ service, accessToken, onClose, onSave
               onChange={(val, details) => { setLocation(val); setLocationDetails(details ?? null); }}
               placeholder={t("post.locationPlaceholder")}
             />
+            <p className="text-xs text-gray-500">{t("post.locationPickerHint")}</p>
+            {location.trim() !== "" && !isResolvedLocationDetails(locationDetails) && (
+              <p className="text-sm text-amber-700">{t("post.locationMustSelectSuggestion")}</p>
+            )}
           </div>
 
           {/* Hide exact location */}

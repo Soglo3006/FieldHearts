@@ -88,7 +88,7 @@ export function formatListingPriceLine(
 export function listingMetaPriceSegment(service: ListingPricingFields, lang: "en" | "fr"): string {
   const mode = normalizePricingMode(service.pricing_mode);
   if (mode === "quote") {
-    return lang === "en" ? "Price to be agreed" : "Prix à convenir";
+    return lang === "en" ? "Price to discuss" : "Prix à discuter";
   }
   const lo = parseListingPriceNum(service.price_min ?? service.price);
   const hi = parseListingPriceNum(service.price_max);
@@ -97,5 +97,5 @@ export function listingMetaPriceSegment(service: ListingPricingFields, lang: "en
   }
   const p = parseListingPriceNum(service.price);
   if (p != null) return `${p.toFixed(2)} $`;
-  return lang === "en" ? "Price to be agreed" : "Prix à convenir";
+  return lang === "en" ? "Price to discuss" : "Prix à discuter";
 }

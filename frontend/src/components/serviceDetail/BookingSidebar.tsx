@@ -15,7 +15,7 @@ interface Props {
   serviceType: "offer" | "looking";
   /** Preformatted line for service price / budget / range / quote. */
   displayPriceLabel: string;
-  /** Null when price is “to be agreed” — totals are not estimated yet. */
+  /** Null when price is “to discuss” — totals are not estimated yet. */
   estimatedTotalBase: number | null;
   /** High end of service/budget range; when set above `estimatedTotalBase`, commission/taxes/total show as ranges. */
   estimatedTotalBaseMax?: number | null;

@@ -37,6 +37,7 @@ interface Props {
 }
 
 function PlacesInput({ value, onChange, placeholder, id, required }: Props) {
+  const { t } = useTranslation();
   const {
     ready,
     value: inputValue,

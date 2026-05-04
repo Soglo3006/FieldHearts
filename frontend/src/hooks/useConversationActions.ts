@@ -32,7 +32,7 @@ interface Params {
 export function useConversationActions({
   activeChatId, userId, otherUser, chats, isArchived,
   setIsBlocked, setIsMuted, setShowSettings, setActiveChatId,
-  removeChat, archiveChat,
+  removeChat, archiveChat, onBlockedUser,
 }: Params) {
   const router = useRouter();
 

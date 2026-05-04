@@ -97,7 +97,7 @@ export default function UserProfilePage() {
       }
     };
     fetchProfile();
-  }, [profileId, user, session?.access_token]);
+  }, [profileId, user, session?.access_token, t]);
 
   useEffect(() => {
     if (!profileId) return;
@@ -116,7 +116,7 @@ export default function UserProfilePage() {
       })
       .catch(() => setUserListings([]))
       .finally(() => setListingsLoading(false));
-  }, [profileId]);
+  }, [profileId, session?.access_token]);
 
   useEffect(() => {
     if (!profileId || authLoading) return;

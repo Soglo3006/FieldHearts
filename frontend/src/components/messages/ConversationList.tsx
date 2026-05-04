@@ -51,8 +51,6 @@ interface ConversationListProps {
   onNewConversation?: () => void;
   newConversationMode?: boolean;
   pendingUser?: { id: string; full_name?: string; company_name?: string; account_type?: string; avatar_url?: string | null } | null;
-  pendingUserActive?: boolean;
-  onPendingUserSelect?: () => void;
 }
 
 function ConversationItem({
@@ -207,8 +205,6 @@ export function ConversationList({
   onNewConversation,
   newConversationMode,
   pendingUser,
-  pendingUserActive,
-  onPendingUserSelect,
 }: ConversationListProps) {
   const { t } = useTranslation();
   const [filter, setFilter] = useState<string>('all');
@@ -298,31 +294,6 @@ export function ConversationList({
 
       {/* Conversations list */}
       <ScrollArea className="flex-1 min-h-0">
-        {/* Pending user: selected from new conversation, waiting for chat to load */}
-        {pendingUser && (() => {
-          const name = pendingUser.account_type === 'company'
-            ? pendingUser.company_name || ''
-            : pendingUser.full_name || '';
-          return (
-            <div
-              onClick={onPendingUserSelect}
-              className={`p-4 border-b border-l-4 transition-colors ${pendingUserActive ? 'bg-green-50 border-l-green-700' : 'border-l-transparent hover:bg-gray-50'} ${onPendingUserSelect ? 'cursor-pointer' : ''}`}
-            >
-              <div className="flex items-center gap-3">
-                <Avatar className="h-12 w-12 border-4 border-white shadow-lg">
-                  {pendingUser.avatar_url ? <AvatarImage src={pendingUser.avatar_url} alt={name} /> : null}
-                  <AvatarFallback className="text-lg bg-green-100 text-green-800 font-semibold">
-                    {name.charAt(0).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-gray-900 truncate">{name}</p>
-                  <p className="text-sm text-gray-500 truncate">{t("messages.noMessagesYet")}</p>
-                </div>
-              </div>
-            </div>
-          );
-        })()}
         {/* "Nouveau message" item pinned at top when composing */}
         {newConversationMode && !pendingUser && (
           <div className="p-4 border-b bg-green-50 border-l-4 border-l-green-700">

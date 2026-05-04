@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/contexts/AuthContext';
-import { getOrCreateDirectChat } from '@/lib/chatUtils';
 import { supabase } from '@/lib/supabaseClient';
 import { toast } from 'sonner';
 
@@ -37,20 +36,11 @@ export function useStartConversation() {
       return;
     }
 
+    // Open a draft conversation shell. The real chat is created
+    // only when the first message is sent from the messages page.
     setLoading(true);
-
     try {
-      // Créer ou obtenir la conversation
-      const chatId = await getOrCreateDirectChat(otherUserId);
-
-      if (chatId) {
-        // Rediriger vers la page messages avec ce chat ouvert
-        router.push(`/messages?chat=${chatId}`);
-      } else {
-        toast.error('Failed to create conversation. Please try again.');
-      }
-    } catch (error) {
-      toast.error('An error occurred. Please try again.');
+      router.push(`/messages?compose=${encodeURIComponent(otherUserId)}`);
     } finally {
       setLoading(false);
     }

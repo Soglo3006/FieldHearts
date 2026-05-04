@@ -40,6 +40,7 @@ function MessagesContent() {
 
   const searchParams = useSearchParams();
   const chatIdFromUrl = searchParams.get('chat');
+  const composeUserIdFromUrl = searchParams.get('compose');
   const router = useRouter();
 
   const { chats, loading: chatsLoading, clearUnreadCount, archiveChat, removeChat, updateLastMessage, refreshChats } = useChats();
@@ -225,14 +226,64 @@ function MessagesContent() {
   }, [chatIdFromUrl, activeChatId, isMobile]);
 
   useEffect(() => {
+    if (!composeUserIdFromUrl || !user?.id) return;
+    if (composeUserIdFromUrl === user.id) return;
+
+    let cancelled = false;
+    const existingChat = chats.find((chat) => chat.other_user?.id === composeUserIdFromUrl);
+    if (existingChat) {
+      setPendingNewConvUser(null);
+      setNewConversationMode(false);
+      setManualMobileListView(false);
+      setActiveChatId(existingChat.id);
+      router.replace(`/messages?chat=${existingChat.id}`);
+      if (isMobile) setShowMobileChat(true);
+      return;
+    }
+
+    (async () => {
+      try {
+        const headers: HeadersInit = {};
+        if (session?.access_token) {
+          headers.Authorization = `Bearer ${session.access_token}`;
+        }
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/profiles/${composeUserIdFromUrl}`, { headers });
+        if (!res.ok) {
+          if (!cancelled) router.replace('/messages');
+          return;
+        }
+        const profile = await res.json();
+        if (cancelled) return;
+        setPendingNewConvUser({
+          id: composeUserIdFromUrl,
+          full_name: profile?.full_name ?? undefined,
+          company_name: profile?.company_name ?? undefined,
+          account_type: profile?.account_type ?? undefined,
+          avatar_url: profile?.avatar_url ?? profile?.avatar ?? null,
+        });
+        setActiveChatId(null);
+        setNewConversationMode(false);
+        setManualMobileListView(false);
+        if (isMobile) setShowMobileChat(true);
+      } catch {
+        if (!cancelled) router.replace('/messages');
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [composeUserIdFromUrl, chats, user?.id, session?.access_token, router, isMobile]);
+
+  useEffect(() => {
     if (isMobile && manualMobileListView) return;
-    if (chatIdFromUrl || activeChatId || !chats.length || newConversationMode || pendingNewConvUser) return;
+    if (chatIdFromUrl || composeUserIdFromUrl || activeChatId || !chats.length || newConversationMode || pendingNewConvUser) return;
     const firstId = chats[0].id;
     setManualMobileListView(false);
     setActiveChatId(firstId);
     router.replace(`/messages?chat=${firstId}`);
     if (isMobile) setShowMobileChat(true);
-  }, [chats, chatIdFromUrl, activeChatId, isMobile, manualMobileListView, newConversationMode, pendingNewConvUser, router]);
+  }, [chats, chatIdFromUrl, composeUserIdFromUrl, activeChatId, isMobile, manualMobileListView, newConversationMode, pendingNewConvUser, router]);
 
   useEffect(() => {
     if (!activeChatId) return;
@@ -679,19 +730,6 @@ function MessagesContent() {
     if (isMobile) setShowMobileChat(true);
   };
 
-  const handleSelectPendingConversation = () => {
-    if (!pendingNewConvUser) return;
-    setManualMobileListView(false);
-    setNewConversationMode(false);
-    setActiveChatId(null);
-    setShowSettings(false);
-    setShowMobileSidebar(false);
-    setReplyingTo(null);
-    setSuppressThreadLoading(false);
-    router.replace('/messages');
-    if (isMobile) setShowMobileChat(true);
-  };
-
   const scrollToMessage = (messageId: string) => {
     const element = document.getElementById(`message-${messageId}`);
     if (!element) return;
@@ -745,8 +783,6 @@ function MessagesContent() {
                   onNewConversation={openNewConversation}
                   newConversationMode={newConversationMode}
                   pendingUser={pendingNewConvUser}
-                  pendingUserActive={isPendingConversationTransition}
-                  onPendingUserSelect={handleSelectPendingConversation}
                 />
               </div>
 

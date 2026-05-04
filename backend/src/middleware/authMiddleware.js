@@ -92,6 +92,65 @@ export const protect = async (req, res, next) => {
   }
 };
 
+/** Sets req.user when a valid Bearer token is present; otherwise leaves req.user undefined and continues (no 401). */
+export const optionalProtect = async (req, res, next) => {
+  delete req.user;
+  delete req.authUser;
+  delete req._jwtPayload;
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return next();
+    }
+    const token = authHeader.split(" ")[1];
+    if (!token) {
+      return next();
+    }
+    let payload;
+    try {
+      payload = jwt.verify(token, process.env.SUPABASE_JWT_SECRET);
+    } catch {
+      return next();
+    }
+    const userId = payload.sub;
+    const email = payload.email;
+    if (!userId) {
+      return next();
+    }
+    let suspended = getCachedSuspended(userId);
+    if (suspended === null) {
+      const result = await pool.query(
+        "SELECT is_suspended FROM users WHERE id = $1",
+        [userId]
+      );
+      if (result.rows.length === 0) {
+        return next();
+      }
+      suspended = result.rows[0].is_suspended;
+      setCachedSuspended(userId, suspended);
+    }
+    if (suspended) {
+      return next();
+    }
+    req.user = {
+      id: userId,
+      email,
+      full_name: payload.user_metadata?.full_name || email,
+    };
+    req.authUser = {
+      id: userId,
+      email,
+      user_metadata: payload.user_metadata || {},
+      app_metadata: payload.app_metadata || {},
+    };
+    req._jwtPayload = payload;
+    next();
+  } catch (err) {
+    console.error("optionalProtect error:", err);
+    next();
+  }
+};
+
 export const adminOnly = (req, res, next) => {
   try {
     const user  = req.authUser;

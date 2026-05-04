@@ -1120,6 +1120,8 @@
     "microphoneNotAccessible": "Microphone not accessible",
     "blockedByYouNotice": "You blocked this account. This person can no longer send you messages.",
     "blockedByOtherNotice": "You can no longer send messages to this person.",
+    "cannotStartChatBlocked": "You cannot message this person because of a block.",
+    "sidebarProfileRestricted": "Profile and listings are hidden while this account is blocked.",
     "sendingImage": "Sending image...",
     "loadingImage": "Loading image...",
     "unableToLoadImage": "Unable to load image",

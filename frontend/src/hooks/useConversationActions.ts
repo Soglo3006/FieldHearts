@@ -25,6 +25,8 @@ interface Params {
   setActiveChatId: (v: string | null) => void;
   removeChat: (id: string) => void;
   archiveChat: (id: string, archived: boolean) => void;
+  /** Called after a successful block insert so the UI can refresh local block lists */
+  onBlockedUser?: (blockedUserId: string) => void;
 }
 
 export function useConversationActions({
@@ -73,8 +75,9 @@ export function useConversationActions({
       .insert({ blocker_id: userId, blocked_user_id: otherUser.id });
     if (error && error.code !== "23505") throw error;
     setIsBlocked(true);
+    onBlockedUser?.(otherUser.id);
     setShowSettings(false);
-  }, [otherUser, userId, setIsBlocked, setShowSettings]);
+  }, [otherUser, userId, setIsBlocked, setShowSettings, onBlockedUser]);
 
   const handleReportUser = useCallback(async (reason: string, details: string) => {
     if (!otherUser?.id) return;

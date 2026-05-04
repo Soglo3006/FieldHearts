@@ -1,4 +1,12 @@
 import pool from "../config/db.js";
+import { createClient } from "@supabase/supabase-js";
+
+const supabaseAdmin =
+  process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY
+    ? createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {
+        auth: { autoRefreshToken: false, persistSession: false },
+      })
+    : null;
 import { validateInput, sanitizeText } from "../utils/validate.js";
 import { expandLocationILIKEpatterns } from "../utils/caLocationFilter.js";
 import { sanitizeListingTranslations, canonicalListingTexts } from "../utils/serviceTranslations.js";
@@ -660,6 +668,19 @@ export const updateService = async (req, res) => {
 export const getUserServices = async (req, res) => {
   try {
     const { userId } = req.params;
+    const viewerId = req.user?.id;
+
+    if (viewerId && viewerId !== userId && supabaseAdmin) {
+      const { data: blockedRow } = await supabaseAdmin
+        .from("blocked_users")
+        .select("id")
+        .eq("blocker_id", userId)
+        .eq("blocked_user_id", viewerId)
+        .maybeSingle();
+      if (blockedRow) {
+        return res.json([]);
+      }
+    }
 
     const result = await pool.query(
       `SELECT

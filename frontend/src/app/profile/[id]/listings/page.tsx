@@ -38,19 +38,21 @@ interface Service extends ServiceLikeWithI18n {
 export default function UserListingsPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const { user, loading: authLoading } = useAuth();
+  const { user, session, loading: authLoading } = useAuth();
   const { t, i18n } = useTranslation();
   const [listings, setListings] = useState<Service[]>([]);
   const [ownerName, setOwnerName] = useState("");
   const [loading, setLoading] = useState(true);
   const [blockResolved, setBlockResolved] = useState(false);
   const [blockedByMe, setBlockedByMe] = useState(false);
+  const [blockedByOther, setBlockedByOther] = useState(false);
 
   useEffect(() => {
     if (!id || authLoading) return;
 
     if (!user || user.id === id) {
       setBlockedByMe(false);
+      setBlockedByOther(false);
       setBlockResolved(true);
       return;
     }
@@ -58,15 +60,25 @@ export default function UserListingsPage() {
     let cancelled = false;
     setBlockResolved(false);
     setBlockedByMe(false);
+    setBlockedByOther(false);
     (async () => {
-      const { data } = await supabase
-        .from("blocked_users")
-        .select("id")
-        .eq("blocker_id", user.id)
-        .eq("blocked_user_id", id)
-        .maybeSingle();
+      const [{ data: iBlocked }, { data: theyBlocked }] = await Promise.all([
+        supabase
+          .from("blocked_users")
+          .select("id")
+          .eq("blocker_id", user.id)
+          .eq("blocked_user_id", id)
+          .maybeSingle(),
+        supabase
+          .from("blocked_users")
+          .select("id")
+          .eq("blocker_id", id)
+          .eq("blocked_user_id", user.id)
+          .maybeSingle(),
+      ]);
       if (cancelled) return;
-      setBlockedByMe(!!data);
+      setBlockedByMe(!!iBlocked);
+      setBlockedByOther(!!theyBlocked);
       setBlockResolved(true);
     })();
 
@@ -81,13 +93,23 @@ export default function UserListingsPage() {
   }, [blockResolved, blockedByMe, user, id, router]);
 
   useEffect(() => {
+    if (!blockResolved || !user || user.id === id || !blockedByOther) return;
+    router.replace(`/profile/${id}`);
+  }, [blockResolved, blockedByOther, user, id, router]);
+
+  useEffect(() => {
     if (!id) return;
     const guestOrOwner = !user || user.id === id;
     if (!guestOrOwner && !blockResolved) return;
     if (user && user.id !== id && blockedByMe) return;
+    if (user && user.id !== id && blockedByOther) return;
 
     setLoading(true);
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/services/user/${id}`)
+    const headers: HeadersInit = {};
+    if (session?.access_token) {
+      headers.Authorization = `Bearer ${session.access_token}`;
+    }
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/services/user/${id}`, { headers })
       .then((r) => r.json())
       .then((data) => {
         if (Array.isArray(data)) {
@@ -103,11 +125,13 @@ export default function UserListingsPage() {
         setOwnerName("");
       })
       .finally(() => setLoading(false));
-  }, [id, blockResolved, user, blockedByMe]);
+  }, [id, blockResolved, user, blockedByMe, blockedByOther, session?.access_token]);
 
   const viewingOtherWhileLoggedIn = Boolean(user && id && user.id !== id);
   const blockPending = viewingOtherWhileLoggedIn && !blockResolved;
-  const redirecting = Boolean(blockResolved && user && id && user.id !== id && blockedByMe);
+  const redirecting = Boolean(
+    blockResolved && user && id && user.id !== id && (blockedByMe || blockedByOther),
+  );
 
   if (authLoading || blockPending || redirecting) {
     return (

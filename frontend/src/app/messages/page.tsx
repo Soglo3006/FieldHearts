@@ -59,6 +59,12 @@ function MessagesContent() {
   const [isBlocked, setIsBlocked] = useState(false);
   const [isBlockedByOther, setIsBlockedByOther] = useState(false);
   const [blockCheckLoading, setBlockCheckLoading] = useState(false);
+  /** Users I blocked (by id) and users who blocked me — used to filter new-message search & suggestions */
+  const [idsIBlocked, setIdsIBlocked] = useState<Set<string>>(() => new Set());
+  const [idsWhoBlockedMe, setIdsWhoBlockedMe] = useState<Set<string>>(() => new Set());
+  const [pendingBlockCheckLoading, setPendingBlockCheckLoading] = useState(false);
+  const [pendingIsBlocked, setPendingIsBlocked] = useState(false);
+  const [pendingIsBlockedByOther, setPendingIsBlockedByOther] = useState(false);
   const [replyingTo, setReplyingTo] = useState<{
     id: string; content: string; user_id: string; sender_name?: string;
   } | null>(null);
@@ -135,11 +141,15 @@ function MessagesContent() {
   const { togglePin } = usePinMessage();
 
   const activeChat = chats.find(c => c.id === activeChatId);
-  const hasActiveChat = !!activeChat;
   const activeOtherUserId = activeChat?.other_user?.id ?? null;
   const displayedConversationUser = pendingNewConvUser ?? activeChat?.other_user;
   const isPendingConversationTransition = !!pendingNewConvUser && !activeChatId;
-  const shouldSyncSidebarLoading = !!activeChat && !showSettings && (isLargeScreen || showMobileSidebar);
+  const isMessagingBlockedWith = (uid: string) =>
+    Boolean(uid && (idsIBlocked.has(uid) || idsWhoBlockedMe.has(uid)));
+  const shouldSyncSidebarLoading =
+    !showSettings
+    && (isLargeScreen || showMobileSidebar)
+    && (!!activeChat || !!pendingNewConvUser);
   const isConversationShellLoading = !!activeChat
     && !newConversationMode
     && !isPendingConversationTransition
@@ -158,16 +168,22 @@ function MessagesContent() {
     previousChatIdRef.current = null;
   }, [activeOtherUserId, pendingNewConvUser?.id]);
   useEffect(() => {
-    if (!hasActiveChat || !activeChatId || newConversationMode || isPendingConversationTransition) {
+    if (newConversationMode) {
       previousSidebarChatIdRef.current = null;
       setIsProfileSidebarLoading(false);
       return;
     }
-    if (activeChatId !== previousSidebarChatIdRef.current) {
-      previousSidebarChatIdRef.current = activeChatId;
+    const sidebarKey = activeChatId ?? (pendingNewConvUser?.id ?? null);
+    if (!sidebarKey) {
+      previousSidebarChatIdRef.current = null;
+      setIsProfileSidebarLoading(false);
+      return;
+    }
+    if (sidebarKey !== previousSidebarChatIdRef.current) {
+      previousSidebarChatIdRef.current = sidebarKey;
       setIsProfileSidebarLoading(true);
     }
-  }, [activeChatId, hasActiveChat, newConversationMode, isPendingConversationTransition]);
+  }, [activeChatId, pendingNewConvUser?.id, newConversationMode]);
   usePresence(user?.id || null);
   const { sendTyping } = useTypingIndicator(activeChatId, user?.id ?? null);
   const isTyping = useIsTyping(activeChatId, activeChat?.other_user?.id);
@@ -185,6 +201,9 @@ function MessagesContent() {
     setActiveChatId,
     removeChat,
     archiveChat,
+    onBlockedUser: (blockedUserId) => {
+      setIdsIBlocked((prev) => new Set(prev).add(blockedUserId));
+    },
   });
 
   useEffect(() => {
@@ -245,11 +264,62 @@ function MessagesContent() {
     return () => { cancelled = true; };
   }, [activeChatId, user?.id, activeChat?.other_user?.id]);
 
+  useEffect(() => {
+    if (!user?.id) {
+      setIdsIBlocked(new Set());
+      setIdsWhoBlockedMe(new Set());
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const [{ data: out }, { data: inb }] = await Promise.all([
+        supabase.from("blocked_users").select("blocked_user_id").eq("blocker_id", user.id),
+        supabase.from("blocked_users").select("blocker_id").eq("blocked_user_id", user.id),
+      ]);
+      if (cancelled) return;
+      setIdsIBlocked(new Set((out ?? []).map((r) => String(r.blocked_user_id))));
+      setIdsWhoBlockedMe(new Set((inb ?? []).map((r) => String(r.blocker_id))));
+    })();
+    return () => { cancelled = true; };
+  }, [user?.id]);
+
+  useEffect(() => {
+    const otherId = pendingNewConvUser?.id;
+    if (!otherId || !user?.id || activeChatId) {
+      setPendingBlockCheckLoading(false);
+      setPendingIsBlocked(false);
+      setPendingIsBlockedByOther(false);
+      return;
+    }
+    let cancelled = false;
+    setPendingBlockCheckLoading(true);
+    (async () => {
+      const [{ data: iBlockedThem }, { data: theyBlockedMe }] = await Promise.all([
+        supabase.from("blocked_users").select("id").eq("blocker_id", user.id).eq("blocked_user_id", otherId).maybeSingle(),
+        supabase.from("blocked_users").select("id").eq("blocker_id", otherId).eq("blocked_user_id", user.id).maybeSingle(),
+      ]);
+      if (cancelled) return;
+      setPendingIsBlocked(!!iBlockedThem);
+      setPendingIsBlockedByOther(!!theyBlockedMe);
+      setPendingBlockCheckLoading(false);
+    })().catch(() => { if (!cancelled) setPendingBlockCheckLoading(false); });
+    return () => { cancelled = true; };
+  }, [pendingNewConvUser?.id, user?.id, activeChatId]);
+
   const handleUnblock = async () => {
-    if (!user?.id || !activeChat?.other_user?.id) return;
-    const { error } = await supabase.from('blocked_users').delete()
-      .eq('blocker_id', user.id).eq('blocked_user_id', activeChat.other_user.id);
-    if (!error) setIsBlocked(false);
+    const otherId = activeChat?.other_user?.id ?? pendingNewConvUser?.id;
+    if (!user?.id || !otherId) return;
+    const { error } = await supabase.from("blocked_users").delete()
+      .eq("blocker_id", user.id).eq("blocked_user_id", otherId);
+    if (!error) {
+      setIsBlocked(false);
+      setPendingIsBlocked(false);
+      setIdsIBlocked((prev) => {
+        const n = new Set(prev);
+        n.delete(otherId);
+        return n;
+      });
+    }
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -293,12 +363,19 @@ function MessagesContent() {
     setShowMobileSidebar(false);
     setReplyingTo(null);
     setMessageInput('');
+    setPendingIsBlocked(false);
+    setPendingIsBlockedByOther(false);
+    setPendingBlockCheckLoading(false);
     removeAttachment();
   };
 
   const ensureChatForDraftConversation = async (options?: { activate?: boolean }) => {
     if (activeChatId) return activeChatId;
     if (!pendingNewConvUser) return null;
+    if (pendingIsBlocked || pendingIsBlockedByOther) {
+      toast.error(t("messages.cannotStartChatBlocked"));
+      return null;
+    }
 
     const { getOrCreateDirectChat } = await import('@/lib/chatUtils');
     const chatId = await getOrCreateDirectChat(pendingNewConvUser.id);
@@ -323,6 +400,10 @@ function MessagesContent() {
 
   const handleSendMessage = async () => {
     if (!messageInput.trim() && !attachedFile) return;
+    if (!activeChatId && pendingNewConvUser && (pendingIsBlocked || pendingIsBlockedByOther)) {
+      toast.error(t("messages.cannotStartChatBlocked"));
+      return;
+    }
 
     const isDraftConversation = !activeChatId && !!pendingNewConvUser;
     let uploadedFilePath: string | null = null;
@@ -442,6 +523,10 @@ function MessagesContent() {
   };
 
   const handleVoiceMessage = async (audioBlob: Blob, duration: number) => {
+    if (!activeChatId && pendingNewConvUser && (pendingIsBlocked || pendingIsBlockedByOther)) {
+      toast.error(t("messages.cannotStartChatBlocked"));
+      return;
+    }
     const isDraftConversation = !activeChatId && !!pendingNewConvUser;
     let uploadedFilePath: string | null = null;
     let targetChatId: string | null = null;
@@ -568,6 +653,10 @@ function MessagesContent() {
   }, [newConvSearch, newConversationMode, session?.access_token]);
 
   const handleSelectNewConvUser = async (otherUserId: string, userInfo: { id: string; full_name?: string; company_name?: string; account_type?: string; avatar_url?: string | null }) => {
+    if (isMessagingBlockedWith(otherUserId)) {
+      toast.error(t("messages.cannotStartChatBlocked"));
+      return;
+    }
     setManualMobileListView(false);
     const existingChat = chats.find((chat) => chat.other_user?.id === otherUserId);
     if (existingChat) {
@@ -723,9 +812,9 @@ function MessagesContent() {
                     />
 
                     <ChatInputArea
-                      blockCheckLoading={false}
-                      isBlocked={false}
-                      isBlockedByOther={false}
+                      blockCheckLoading={pendingBlockCheckLoading}
+                      isBlocked={pendingIsBlocked}
+                      isBlockedByOther={pendingIsBlockedByOther}
                       replyingTo={replyingTo}
                       onCancelReply={() => setReplyingTo(null)}
                       otherUserName={otherUserName}
@@ -775,16 +864,24 @@ function MessagesContent() {
                     <div className="flex-1 overflow-y-auto">
                       {newConvSearching ? (
                         <div className="flex justify-center py-8"><Spinner size="md" /></div>
-                      ) : newConvSearch.trim() && newConvResults.length === 0 ? (
-                        <div className="py-8 text-center text-gray-400 text-sm">{t("messages.noUsersFound")}</div>
-                      ) : (
+                      ) : (() => {
+                        const rawRows = newConvSearch.trim()
+                          ? newConvResults
+                          : chats.filter((c) => !c.is_archived).map((c) => c.other_user).filter(Boolean);
+                        const rows = rawRows.filter((u) => {
+                          const id = (u as { id?: string })?.id;
+                          return Boolean(id && !isMessagingBlockedWith(String(id)));
+                        });
+                        return rows.length === 0 ? (
+                          <div className="py-8 text-center text-gray-400 text-sm">{t("messages.noUsersFound")}</div>
+                        ) : (
                         <>
                           {/* Section header */}
                           <p className="px-4 pt-4 pb-2 text-xs font-semibold text-gray-400 uppercase tracking-wide">
                             {newConvSearch.trim() ? t("messages.results") : t("messages.suggestedContacts")}
                           </p>
                           {/* Show existing contacts when not searching, search results when searching */}
-                          {(newConvSearch.trim() ? newConvResults : chats.filter(c => !c.is_archived).map(c => c.other_user).filter(Boolean)).map((u) => {
+                          {rows.map((u) => {
                             if (!u) return null;
                             const displayName = (u as { account_type?: string; company_name?: string; full_name?: string; id?: string; avatar_url?: string | null }).account_type === 'company'
                               ? (u as { company_name?: string }).company_name || ''
@@ -809,7 +906,8 @@ function MessagesContent() {
                             );
                           })}
                         </>
-                      )}
+                        );
+                      })()}
                     </div>
                   </>
                 ) : activeChat ? (
@@ -942,9 +1040,10 @@ function MessagesContent() {
                     otherUser={displayedConversationUser}
                     onClose={!isLargeScreen ? () => setShowMobileSidebar(false) : undefined}
                     onOpenSettings={!isLargeScreen && activeChat ? () => setShowSettings(true) : undefined}
-                    isBlocked={isBlocked}
-                    isBlockedByOther={isBlockedByOther}
-                    blockCheckLoading={blockCheckLoading}
+                    isBlocked={pendingNewConvUser ? pendingIsBlocked : isBlocked}
+                    isBlockedByOther={pendingNewConvUser ? pendingIsBlockedByOther : isBlockedByOther}
+                    blockCheckLoading={pendingNewConvUser ? pendingBlockCheckLoading : blockCheckLoading}
+                    accessToken={session?.access_token}
                     onLoadingChange={setIsProfileSidebarLoading}
                   />
                 </div>

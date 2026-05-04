@@ -80,9 +80,11 @@ export default function UserProfilePage() {
         setProfileUser(null);
         let url = `${process.env.NEXT_PUBLIC_API_URL}/profiles/${profileId}`;
         const headers: HeadersInit = {};
+        if (session?.access_token) {
+          headers.Authorization = `Bearer ${session.access_token}`;
+        }
         if (user && user.id === profileId && session?.access_token) {
           url = `${process.env.NEXT_PUBLIC_API_URL}/profiles/me`;
-          headers.Authorization = `Bearer ${session.access_token}`;
         }
         const res = await fetch(url, { headers });
         if (!res.ok) throw new Error("Profile not found");
@@ -95,12 +97,16 @@ export default function UserProfilePage() {
       }
     };
     fetchProfile();
-  }, [profileId]);
+  }, [profileId, user, session?.access_token]);
 
   useEffect(() => {
     if (!profileId) return;
     setListingsLoading(true);
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/services/user/${profileId}`)
+    const headers: HeadersInit = {};
+    if (session?.access_token) {
+      headers.Authorization = `Bearer ${session.access_token}`;
+    }
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/services/user/${profileId}`, { headers })
       .then((r) => r.json())
       .then((data) => {
         const sorted = Array.isArray(data)
@@ -162,6 +168,20 @@ export default function UserProfilePage() {
           <div className="text-center">
             <h1 className="text-2xl font-bold text-gray-900 mb-4">{t("profile.profileNotFound")}</h1>
             <p className="text-gray-600">{error || t("profile.profileNotFoundDesc")}</p>
+            <Link href="/"><Button className="mt-4 bg-green-700 hover:bg-green-800 text-white">{t("notFound.goHome")}</Button></Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (viewingOtherWhileLoggedIn && blockResolved && isBlockedByOther) {
+    return (
+      <div className="min-h-screen bg-white">
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="text-center">
+            <h1 className="text-2xl font-bold text-gray-900 mb-4">{t("profile.profileNotFound")}</h1>
+            <p className="text-gray-600">{t("profile.profileNotFoundDesc")}</p>
             <Link href="/"><Button className="mt-4 bg-green-700 hover:bg-green-800 text-white">{t("notFound.goHome")}</Button></Link>
           </div>
         </div>

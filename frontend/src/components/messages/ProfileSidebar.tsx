@@ -43,10 +43,12 @@ interface ProfileSidebarProps {
   isBlocked?: boolean;
   isBlockedByOther?: boolean;
   blockCheckLoading?: boolean;
+  /** When set, listing fetch uses API block rules for the current viewer */
+  accessToken?: string | null;
   onLoadingChange?: (loading: boolean) => void;
 }
 
-export function ProfileSidebar({ otherUser, onClose, onOpenSettings, isBlocked, isBlockedByOther, blockCheckLoading, onLoadingChange }: ProfileSidebarProps) {
+export function ProfileSidebar({ otherUser, onClose, onOpenSettings, isBlocked, isBlockedByOther, blockCheckLoading, accessToken, onLoadingChange }: ProfileSidebarProps) {
   const { t, i18n } = useTranslation();
   useScrollLock(true);
   const [userListings, setUserListings] = useState<SidebarListing[]>([]);
@@ -77,8 +79,13 @@ export function ProfileSidebar({ otherUser, onClose, onOpenSettings, isBlocked, 
 
       setListingsLoading(true);
       try {
+        const headers: HeadersInit = {};
+        if (accessToken) {
+          headers.Authorization = `Bearer ${accessToken}`;
+        }
         const response = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/services/user/${otherUser.id}`
+          `${process.env.NEXT_PUBLIC_API_URL}/services/user/${otherUser.id}`,
+          { headers }
         );
 
         if (!response.ok) {
@@ -97,7 +104,7 @@ export function ProfileSidebar({ otherUser, onClose, onOpenSettings, isBlocked, 
     };
 
     fetchUserListings();
-  }, [otherUser?.id]);
+  }, [otherUser?.id, accessToken]);
 
   useEffect(() => {
     const fetchReviews = async () => {
@@ -204,9 +211,19 @@ export function ProfileSidebar({ otherUser, onClose, onOpenSettings, isBlocked, 
               </AvatarFallback>
             </Avatar>
 
-            <Link href={`/profile/${otherUser.id}`} className="hover:underline">
-              <h4 className="text-lg font-semibold">{displayName}</h4>
-            </Link>
+            {blocked ? (
+              <h4 className="text-lg font-semibold text-gray-900">{displayName}</h4>
+            ) : (
+              <Link href={`/profile/${otherUser.id}`} className="hover:underline">
+                <h4 className="text-lg font-semibold">{displayName}</h4>
+              </Link>
+            )}
+
+            {blocked && (
+              <p className="mt-2 text-xs text-gray-500 px-1 leading-relaxed">
+                {t("messages.sidebarProfileRestricted")}
+              </p>
+            )}
 
             {/* Rating — en dessous du nom, masqué si bloqué */}
             {!blocked && (

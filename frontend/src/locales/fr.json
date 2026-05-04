@@ -1116,6 +1116,8 @@
     "microphoneNotAccessible": "Microphone non accessible",
     "blockedByYouNotice": "Vous avez bloqué ce compte. Cette personne ne peut plus vous envoyer de messages.",
     "blockedByOtherNotice": "Vous ne pouvez plus envoyer de messages à cette personne.",
+    "cannotStartChatBlocked": "Vous ne pouvez pas écrire à cette personne en raison d'un blocage.",
+    "sidebarProfileRestricted": "Le profil et les annonces sont masqués tant que ce compte est bloqué.",
     "sendingImage": "Envoi de l'image...",
     "loadingImage": "Chargement de l'image...",
     "unableToLoadImage": "Impossible de charger l'image",

@@ -462,6 +462,20 @@ export const getUserProfile = async (req, res) => {
         
         const user = userResult.rows[0];
 
+        // Viewer was blocked by this profile owner — treat as not found (no profile or listings visibility)
+        const viewerId = req.user?.id;
+        if (viewerId && viewerId !== id) {
+            const { data: blockedRow } = await supabaseAdmin
+                .from("blocked_users")
+                .select("id")
+                .eq("blocker_id", id)
+                .eq("blocked_user_id", viewerId)
+                .maybeSingle();
+            if (blockedRow) {
+                return res.status(404).json({ message: "Profile not found" });
+            }
+        }
+
         const serviceUser = await pool.query(
             `SELECT COUNT(*) AS total_services FROM services WHERE user_id = $1`,
             [id]
@@ -559,7 +573,21 @@ export const searchProfiles = async (req, res) => {
       .limit(20);
 
     if (error) throw error;
-    res.json(data ?? []);
+    const rows = data ?? [];
+    if (rows.length === 0) return res.json([]);
+
+    const ids = rows.map((p) => p.id).filter(Boolean);
+    if (ids.length === 0) return res.json([]);
+    const [{ data: iBlocked }, { data: blockedMe }] = await Promise.all([
+      supabaseAdmin.from("blocked_users").select("blocked_user_id").eq("blocker_id", req.user.id).in("blocked_user_id", ids),
+      supabaseAdmin.from("blocked_users").select("blocker_id").eq("blocked_user_id", req.user.id).in("blocker_id", ids),
+    ]);
+    const exclude = new Set([
+      ...(iBlocked || []).map((r) => r.blocked_user_id),
+      ...(blockedMe || []).map((r) => r.blocker_id),
+    ]);
+    const filtered = rows.filter((p) => !exclude.has(p.id));
+    res.json(filtered);
   } catch (err) {
     console.error('Error searching profiles:', err);
     res.status(500).json({ message: 'Server error' });

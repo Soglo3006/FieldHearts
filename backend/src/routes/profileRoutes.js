@@ -1,5 +1,5 @@
 import express from "express";
-import { protect, adminOnly } from "../middleware/authMiddleware.js";
+import { protect, adminOnly, optionalProtect } from "../middleware/authMiddleware.js";
 import { completeProfile, GetMyProfile, UpdateMyProfile, getUserProfile, getSettings, updateSettings, searchProfiles, suspendUser, getAllUsers } from "../controllers/profileController.js";
 import pool from "../config/db.js";
 
@@ -31,6 +31,6 @@ router.put("/settings", protect, updateSettings);
 router.get("/search", protect, searchProfiles);
 router.get("/admin/all", protect, adminOnly, getAllUsers);
 router.put("/:id/suspend", protect, adminOnly, suspendUser);
-router.get("/:id", getUserProfile);
+router.get("/:id", optionalProtect, getUserProfile);
 
 export default router;

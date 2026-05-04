@@ -636,15 +636,8 @@ export default function BookingDetailModal({
               </div>
             )}
 
-            {/* Service info (titre dans l’en-tête du modal) */}
-            <div>
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-gray-500 mb-2">
-                {booking.category && <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full text-xs">{booking.category}</span>}
-                {booking.service_location && (
-                  <span className="flex items-center gap-1"><MapPin className="h-3.5 w-3.5" />{booking.service_location}</span>
-                )}
-              </div>
-              {(() => {
+            {/* Payment breakdown — top */}
+            {(() => {
                 const base = Number(booking.custom_price ?? booking.price);
                 const origBase = Number(booking.price);
                 const fmt = (n: number) => n.toFixed(2);
@@ -670,7 +663,7 @@ export default function BookingDetailModal({
                             <TrendingDown className="h-3.5 w-3.5 text-gray-500" />
                             <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{t("bookings.clientPaid")}</span>
                           </div>
-                          <CardContent className="p-4 space-y-2 text-sm">
+                          <CardContent className="px-4 pt-0 pb-4 space-y-2 text-sm">
                             <div className="flex justify-between text-gray-600">
                               <span>{t("serviceDetail.servicePrice")}</span>
                               <span className="font-medium">{fmt(base)} $</span>
@@ -704,7 +697,7 @@ export default function BookingDetailModal({
                               {disputeFinancialOutcome.hasFinancialAdjustment ? t("bookings.workerPayoutAfterDecision") : t("bookings.workerPayout")}
                             </span>
                           </div>
-                          <CardContent className="p-4 space-y-2 text-sm">
+                          <CardContent className="px-4 pt-0 pb-4 space-y-2 text-sm">
                             <div className="flex justify-between text-gray-600">
                               <span>{t("serviceDetail.servicePrice")}</span>
                               <span className="font-medium">{fmt(base)} $</span>
@@ -740,7 +733,7 @@ export default function BookingDetailModal({
                           <TrendingDown className="h-3.5 w-3.5 text-gray-500" />
                           <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{t("bookings.totalPaid")}</span>
                         </div>
-                        <CardContent className="p-4 space-y-2 text-sm">
+                        <CardContent className="px-4 pt-0 pb-4 space-y-2 text-sm">
                           <div className="flex justify-between text-gray-600">
                             <span>{t("serviceDetail.servicePrice")}</span>
                             <span className="font-medium">
@@ -777,7 +770,7 @@ export default function BookingDetailModal({
                             <AlertTriangle className="h-3.5 w-3.5 text-amber-600" />
                             <span className="text-xs font-semibold text-amber-800 uppercase tracking-wide">{t("bookings.finalOutcomeTitle")}</span>
                           </div>
-                          <CardContent className="p-4 space-y-2 text-sm">
+                          <CardContent className="px-4 pt-0 pb-4 space-y-2 text-sm">
                             <div className="flex justify-between text-gray-600">
                               <span>{t("bookings.originalTotalPaidLabel")}</span>
                               <span>{fmt(disputeFinancialOutcome.totalPaidOriginal)} $</span>
@@ -808,7 +801,7 @@ export default function BookingDetailModal({
                           <TrendingDown className="h-3.5 w-3.5 text-gray-500" />
                           <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{t("bookings.clientPaid")}</span>
                         </div>
-                        <CardContent className="p-4 space-y-2 text-sm">
+                        <CardContent className="px-4 pt-0 pb-4 space-y-2 text-sm">
                           <div className="flex justify-between text-gray-600">
                             <span>{t("serviceDetail.servicePrice")}</span>
                             <span className="font-medium">
@@ -845,7 +838,7 @@ export default function BookingDetailModal({
                           <TrendingUp className="h-3.5 w-3.5 text-green-600" />
                           <span className="text-xs font-semibold text-green-700 uppercase tracking-wide">{t("bookings.yourEarnings")}</span>
                         </div>
-                        <CardContent className="p-4 space-y-2 text-sm">
+                        <CardContent className="px-4 pt-0 pb-4 space-y-2 text-sm">
                           <div className="flex justify-between text-gray-600">
                             <span>{t("serviceDetail.servicePrice")}</span>
                             <span className="font-medium">{fmt(base)} $</span>
@@ -873,7 +866,7 @@ export default function BookingDetailModal({
                       <TrendingDown className="h-3.5 w-3.5 text-gray-500" />
                       <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{t("bookings.paymentSummary")}</span>
                     </div>
-                    <CardContent className="p-4 space-y-2 text-sm">
+                    <CardContent className="px-4 pt-0 pb-4 space-y-2 text-sm">
                       <div className="flex justify-between text-gray-600">
                         <span>{t("serviceDetail.servicePrice")}</span>
                         <span className="font-medium">
@@ -906,7 +899,16 @@ export default function BookingDetailModal({
                   </Card>
                 );
               })()}
-            </div>
+
+            {/* Service info */}
+            {(booking.category || booking.service_location) && (
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-gray-500">
+                {booking.category && <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full text-xs">{booking.category}</span>}
+                {booking.service_location && (
+                  <span className="flex items-center gap-1"><MapPin className="h-3.5 w-3.5" />{booking.service_location}</span>
+                )}
+              </div>
+            )}
 
             {serviceDescription && (
               <div className="text-sm text-gray-600 leading-relaxed bg-white rounded-lg px-4 py-3 border border-gray-100">
@@ -971,7 +973,6 @@ export default function BookingDetailModal({
             )}
 
             <div className="flex items-center gap-1.5 text-xs text-gray-400">
-              <CalendarDays className="h-3.5 w-3.5" />
               {t("bookings.requestedOn")} {formatDate(booking.created_at, i18n.language ?? "fr")}
             </div>
 
@@ -1027,9 +1028,8 @@ export default function BookingDetailModal({
                 ? t('bookings.remainingDays', { count: remainingDays })
                 : t('bookings.remainingHours', { count: remainingHours });
               return (
-                <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-xs text-amber-800 space-y-1">
+                <div className="bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-xs text-red-500 space-y-1">
                   <div className="flex items-center gap-1.5 font-semibold">
-                    <AlertTriangle className="h-3.5 w-3.5" />
                     {t('bookings.disputeWindowTitle')}
                   </div>
                   <p>{t("bookings.disputeWindowNotice", { time: remainingLabel })}</p>

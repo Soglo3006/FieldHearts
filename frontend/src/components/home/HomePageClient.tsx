@@ -11,13 +11,14 @@ import { Grid3x3, MapPin, Clock } from "lucide-react";
 import { ListingsRegionEmptyState } from "@/components/listings/ListingsRegionEmptyState";
 import AppImage from "@/components/ui/AppImage";
 import { useTranslation } from "react-i18next";
-import AdBanner from "@/components/AdBanner";
 import { toast } from "sonner";
 import { getPublicServiceLocation } from "@/lib/serviceLocation";
 import { resolveListingTitle, type ServiceLikeWithI18n } from "@/lib/serviceListingI18n";
 import ListingLangPills from "@/components/ui/ListingLangPills";
 import dynamic from "next/dynamic";
-import { ListingCardImageCarousel, getListingGalleryUrls } from "@/components/listings/ListingCardImageCarousel";
+import { getListingGalleryUrls } from "@/components/listings/ListingCardImageCarousel";
+const AdBanner = dynamic(() => import("@/components/AdBanner"), { ssr: false });
+const ListingCardImageCarousel = dynamic(() => import("@/components/listings/ListingCardImageCarousel").then(m => ({ default: m.ListingCardImageCarousel })), { ssr: false });
 import { ListingTrustLine } from "@/components/listings/ListingTrustLine";
 import { formatListingPriceLine } from "@/lib/listingPrice";
 

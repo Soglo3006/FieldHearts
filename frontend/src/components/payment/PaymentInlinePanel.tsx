@@ -129,7 +129,7 @@ export default function PaymentInlinePanel({ bookingId, bookingTitle, price, acc
       <div className="overflow-y-auto flex-1 px-5 py-4 space-y-4">
         {/* Price summary */}
         <div className="bg-white rounded-xl border border-gray-100 px-4 py-3 space-y-1.5 text-sm">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{bookingTitle}</p>
+          <p className="text-base font-bold text-gray-900 mb-2">{bookingTitle}</p>
           <div className="flex justify-between text-gray-600">
             <span>{t("payment.servicePrice")}</span>
             <span className="font-medium text-gray-900">{fmt(price)} $</span>

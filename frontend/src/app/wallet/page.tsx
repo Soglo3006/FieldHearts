@@ -436,14 +436,13 @@ export default function WalletPage() {
         {/* Next payout */}
         {((wallet?.available_for_payout ?? 0) > 0 || (wallet?.pending_amount ?? 0) > 0) && (
           <Card className="shadow-sm">
-            <CardHeader className="pb-3 pt-5 px-5">
+            <CardHeader className=" px-5">
               <CardTitle className="text-base flex items-center gap-2 font-semibold text-gray-900">
-                <Calendar className="h-4 w-4 text-green-700" />
                 {t("wallet.nextPayout")}
               </CardTitle>
             </CardHeader>
             <Separator />
-            <CardContent className="pt-4 pb-5 px-5 space-y-3">
+            <CardContent className=" pb-5 px-5 space-y-3">
               {(wallet?.available_for_payout ?? 0) > 0 && (
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-medium text-gray-700">{t("wallet.youWillReceive")}</span>
@@ -451,9 +450,9 @@ export default function WalletPage() {
                 </div>
               )}
               {(wallet?.pending_amount ?? 0) > 0 && (
-                <div className="flex items-start gap-2 bg-amber-50 border border-amber-100 rounded-lg p-3">
-                  <AlertCircle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
-                  <p className="text-xs text-amber-700 leading-relaxed">
+                <div className="flex items-start gap-2 bg-red-50 border border-red-100 rounded-lg py-2 px-3">
+                  <AlertCircle className="h-4 w-4 text-red-500 mt-0.5 shrink-0" />
+                  <p className="text-xs text-red-500 leading-relaxed">
                     {t("wallet.pendingInfo", { amount: fmt(wallet?.pending_amount ?? 0) })}
                   </p>
                 </div>

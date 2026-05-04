@@ -104,7 +104,7 @@ export const createBooking = async (req, res) => {
     shouldSendEmail(s.user_id, "listing").then((ok) => {
       if (ok) notifyBookingCreated(s.worker_email, s.worker_name, clientName, s.title, booking.id, s.image_url)
         .catch((err) => console.error("Booking email notification failed:", err.message));
-    });
+    }).catch((err) => console.error("shouldSendEmail error:", err.message));
     pushNewBooking(s.user_id, clientName, s.title).catch(() => {});
     createLocalizedNotification({
       userId: s.user_id,
@@ -293,7 +293,7 @@ export const updateBookingStatus = async (req, res) => {
       shouldSendEmail(notifyId, "listing").then((ok) => {
         if (ok) notifyBookingStatusUpdated(notifyEmail, notifyName, b.title, status, b.id)
           .catch((err) => console.error("Status email notification failed:", err.message));
-      });
+      }).catch((err) => console.error("shouldSendEmail error:", err.message));
       pushBookingStatus(notifyId, status, b.title).catch(() => {});
       createLocalizedNotification({
         userId: notifyId,

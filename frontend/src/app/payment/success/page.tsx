@@ -74,11 +74,7 @@ export default function PaymentSuccessPage() {
   return (
     <div className="min-h-screen bg-white flex items-start justify-center px-4 py-10">
       <div className="max-w-md w-full">
-        {/* Success icon */}
         <div className="text-center mb-6">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-100 mb-4">
-            <CheckCircle className="h-8 w-8 text-green-600" />
-          </div>
           <h1 className="text-2xl font-bold text-gray-900">{t("payment.confirmed")}</h1>
           <p className="text-gray-500 mt-1.5 text-sm">
             {t("payment.confirmedDesc")}

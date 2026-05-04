@@ -396,8 +396,13 @@ export default {
   notifyBookingCreated,
   notifyBookingStatusUpdated,
   notifyNewMessage,
+  notifyUnreadReminder,
   notifyNewReview,
   notifyDisputeCreated,
   notifyDisputeOutcome,
+  notifyPaymentReceipt,
+  notifyPayoutReceived,
   notifyPasswordChanged,
+  notifyWelcome,
+  notifyWaitlistConfirmation,
 };

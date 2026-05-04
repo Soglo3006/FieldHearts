@@ -26,7 +26,6 @@ import type { PricingMode } from "@/lib/listingPrice";
 import { formatListingPriceLine, type ListingPricingFields } from "@/lib/listingPrice";
 import { cn } from "@/lib/utils";
 import {
-  labelPosterType,
   labelAvailability,
   labelSpokenLanguage,
   labelMobility,
@@ -55,7 +54,6 @@ export default function OfferServiceForm({ onSuccess }: Props) {
   const [priceMax, setPriceMax] = useState("");
   const [location, setLocation] = useState("");
   const [locationDetails, setLocationDetails] = useState<LocationDetails | null>(null);
-  const [posterType, setPosterType] = useState("");
   const [availability, setAvailability] = useState("");
   const [language, setLanguage] = useState("");
   const [mobility, setMobility] = useState("");
@@ -154,7 +152,6 @@ export default function OfferServiceForm({ onSuccess }: Props) {
           latitude: locationDetails?.lat ?? null,
           longitude: locationDetails?.lng ?? null,
           city: locationDetails?.city ?? location,
-          poster_type: posterType,
           availability,
           language,
           mobility,
@@ -232,7 +229,7 @@ export default function OfferServiceForm({ onSuccess }: Props) {
               required={pricingMode === "fixed"}
               min="0"
               step="0.01"
-              className="h-12 pl-8"
+              className="h-12 pl-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
             />
           </div>
         </div>
@@ -257,7 +254,7 @@ export default function OfferServiceForm({ onSuccess }: Props) {
               onChange={(e) => setPriceMin(e.target.value)}
               min="0"
               step="0.01"
-              className="h-12 pl-8"
+              className="h-12 pl-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
             />
           </div>
         </div>
@@ -273,7 +270,7 @@ export default function OfferServiceForm({ onSuccess }: Props) {
               onChange={(e) => setPriceMax(e.target.value)}
               min="0"
               step="0.01"
-              className="h-12 pl-8"
+              className="h-12 pl-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
             />
           </div>
         </div>
@@ -319,10 +316,8 @@ export default function OfferServiceForm({ onSuccess }: Props) {
       <CategorySubcategoryFields
         category={category}
         subcategory={subcategory}
-        posterType={posterType}
         onCategoryChange={setCategory}
         onSubcategoryChange={setSubcategory}
-        onPosterTypeChange={setPosterType}
         categoryRequired
       />
 
@@ -359,7 +354,6 @@ export default function OfferServiceForm({ onSuccess }: Props) {
       location={location}
       hideExactLocation={hideExactLocation}
       categoryLine={confirmCategoryLine}
-      posterTypeLabel={labelPosterType(t, posterType)}
       availabilityLabel={labelAvailability(t, availability)}
       spokenLanguageLabel={labelSpokenLanguage(t, language)}
       mobilityLabel={labelMobility(t, mobility)}

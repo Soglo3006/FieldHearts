@@ -3,6 +3,8 @@ import HomePageClient, {
   type HomeListing,
 } from "@/components/home/HomePageClient";
 
+export const dynamic = "force-dynamic";
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 async function fetchInitialListings(): Promise<HomeListing[]> {

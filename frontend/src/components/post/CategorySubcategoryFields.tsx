@@ -9,16 +9,14 @@ const toKey = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace
 interface Props {
   category: string;
   subcategory: string;
-  posterType: string;
   onCategoryChange: (v: string) => void;
   onSubcategoryChange: (v: string) => void;
-  onPosterTypeChange: (v: string) => void;
   categoryRequired?: boolean;
 }
 
 export default function CategorySubcategoryFields({
-  category, subcategory, posterType,
-  onCategoryChange, onSubcategoryChange, onPosterTypeChange,
+  category, subcategory,
+  onCategoryChange, onSubcategoryChange,
   categoryRequired,
 }: Props) {
   const { t } = useTranslation();
@@ -30,14 +28,10 @@ export default function CategorySubcategoryFields({
     value: sub,
     label: t(`categories.${toKey(category)}_${toKey(sub)}`, { defaultValue: sub }),
   }));
-  const posterTypeOptions = [
-    { value: "individual", label: t("post.individual") },
-    { value: "company", label: t("post.company") },
-  ];
 
   return (
     <div className="pb-6">
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
         <div className="space-y-2">
           <Label className="text-base font-medium text-gray-900">
             {t("post.category")} {categoryRequired && <span className="text-red-500">*</span>}
@@ -58,17 +52,6 @@ export default function CategorySubcategoryFields({
             placeholder={t("post.selectSubcategory")}
             options={subcategoryOptions}
             disabled={!category}
-            allowClear
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label className="text-base font-medium text-gray-900">{t("post.typeOfPoster")}</Label>
-          <PostSelect
-            value={posterType}
-            onValueChange={onPosterTypeChange}
-            placeholder={t("post.selectPosterType")}
-            options={posterTypeOptions}
             allowClear
           />
         </div>

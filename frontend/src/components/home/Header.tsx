@@ -389,9 +389,7 @@ export default function Header() {
   const isCompany = profileData?.account_type === "company";
   const displayName = isPerson ? profileData?.full_name : profileData?.company_name;
   const avatarUrl = profileData?.avatar || user?.user_metadata?.avatar || "";
-  const fallbackInitial = displayName
-    ? displayName.charAt(0).toUpperCase()
-    : user?.email?.charAt(0).toUpperCase() || "U";
+  const fallbackInitial = displayName?.charAt(0).toUpperCase() || "";
   const postTypeLabel =
     postTypeValue === "find"
       ? t("header.findWork")

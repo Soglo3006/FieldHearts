@@ -128,7 +128,6 @@ export default function EditListingModal({ service, accessToken, onClose, onSave
   });
   const [category, setCategory] = useState(service.category ?? "");
   const [subcategory, setSubcategory] = useState(service.subcategory ?? "");
-  const [posterType, setPosterType] = useState(service.poster_type ?? "");
   const [availability, setAvailability] = useState(
     () => normalizeAvailability(service.availability ?? "") || ""
   );
@@ -213,7 +212,6 @@ export default function EditListingModal({ service, accessToken, onClose, onSave
             city: locationDetails?.city ?? location.trim(),
             category: category || null,
             subcategory: subcategory || null,
-            poster_type: posterType || null,
             availability: availability || null,
             language: language || null,
             mobility: mobility || null,
@@ -428,13 +426,11 @@ export default function EditListingModal({ service, accessToken, onClose, onSave
           <CategorySubcategoryFields
             category={category}
             subcategory={subcategory}
-            posterType={posterType}
             onCategoryChange={(value) => {
               setCategory(value);
               setSubcategory("");
             }}
             onSubcategoryChange={setSubcategory}
-            onPosterTypeChange={setPosterType}
             categoryRequired
           />
 

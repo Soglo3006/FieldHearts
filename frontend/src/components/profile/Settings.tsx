@@ -496,9 +496,6 @@ export default function SettingsPage({ onClose, scrollRef }: { onClose: () => vo
               </div>
             </div>
             <div className="space-y-3">
-              <Button variant="outline" className="w-full justify-between cursor-pointer text-sm" onClick={() => goToScreen("paymentMethods")}>
-                <span>{t("settings.paymentMethods")}</span><ChevronRight className="h-4 w-4" />
-              </Button>
               <Button variant="outline" className="w-full justify-between cursor-pointer text-sm" onClick={() => goToScreen("billingHistory")}>
                 <span>{t("settings.billingHistory")}</span><ChevronRight className="h-4 w-4" />
               </Button>

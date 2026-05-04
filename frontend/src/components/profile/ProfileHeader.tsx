@@ -59,6 +59,11 @@ export default function ProfileHeader({
         <div className="flex-1">
           <div className="flex items-center gap-3 mb-2">
             <h1 className="text-xl sm:text-3xl font-bold text-gray-900">{displayName}</h1>
+            {isCompany && (
+              <Badge className="bg-green-50 text-green-700 border border-green-200 text-xs font-medium px-2 py-0.5 rounded-full">
+                {t("profile.companyBadge")}
+              </Badge>
+            )}
           </div>
 
           <p className="text-base sm:text-lg text-gray-600 mb-3">{displayTitle || t("profile.serviceProvider")}</p>

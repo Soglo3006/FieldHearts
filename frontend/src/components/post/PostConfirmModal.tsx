@@ -41,7 +41,6 @@ interface Props {
   hideExactLocation: boolean;
   /** Localised category line, e.g. "Maison · Ménage profond". */
   categoryLine: string;
-  posterTypeLabel: string | null;
   availabilityLabel: string | null;
   spokenLanguageLabel: string | null;
   mobilityLabel: string | null;
@@ -129,7 +128,6 @@ export default function PostConfirmModal({
   location,
   hideExactLocation,
   categoryLine,
-  posterTypeLabel,
   availabilityLabel,
   spokenLanguageLabel,
   mobilityLabel,
@@ -201,13 +199,6 @@ export default function PostConfirmModal({
 
   const optionalRows: SummaryRow[] = [];
 
-  if (posterTypeLabel) {
-    optionalRows.push({
-      key: "poster",
-      label: t("post.typeOfPoster"),
-      value: posterTypeLabel,
-    });
-  }
   if (availabilityLabel) {
     optionalRows.push({
       key: "availability",

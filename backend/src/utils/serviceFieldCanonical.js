@@ -4,6 +4,7 @@
  */
 
 import { normalizePricingMode } from "./servicePricing.js";
+import { normalizeDurationForStorage } from "./serviceDuration.js";
 
 function foldAscii(s) {
   return String(s)
@@ -87,6 +88,7 @@ export function canonServiceFieldsInPlace(row) {
   if (!row || typeof row !== "object") return row;
   if ("availability" in row) row.availability = normalizeAvailability(row.availability);
   if ("mobility" in row) row.mobility = normalizeMobility(row.mobility);
+  if ("duration" in row) row.duration = normalizeDurationForStorage(row.duration);
   if ("pricing_mode" in row) row.pricing_mode = normalizePricingMode(row.pricing_mode);
   else row.pricing_mode = "fixed";
   return row;

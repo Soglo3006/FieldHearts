@@ -3,7 +3,8 @@
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
-import { isAdminUser } from "@/lib/auth";
+import { canAccessAdminPortal } from "@/lib/auth";
+import { adminApiHeaders } from "@/lib/adminStepUp";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,7 +46,7 @@ export default function AdminUsersPage() {
     setFetching(true);
     try {
       const url = `${process.env.NEXT_PUBLIC_API_URL}/profiles/admin/all${q ? `?q=${encodeURIComponent(q)}` : ""}`;
-      const res = await fetch(url, { headers: { Authorization: `Bearer ${session.access_token}` } });
+      const res = await fetch(url, { headers: adminApiHeaders(session.access_token) });
       if (!res.ok) return;
       setUsers(await res.json());
     } catch {
@@ -71,7 +72,7 @@ export default function AdminUsersPage() {
       await fetch(`${process.env.NEXT_PUBLIC_API_URL}/profiles/${userId}/suspend`, {
         method: "PUT",
         headers: {
-          Authorization: `Bearer ${session.access_token}`,
+          ...adminApiHeaders(session.access_token),
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ suspend }),

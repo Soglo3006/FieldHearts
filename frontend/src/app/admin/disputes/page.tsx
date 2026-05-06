@@ -7,7 +7,8 @@ import { useTranslation } from "react-i18next";
 import { RefreshCw, Scale, ExternalLink } from "lucide-react";
 
 import { useAuth } from "@/contexts/AuthContext";
-import { isAdminUser } from "@/lib/auth";
+import { canAccessAdminPortal } from "@/lib/auth";
+import { adminApiHeaders } from "@/lib/adminStepUp";
 import { getIntlLocale } from "@/lib/locale";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -63,7 +64,7 @@ export default function AdminDisputesPage() {
   useEffect(() => {
     if (loading) return;
     if (!user) { router.push("/login"); return; }
-    if (!isAdminUser(user)) { router.replace("/"); return; }
+    if (!canAccessAdminPortal(user)) { router.replace("/"); return; }
     setAllowed(true);
   }, [loading, router, user]);
 
@@ -71,7 +72,7 @@ export default function AdminDisputesPage() {
     setFetching(true);
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/disputes`, {
-        headers: { Authorization: `Bearer ${session?.access_token}` },
+        headers: session?.access_token ? adminApiHeaders(session.access_token) : {},
       });
       if (!res.ok) throw new Error();
       setDisputes(await res.json());

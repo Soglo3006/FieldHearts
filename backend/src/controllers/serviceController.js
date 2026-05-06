@@ -15,6 +15,7 @@ import {
   normalizeAvailability,
   normalizeMobility,
 } from "../utils/serviceFieldCanonical.js";
+import { normalizeDurationForStorage } from "../utils/serviceDuration.js";
 import { resolveServicePricingFields } from "../utils/servicePricing.js";
 
 export const createService = async (req, res) => {
@@ -104,7 +105,7 @@ export const createService = async (req, res) => {
         normalizeAvailability(availability) || null,
         language || null,
         normalizeMobility(mobility) || null,
-        duration || null,
+        normalizeDurationForStorage(duration),
         urgency || null,
         resolvedImageUrl,
         resolvedImageUrls,
@@ -642,7 +643,7 @@ export const updateService = async (req, res) => {
         availability !== undefined ? normalizeAvailability(availability) : existing.availability,
         language     !== undefined ? language     : existing.language,
         mobility     !== undefined ? normalizeMobility(mobility) : existing.mobility,
-        duration     !== undefined ? duration     : existing.duration,
+        duration     !== undefined ? normalizeDurationForStorage(duration) : existing.duration,
         urgency      !== undefined ? urgency      : existing.urgency,
         updResolvedUrl,
         updResolvedUrls,

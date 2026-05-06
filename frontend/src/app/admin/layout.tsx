@@ -8,7 +8,7 @@ import { LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTranslation } from "react-i18next";
 import { useEffect, useState } from "react";
-import { MFAGate } from "@/components/admin/MFAGate";
+import { AdminEmailStepUpGate } from "@/components/admin/AdminEmailStepUpGate";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
@@ -30,7 +30,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   ];
 
   return (
-    <MFAGate>
+    <AdminEmailStepUpGate>
       <div className="min-h-screen bg-white flex flex-col">
         {/* Header */}
         <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
@@ -74,6 +74,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           {children}
         </main>
       </div>
-    </MFAGate>
+    </AdminEmailStepUpGate>
   );
 }

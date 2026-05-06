@@ -314,6 +314,18 @@ const emailTemplates = {
     `),
   }),
 
+  adminEmailOtp: (code) => ({
+    subject: "Code de connexion — Admin Uneden",
+    html: base(`
+      <h2 style="margin:0 0 8px;color:#111827;">Vérification de votre connexion</h2>
+      <p style="color:#374151;">Une connexion à l'administration Uneden a été demandée avec votre compte. Si c'est bien vous, entrez ce code sur la page d'administration :</p>
+      <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:24px;margin:24px 0;text-align:center;">
+        <p style="margin:0;font-size:32px;font-weight:700;letter-spacing:8px;color:#166534;font-family:monospace;">${esc(code)}</p>
+      </div>
+      <p style="color:#6b7280;font-size:13px;">Ce code expire dans 10 minutes. Si vous n'avez pas demandé cette connexion, changez votre mot de passe et contactez le support.</p>
+    `),
+  }),
+
   disputeOutcome: (userName, bookingId, status, resolution, refundedAmount) => ({
     subject: status === "resolved" ? "Décision sur votre litige" : "Votre litige a été rejeté",
     html: base(`
@@ -391,6 +403,9 @@ export const notifyWelcome = (userEmail, userName) =>
 export const notifyWaitlistConfirmation = (email, lang) =>
   sendEmail(email, "waitlistConfirmation", [lang]);
 
+export const notifyAdminEmailOtp = (email, code) =>
+  sendEmail(email, "adminEmailOtp", [code]);
+
 export default {
   sendEmail,
   notifyBookingCreated,
@@ -405,4 +420,5 @@ export default {
   notifyPasswordChanged,
   notifyWelcome,
   notifyWaitlistConfirmation,
+  notifyAdminEmailOtp,
 };

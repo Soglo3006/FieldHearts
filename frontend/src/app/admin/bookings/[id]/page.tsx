@@ -20,7 +20,8 @@ import { Spinner } from "@/components/ui/Spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/contexts/AuthContext";
 import { getBookingDisputeFinancialOutcome } from "@/lib/disputeFinancials";
-import { isAdminUser } from "@/lib/auth";
+import { canAccessAdminPortal } from "@/lib/auth";
+import { adminApiHeaders } from "@/lib/adminStepUp";
 import { getIntlLocale } from "@/lib/locale";
 
 type AdminBookingDetail = {
@@ -144,7 +145,7 @@ export default function AdminBookingDetailPage() {
   useEffect(() => {
     if (loading) return;
     if (!user) { router.push("/login"); return; }
-    if (!isAdminUser(user)) { router.replace("/"); return; }
+    if (!canAccessAdminPortal(user)) { router.replace("/"); return; }
     setAllowed(true);
   }, [loading, router, user]);
 
@@ -155,7 +156,7 @@ export default function AdminBookingDetailPage() {
       setLoadError("");
       try {
         const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/bookings/${params.id}/admin`, {
-          headers: { Authorization: `Bearer ${session.access_token}` },
+          headers: adminApiHeaders(session.access_token),
         });
         if (!res.ok) {
           const payload = await res.json().catch(() => ({}));
@@ -235,8 +236,8 @@ export default function AdminBookingDetailPage() {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/disputes/${booking.dispute_id}/admin`, {
         method: "PUT",
         headers: {
+          ...(session?.access_token ? adminApiHeaders(session.access_token) : {}),
           "Content-Type": "application/json",
-          Authorization: `Bearer ${session?.access_token}`,
         },
         body: JSON.stringify({
           status: newStatus,

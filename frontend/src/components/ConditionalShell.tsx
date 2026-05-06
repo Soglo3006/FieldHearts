@@ -2,7 +2,7 @@
 
 import "@/lib/i18n";
 import { Suspense, useEffect } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import i18n from "@/lib/i18n";
 import Header from "@/components/home/Header";
 import CategoryNav from "@/components/home/Category";
@@ -10,6 +10,7 @@ import Footer from "@/components/home/Footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { Spinner } from "@/components/ui/Spinner";
 import { getLanguageCode } from "@/lib/locale";
+import { isSupportOnlyUser } from "@/lib/auth";
 
 const AUTH_ROUTES = [
   "/login",
@@ -39,7 +40,8 @@ const NO_FOOTER_ROUTES = [
 
 export default function ConditionalShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { loading: authLoading, isLoggingOut } = useAuth();
+  const router = useRouter();
+  const { user, loading: authLoading, isLoggingOut } = useAuth();
 
   useEffect(() => {
     const saved = localStorage.getItem("i18nextLng");
@@ -51,6 +53,14 @@ export default function ConditionalShell({ children }: { children: React.ReactNo
   const isAuthPage = AUTH_ROUTES.some((r) => pathname.startsWith(r));
   const isNoCategoryPage = NO_CATEGORY_ROUTES.some((r) => pathname.startsWith(r));
   const isNoFooterPage = NO_FOOTER_ROUTES.some((r) => pathname.startsWith(r));
+  const isSupportUser = isSupportOnlyUser(user);
+  const supportShouldBeInAdmin = isSupportUser && !pathname.startsWith("/admin");
+
+  useEffect(() => {
+    if (authLoading) return;
+    if (!supportShouldBeInAdmin) return;
+    router.replace("/admin");
+  }, [authLoading, supportShouldBeInAdmin, router]);
 
   if (isLoggingOut) {
     return (
@@ -65,6 +75,14 @@ export default function ConditionalShell({ children }: { children: React.ReactNo
   }
 
   if (authLoading) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-white">
+        <Spinner size="lg" />
+      </div>
+    );
+  }
+
+  if (supportShouldBeInAdmin) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-white">
         <Spinner size="lg" />

@@ -64,3 +64,8 @@ export function isSupportOnlyUser(user: User | null | undefined): boolean {
     .filter(Boolean);
   return list.includes(email);
 }
+
+/** Admin dashboard + support tooling (matches backend ADMIN_EMAILS / SUPPORT_EMAILS / role). */
+export function canAccessAdminPortal(user: User | null | undefined): boolean {
+  return isAdminUser(user) || isSupportOnlyUser(user);
+}

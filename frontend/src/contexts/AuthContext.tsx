@@ -3,7 +3,8 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
-import { isAdminUser, isSupportOnlyUser, safeInternalPath } from "@/lib/auth";
+import { isAdminUser, isSupportOnlyUser, canAccessAdminPortal, safeInternalPath } from "@/lib/auth";
+import { clearAdminStepUpToken } from "@/lib/adminStepUp";
 import type { User, Session } from "@supabase/supabase-js";
 
 interface AuthContextType {
@@ -109,13 +110,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     password: string,
     options?: { redirectTo?: string }
   ) => {
+    clearAdminStepUpToken();
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
 
     if (error) throw new Error(error.message);
-    if (isAdminUser(data.user) || isSupportOnlyUser(data.user)) {
+    if (canAccessAdminPortal(data.user)) {
       router.push("/admin");
     } else {
       const profileCompleted = data.user.user_metadata?.profile_completed;
@@ -129,6 +131,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signUpWithEmail = async (email: string, password: string, fullName: string) => {
+    clearAdminStepUpToken();
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -145,6 +148,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signInWithGoogle = async (oauthOpts?: { redirectTo?: string }) => {
+    clearAdminStepUpToken();
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
@@ -167,6 +171,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signInWithApple = async () => {
+    clearAdminStepUpToken();
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "apple",
       options: {
@@ -179,6 +184,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     setIsLoggingOut(true);
+    clearAdminStepUpToken();
     await supabase.auth.signOut();
     router.push("/");
   };

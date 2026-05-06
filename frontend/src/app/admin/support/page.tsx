@@ -8,7 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useAuth } from "@/contexts/AuthContext";
-import { isAdminUser } from "../../../lib/auth";
+import { canAccessAdminPortal } from "../../../lib/auth";
+import { adminApiHeaders } from "@/lib/adminStepUp";
 import { RefreshCw } from "lucide-react";
 import { Spinner } from "@/components/ui/Spinner";
 import { useTranslation } from "react-i18next";
@@ -58,9 +59,7 @@ export default function SupportAdminPage() {
       try {
         setTicketsLoading(true);
         const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/support`, {
-          headers: {
-            Authorization: `Bearer ${session?.access_token}`,
-          },
+          headers: session?.access_token ? adminApiHeaders(session.access_token) : {},
         });
         if (!res.ok) throw new Error("Failed to fetch tickets");
         const data = await res.json();
@@ -119,7 +118,7 @@ export default function SupportAdminPage() {
     try {
       setTicketsLoading(true);
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/support`, {
-        headers: { Authorization: `Bearer ${session?.access_token}` },
+        headers: session?.access_token ? adminApiHeaders(session.access_token) : {},
       });
       if (res.ok) {
         const data = await res.json();
@@ -136,8 +135,8 @@ export default function SupportAdminPage() {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/support/${id}/status`, {
         method: "PUT",
         headers: {
+          ...(session?.access_token ? adminApiHeaders(session.access_token) : {}),
           "Content-Type": "application/json",
-          Authorization: `Bearer ${session?.access_token}`,
         },
         body: JSON.stringify({ status }),
       });

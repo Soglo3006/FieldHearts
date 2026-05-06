@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
-import { isAdminUser, safeInternalPath } from "@/lib/auth";
+import { canAccessAdminPortal, safeInternalPath } from "@/lib/auth";
+import { clearAdminStepUpToken } from "@/lib/adminStepUp";
 import { Spinner } from "@/components/ui/Spinner";
 
 export default function AuthCallbackPage() {
@@ -22,6 +23,7 @@ export default function AuthCallbackPage() {
             setTimeout(() => router.replace("/login"), 1500);
             return;
           }
+          clearAdminStepUpToken();
         }
 
         // Get session after potential code exchange
@@ -34,7 +36,8 @@ export default function AuthCallbackPage() {
         }
 
         if (session) {
-          if (isAdminUser(session.user)) {
+          clearAdminStepUpToken();
+          if (canAccessAdminPortal(session.user)) {
             router.replace("/admin");
           } else {
             const profileCompleted = session.user.user_metadata?.profile_completed;
@@ -50,7 +53,8 @@ export default function AuthCallbackPage() {
           const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
             if (event === "SIGNED_IN" && session) {
               subscription.unsubscribe();
-              if (isAdminUser(session.user)) {
+              clearAdminStepUpToken();
+              if (canAccessAdminPortal(session.user)) {
                 router.replace("/admin");
               } else {
                 const profileCompleted = session.user.user_metadata?.profile_completed;

@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
-import { isAdminUser } from "@/lib/auth";
+import { canAccessAdminPortal } from "@/lib/auth";
+import { adminApiHeaders } from "@/lib/adminStepUp";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Download } from "lucide-react";
@@ -26,14 +27,14 @@ export default function AdminDashboard() {
   useEffect(() => {
     if (loading) return;
     if (!user) { router.push("/login"); return; }
-    if (!isAdminUser(user)) { router.replace("/"); return; }
+    if (!canAccessAdminPortal(user)) { router.replace("/"); return; }
     Promise.resolve().then(() => setAllowed(true));
   }, [user, loading, router]);
 
   useEffect(() => {
     if (!allowed || !session?.access_token) return;
 
-    const headers = { Authorization: `Bearer ${session.access_token}` };
+    const headers = adminApiHeaders(session.access_token);
 
     fetch(`${process.env.NEXT_PUBLIC_API_URL}/disputes`, { headers })
       .then((r) => r.json())
@@ -52,7 +53,7 @@ export default function AdminDashboard() {
     try {
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/wallet/export?period=${exportPeriod}`,
-        { headers: { Authorization: `Bearer ${session.access_token}` } }
+        { headers: adminApiHeaders(session.access_token) }
       );
       if (!res.ok) return;
       const blob = await res.blob();
@@ -77,7 +78,7 @@ export default function AdminDashboard() {
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/wallet/payout/trigger`, {
         method: "POST",
-        headers: { Authorization: `Bearer ${session.access_token}` },
+        headers: adminApiHeaders(session.access_token),
       });
       if (res.ok) {
         setPayoutMessage(t("admin.dashboard.payout.success"));
@@ -240,7 +241,7 @@ export default function AdminDashboard() {
             onClick={async () => {
               if (!session?.access_token) return;
               const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/waitlist/export`, {
-                headers: { Authorization: `Bearer ${session.access_token}` },
+                headers: adminApiHeaders(session.access_token),
               });
               if (!res.ok) return;
               const data: { email: string; lang: string; created_at: string }[] = await res.json();

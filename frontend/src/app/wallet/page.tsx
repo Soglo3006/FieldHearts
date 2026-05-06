@@ -387,7 +387,7 @@ export default function WalletPage() {
                 </div>
                 <p className="text-xl font-bold text-green-700">{fmt(wallet?.available_for_payout ?? 0)}&nbsp;$</p>
                 <p className="text-[11px] text-gray-400 mt-1">{t("wallet.approvedAmountDesc")}</p>
-              </div>
+              </div>Oui faites ceci
               <div className="px-5 py-4">
                 <div className="flex items-center gap-1.5 mb-1">
                   <div className="h-2 w-2 rounded-full bg-amber-400" />

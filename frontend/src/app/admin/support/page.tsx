@@ -47,7 +47,7 @@ export default function SupportAdminPage() {
       router.push("/login");
       return;
     }
-    if (!isAdminUser(user)) {
+    if (!canAccessAdminPortal(user)) {
       router.replace("/");
       return;
     }

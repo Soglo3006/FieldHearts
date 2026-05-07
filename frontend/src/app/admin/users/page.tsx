@@ -37,7 +37,7 @@ export default function AdminUsersPage() {
   useEffect(() => {
     if (loading) return;
     if (!user) { router.push("/login"); return; }
-    if (!isAdminUser(user)) { router.replace("/"); return; }
+    if (!canAccessAdminPortal(user)) { router.replace("/"); return; }
     setAllowed(true);
   }, [user, loading, router]);
 

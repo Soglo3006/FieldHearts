@@ -5,16 +5,17 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { OnboardingData, professionSuggestions } from "./onboardingTypes";
+import { OnboardingData, professionSuggestions, BIO_MAX } from "./onboardingTypes";
 import { getLanguageCode } from "@/lib/locale";
 
 interface Props {
   data: OnboardingData;
   accountType: string;
   onChange: (patch: Partial<OnboardingData>) => void;
+  bioError?: string;
 }
 
-export default function StepAbout({ data, accountType, onChange }: Props) {
+export default function StepAbout({ data, accountType, onChange, bioError }: Props) {
   const { t, i18n } = useTranslation();
   const lang = getLanguageCode(i18n.language);
   const [professionInput, setProfessionInput] = useState(data.profession || "");
@@ -26,13 +27,16 @@ export default function StepAbout({ data, accountType, onChange }: Props) {
         {accountType === "company" ? t("onboarding.aboutYourCompany") : t("onboarding.aboutYourself")}
       </h2>
       <p className="text-gray-600">{t("onboarding.aboutSubtitle")}</p>
+      {accountType === "person" && (
+        <p className="text-sm text-gray-400 mt-1">{t("onboarding.aboutOptionalHint")}</p>
+      )}
 
       <div className="space-y-6">
         {accountType === "person" && (
           <>
             <div className="space-y-2 relative">
               <Label className="text-base font-medium text-gray-900">
-                {t("onboarding.profession")} <span className="text-red-500">*</span>
+                {t("onboarding.profession")}
               </Label>
               <Input
                 id="profession"
@@ -82,6 +86,18 @@ export default function StepAbout({ data, accountType, onChange }: Props) {
                 onChange={(e) => onChange({ bio: e.target.value })}
                 className="min-h-40 resize-none"
               />
+              <div className="flex justify-end">
+                <span className={`text-xs ${
+                  (data.bio?.length ?? 0) > BIO_MAX
+                    ? "text-red-500"
+                    : (data.bio?.length ?? 0) > BIO_MAX * 0.8
+                    ? "text-orange-500"
+                    : "text-gray-400"
+                }`}>
+                  {data.bio?.length ?? 0}/{BIO_MAX}
+                </span>
+              </div>
+              {bioError && <p className="text-sm text-red-500">{bioError}</p>}
             </div>
           </>
         )}
@@ -98,6 +114,18 @@ export default function StepAbout({ data, accountType, onChange }: Props) {
                 onChange={(e) => onChange({ companyBio: e.target.value })}
                 className="min-h-40 resize-none"
               />
+              <div className="flex justify-end">
+                <span className={`text-xs ${
+                  (data.companyBio?.length ?? 0) > BIO_MAX
+                    ? "text-red-500"
+                    : (data.companyBio?.length ?? 0) > BIO_MAX * 0.8
+                    ? "text-orange-500"
+                    : "text-gray-400"
+                }`}>
+                  {data.companyBio?.length ?? 0}/{BIO_MAX}
+                </span>
+              </div>
+              {bioError && <p className="text-sm text-red-500">{bioError}</p>}
             </div>
 
             <div className="space-y-2">

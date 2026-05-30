@@ -6,6 +6,7 @@ import { Bookmark, Share2 } from "lucide-react";
 import { useFavorites } from "@/hooks/useFavorites";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
+import CompleteProfileModal from "@/components/profile/CompleteProfileModal";
 
 interface Props {
   serviceId: string;
@@ -16,7 +17,7 @@ export default function SaveShareActions({ serviceId, title }: Props) {
   const { t } = useTranslation();
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
-  const { isSaved, toggle } = useFavorites();
+  const { isSaved, toggle, showCompleteProfile, setShowCompleteProfile } = useFavorites();
   const saved = Boolean(user) && isSaved(serviceId);
 
   const handleSave = () => {
@@ -49,15 +50,21 @@ export default function SaveShareActions({ serviceId, title }: Props) {
   };
 
   return (
-    <div className="flex items-center gap-2 mt-3">
-      <Button variant="outline" className="gap-2" onClick={handleSave}>
-        <Bookmark className={`h-4 w-4 ${saved ? "fill-green-700 text-green-700" : ""}`} />
-        {saved ? t("serviceDetail.saved") : t("serviceDetail.save")}
-      </Button>
-      <Button variant="outline" className="gap-2" onClick={handleShare}>
-        <Share2 className="h-4 w-4" />
-        {t("serviceDetail.share")}
-      </Button>
-    </div>
+    <>
+      <div className="flex items-center gap-2 mt-3">
+        <Button variant="outline" className="gap-2" onClick={handleSave}>
+          <Bookmark className={`h-4 w-4 ${saved ? "fill-green-700 text-green-700" : ""}`} />
+          {saved ? t("serviceDetail.saved") : t("serviceDetail.save")}
+        </Button>
+        <Button variant="outline" className="gap-2" onClick={handleShare}>
+          <Share2 className="h-4 w-4" />
+          {t("serviceDetail.share")}
+        </Button>
+      </div>
+      <CompleteProfileModal
+        open={showCompleteProfile}
+        onClose={() => setShowCompleteProfile(false)}
+      />
+    </>
   );
 }

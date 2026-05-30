@@ -10,6 +10,10 @@ import LookingForWorkerForm from "@/components/post/LookingForWorkerForm";
 import SuccessPopup from "@/components/post/SuccessPopup";
 import { Spinner } from "@/components/ui/Spinner";
 import { useAuth } from "@/contexts/AuthContext";
+import { needsOnboardingSetup } from "@/lib/onboarding";
+import { isProfileDetailsIncomplete } from "@/lib/onboardingSteps";
+import ProfileCompletionRequiredScreen from "@/components/profile/ProfileCompletionRequiredScreen";
+import { useMyProfile } from "@/hooks/useMyProfile";
 import { MapPin } from "lucide-react";
 
 const CANADIAN_PROVINCES = [
@@ -27,6 +31,7 @@ export default function PostServicePage() {
   const router = useRouter();
   const { t } = useTranslation();
   const { session } = useAuth();
+  const { profile, loading: profileLoading } = useMyProfile();
   const [access, setAccess] = useState<AccessGate>("checking");
   const [mode, setMode] = useState<PostMode>("offer");
   const [success, setSuccess] = useState<{ type: PostMode; id: string } | null>(null);
@@ -41,7 +46,7 @@ export default function PostServicePage() {
         setAccess("denied");
         return;
       }
-      if (!s.user.user_metadata?.profile_completed) {
+      if (needsOnboardingSetup(s.user)) {
         router.replace("/choose_type");
         setAccess("denied");
         return;
@@ -84,6 +89,18 @@ export default function PostServicePage() {
   }
   if (access === "denied") {
     return null;
+  }
+
+  if (profileLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-white">
+        <Spinner size="xl" />
+      </div>
+    );
+  }
+
+  if (isProfileDetailsIncomplete(profile)) {
+    return <ProfileCompletionRequiredScreen />;
   }
 
   if (locationAllowed === null) {

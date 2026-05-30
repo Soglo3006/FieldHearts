@@ -9,9 +9,12 @@ interface Props {
   accountType: string;
   currentStep: number;
   totalSteps: number;
+  completedSteps: boolean[];
+  maxStepReached?: number;
+  onStepClick?: (step: number) => void;
 }
 
-export default function OnboardingStepBar({ accountType, currentStep, totalSteps }: Props) {
+export default function OnboardingStepBar({ accountType, currentStep, totalSteps, completedSteps, maxStepReached, onStepClick }: Props) {
   const { t } = useTranslation();
 
   const personTitles = [
@@ -44,20 +47,29 @@ export default function OnboardingStepBar({ accountType, currentStep, totalSteps
           {titles.map((title, index) => {
             const StepIcon = icons[index];
             const stepNum = index + 1;
-            const isCompleted = stepNum < currentStep;
+            const isCompleted = completedSteps[index] === true;
             const isCurrent = stepNum === currentStep;
+            const isClickable = onStepClick && maxStepReached !== undefined && stepNum <= maxStepReached && !isCurrent;
             return (
-              <div key={index} className="flex flex-col items-center">
+              <div
+                key={index}
+                className={`flex flex-col items-center ${isClickable ? "cursor-pointer" : ""}`}
+                onClick={() => isClickable && onStepClick(stepNum)}
+              >
                 <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center transition-all ${
-                  isCompleted ? "bg-green-700 text-white"
-                    : isCurrent ? "bg-green-700 text-white ring-4 ring-green-100"
-                    : "bg-gray-200 text-gray-500"
-                }`}>
+                  isCompleted
+                    ? "bg-green-700 text-white"
+                    : isCurrent
+                      ? "bg-green-700 text-white ring-4 ring-green-100"
+                      : "bg-gray-200 text-gray-500"
+                } ${isClickable ? "hover:opacity-80" : ""}`}>
                   {isCompleted
                     ? <Check className="h-4 w-4 sm:h-5 sm:w-5" />
-                    : StepIcon && <StepIcon className="h-4 w-4 sm:h-5 sm:w-5 text-green-600" />}
+                    : StepIcon && <StepIcon className={`h-4 w-4 sm:h-5 sm:w-5 ${isCurrent ? "text-white" : "text-gray-500"}`} />}
                 </div>
-                <span className={`text-xs mt-2 hidden sm:block ${isCurrent ? "text-green-700 font-medium" : "text-gray-500"}`}>
+                <span className={`text-xs mt-2 hidden sm:block max-w-[4.5rem] text-center leading-tight ${
+                  isCurrent ? "text-green-700 font-medium" : isCompleted ? "text-green-700" : "text-gray-500"
+                }`}>
                   {title}
                 </span>
               </div>

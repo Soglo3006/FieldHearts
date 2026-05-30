@@ -32,6 +32,9 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
 import { DraftMessagePreparationError, prepareDraftMessageTarget } from '@/lib/draftMessage';
+import ProfileCompletionRequiredScreen from '@/components/profile/ProfileCompletionRequiredScreen';
+import { useMyProfile } from '@/hooks/useMyProfile';
+import { isProfileDetailsIncomplete } from '@/lib/onboardingSteps';
 
 function MessagesContent() {
   const { t } = useTranslation();
@@ -1152,6 +1155,25 @@ function MessagesContent() {
   );
 }
 
+function MessagesProfileGate() {
+  const { loading: authLoading } = useProtectedRoute({ requireAuth: true, requireProfileCompleted: true });
+  const { profile, loading: profileLoading } = useMyProfile();
+
+  if (authLoading || profileLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-white">
+        <Spinner size="xl" />
+      </div>
+    );
+  }
+
+  if (isProfileDetailsIncomplete(profile)) {
+    return <ProfileCompletionRequiredScreen />;
+  }
+
+  return <MessagesContent />;
+}
+
 export default function MessagesPage() {
   return (
     <Suspense fallback={
@@ -1159,7 +1181,7 @@ export default function MessagesPage() {
         <Spinner size="md" />
       </div>
     }>
-      <MessagesContent />
+      <MessagesProfileGate />
     </Suspense>
   );
 }

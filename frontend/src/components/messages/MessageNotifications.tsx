@@ -15,13 +15,26 @@ import { cn } from '@/lib/utils';
 import { useTranslation } from 'react-i18next';
 import { Spinner } from "@/components/ui/Spinner";
 
-export default function MessageNotifications() {
+interface MessageNotificationsProps {
+  profileDetailsIncomplete?: boolean;
+  onRequireCompleteProfile?: () => void;
+}
+
+export default function MessageNotifications({
+  profileDetailsIncomplete = false,
+  onRequireCompleteProfile,
+}: MessageNotificationsProps) {
   const { t, i18n } = useTranslation();
   const { unreadChats, unreadCount, loading, markAsRead } = useUnreadMessages();
   const router = useRouter();
   const [open, setOpen] = useState(false);
 
   const handleMessageClick = (chatRoomId: string) => {
+    if (profileDetailsIncomplete) {
+      setOpen(false);
+      onRequireCompleteProfile?.();
+      return;
+    }
     markAsRead(chatRoomId);
     setOpen(false);
     router.push(`/messages?chat=${chatRoomId}`);
@@ -49,13 +62,31 @@ export default function MessageNotifications() {
     return date.toLocaleDateString(i18n.language, { month: 'short', day: 'numeric' });
   };
 
+  const handleOpenMessages = () => {
+    if (profileDetailsIncomplete) {
+      setOpen(false);
+      onRequireCompleteProfile?.();
+      return;
+    }
+    setOpen(false);
+    router.push("/messages");
+  };
+
+  const handleTriggerClick = () => {
+    if (profileDetailsIncomplete) {
+      onRequireCompleteProfile?.();
+      return;
+    }
+  };
+
   return (
-    <DropdownMenu open={open} onOpenChange={setOpen} modal={false}>
+    <DropdownMenu open={profileDetailsIncomplete ? false : open} onOpenChange={(v) => { if (!profileDetailsIncomplete) setOpen(v); }} modal={false}>
       <DropdownMenuTrigger asChild>
         <Button
           variant="ghost"
           size="icon"
           className="relative cursor-pointer hover:bg-gray-100"
+          onClick={handleTriggerClick}
         >
           <MessageCircle className="h-6 w-6 text-gray-700" />
           {/* Red dot indicator — no number, just a dot */}
@@ -167,7 +198,7 @@ export default function MessageNotifications() {
         {/* Footer — See All in Inbox */}
         <div className="border-t border-gray-200 px-4 py-3">
           <button
-            onClick={() => { setOpen(false); router.push('/messages'); }}
+            onClick={handleOpenMessages}
             className="text-sm font-medium text-green-700 hover:text-green-800 hover:underline w-full text-center transition-colors cursor-pointer"
           >
             {t("messages.seeAllInbox")}

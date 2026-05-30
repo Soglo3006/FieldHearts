@@ -1,32 +1,32 @@
 "use client";
+
 import { useTranslation } from "react-i18next";
 import { Label } from "@/components/ui/label";
-import { categories } from "@/lib/categories";
+import { categories, toCategoryKey } from "@/lib/categories";
 import PostSelect from "@/components/post/PostSelect";
-
-const toKey = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
+import ListingTagsField from "@/components/post/ListingTagsField";
 
 interface Props {
   category: string;
-  subcategory: string;
+  tags: string[];
   onCategoryChange: (v: string) => void;
-  onSubcategoryChange: (v: string) => void;
+  onTagsChange: (tags: string[]) => void;
   categoryRequired?: boolean;
+  tagsRequired?: boolean;
 }
 
 export default function CategorySubcategoryFields({
-  category, subcategory,
-  onCategoryChange, onSubcategoryChange,
+  category,
+  tags,
+  onCategoryChange,
+  onTagsChange,
   categoryRequired,
+  tagsRequired = true,
 }: Props) {
   const { t } = useTranslation();
   const categoryOptions = categories.map((cat) => ({
     value: cat.name,
-    label: t(`categories.${toKey(cat.name)}`, { defaultValue: cat.name }),
-  }));
-  const subcategoryOptions = (categories.find((c) => c.name === category)?.subcategories ?? []).map((sub) => ({
-    value: sub,
-    label: t(`categories.${toKey(category)}_${toKey(sub)}`, { defaultValue: sub }),
+    label: t(`categories.${toCategoryKey(cat.name)}`, { defaultValue: cat.name }),
   }));
 
   return (
@@ -44,17 +44,12 @@ export default function CategorySubcategoryFields({
           />
         </div>
 
-        <div className="space-y-2">
-          <Label className="text-base font-medium text-gray-900">{t("post.subcategory")}</Label>
-          <PostSelect
-            value={subcategory}
-            onValueChange={onSubcategoryChange}
-            placeholder={t("post.selectSubcategory")}
-            options={subcategoryOptions}
-            disabled={!category}
-            allowClear
-          />
-        </div>
+        <ListingTagsField
+          category={category}
+          tags={tags}
+          onTagsChange={onTagsChange}
+          required={tagsRequired}
+        />
       </div>
     </div>
   );

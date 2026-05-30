@@ -4,7 +4,6 @@ import { useTranslation } from "react-i18next";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { Mail } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
@@ -58,11 +57,6 @@ export default function VerifyEmailPage() {
     <div className="min-h-screen flex items-center justify-center p-4 bg-white">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <div className="flex justify-center mb-4">
-            <div className="rounded-full bg-green-100 p-4">
-              <Mail className="h-12 w-12 text-green-700" />
-            </div>
-          </div>
           <CardTitle className="text-2xl font-bold">{t("auth.verifyEmail")}</CardTitle>
           <CardDescription className="text-base mt-2">
             {t("auth.verifyEmailDesc")}

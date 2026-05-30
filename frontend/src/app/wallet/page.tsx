@@ -29,6 +29,7 @@ import { getLanguageCode } from "@/lib/locale";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/Spinner";
+import { createStripeConnectLink } from "@/lib/stripeConnect";
 
 interface WalletData {
   balance: number;
@@ -266,12 +267,12 @@ export default function WalletPage() {
     if (!session?.access_token) return;
     setConnectLoading(true);
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/payments/connect/create`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${session.access_token}` },
+      const { url } = await createStripeConnectLink({
+        accessToken: session.access_token,
+        returnPath: "/wallet?stripe=success",
+        refreshPath: "/wallet?stripe=refresh",
       });
-      const data = await res.json();
-      if (data.url) window.location.href = data.url;
+      if (url) window.location.href = url;
     } catch {
     } finally {
       setConnectLoading(false);

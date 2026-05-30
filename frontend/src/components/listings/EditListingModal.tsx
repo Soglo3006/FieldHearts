@@ -26,6 +26,7 @@ import type { PricingMode } from "@/lib/listingPrice";
 import { normalizePricingMode } from "@/lib/listingPrice";
 import type { ListingPricingFields } from "@/lib/listingPrice";
 import { cn } from "@/lib/utils";
+import { parseListingTags } from "@/lib/listingTags";
 
 function stringNumPrice(v: unknown): string {
   if (v === null || v === undefined || v === "") return "";
@@ -82,6 +83,7 @@ export interface Service {
   category: string | null;
   category_id?: number | null;
   subcategory: string | null;
+  listing_tags?: unknown;
   poster_type: string | null;
   availability: string | null;
   language: string | null;
@@ -127,7 +129,7 @@ export default function EditListingModal({ service, accessToken, onClose, onSave
     };
   });
   const [category, setCategory] = useState(service.category ?? "");
-  const [subcategory, setSubcategory] = useState(service.subcategory ?? "");
+  const [tags, setTags] = useState<string[]>(() => parseListingTags(service));
   const [availability, setAvailability] = useState(
     () => normalizeAvailability(service.availability ?? "") || ""
   );
@@ -179,6 +181,7 @@ export default function EditListingModal({ service, accessToken, onClose, onSave
   const isValid =
     hasRequiredBilingualFields(translations) &&
     category.trim() !== "" &&
+    tags.length >= 1 &&
     pricingOk &&
     locationOk;
 
@@ -211,7 +214,8 @@ export default function EditListingModal({ service, accessToken, onClose, onSave
             longitude: locationDetails?.lng ?? null,
             city: locationDetails?.city ?? location.trim(),
             category: category || null,
-            subcategory: subcategory || null,
+            listing_tags: tags,
+            subcategory: tags[0] ?? null,
             availability: availability || null,
             language: language || null,
             mobility: mobility || null,
@@ -425,12 +429,9 @@ export default function EditListingModal({ service, accessToken, onClose, onSave
           {/* Category / Subcategory / Poster type */}
           <CategorySubcategoryFields
             category={category}
-            subcategory={subcategory}
-            onCategoryChange={(value) => {
-              setCategory(value);
-              setSubcategory("");
-            }}
-            onSubcategoryChange={setSubcategory}
+            tags={tags}
+            onCategoryChange={setCategory}
+            onTagsChange={setTags}
             categoryRequired
           />
 

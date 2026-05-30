@@ -11,6 +11,7 @@ interface Props {
   state: "idle" | "loading" | "success" | "error";
   note: string;
   errorMsg: string;
+  serviceType: "offer" | "looking";
   displayPriceLabel: string;
   estimatedTotalBase: number | null;
   estimatedTotalBaseMax?: number | null;
@@ -27,6 +28,7 @@ export default function BookingModal({
   state,
   note,
   errorMsg,
+  serviceType,
   displayPriceLabel,
   estimatedTotalBase,
   estimatedTotalBaseMax,
@@ -39,6 +41,7 @@ export default function BookingModal({
 }: Props) {
   const { t, i18n } = useTranslation();
   const { taxRate, taxLabel } = useClientTax(getLanguageCode(i18n.language));
+  const showBuyerFees = serviceType === "offer";
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div
@@ -108,29 +111,35 @@ export default function BookingModal({
                   return (
                     <div className="space-y-1.5 text-sm">
                       <div className="flex justify-between gap-2">
-                        <span className="text-gray-600">{t("serviceDetail.servicePrice")}</span>
+                        <span className="text-gray-600">
+                          {serviceType === "offer" ? t("serviceDetail.servicePrice") : t("listings.price")}
+                        </span>
                         <span className="font-semibold text-right">{displayPriceLabel}</span>
                       </div>
-                      <div className="flex justify-between gap-2">
-                        <div>
-                          <div className="text-gray-500">{t("serviceDetail.buyerCommission")}</div>
-                          <div className="text-xs text-red-500">{t("payment.nonRefundable")}</div>
-                        </div>
-                        <span className="text-gray-700 text-right tabular-nums shrink-0">{fmtRange(buyerCommissionMin, buyerCommissionMax)}</span>
-                      </div>
-                      <div className="flex justify-between gap-2">
-                        <div>
-                          <div className="text-gray-500">{t("serviceDetail.taxes")} ({formatTaxRate(taxRate)}%)</div>
-                          <div className="text-xs text-gray-400">{taxLabel}</div>
-                        </div>
-                        <span className="text-gray-700 text-right tabular-nums shrink-0">{fmtRange(taxesMin, taxesMax)}</span>
-                      </div>
-                      <div className="flex justify-between gap-2 font-bold border-t border-gray-200 pt-2">
-                        <span>{t("serviceDetail.total")}</span>
-                        <span className="text-green-700 text-right tabular-nums shrink-0">{fmtRange(totalMin, totalMax)}</span>
-                      </div>
-                      {showRangeTotals && (
-                        <p className="text-xs text-gray-500 leading-snug">{t("serviceDetail.rangeTotalsHint")}</p>
+                      {showBuyerFees && (
+                        <>
+                          <div className="flex justify-between gap-2">
+                            <div>
+                              <div className="text-gray-500">{t("serviceDetail.buyerCommission")}</div>
+                              <div className="text-xs text-red-500">{t("payment.nonRefundable")}</div>
+                            </div>
+                            <span className="text-gray-700 text-right tabular-nums shrink-0">{fmtRange(buyerCommissionMin, buyerCommissionMax)}</span>
+                          </div>
+                          <div className="flex justify-between gap-2">
+                            <div>
+                              <div className="text-gray-500">{t("serviceDetail.taxes")} ({formatTaxRate(taxRate)}%)</div>
+                              <div className="text-xs text-gray-400">{taxLabel}</div>
+                            </div>
+                            <span className="text-gray-700 text-right tabular-nums shrink-0">{fmtRange(taxesMin, taxesMax)}</span>
+                          </div>
+                          <div className="flex justify-between gap-2 font-bold border-t border-gray-200 pt-2">
+                            <span>{t("serviceDetail.total")}</span>
+                            <span className="text-green-700 text-right tabular-nums shrink-0">{fmtRange(totalMin, totalMax)}</span>
+                          </div>
+                          {showRangeTotals && (
+                            <p className="text-xs text-gray-500 leading-snug">{t("serviceDetail.rangeTotalsHint")}</p>
+                          )}
+                        </>
                       )}
                     </div>
                   );

@@ -101,11 +101,80 @@ async function syncDefaultBillingAddress(client, {
     );
 }
 
+export const initializeAccount = async (req, res) => {
+    try {
+        const { account_type, skip_profile_form: skipProfileForm } = req.body;
+        if (!["person", "company"].includes(account_type)) {
+            return res.status(400).json({ message: "Invalid account type" });
+        }
+
+        const userId = req.user.id;
+        const meta = req.authUser?.user_metadata || {};
+        const firstName = (meta.first_name || "").trim();
+        const lastName = (meta.last_name || "").trim();
+        const fullName =
+            (meta.full_name || "").trim() ||
+            [firstName, lastName].filter(Boolean).join(" ").trim() ||
+            req.user.email;
+        const profileCompleted = skipProfileForm === true;
+
+        const userMetadata = {
+            ...meta,
+            account_type,
+            first_name: firstName,
+            last_name: lastName,
+            full_name: fullName,
+            onboarding_intro_completed: true,
+            profile_completed: profileCompleted,
+        };
+
+        const { error: metaError } = await supabaseAdmin.auth.admin.updateUserById(
+            userId,
+            { user_metadata: userMetadata }
+        );
+
+        if (metaError) {
+            console.error("Error updating user metadata:", metaError);
+            return res.status(500).json({
+                message: "Failed to update user metadata",
+                error: metaError.message,
+            });
+        }
+
+        const result = await pool.query(
+            `UPDATE users
+             SET account_type = $1,
+                 full_name = $2,
+                 profile_completed = $3,
+                 updated_at = NOW()
+             WHERE id = $4
+             RETURNING *`,
+            [account_type, fullName, profileCompleted, userId]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        res.json({
+            message: "Account initialized",
+            user: result.rows[0],
+        });
+    } catch (err) {
+        console.error("Error initializing account:", err);
+        res.status(500).json({
+            message: "Server error while initializing account",
+            error: err.message,
+        });
+    }
+};
+
 export const completeProfile = async (req, res) => {
     let client;
     try {
         const {
             account_type,
+            full_name: bodyFullName,
             phone,
             address,
             city,
@@ -129,10 +198,15 @@ export const completeProfile = async (req, res) => {
         } = req.body;
 
         const userId = req.user.id;
-        const fullName = req.user.full_name;
+        const meta = req.authUser?.user_metadata || {};
+        const fullName =
+            (bodyFullName || "").trim() ||
+            (meta.full_name || "").trim() ||
+            [meta.first_name, meta.last_name].filter(Boolean).join(" ").trim() ||
+            req.user.full_name;
 
         // Sanitize text inputs
-        if (bio && bio.length > 1000) return res.status(400).json({ message: "Bio must be at most 1000 characters" });
+        if (bio && bio.length > 2500) return res.status(400).json({ message: "Bio must be at most 2500 characters" });
         if (profession && profession.length > 200) return res.status(400).json({ message: "Profession must be at most 200 characters" });
         if (company_name && company_name.length > 200) return res.status(400).json({ message: "Company name must be at most 200 characters" });
         const sanitizedBio = sanitizeText(bio);
@@ -192,27 +266,29 @@ export const completeProfile = async (req, res) => {
             `UPDATE users
             SET
                 account_type = $1,
-                phone = $2,
-                address = $3,
-                city = $4,
-                province = $5,
-                postal_code = $6,
-                bio = $7,
-                avatar = $8,
-                profession = $9,
-                skills = $10,
-                languages = $11,
-                experiences = $12,
-                company_name = $13,
-                industry = $14,
-                team_size = $15,
-                portfolio = $16,
+                full_name = COALESCE(NULLIF($2, ''), full_name),
+                phone = $3,
+                address = $4,
+                city = $5,
+                province = $6,
+                postal_code = $7,
+                bio = $8,
+                avatar = $9,
+                profession = $10,
+                skills = $11,
+                languages = $12,
+                experiences = $13,
+                company_name = $14,
+                industry = $15,
+                team_size = $16,
+                portfolio = $17,
                 profile_completed = true,
                 updated_at = NOW()
-            WHERE id = $17
+            WHERE id = $18
             RETURNING *`,
             [
                 account_type,
+                fullName,
                 phone,
                 address,
                 city,

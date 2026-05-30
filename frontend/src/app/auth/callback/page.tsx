@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { canAccessAdminPortal, safeInternalPath } from "@/lib/auth";
+import { needsOnboardingSetup } from "@/lib/onboarding";
 import { clearAdminStepUpToken } from "@/lib/adminStepUp";
 import { Spinner } from "@/components/ui/Spinner";
 
@@ -40,8 +41,7 @@ export default function AuthCallbackPage() {
           if (canAccessAdminPortal(session.user)) {
             router.replace("/admin");
           } else {
-            const profileCompleted = session.user.user_metadata?.profile_completed;
-            if (!profileCompleted) {
+            if (needsOnboardingSetup(session.user)) {
               router.replace("/choose_type");
             } else {
               const next = new URLSearchParams(window.location.search).get("next");
@@ -57,8 +57,7 @@ export default function AuthCallbackPage() {
               if (canAccessAdminPortal(session.user)) {
                 router.replace("/admin");
               } else {
-                const profileCompleted = session.user.user_metadata?.profile_completed;
-                if (!profileCompleted) {
+                if (needsOnboardingSetup(session.user)) {
                   router.replace("/choose_type");
                 } else {
                   const next = new URLSearchParams(window.location.search).get("next");

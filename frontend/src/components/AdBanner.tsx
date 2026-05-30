@@ -1,6 +1,6 @@
 "use client";
-// AdSense banner component
-import { useEffect } from "react";
+// AdSense banner — disabled until Google AdSense approval.
+// To re-enable: remove the "return null" line below and uncomment the AdSense Script in layout.tsx.
 
 interface AdBannerProps {
   slot: string;
@@ -9,29 +9,25 @@ interface AdBannerProps {
   style?: React.CSSProperties;
 }
 
-export default function AdBanner({
-  slot,
-  format = "auto",
-  className = "",
-  style,
-}: AdBannerProps) {
+export default function AdBanner(_props: AdBannerProps) {
+  return null;
+
+  /* --- restore below when approved ---
+  import { useEffect } from "react";
   useEffect(() => {
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       ((window as any).adsbygoogle = (window as any).adsbygoogle || []).push({});
-    } catch {
-      // ignore
-    }
+    } catch { }
   }, []);
-
   return (
     <ins
-      className={`adsbygoogle ${className}`}
-      style={{ display: "block", ...style }}
+      className={`adsbygoogle ${_props.className ?? ""}`}
+      style={{ display: "block", ..._props.style }}
       data-ad-client="ca-pub-1987537963844035"
-      data-ad-slot={slot}
-      data-ad-format={format}
+      data-ad-slot={_props.slot}
+      data-ad-format={_props.format ?? "auto"}
       data-full-width-responsive="true"
     />
   );
+  */
 }

@@ -21,6 +21,7 @@ import { toast } from "sonner";
 import { type Service as Listing } from "@/components/listings/EditListingModal";
 import { Spinner } from "@/components/ui/Spinner";
 import { OverlayModal } from "@/components/ui/OverlayModal";
+import CompleteProfileModal from "@/components/profile/CompleteProfileModal";
 
 interface ProfileUser {
   account_type?: string;
@@ -66,8 +67,8 @@ export default function UserProfilePage() {
 
   const settingsScrollRef = useRef<HTMLDivElement>(null);
   const isOwner = user?.id === profileId;
-  const { startConversation, loading: sendMessageLoading } = useStartConversation();
-  const { t } = useTranslation();
+  const { startConversation, loading: sendMessageLoading, showCompleteProfile: showConvComplete, setShowCompleteProfile: setShowConvComplete } = useStartConversation();
+  const { t, i18n } = useTranslation();
 
   useEffect(() => { hasFetchedRef.current = false; }, [profileId]);
 
@@ -193,9 +194,10 @@ export default function UserProfilePage() {
   const isCompany = profileUser.account_type === "company";
   const displayName = (isPerson ? profileUser.full_name : profileUser.company_name) || "";
   const displayTitle = (isPerson ? profileUser.profession : profileUser.industry) || "";
+  const dateLocale = i18n.language?.startsWith("fr") ? "fr-CA" : "en-US";
   const memberSince = profileUser.created_at
-    ? new Date(profileUser.created_at).toLocaleDateString("en-US", { month: "long", year: "numeric" })
-    : "Recently";
+    ? new Date(profileUser.created_at).toLocaleDateString(dateLocale, { month: "long", year: "numeric" })
+    : t("profile.recently");
   const skills = typeof profileUser.skills === "string" ? JSON.parse(profileUser.skills) : profileUser.skills || [];
   const languages = typeof profileUser.languages === "string" ? JSON.parse(profileUser.languages) : profileUser.languages || [];
   const portfolio = typeof profileUser.portfolio === "string" ? JSON.parse(profileUser.portfolio) : profileUser.portfolio || [];
@@ -312,6 +314,8 @@ export default function UserProfilePage() {
           <RatingsPage onClose={() => setShowRatings(false)} profileId={profileId} displayName={displayName} />
         </OverlayModal>
       )}
+
+      <CompleteProfileModal open={showConvComplete} onClose={() => setShowConvComplete(false)} />
     </div>
   );
 }

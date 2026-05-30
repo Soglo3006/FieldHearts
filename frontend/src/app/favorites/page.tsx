@@ -12,6 +12,9 @@ import { getPublicServiceLocation } from "@/lib/serviceLocation";
 import { resolveListingTitle, type ServiceLikeWithI18n } from "@/lib/serviceListingI18n";
 import ListingLangPills from "@/components/ui/ListingLangPills";
 import { formatListingPriceLine } from "@/lib/listingPrice";
+import ProfileCompletionRequiredScreen from "@/components/profile/ProfileCompletionRequiredScreen";
+import { useMyProfile } from "@/hooks/useMyProfile";
+import { isProfileDetailsIncomplete } from "@/lib/onboardingSteps";
 
 interface FavoriteService extends Pick<ServiceLikeWithI18n, "language" | "translations"> {
   id: string;
@@ -33,6 +36,7 @@ interface FavoriteService extends Pick<ServiceLikeWithI18n, "language" | "transl
 export default function FavoritesPage() {
   const { t, i18n } = useTranslation();
   const { user, session } = useAuth();
+  const { profile, loading: profileLoading } = useMyProfile();
   const [items, setItems] = useState<FavoriteService[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -114,6 +118,18 @@ export default function FavoritesPage() {
       } catch {}
     }
   };
+
+  if (user && profileLoading) {
+    return (
+      <div className="min-h-[50vh] flex items-center justify-center bg-white">
+        <p className="text-gray-500">{t("favorites.loading")}</p>
+      </div>
+    );
+  }
+
+  if (user && isProfileDetailsIncomplete(profile)) {
+    return <ProfileCompletionRequiredScreen />;
+  }
 
   return (
     <div className="min-h-screen bg-white">

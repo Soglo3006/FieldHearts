@@ -7,18 +7,21 @@ import { MapPin, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import { CANADA_REGIONS, filterCanadaRegions, getRegionDisplayLabel } from "@/lib/canadaRegions";
+import { geocodeCanadianLocation, geocodePlaceId, type LatLng } from "@/lib/geocodeCanadianLocation";
 
 const LIBRARIES: Libraries = ["places"];
 
 interface Props {
   value: string;
   onChange: (city: string) => void;
+  /** Coordonnées lorsque l'utilisateur choisit une ville ou une région dans la liste. */
+  onCoordsChange?: (coords: LatLng | null) => void;
   placeholder?: string;
   className?: string;
   id?: string;
 }
 
-function CityInput({ value, onChange, placeholder, className, id }: Props) {
+function CityInput({ value, onChange, onCoordsChange, placeholder, className, id }: Props) {
   const { t, i18n } = useTranslation();
   const langIsEnglish = i18n.language?.startsWith("en") ?? false;
   const [panelOpen, setPanelOpen] = useState(false);
@@ -66,15 +69,18 @@ function CityInput({ value, onChange, placeholder, className, id }: Props) {
     blurCloseTimer.current = setTimeout(() => setPanelOpen(false), 200);
   };
 
-  const handleSelectCity = (description: string) => {
+  const handleSelectCity = async (placeId: string, description: string) => {
     const cityName = description.split(",")[0].trim();
     setValue(cityName, false);
     clearSuggestions();
     onChange(cityName);
     setPanelOpen(false);
+
+    const coords = await geocodePlaceId(placeId);
+    onCoordsChange?.(coords);
   };
 
-  const handleSelectRegion = (regionId: string) => {
+  const handleSelectRegion = async (regionId: string) => {
     const region = CANADA_REGIONS.find((r) => r.id === regionId);
     if (!region) return;
     const label = getRegionDisplayLabel(region, langIsEnglish);
@@ -82,6 +88,9 @@ function CityInput({ value, onChange, placeholder, className, id }: Props) {
     clearSuggestions();
     onChange(label);
     setPanelOpen(false);
+
+    const coords = await geocodeCanadianLocation(label);
+    onCoordsChange?.(coords);
   };
 
   const hasCities = cityPredictions.length > 0;
@@ -99,6 +108,7 @@ function CityInput({ value, onChange, placeholder, className, id }: Props) {
           onChange={(e) => {
             setValue(e.target.value);
             onChange(e.target.value);
+            onCoordsChange?.(null);
           }}
           onFocus={() => {
             cancelBlurClose();
@@ -120,6 +130,7 @@ function CityInput({ value, onChange, placeholder, className, id }: Props) {
               setValue("", false);
               clearSuggestions();
               onChange("");
+              onCoordsChange?.(null);
             }}
             className="cursor-pointer absolute right-2.5 text-gray-400 hover:text-gray-600"
           >
@@ -180,7 +191,7 @@ function CityInput({ value, onChange, placeholder, className, id }: Props) {
                   onMouseDown={(e) => {
                     e.preventDefault();
                     cancelBlurClose();
-                    handleSelectCity(description);
+                    handleSelectCity(place_id, description);
                   }}
                   className="flex items-center gap-2 px-3 py-2.5 hover:bg-green-50 cursor-pointer text-sm text-gray-700 border-b border-gray-50 last:border-0"
                 >

@@ -4,6 +4,8 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Users } from "lucide-react";
+import { languageLabels, proficiencyLabels } from "@/components/onboarding/onboardingTypes";
+import { getLanguageCode } from "@/lib/locale";
 
 interface ProfileUser {
   bio?: string;
@@ -22,7 +24,8 @@ interface Props {
 }
 
 export default function ProfileAbout({ profileUser, isPerson, isCompany, skills, languages, memberSince }: Props) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const langCode = getLanguageCode(i18n.language);
   if (!profileUser.bio) return null;
 
   return (
@@ -56,8 +59,10 @@ export default function ProfileAbout({ profileUser, isPerson, isCompany, skills,
             </h3>
             <p className="text-gray-700">
               {languages
-                .map((lang) =>
-                  typeof lang === "string" ? lang : `${lang.language} (${lang.proficiency})`
+                .map((item) =>
+                  typeof item === "string"
+                    ? item
+                    : `${languageLabels[item.language]?.[langCode] ?? item.language} (${proficiencyLabels[item.proficiency]?.[langCode] ?? item.proficiency})`
                 )
                 .join(", ")}
             </p>

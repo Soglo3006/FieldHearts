@@ -17,6 +17,10 @@ import AdBanner from "@/components/AdBanner";
 import BookingModal from "@/components/serviceDetail/BookingModal";
 import LocationMapModal from "@/components/serviceDetail/LocationMapModal";
 import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
+import CompleteProfileModal from "@/components/profile/CompleteProfileModal";
+import { useMyProfile } from "@/hooks/useMyProfile";
+import { isProfileDetailsIncomplete } from "@/lib/onboardingSteps";
 import { getPublicServiceLocation, hasApproximateServiceLocation } from "@/lib/serviceLocation";
 import { resolveListingTitle, type ServiceLikeWithI18n } from "@/lib/serviceListingI18n";
 import {
@@ -115,10 +119,12 @@ export default function ServiceDetailClient() {
   const [faqs, setFaqs] = useState<Array<{ question: string; answer: string }>>([]);
   const [isMapOpen, setIsMapOpen] = useState(false);
 
-  const { startConversation, loading: contactLoading } = useStartConversation();
+  const { startConversation, loading: contactLoading, showCompleteProfile: showConvCompleteProfile, setShowCompleteProfile: setShowConvCompleteProfile } = useStartConversation();
   const { user, session } = useAuth();
+  const { profile } = useMyProfile();
   const router = useRouter();
 
+  const [showCompleteProfileModal, setShowCompleteProfileModal] = useState(false);
   const [showBookingModal, setShowBookingModal] = useState(false);
   const [bookingState, setBookingState] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [bookingNote, setBookingNote] = useState("");
@@ -264,6 +270,10 @@ export default function ServiceDetailClient() {
 
   const handleBookingRequest = () => {
     if (!user) { router.push(`/login?redirect=/serviceDetail/${serviceId}`); return; }
+    if (isProfileDetailsIncomplete(profile)) {
+      setShowCompleteProfileModal(true);
+      return;
+    }
     setBookingState("idle");
     setBookingNote("");
     setShowBookingModal(true);
@@ -369,6 +379,7 @@ export default function ServiceDetailClient() {
           state={bookingState}
           note={bookingNote}
           errorMsg={bookingErrorMsg}
+          serviceType={service.type}
           displayPriceLabel={displayPriceLabel}
           estimatedTotalBase={estimatedTotalBase}
           estimatedTotalBaseMax={estimatedTotalBaseMax}
@@ -384,6 +395,12 @@ export default function ServiceDetailClient() {
           }}
         />
       )}
+
+      <CompleteProfileModal
+        open={showCompleteProfileModal || showConvCompleteProfile}
+        onClose={() => { setShowCompleteProfileModal(false); setShowConvCompleteProfile(false); }}
+        accountType={profile?.account_type}
+      />
 
       {isMapOpen && (
         <LocationMapModal

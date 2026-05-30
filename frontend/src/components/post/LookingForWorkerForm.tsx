@@ -9,6 +9,7 @@ import LocationAutocomplete, {
   isResolvedLocationDetails,
 } from "@/components/post/LocationAutocomplete";
 import CategorySubcategoryFields from "@/components/post/CategorySubcategoryFields";
+import { formatListingTagsDisplay } from "@/lib/categories";
 import AvailabilityLanguageMobilityFields from "@/components/post/AvailabilityLanguageMobilityFields";
 import OneTimeCheckbox from "@/components/post/OneTimeCheckbox";
 import FormSubmitButton from "@/components/post/FormSubmitButton";
@@ -32,8 +33,6 @@ import {
   labelMobility,
   labelUrgency,
 } from "@/lib/postFormConfirmLabels";
-
-const categoryToKey = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
 
 const urgencyLevels = [
   { value: "anytime", labelKey: "post.urgencyAnytime" },
@@ -60,7 +59,7 @@ export default function LookingForWorkerForm({ onSuccess }: Props) {
     description: {},
   });
   const [category, setCategory] = useState("");
-  const [subcategory, setSubcategory] = useState("");
+  const [tags, setTags] = useState<string[]>([]);
   const [pricingMode, setPricingMode] = useState<PricingMode>("fixed");
   const [budget, setBudget] = useState("");
   const [budgetMin, setBudgetMin] = useState("");
@@ -111,16 +110,14 @@ export default function LookingForWorkerForm({ onSuccess }: Props) {
 
   const locationOk = location.trim() !== "" && isResolvedLocationDetails(locationDetails);
 
-  const categoryDisplay = category ? t(`categories.${categoryToKey(category)}`, { defaultValue: category }) : "";
-  const subcategoryDisplay =
-    subcategory && category
-      ? t(`categories.${categoryToKey(category)}_${categoryToKey(subcategory)}`, { defaultValue: subcategory })
-      : "";
-  const confirmCategoryLine = subcategoryDisplay ? `${categoryDisplay} · ${subcategoryDisplay}` : categoryDisplay;
+  const confirmCategoryLine = category
+    ? formatListingTagsDisplay(category, tags, null, t, " · ")
+    : "";
 
   const isValid =
     hasRequiredBilingualFields(translations) &&
     category.trim() !== "" &&
+    tags.length >= 1 &&
     pricingOk &&
     locationOk;
 
@@ -150,7 +147,8 @@ export default function LookingForWorkerForm({ onSuccess }: Props) {
           translations: finalized,
           category,
           category_id: null,
-          subcategory,
+          listing_tags: tags,
+          subcategory: tags[0] ?? null,
           ...jobPricingFields(),
           location,
           address: locationDetails?.address ?? location,
@@ -332,9 +330,9 @@ export default function LookingForWorkerForm({ onSuccess }: Props) {
 
       <CategorySubcategoryFields
         category={category}
-        subcategory={subcategory}
+        tags={tags}
         onCategoryChange={setCategory}
-        onSubcategoryChange={setSubcategory}
+        onTagsChange={setTags}
         categoryRequired
       />
 

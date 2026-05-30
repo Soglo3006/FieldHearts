@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useTranslation } from "react-i18next";
+import { useJsApiLoader, type Libraries } from "@react-google-maps/api";
 import { Slider } from "@/components/ui/slider";
 import { ChevronDown, ChevronRight, X, SlidersHorizontal } from "lucide-react";
 import CityAutocomplete from "@/components/ui/CityAutocomplete";
@@ -10,6 +11,13 @@ import { categories } from "@/lib/categories";
 import ListingsGrid from "@/components/listings/ListingsGrid";
 import { Spinner } from "@/components/ui/Spinner";
 import AdBanner from "@/components/AdBanner";
+import {
+  geocodeCanadianLocation,
+  LOCATION_SEARCH_RADIUS_KM,
+  type LatLng,
+} from "@/lib/geocodeCanadianLocation";
+
+const MAPS_LIBRARIES: Libraries = ["places"];
 
 const toKey = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
 const FILTER_KEY_SEPARATOR = "::";
@@ -51,6 +59,14 @@ function ListingsContent({ username }: { username?: string }) {
   const [selectedCategories, setSelectedCategories] = useState<string[]>(initialCategories);
   const [selectedSubcategories, setSelectedSubcategories] = useState<string[]>(initialSubcategories);
   const [location, setLocation] = useState(searchParams.get("location") ?? "");
+  const initialLat = parseFloat(searchParams.get("userLat") ?? "");
+  const initialLng = parseFloat(searchParams.get("userLng") ?? "");
+  const initialCoords: LatLng | null =
+    !Number.isNaN(initialLat) && !Number.isNaN(initialLng)
+      ? { lat: initialLat, lng: initialLng }
+      : null;
+  const [locationCoords, setLocationCoords] = useState<LatLng | null>(initialCoords);
+  const [resolvedLocationCoords, setResolvedLocationCoords] = useState<LatLng | null>(initialCoords);
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 1000]);
   const [serviceType, setServiceType] = useState(searchParams.get("type") ?? "all");
   const [spokenLanguage, setSpokenLanguage] = useState(initialSpokenValid);
@@ -62,6 +78,11 @@ function ListingsContent({ username }: { username?: string }) {
   const [debouncedSearch, setDebouncedSearch] = useState(search);
   const [debouncedLocation, setDebouncedLocation] = useState(location);
   const [debouncedPrice, setDebouncedPrice] = useState<[number, number]>(priceRange);
+
+  const { isLoaded: mapsReady } = useJsApiLoader({
+    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "",
+    libraries: MAPS_LIBRARIES,
+  });
 
   // Sync all filters from URL when CategoryNav or header search navigates here
   const urlSearch = searchParams.get("search") ?? "";
@@ -119,6 +140,40 @@ function ListingsContent({ username }: { username?: string }) {
     return () => clearTimeout(timer);
   }, [priceRange]);
 
+  useEffect(() => {
+    const urlLocation = searchParams.get("location") ?? "";
+    const lat = parseFloat(searchParams.get("userLat") ?? "");
+    const lng = parseFloat(searchParams.get("userLng") ?? "");
+    const coords =
+      !Number.isNaN(lat) && !Number.isNaN(lng) ? { lat, lng } : null;
+
+    setLocation(urlLocation);
+    setDebouncedLocation(urlLocation);
+    setLocationCoords(coords);
+    setResolvedLocationCoords(coords);
+  }, [searchParams]);
+
+  useEffect(() => {
+    const trimmed = debouncedLocation.trim();
+    if (!trimmed) {
+      setResolvedLocationCoords(null);
+      return;
+    }
+    if (locationCoords) {
+      setResolvedLocationCoords(locationCoords);
+      return;
+    }
+    if (!mapsReady) return;
+
+    let cancelled = false;
+    geocodeCanadianLocation(trimmed).then((coords) => {
+      if (!cancelled) setResolvedLocationCoords(coords);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [debouncedLocation, locationCoords, mapsReady]);
+
   const toggleExpand = (name: string) =>
     setExpandedCategories((prev) =>
       prev.includes(name) ? prev.filter((c) => c !== name) : [...prev, name]
@@ -165,6 +220,8 @@ function ListingsContent({ username }: { username?: string }) {
     setSelectedCategories([]);
     setSelectedSubcategories([]);
     setLocation("");
+    setLocationCoords(null);
+    setResolvedLocationCoords(null);
     setPriceRange([0, 1000]);
     setServiceType("all");
     setSpokenLanguage("");
@@ -186,7 +243,7 @@ function ListingsContent({ username }: { username?: string }) {
         clear: () => clearSubcategory(encoded),
       };
     }),
-    debouncedLocation && { label: ` ${debouncedLocation}`, clear: () => setLocation("") },
+    debouncedLocation && { label: ` ${debouncedLocation}`, clear: () => { setLocation(""); setLocationCoords(null); setResolvedLocationCoords(null); } },
     serviceType !== "all" && { label: serviceType === "offer" ? t("listings.offering") : t("listings.looking"), clear: () => setServiceType("all") },
     spokenLanguage && {
       label:
@@ -432,8 +489,10 @@ function ListingsContent({ username }: { username?: string }) {
               <CityAutocomplete
                 value={location}
                 onChange={setLocation}
+                onCoordsChange={setLocationCoords}
                 placeholder={t("listings.cityOrArea")}
               />
+              <p className="mt-2 text-xs text-gray-500">{t("home.locationPrivacyHint")}</p>
             </div>
 
             {/* Price range */}
@@ -485,6 +544,9 @@ function ListingsContent({ username }: { username?: string }) {
               categories: selectedCategories,
               subcategories: selectedSubcategories.map((value) => decodeSubcategoryFilter(value).subcategory || value),
               location: debouncedLocation,
+              locationLat: resolvedLocationCoords?.lat,
+              locationLng: resolvedLocationCoords?.lng,
+              locationRadius: LOCATION_SEARCH_RADIUS_KM,
               minPrice: debouncedPrice[0],
               maxPrice: debouncedPrice[1],
               serviceType,
@@ -503,15 +565,6 @@ function ListingsContent({ username }: { username?: string }) {
 export default function ListingsPage({ username }: { username?: string }) {
   return (
     <div className="bg-white min-h-screen text-black">
-      {/* Ad banner */}
-      <div className="bg-gray-200 border-b border-gray-300">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="h-20 flex items-center justify-center">
-            <AdBanner slot="LISTINGS_BANNER_SLOT" format="horizontal" style={{ minHeight: 70, width: "100%" }} />
-          </div>
-        </div>
-      </div>
-
       <main>
         <Suspense
           fallback={

@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/contexts/AuthContext';
+import { useMyProfile } from '@/hooks/useMyProfile';
+import { isProfileDetailsIncomplete } from '@/lib/onboardingSteps';
 import { supabase } from '@/lib/supabaseClient';
 import { toast } from 'sonner';
 
@@ -9,7 +11,9 @@ export function useStartConversation() {
   const router = useRouter();
   const { t } = useTranslation();
   const { user, loading: authLoading } = useAuth();
+  const { profile, loading: profileLoading } = useMyProfile();
   const [loading, setLoading] = useState(false);
+  const [showCompleteProfile, setShowCompleteProfile] = useState(false);
 
   const startConversation = async (otherUserId: string, redirectBack?: string) => {
     if (authLoading) return;
@@ -21,8 +25,13 @@ export function useStartConversation() {
       return;
     }
 
+    if (profileLoading) return;
+    if (user && isProfileDetailsIncomplete(profile)) {
+      setShowCompleteProfile(true);
+      return;
+    }
+
     if (user.id === otherUserId) {
-      // Ne pas créer de conversation avec soi-même
       toast.error("You cannot message yourself!");
       return;
     }
@@ -36,8 +45,6 @@ export function useStartConversation() {
       return;
     }
 
-    // Open a draft conversation shell. The real chat is created
-    // only when the first message is sent from the messages page.
     setLoading(true);
     try {
       router.push(`/messages?compose=${encodeURIComponent(otherUserId)}`);
@@ -46,5 +53,5 @@ export function useStartConversation() {
     }
   };
 
-  return { startConversation, loading };
+  return { startConversation, loading, showCompleteProfile, setShowCompleteProfile };
 }

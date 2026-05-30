@@ -11,6 +11,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Spinner } from "@/components/ui/Spinner";
 import { getLanguageCode } from "@/lib/locale";
 import { isSupportOnlyUser } from "@/lib/auth";
+import SiteChrome from "@/components/onboarding/SiteChrome";
 
 const AUTH_ROUTES = [
   "/login",
@@ -25,7 +26,6 @@ const AUTH_ROUTES = [
 ];
 
 const NO_CATEGORY_ROUTES = [
-  "/listings",
   "/privacy-policy",
   "/terms",
   "/payment-terms",
@@ -92,30 +92,32 @@ export default function ConditionalShell({ children }: { children: React.ReactNo
 
   if (isNoCategoryPage) {
     return (
-      <>
+      <SiteChrome>
         <Suspense><Header /></Suspense>
         <main className="flex-1">{children}</main>
         <Footer />
-      </>
+      </SiteChrome>
     );
   }
 
   if (isNoFooterPage) {
     return (
-      <div className="h-[100dvh] flex flex-col overflow-hidden">
-        <Suspense><Header /></Suspense>
-        <CategoryNav />
-        <main className="flex-1 flex flex-col min-h-0 overflow-hidden">{children}</main>
-      </div>
+      <SiteChrome>
+        <div className="h-[100dvh] flex flex-col overflow-hidden">
+          <Suspense><Header /></Suspense>
+          <CategoryNav />
+          <main className="flex-1 flex flex-col min-h-0 overflow-hidden">{children}</main>
+        </div>
+      </SiteChrome>
     );
   }
 
   return (
-    <>
+    <SiteChrome>
       <Suspense><Header /></Suspense>
       <CategoryNav />
       <main className="flex-1">{children}</main>
       <Footer />
-    </>
+    </SiteChrome>
   );
 }

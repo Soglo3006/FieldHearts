@@ -12,7 +12,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import React, { useState, useEffect } from "react"
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, ArrowLeft, Loader2 } from "lucide-react";
 import { useScrollLock } from "@/hooks/useScrollLock"
 import { useAuth } from "@/contexts/AuthContext"
 import { useRouter, useSearchParams } from "next/navigation"
@@ -23,13 +23,18 @@ import { useTranslation } from "react-i18next";
 import { Spinner } from "@/components/ui/Spinner";
 import { getLanguageCode } from "@/lib/locale";
 
+type Step = "email" | "password";
+
 export default function RegisterPage() {
   const searchParams = useSearchParams();
-  const [fullName, setFullName] = useState("")
+  const [firstName, setFirstName] = useState("")
+  const [lastName, setLastName] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const [error, setError] = useState("")
+  const [step, setStep] = useState<Step>("email")
+  const [checkingEmail, setCheckingEmail] = useState(false)
   const [chargement, setChargement] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
@@ -43,20 +48,42 @@ export default function RegisterPage() {
 
   useEffect(() => {
     const emailParam = searchParams.get("email");
-    if (emailParam) setEmail(decodeURIComponent(emailParam));
+    if (emailParam) {
+      setEmail(decodeURIComponent(emailParam));
+      setStep("password");
+    }
   }, [searchParams]);
 
   const { loading } = useProtectedRoute({
     requireAuth: false,
   });
 
-  if (loading) return (
-    <div className="min-h-screen flex flex-col bg-white">
-        <div className="flex-1 flex items-center justify-center">
-          <Spinner size="xl" />
-        </div>
-      </div>
-  );
+
+  const handleCheckEmail = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email.trim()) return;
+    setError("");
+    setCheckingEmail(true);
+    try {
+      const checkRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/check-email`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim().toLowerCase() }),
+      });
+      if (checkRes.ok) {
+        const { exists } = await checkRes.json();
+        if (exists) {
+          setError(t("register.emailAlreadyExists"));
+          return;
+        }
+      }
+      setStep("password");
+    } catch {
+      setStep("password");
+    } finally {
+      setCheckingEmail(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -72,25 +99,15 @@ export default function RegisterPage() {
       return;
     }
 
+    if (!firstName.trim() || !lastName.trim()) {
+      setError(t("register.nameRequired"));
+      return;
+    }
+
     setChargement(true);
 
     try {
-      // Check if email already exists before attempting signup
-      const checkRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/check-email`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim().toLowerCase() }),
-      });
-      if (checkRes.ok) {
-        const { exists } = await checkRes.json();
-        if (exists) {
-          setError(t("register.emailAlreadyExists"));
-          setChargement(false);
-          return;
-        }
-      }
-
-      await signUpWithEmail(email, password, fullName);
+      await signUpWithEmail(email, password, firstName.trim(), lastName.trim());
       setShowSuccess(true);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : t("register.registrationFailed"));
@@ -98,6 +115,23 @@ export default function RegisterPage() {
       setChargement(false);
     }
   };
+
+  const resetToEmail = () => {
+    setStep("email");
+    setError("");
+    setPassword("");
+    setConfirmPassword("");
+    setFirstName("");
+    setLastName("");
+  };
+
+  if (loading) return (
+    <div className="min-h-screen flex flex-col bg-white">
+        <div className="flex-1 flex items-center justify-center">
+          <Spinner size="xl" />
+        </div>
+      </div>
+  );
 
   return (
     <div className="min-h-screen flex flex-col bg-white">
@@ -134,7 +168,6 @@ export default function RegisterPage() {
           </div>
         </div>
       )}
-      {/* Logo above card */}
       <Link href="/" className="mb-6 text-3xl font-bold text-green-700 hover:text-green-800 transition-colors">
         Uneden
       </Link>
@@ -148,105 +181,159 @@ export default function RegisterPage() {
         </CardHeader>
 
         <CardContent>
-          <form onSubmit={handleSubmit}>
-            <div className="flex flex-col gap-6 font-semibold text-sm">
-              {error && (
-                <div className="bg-red-50 text-red-600 p-3 rounded-md text-sm">
-                  {error}
+          {error && (
+            <div className="bg-red-50 text-red-600 p-3 rounded-md text-sm mb-4">
+              {error}
+            </div>
+          )}
+
+          {step === "email" && (
+            <>
+              <form onSubmit={handleCheckEmail}>
+                <div className="flex flex-col gap-6 font-semibold text-sm">
+                  <div className="grid gap-2">
+                    <Label htmlFor="email">{t("register.email")}</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      autoComplete="email"
+                      autoFocus
+                      required
+                    />
+                  </div>
+                  <Button
+                    type="submit"
+                    className="w-full bg-green-800 hover:bg-green-900 cursor-pointer"
+                    disabled={checkingEmail}
+                  >
+                    {checkingEmail
+                      ? <><Loader2 className="h-4 w-4 animate-spin mr-2" />{t("register.continue")}</>
+                      : t("register.continue")}
+                  </Button>
                 </div>
-              )}
-              <div className="grid gap-2">
-                <Label htmlFor="full_name">{t("register.fullName")}</Label>
-                <Input
-                  id="full_name"
-                  type="text"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  autoComplete="name"
-                  required
-                />
+              </form>
+              <div className="flex items-center my-3">
+                <div className="flex-1 h-px bg-gray-400" />
+                <span className="px-4 text-sm">{t("register.orContinueWith")}</span>
+                <div className="flex-1 h-px bg-gray-400" />
               </div>
-              <div className="grid gap-2">
-                <Label htmlFor="email">{t("register.email")}</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  autoComplete="email"
-                  required
-                />
+              <div className="flex flex-col gap-2">
+                <Button variant="outline" type="button" className="cursor-pointer" onClick={() => signInWithGoogle()}>
+                  <FcGoogle />
+                  {t("register.signInWithGoogle")}
+                </Button>
+                <Button variant="outline" type="button" className="cursor-pointer" onClick={() => signInWithFacebook()}>
+                  <FaFacebookF className="text-blue-600 h-5 w-5"/>
+                  {t("register.signInWithFacebook")}
+                </Button>
               </div>
-              <div className="grid gap-2">
-                <Label htmlFor="password">{t("register.password")}</Label>
-                <div className="relative">
-                  <Input
-                    id="password"
-                    type={showPassword ? "text" : "password"}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    autoComplete="new-password"
-                    required
-                    className="pr-10"
-                  />
+            </>
+          )}
+
+          {(step === "password") && (
+            <form onSubmit={handleSubmit}>
+              <div className="flex flex-col gap-6 font-semibold text-sm animate-in fade-in duration-300">
+                <div className="flex items-center gap-2 text-sm text-gray-600 bg-white border border-gray-200 rounded-lg px-3 py-2">
+                  <span className="flex-1 truncate">{email}</span>
                   <button
                     type="button"
-                    onClick={() => setShowPassword((v) => !v)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
-                    tabIndex={-1}
+                    onClick={resetToEmail}
+                    className="text-green-700 hover:text-green-800 flex items-center gap-1 shrink-0"
                   >
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    <ArrowLeft className="h-3 w-3" />
+                    <span className="text-xs">{t("register.change")}</span>
                   </button>
                 </div>
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="confirm_password">{t("register.confirmPassword")}</Label>
-                <div className="relative">
-                  <Input
-                    id="confirm_password"
-                    type={showConfirmPassword ? "text" : "password"}
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    autoComplete="new-password"
-                    required
-                    className="pr-10"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowConfirmPassword((v) => !v)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
-                    tabIndex={-1}
-                  >
-                    {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
+
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="first_name">{t("register.firstName")}</Label>
+                    <Input
+                      id="first_name"
+                      type="text"
+                      value={firstName}
+                      onChange={(e) => setFirstName(e.target.value)}
+                      autoComplete="given-name"
+                      autoFocus
+                      required
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="last_name">{t("register.lastName")}</Label>
+                    <Input
+                      id="last_name"
+                      type="text"
+                      value={lastName}
+                      onChange={(e) => setLastName(e.target.value)}
+                      autoComplete="family-name"
+                      required
+                    />
+                  </div>
                 </div>
+
+                <div className="grid gap-2">
+                  <Label htmlFor="password">{t("register.password")}</Label>
+                  <div className="relative">
+                    <Input
+                      id="password"
+                      type={showPassword ? "text" : "password"}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      autoComplete="new-password"
+                      required
+                      className="pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((v) => !v)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
+                      tabIndex={-1}
+                    >
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid gap-2">
+                  <Label htmlFor="confirm_password">{t("register.confirmPassword")}</Label>
+                  <div className="relative">
+                    <Input
+                      id="confirm_password"
+                      type={showConfirmPassword ? "text" : "password"}
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      autoComplete="new-password"
+                      required
+                      className="pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword((v) => !v)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
+                      tabIndex={-1}
+                    >
+                      {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                <Button
+                  type="submit"
+                  className="w-full bg-green-800 hover:bg-green-900 cursor-pointer"
+                  disabled={
+                    chargement ||
+                    !firstName.trim() ||
+                    !lastName.trim() ||
+                    password.length < 8
+                  }
+                >
+                  {chargement ? t("register.creatingAccount") : t("register.createAccount")}
+                </Button>
               </div>
-              <Button
-                type="submit"
-                className="w-full bg-green-800 hover:bg-green-900 cursor-pointer"
-                disabled={chargement}
-              >
-                {chargement ? t("register.creatingAccount") : t("register.createAccount")}
-              </Button>
-            </div>
-          </form>
-          <div className="flex items-center my-3">
-              <div className="flex-1 h-px bg-gray-400" />
-              <span className="px-4 text-sm">
-                {t("register.orContinueWith")}
-              </span>
-              <div className="flex-1 h-px bg-gray-400" />
-            </div>
-            <div className="flex flex-col gap-2">
-<Button variant="outline" type="button" className="cursor-pointer" onClick={() => signInWithGoogle()}>
-              <FcGoogle />
-              {t("register.signInWithGoogle")}
-            </Button>
-            <Button variant="outline" type="button" className="cursor-pointer" onClick={() => signInWithFacebook()}>
-              <FaFacebookF className="text-blue-600 h-5 w-5"/>
-              {t("register.signInWithFacebook")}
-            </Button>
-            </div>
+            </form>
+          )}
         </CardContent>
         <CardFooter className="flex-col gap-2">
           <CardDescription className="font-semibold text-xs text-center justify-center">
@@ -261,7 +348,6 @@ export default function RegisterPage() {
         </Link>
       </p>
 
-      {/* Footer links */}
       <div className="mt-8 flex flex-wrap items-center justify-center gap-4 text-xs text-gray-400">
         <Link href="/privacy-policy" className="hover:text-gray-600 hover:underline">{t("footer.privacyPolicy")}</Link>
         <span>·</span>

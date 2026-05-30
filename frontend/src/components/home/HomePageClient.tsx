@@ -4,10 +4,13 @@ import { Button } from "@/components/ui/button";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { categories } from "@/lib/categories";
 import Link from "next/link";
+import { needsOnboardingSetup } from "@/lib/onboarding";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Grid3x3, MapPin, Clock } from "lucide-react";
+import { useJsApiLoader, type Libraries } from "@react-google-maps/api";
+import { geocodeCanadianLocation, LOCATION_SEARCH_RADIUS_KM } from "@/lib/geocodeCanadianLocation";
 import { ListingsRegionEmptyState } from "@/components/listings/ListingsRegionEmptyState";
 import AppImage from "@/components/ui/AppImage";
 import { useTranslation } from "react-i18next";
@@ -25,6 +28,7 @@ import { formatListingPriceLine } from "@/lib/listingPrice";
 const CityAutocomplete = dynamic(() => import("@/components/ui/CityAutocomplete"), { ssr: false });
 const toKey = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
+const MAPS_LIBRARIES: Libraries = ["places"];
 
 function formatRelativeDate(dateStr: string, t: (key: string, opts?: Record<string, unknown>) => string) {
   try {
@@ -171,6 +175,27 @@ export default function HomePageClient({
   const [locationGranted, setLocationGranted] = useState(false);
   const [locationInput, setLocationInput] = useState("");
   const [debouncedLocation, setDebouncedLocation] = useState("");
+  const [locationCoords, setLocationCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [resolvedLocationCoords, setResolvedLocationCoords] = useState<{ lat: number; lng: number } | null>(null);
+
+  const { isLoaded: mapsReady } = useJsApiLoader({
+    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "",
+    libraries: MAPS_LIBRARIES,
+  });
+
+  const buildLocationQuery = useCallback(
+    (label: string, coords: { lat: number; lng: number } | null) => {
+      const params = new URLSearchParams();
+      params.set("location", label.trim());
+      if (coords) {
+        params.set("userLat", String(coords.lat));
+        params.set("userLng", String(coords.lng));
+        params.set("radius", String(LOCATION_SEARCH_RADIUS_KM));
+      }
+      return params.toString();
+    },
+    [],
+  );
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedLocation(locationInput), 400);
@@ -179,11 +204,8 @@ export default function HomePageClient({
 
   useEffect(() => {
     if (loading) return;
-    if (user) {
-      const profileCompleted = user.user_metadata?.profile_completed;
-      if (!profileCompleted) {
-        router.push("/choose_type");
-      }
+    if (user && needsOnboardingSetup(user)) {
+      router.push("/choose_type");
     }
   }, [user, loading, router]);
 
@@ -202,6 +224,7 @@ export default function HomePageClient({
     if (!debouncedLocation.trim()) {
       setListings(initialListings);
       setNearbyListings(initialListings.slice(0, 3));
+      setResolvedLocationCoords(null);
       setDataLoading(false);
       return;
     }
@@ -210,8 +233,25 @@ export default function HomePageClient({
     const fetchListings = async () => {
       setDataLoading(true);
       try {
+        let coords = locationCoords;
+        if (!coords && mapsReady) {
+          coords = await geocodeCanadianLocation(debouncedLocation.trim());
+        }
+        if (!cancelled) {
+          setResolvedLocationCoords(coords);
+        }
+
         const params = new URLSearchParams({ limit: "12" });
-        params.set("location", debouncedLocation.trim());
+        if (coords) {
+          params.set("userLat", String(coords.lat));
+          params.set("userLng", String(coords.lng));
+          params.set("radius", String(LOCATION_SEARCH_RADIUS_KM));
+        } else if (mapsReady) {
+          params.set("location", debouncedLocation.trim());
+        } else {
+          return;
+        }
+
         const servicesRes = await fetch(`${API_URL}/services?${params.toString()}`);
         const data = await servicesRes.json();
         if (cancelled) return;
@@ -232,7 +272,7 @@ export default function HomePageClient({
     return () => {
       cancelled = true;
     };
-  }, [debouncedLocation, initialListings]);
+  }, [debouncedLocation, locationCoords, mapsReady, initialListings]);
 
   useEffect(() => {
     if (!navigator.geolocation) {
@@ -293,7 +333,7 @@ export default function HomePageClient({
 
   const listingsBrowseHref =
     debouncedLocation.trim().length > 0
-      ? `/listings?location=${encodeURIComponent(debouncedLocation.trim())}`
+      ? `/listings?${buildLocationQuery(debouncedLocation, resolvedLocationCoords ?? locationCoords)}`
       : "/listings";
 
   return (
@@ -329,6 +369,7 @@ export default function HomePageClient({
               id="home-location-filter"
               value={locationInput}
               onChange={setLocationInput}
+              onCoordsChange={setLocationCoords}
               placeholder={t("listings.cityOrArea")}
             />
             <p className="mt-2 text-xs text-gray-500">{t("home.locationPrivacyHint")}</p>
@@ -356,7 +397,7 @@ export default function HomePageClient({
                       key={category.name}
                       href={
                         debouncedLocation.trim()
-                          ? `/listings?category=${encodeURIComponent(category.name)}&location=${encodeURIComponent(debouncedLocation.trim())}`
+                          ? `/listings?category=${encodeURIComponent(category.name)}&${buildLocationQuery(debouncedLocation, resolvedLocationCoords ?? locationCoords)}`
                           : `/listings?category=${encodeURIComponent(category.name)}`
                       }
                     >

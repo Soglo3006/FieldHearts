@@ -162,22 +162,27 @@ export const createConnectAccount = async (req, res) => {
       );
     }
 
-    // Allow callers to specify a custom return path (e.g. onboarding flow)
-    // Validate it's a relative path starting with / and contains no protocol to prevent open redirect
+    // Allow callers to specify custom return/refresh paths (e.g. onboarding flow)
+    const isValidRelativePath = (path) =>
+      path
+      && typeof path === "string"
+      && path.startsWith("/")
+      && !path.includes("://")
+      && !path.startsWith("//");
+
     const customReturnUrl = req.body?.return_url;
-    const isValidReturnPath = customReturnUrl
-      && typeof customReturnUrl === "string"
-      && customReturnUrl.startsWith("/")
-      && !customReturnUrl.includes("://")
-      && !customReturnUrl.startsWith("//");
-    const returnUrl = isValidReturnPath
+    const customRefreshUrl = req.body?.refresh_url;
+    const returnUrl = isValidRelativePath(customReturnUrl)
       ? `${FRONTEND_URL}${customReturnUrl}`
       : `${FRONTEND_URL}/wallet?stripe=success`;
+    const refreshUrl = isValidRelativePath(customRefreshUrl)
+      ? `${FRONTEND_URL}${customRefreshUrl}`
+      : `${FRONTEND_URL}/wallet?stripe=refresh`;
 
     // Create account link (onboarding URL)
     const accountLink = await stripe.accountLinks.create({
       account: stripeAccountId,
-      refresh_url: `${FRONTEND_URL}/wallet?stripe=refresh`,
+      refresh_url: refreshUrl,
       return_url: returnUrl,
       type: "account_onboarding",
     });
@@ -186,6 +191,89 @@ export const createConnectAccount = async (req, res) => {
   } catch (err) {
     console.error("Stripe Connect error:", err);
     res.status(500).json({ message: "Failed to create Stripe Connect account" });
+  }
+};
+
+// ─── Create an Account Session for embedded Connect components ───────────────
+export const createAccountSession = async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const existing = await pool.query(
+      "SELECT stripe_account_id FROM stripe_accounts WHERE user_id = $1",
+      [userId]
+    );
+
+    let stripeAccountId;
+
+    if (existing.rows.length > 0) {
+      stripeAccountId = existing.rows[0].stripe_account_id;
+    } else {
+      const user = await pool.query(
+        `SELECT email, account_type, full_name, company_name, phone, address, city, province
+         FROM users WHERE id = $1`,
+        [userId]
+      );
+      if (user.rows.length === 0) return res.status(404).json({ message: "User not found" });
+
+      const u = user.rows[0];
+      const isCompany = u.account_type === "company";
+
+      const addressObj = u.city ? {
+        line1: u.address || "",
+        city: u.city || "",
+        state: u.province || "",
+        country: "CA",
+      } : undefined;
+
+      const individualData = !isCompany ? {
+        email: u.email,
+        ...(u.full_name && {
+          first_name: u.full_name.split(" ")[0],
+          last_name: u.full_name.split(" ").slice(1).join(" ") || u.full_name.split(" ")[0],
+        }),
+        ...(u.phone && { phone: u.phone }),
+        ...(addressObj && { address: addressObj }),
+      } : undefined;
+
+      const account = await stripe.accounts.create({
+        type: "express",
+        email: u.email,
+        capabilities: {
+          card_payments: { requested: true },
+          transfers: { requested: true },
+        },
+        business_type: isCompany ? "company" : "individual",
+        ...(individualData && { individual: individualData }),
+        business_profile: {
+          url: "https://www.uneden.ca",
+          mcc: "7299",
+          product_description: "Je fournis des services via la plateforme Uneden. Les clients me trouvent sur uneden.ca et les paiements sont traités par Uneden.",
+        },
+        settings: {
+          payouts: { schedule: { interval: "manual" } },
+        },
+      });
+
+      stripeAccountId = account.id;
+      await pool.query(
+        `INSERT INTO stripe_accounts (user_id, stripe_account_id, details_submitted, charges_enabled)
+         VALUES ($1, $2, false, false)`,
+        [userId, stripeAccountId]
+      );
+    }
+
+    const session = await stripe.accountSessions.create({
+      account: stripeAccountId,
+      components: {
+        account_onboarding: { enabled: true },
+      },
+    });
+
+    res.json({ client_secret: session.client_secret });
+  } catch (err) {
+    console.error("Account session error:", err);
+    res.status(500).json({ message: "Failed to create account session" });
   }
 };
 

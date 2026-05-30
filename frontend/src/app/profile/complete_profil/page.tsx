@@ -10,7 +10,7 @@ import { useTranslation } from "react-i18next";
 import i18n from "@/lib/i18n";
 import { ChevronRight, ChevronLeft, ArrowLeft } from "lucide-react";
 import Link from "next/link";
-import { OnboardingData, Experience, PortfolioItem } from "@/components/onboarding/onboardingTypes";
+import { OnboardingData, Experience, PortfolioItem, BIO_MAX } from "@/components/onboarding/onboardingTypes";
 import OnboardingStepBar from "@/components/onboarding/OnboardingStepBar";
 import SuccessScreen from "@/components/onboarding/SuccessScreen";
 import StepBasicInfo from "@/components/onboarding/StepBasicInfo";
@@ -22,7 +22,28 @@ import StepSummary from "@/components/onboarding/StepSummary";
 import StepBankAccount from "@/components/onboarding/StepBankAccount";
 import { toast } from "sonner";
 import { Spinner } from "@/components/ui/Spinner";
+
+function FinalizingScreen() {
+  const { t } = useTranslation();
+  return (
+    <div className="min-h-screen bg-white flex flex-col items-center justify-center gap-6 px-4">
+      <div className="relative flex items-center justify-center">
+        <div className="w-20 h-20 rounded-full border-4 border-green-100 border-t-green-700 animate-spin" />
+        <div className="absolute w-12 h-12 rounded-full bg-green-50 flex items-center justify-center">
+          <div className="w-4 h-4 rounded-full bg-green-600" />
+        </div>
+      </div>
+      <div className="text-center">
+        <h2 className="text-xl font-semibold text-gray-900">{t("onboarding.finalizingTitle")}</h2>
+        <p className="text-gray-500 mt-2 text-sm">{t("onboarding.finalizingDesc")}</p>
+      </div>
+    </div>
+  );
+}
+import { needsOnboardingSetup } from "@/lib/onboarding";
 import { getLanguageCode } from "@/lib/locale";
+import { getOnboardingStepCompletions, onboardingDataFromProfile } from "@/lib/onboardingSteps";
+import type { AccountType } from "@/lib/onboardingSteps";
 
 function LanguageToggle() {
   const { i18n: i18nInstance } = useTranslation();
@@ -73,18 +94,21 @@ function OnboardingContent() {
 
   useEffect(() => {
     if (!session && !user) return;
-    if (user?.user_metadata?.profile_completed) {
-      router.replace("/");
+    if (needsOnboardingSetup(user)) {
+      router.replace("/choose_type");
     }
   }, [user, session, router]);
 
   const [currentStep, setCurrentStep] = useState(stepFromUrl ?? 1);
+  const [maxStepReached, setMaxStepReached] = useState(stepFromUrl ?? 1);
   const [showSuccess, setShowSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [bioError, setBioError] = useState("");
 
   const totalSteps = accountType === "company" ? 6 : 7;
 
   const storageKey = `onboarding_data_${accountType}`;
+  const maxStepKey = `onboarding_max_step_${accountType}`;
 
   const [data, setData] = useState<OnboardingData>({
     accountType: "" as "" | "person" | "company",
@@ -108,24 +132,88 @@ function OnboardingContent() {
     portfolio: [],
   });
 
-  // Load from sessionStorage after hydration (per-tab — avoids conflicts with multiple tabs)
+  // Load from localStorage on mount
   useEffect(() => {
     try {
-      const saved = sessionStorage.getItem(storageKey);
+      const saved = localStorage.getItem(storageKey);
       if (saved) setData(JSON.parse(saved));
     } catch {}
   }, [storageKey]);
 
-  // Persist data to sessionStorage on every change
+  // Persist data to localStorage on every change
   useEffect(() => {
-    try { sessionStorage.setItem(storageKey, JSON.stringify(data)); } catch {}
+    try { localStorage.setItem(storageKey, JSON.stringify(data)); } catch {}
   }, [data, storageKey]);
 
+  // Restore maxStepReached from localStorage
   useEffect(() => {
-    if (user) setData((p) => ({ ...p, email: user.email || "", fullName: p.fullName || user.user_metadata?.full_name || "" }));
+    try {
+      const saved = localStorage.getItem(maxStepKey);
+      if (saved) setMaxStepReached((prev) => Math.max(prev, Number(saved)));
+    } catch {}
+  }, [maxStepKey]);
+
+  useEffect(() => {
+    if (user) {
+      const meta = user.user_metadata || {};
+      const first = (meta.first_name as string) || "";
+      const last = (meta.last_name as string) || "";
+      const combined = [first, last].filter(Boolean).join(" ");
+      setData((p) => ({
+        ...p,
+        email: user.email || "",
+        fullName: p.fullName || combined || (meta.full_name as string) || "",
+      }));
+    }
   }, [user]);
 
+  useEffect(() => {
+    if (!session?.access_token) return;
+    let alive = true;
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/profiles/me`, {
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((profile) => {
+        if (!alive || !profile) return;
+        const fromProfile = onboardingDataFromProfile(profile);
+        setData((p) => ({
+          ...p,
+          phone: p.phone || fromProfile.phone,
+          adresse: p.adresse || fromProfile.adresse,
+          ville: p.ville || fromProfile.ville,
+          province: p.province || fromProfile.province,
+          postalCode: p.postalCode || fromProfile.postalCode,
+          fullName: p.fullName || fromProfile.fullName,
+          profession: p.profession || fromProfile.profession,
+          industry: p.industry || fromProfile.industry,
+          skills: (p.skills?.length ?? 0) > 0 ? p.skills : fromProfile.skills,
+        }));
+      })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [session?.access_token]);
+
   useEffect(() => { setData((p) => ({ ...p, accountType: accountType as "person" | "company" })); }, [accountType]);
+
+  useEffect(() => {
+    setMaxStepReached((prev) => Math.max(prev, currentStep));
+  }, [currentStep]);
+
+  useEffect(() => {
+    try { localStorage.setItem(maxStepKey, String(maxStepReached)); } catch {}
+  }, [maxStepReached, maxStepKey]);
+
+  useEffect(() => {
+    if (stepFromUrl) setMaxStepReached((prev) => Math.max(prev, stepFromUrl));
+  }, [stepFromUrl]);
+
+  const completedSteps = getOnboardingStepCompletions(
+    accountType as AccountType,
+    data,
+    totalSteps,
+    maxStepReached
+  );
 
   // Enter key navigation
   useEffect(() => {
@@ -171,24 +259,7 @@ function OnboardingContent() {
   const handleUpdatePortfolio = (id: number, field: keyof PortfolioItem, value: string) =>
     patch({ portfolio: (data.portfolio ?? []).map((p) => p.id === id ? { ...p, [field]: value } : p) });
 
-  // Validation
-  const isStep1Valid = accountType === "person"
-    ? !!data.fullName?.trim() && !!data.phone.trim() && !!data.adresse.trim() && !!data.ville.trim() && !!data.province.trim() && !!data.postalCode.trim()
-    : !!data.companyName?.trim() && !!data.phone.trim() && !!data.adresse.trim() && !!data.ville.trim() && !!data.province.trim() && !!data.postalCode.trim();
-  const isStep2Valid = accountType === "person"
-    ? !!data.profession?.trim()
-    : !!data.industry?.trim();
-  const isStep3Valid = (data.skills?.length ?? 0) > 0;
-
-  const isBankStep = (accountType === "person" && currentStep === 6) || (accountType === "company" && currentStep === 5);
-
-  const canProceed = () => {
-    if (currentStep === 1) return isStep1Valid;
-    if (currentStep === 2) return isStep2Valid;
-    if (currentStep === 3) return isStep3Valid;
-    if (isBankStep) return true; // optional step
-    return true;
-  };
+  const canProceed = () => true;
 
   const goToStep = (step: number) => {
     setCurrentStep(step);
@@ -197,6 +268,14 @@ function OnboardingContent() {
 
   const handleNext = async () => {
     if (currentStep < totalSteps) {
+      if (currentStep === 2) {
+        const bioValue = accountType === "company" ? (data.companyBio || "") : (data.bio || "");
+        if (bioValue.length > BIO_MAX) {
+          setBioError(t("onboarding.bioTooLong"));
+          return;
+        }
+      }
+      setBioError("");
       goToStep(currentStep + 1);
       return;
     }
@@ -207,6 +286,7 @@ function OnboardingContent() {
 
       const payload = {
         account_type: data.accountType,
+        full_name: data.fullName || "",
         phone: data.phone,
         address: data.adresse,
         city: data.ville,
@@ -234,7 +314,7 @@ function OnboardingContent() {
       const { error } = await supabase.auth.updateUser({ data: { profile_completed: true } });
       if (error) throw error;
 
-      try { sessionStorage.removeItem(storageKey); } catch {}
+      try { localStorage.removeItem(storageKey); localStorage.removeItem(maxStepKey); } catch {}
       setShowSuccess(true);
     } catch (err: unknown) {
       toast.error(t("onboarding.profileSaveFailed", { message: err instanceof Error ? err.message : String(err) }));
@@ -244,21 +324,29 @@ function OnboardingContent() {
   };
 
   if (showSuccess) return <SuccessScreen />;
+  if (loading) return <FinalizingScreen />;
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
       <div className="flex items-center justify-between px-4 pt-3">
         <Link
-          href="/choose_type"
+          href="/choose_type?change=true"
           className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-800 transition-colors"
         >
           <ArrowLeft className="h-4 w-4" />
-          {t("onboarding.changeAccountType")}
+          {t("onboarding.back")}
         </Link>
         <LanguageToggle />
       </div>
 
-      <OnboardingStepBar accountType={accountType} currentStep={currentStep} totalSteps={totalSteps} />
+      <OnboardingStepBar
+        accountType={accountType}
+        currentStep={currentStep}
+        totalSteps={totalSteps}
+        completedSteps={completedSteps}
+        maxStepReached={maxStepReached}
+        onStepClick={goToStep}
+      />
 
       <main className="flex-1 py-4 sm:py-8 px-3 sm:px-4">
         <div className="max-w-2xl mx-auto">
@@ -266,7 +354,12 @@ function OnboardingContent() {
             <StepBasicInfo data={data} accountType={accountType} onChange={patch} />
           )}
           {currentStep === 2 && (
-            <StepAbout data={data} accountType={accountType} onChange={patch} />
+            <StepAbout
+              data={data}
+              accountType={accountType}
+              onChange={(update) => { if ("bio" in update || "companyBio" in update) setBioError(""); patch(update); }}
+              bioError={bioError}
+            />
           )}
           {currentStep === 3 && (
             <StepSkillsServices
@@ -307,7 +400,11 @@ function OnboardingContent() {
           )}
           {/* Bank account step: person = step 6, company = step 5 */}
           {((accountType === "person" && currentStep === 6) || (accountType === "company" && currentStep === 5)) && (
-            <StepBankAccount accessToken={session?.access_token ?? ""} accountType={accountType} />
+            <StepBankAccount
+              accessToken={session?.access_token ?? ""}
+              accountType={accountType}
+              autoReconnect={searchParams.get("stripe") === "refresh"}
+            />
           )}
           {currentStep === totalSteps && (
             <StepSummary data={data} accountType={accountType} />
@@ -322,14 +419,25 @@ function OnboardingContent() {
             >
               <ChevronLeft className="h-4 w-4" /> {t("onboarding.back")}
             </Button>
-            <Button
-              onClick={handleNext}
-              disabled={!canProceed() || loading}
-              className="bg-green-600 hover:bg-green-700 text-white gap-2 h-10 sm:h-12 px-4 sm:px-6 text-sm sm:text-base"
-            >
-              {loading ? t("common.loading") : currentStep === totalSteps ? t("onboarding.finish") : t("onboarding.next")}
-              <ChevronRight className="h-4 w-4" />
-            </Button>
+            <div className="flex gap-2">
+              {currentStep < totalSteps && (
+                <Button
+                  variant="ghost"
+                  onClick={() => router.push("/")}
+                  className="h-10 sm:h-12 px-3 sm:px-4 text-sm sm:text-base text-gray-400 hover:text-gray-600"
+                >
+                  {t("onboarding.skipForNow")}
+                </Button>
+              )}
+              <Button
+                onClick={handleNext}
+                disabled={!canProceed() || loading}
+                className="bg-green-600 hover:bg-green-700 text-white gap-2 h-10 sm:h-12 px-4 sm:px-6 text-sm sm:text-base"
+              >
+                {loading ? t("common.loading") : currentStep === totalSteps ? t("onboarding.finish") : t("onboarding.next")}
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
         </div>
       </main>

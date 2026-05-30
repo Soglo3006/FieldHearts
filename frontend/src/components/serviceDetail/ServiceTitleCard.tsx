@@ -8,7 +8,7 @@ import { getPublicServiceLocation } from "@/lib/serviceLocation";
 import { resolveListingDescription, resolveListingTitle, type ServiceLikeWithI18n } from "@/lib/serviceListingI18n";
 import { formatListingPriceLine, normalizePricingMode } from "@/lib/listingPrice";
 import { cn } from "@/lib/utils";
-import { formatTranslatedCategoryTrail } from "@/lib/categories";
+import { formatListingCategoryLine } from "@/lib/listingTags";
 import {
   formatAvailabilityLabel,
   formatMobilityLabel,
@@ -24,6 +24,7 @@ interface Service {
   translations?: ServiceLikeWithI18n["translations"];
   category_name: string | null;
   subcategory: string | null;
+  listing_tags?: unknown;
   pricing_mode?: string | null;
   price: number | string | null;
   price_min?: number | string | null;
@@ -74,7 +75,7 @@ export default function ServiceTitleCard({
             </span>
             {service.category_name && (
               <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-700">
-                {formatTranslatedCategoryTrail(service.category_name, service.subcategory, t, " · ")}
+                {formatListingCategoryLine(service.category_name, service, t, " · ")}
               </span>
             )}
             {service.is_one_time && (

@@ -73,7 +73,13 @@ export const protect = async (req, res, next) => {
     req.user = {
       id: userId,
       email,
-      full_name: payload.user_metadata?.full_name || email,
+      full_name:
+        payload.user_metadata?.full_name ||
+        [payload.user_metadata?.first_name, payload.user_metadata?.last_name]
+          .filter(Boolean)
+          .join(" ")
+          .trim() ||
+        email,
     };
     // Keep authUser for adminOnly — reconstruct minimal shape from JWT payload
     req.authUser = {
@@ -135,7 +141,13 @@ export const optionalProtect = async (req, res, next) => {
     req.user = {
       id: userId,
       email,
-      full_name: payload.user_metadata?.full_name || email,
+      full_name:
+        payload.user_metadata?.full_name ||
+        [payload.user_metadata?.first_name, payload.user_metadata?.last_name]
+          .filter(Boolean)
+          .join(" ")
+          .trim() ||
+        email,
     };
     req.authUser = {
       id: userId,

@@ -1,9 +1,10 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useRef } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { isAdminUser, isSupportOnlyUser, canAccessAdminPortal, safeInternalPath } from "@/lib/auth";
+import { needsOnboardingSetup } from "@/lib/onboarding";
 import { clearAdminStepUpToken } from "@/lib/adminStepUp";
 import type { User, Session } from "@supabase/supabase-js";
 
@@ -19,7 +20,7 @@ interface AuthContextType {
     password: string,
     options?: { redirectTo?: string }
   ) => Promise<void>;
-  signUpWithEmail: (email: string, password: string, fullName: string) => Promise<void>;
+  signUpWithEmail: (email: string, password: string, firstName: string, lastName: string) => Promise<void>;
   signInWithGoogle: (options?: { redirectTo?: string }) => Promise<void>;
   signInWithFacebook: (options?: { redirectTo?: string }) => Promise<void>;
   signInWithApple: () => Promise<void>;
@@ -34,6 +35,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [profilesById, setProfilesById] = useState<Record<string, unknown>>({});
+  const intentionalSignOut = useRef(false);
 
   const setProfileInCache = (id: string, profile: unknown) => {
     setProfilesById((prev) => ({ ...prev, [id]: profile }));
@@ -68,9 +70,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const now = Math.floor(Date.now() / 1000);
         const isExpired = session.expires_at !== undefined && session.expires_at < now;
         if (isExpired) {
-          const { data } = await supabase.auth.refreshSession();
+          const { data, error } = await supabase.auth.refreshSession();
+          if (error || !data.session) {
+            intentionalSignOut.current = true;
+            await supabase.auth.signOut();
+            setSession(null);
+            setUser(null);
+            setLoading(false);
+            router.replace("/login");
+            return;
+          }
           setSession(data.session);
-          setUser(data.session?.user ?? null);
+          setUser(data.session.user ?? null);
           setLoading(false);
           setIsLoggingOut(false);
           return;
@@ -85,10 +96,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_OUT" && !intentionalSignOut.current) {
+        setSession(null);
+        setUser(null);
+        setLoading(false);
+        router.replace("/login");
+        return;
+      }
+      intentionalSignOut.current = false;
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
-      // Don't reset isLoggingOut on SIGNED_OUT — let signOut() handle it via timeout
       if (event !== "SIGNED_OUT") {
         setIsLoggingOut(false);
       }
@@ -120,9 +138,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (canAccessAdminPortal(data.user)) {
       router.push("/admin");
     } else {
-      const profileCompleted = data.user.user_metadata?.profile_completed;
-      if (!profileCompleted) {
+      if (needsOnboardingSetup(data.user)) {
         router.push("/choose_type");
+        return;
+      }
+      if (!data.user.user_metadata?.profile_completed) {
+        const accountType = data.user.user_metadata?.account_type || "person";
+        router.push(`/profile/complete_profil?type=${accountType}`);
         return;
       }
       const dest = safeInternalPath(options?.redirectTo ?? "", "/");
@@ -130,14 +152,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const signUpWithEmail = async (email: string, password: string, fullName: string) => {
+  const signUpWithEmail = async (email: string, password: string, firstName: string, lastName: string) => {
     clearAdminStepUpToken();
+    const trimmedFirst = firstName.trim();
+    const trimmedLast = lastName.trim();
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
         data: {
-          full_name: fullName,
+          first_name: trimmedFirst,
+          last_name: trimmedLast,
+          full_name: `${trimmedFirst} ${trimmedLast}`.trim(),
           profile_completed: false,
         },
         emailRedirectTo: `${window.location.origin}/auth/callback`
@@ -184,6 +210,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     setIsLoggingOut(true);
+    intentionalSignOut.current = true;
     clearAdminStepUpToken();
     await supabase.auth.signOut();
     router.push("/");

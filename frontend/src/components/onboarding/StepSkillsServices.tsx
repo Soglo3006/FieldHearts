@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { X, Plus, Trash2 } from "lucide-react";
-import { Language, OnboardingData, languageOptions, proficiencyOptions, skillSuggestions, serviceSuggestions } from "./onboardingTypes";
+import { Language, OnboardingData, languageOptions, languageLabels, proficiencyOptions, proficiencyLabels, skillSuggestions, serviceSuggestions } from "./onboardingTypes";
 import { getLanguageCode } from "@/lib/locale";
 
 interface Props {
@@ -26,11 +26,11 @@ export default function StepSkillsServices({
   onAddLanguage, onRemoveLanguage, onUpdateLanguage,
 }: Props) {
   const { t, i18n } = useTranslation();
-  const lang = getLanguageCode(i18n.language);
+  const langCode = getLanguageCode(i18n.language);
   const [newSkill, setNewSkill] = useState("");
   const suggestionList = accountType === "company"
-    ? (serviceSuggestions[lang] ?? serviceSuggestions.fr)
-    : (skillSuggestions[lang] ?? skillSuggestions.fr);
+    ? (serviceSuggestions[langCode] ?? serviceSuggestions.fr)
+    : (skillSuggestions[langCode] ?? skillSuggestions.fr);
 
   const handleAdd = () => {
     const s = newSkill.trim();
@@ -56,7 +56,7 @@ export default function StepSkillsServices({
             <span className="text-gray-500 font-normal text-sm ml-2">({data.skills?.length ?? 0}/10)</span>
           </Label>
           <p className="text-xs text-gray-400 mb-3">
-            {lang === "fr"
+            {langCode === "fr"
               ? "Vous pouvez écrire votre propre compétence"
               : "You can write your own skill"}
           </p>
@@ -147,7 +147,7 @@ export default function StepSkillsServices({
                       <SelectValue placeholder={t("onboarding.language")} />
                     </SelectTrigger>
                     <SelectContent position="popper" side="bottom" sideOffset={0} avoidCollisions={false} className="max-h-60">
-                      {languageOptions.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                      {languageOptions.map((o) => <SelectItem key={o} value={o}>{languageLabels[o]?.[langCode] ?? o}</SelectItem>)}
                     </SelectContent>
                   </Select>
 
@@ -157,7 +157,7 @@ export default function StepSkillsServices({
                         <SelectValue placeholder={t("onboarding.proficiency")} />
                       </SelectTrigger>
                       <SelectContent>
-                        {proficiencyOptions.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                        {proficiencyOptions.map((o) => <SelectItem key={o} value={o}>{proficiencyLabels[o]?.[langCode] ?? o}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   )}

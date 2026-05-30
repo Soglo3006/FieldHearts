@@ -31,6 +31,8 @@
     "@radix-ui/react-toggle-group": "^1.1.11",
     "@react-google-maps/api": "^2.20.7",
     "@sentry/nextjs": "^10.46.0",
+    "@stripe/connect-js": "^3.4.5",
+    "@stripe/react-connect-js": "^3.4.3",
     "@supabase/supabase-js": "^2.81.1",
     "@vercel/analytics": "^2.0.1",
     "@vercel/speed-insights": "^2.0.0",

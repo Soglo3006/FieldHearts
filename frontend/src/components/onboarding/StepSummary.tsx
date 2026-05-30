@@ -30,21 +30,32 @@ export default function StepSummary({ data, accountType }: Props) {
             <h3 className="text-lg font-semibold">
               {accountType === "person" ? data.fullName : data.companyName}
             </h3>
-            <p className="text-gray-600">{accountType === "person" ? data.profession : data.industry}</p>
+            {(accountType === "person" ? data.profession?.trim() : data.industry?.trim()) && (
+              <p className="text-gray-600">{accountType === "person" ? data.profession : data.industry}</p>
+            )}
           </div>
         </div>
 
         <div>
           <h4 className="font-semibold text-gray-900 mb-2">{t("onboarding.contactSectionTitle")}</h4>
-          <p className="text-gray-700"><strong>{t("onboarding.emailLabel")}:</strong> {data.email}</p>
-          <p className="text-gray-700"><strong>{t("onboarding.phoneLabel")}:</strong> {data.phone}</p>
-          <p className="text-gray-700"><strong>{t("onboarding.addressLabel")}:</strong> {data.adresse}, {data.ville}, {data.province}</p>
+          {data.email?.trim() && (
+            <p className="text-gray-700"><strong>{t("onboarding.emailLabel")}:</strong> {data.email}</p>
+          )}
+          {data.phone?.trim() && (
+            <p className="text-gray-700"><strong>{t("onboarding.phoneLabel")}:</strong> {data.phone}</p>
+          )}
+          {(data.adresse?.trim() || data.ville?.trim() || data.province?.trim()) && (
+            <p className="text-gray-700">
+              <strong>{t("onboarding.addressLabel")}:</strong>{" "}
+              {[data.adresse, data.ville, data.province].filter(Boolean).join(", ")}
+            </p>
+          )}
         </div>
 
         {(accountType === "person" ? (data.bio?.trim().length ?? 0) > 0 : (data.companyBio?.trim().length ?? 0) > 0) && (
           <div>
             <h4 className="font-semibold text-gray-900 mb-2">{accountType === "person" ? t("onboarding.bio") : t("onboarding.companyBio")}</h4>
-            <p className="text-gray-700 whitespace-pre-line">{accountType === "person" ? data.bio : data.companyBio}</p>
+            <p className="text-gray-700 whitespace-pre-line wrap-break-word">{accountType === "person" ? data.bio : data.companyBio}</p>
           </div>
         )}
 
@@ -66,11 +77,11 @@ export default function StepSummary({ data, accountType }: Props) {
           </div>
         )}
 
-        {(data.languages?.length ?? 0) > 0 && (
+        {(data.languages ?? []).filter((l) => l.language.trim()).length > 0 && (
           <div>
             <h4 className="font-semibold text-gray-900 mb-2">{t("onboarding.yourLanguages")}</h4>
             <div className="flex flex-wrap gap-2">
-              {(data.languages ?? []).map((lang) => (
+              {(data.languages ?? []).filter((l) => l.language.trim()).map((lang) => (
                 <span key={lang.id} className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm">
                   {lang.language}{lang.proficiency ? ` – ${lang.proficiency}` : ""}
                 </span>

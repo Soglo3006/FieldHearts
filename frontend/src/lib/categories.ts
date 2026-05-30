@@ -34,6 +34,25 @@ import { Category } from "./types";
       image: "/Categories/tech_support.webp",
     },
     {
+      name: "Digital Products",
+      subcategories: [
+        "Video Editing",
+        "3D Modeling",
+        "Digital Marketing",
+        "Graphic Design",
+        "Web Development",
+        "Social Media Management",
+        "Photo Retouching",
+        "Animation",
+        "UI/UX Design",
+        "SEO Services",
+        "App Development",
+        "Copywriting",
+        "Brand Identity",
+      ],
+      image: "/Categories/tech_support.webp",
+    },
+    {
       name: "Personal & Care Services",
       subcategories: ["Babysitting", "After-school Care", "Full-time Childcare", "Pet Sitting", "Dog Walking", "Grooming"],
       image: "https://images.unsplash.com/photo-1516627145497-ae6968895b74?w=600&q=80",
@@ -48,7 +67,56 @@ import { Category } from "./types";
       subcategories: ["Catering / Cooking", "Custom Cakes / Pastry", "Clothing / Tailoring", "Hair & Beauty", "Makeup Services"],
       image: "https://images.unsplash.com/photo-1555244162-803834f70033?w=600&q=80",
     },
+    {
+      name: "Other",
+      subcategories: [],
+      image: "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=600&q=80",
+    },
   ];
+
+export const OTHER_CATEGORY_NAME = "Other";
+export const MAX_LISTING_TAGS = 5;
+
+/** All preset subcategory labels across every main category (English canonical). */
+export function getAllPresetListingTags(): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const cat of categories) {
+    for (const sub of cat.subcategories ?? []) {
+      const key = toCategoryKey(sub);
+      if (!seen.has(key)) {
+        seen.add(key);
+        out.push(sub);
+      }
+    }
+  }
+  return out;
+}
+
+export function isPresetListingTag(tag: string): boolean {
+  const key = toCategoryKey(tag);
+  return getAllPresetListingTags().some((preset) => toCategoryKey(preset) === key);
+}
+
+export function getTagSuggestions(query: string, categoryName: string, selected: string[]): string[] {
+  const q = query.trim().toLowerCase();
+  const selectedKeys = new Set(selected.map((t) => toCategoryKey(t)));
+  const categorySubs = categories.find((c) => c.name === categoryName)?.subcategories ?? [];
+  const pool = [...categorySubs, ...getAllPresetListingTags()];
+
+  const matches: string[] = [];
+  const seen = new Set<string>();
+  for (const tag of pool) {
+    const key = toCategoryKey(tag);
+    if (selectedKeys.has(key) || seen.has(key)) continue;
+    if (!q || tag.toLowerCase().includes(q) || key.replace(/_/g, " ").includes(q)) {
+      seen.add(key);
+      matches.push(tag);
+    }
+    if (matches.length >= 10) break;
+  }
+  return matches;
+}
 
 export const toCategoryKey = (value: string) =>
   value
@@ -197,28 +265,65 @@ function resolveCategoryKey(categoryName: string | null | undefined, subcategory
   return undefined;
 }
 
+export function translateListingTag(
+  tag: string,
+  t: (key: string, options?: { defaultValue?: string }) => string,
+): string {
+  const tagKey = toCategoryKey(tag);
+  for (const cat of categories) {
+    const catKey = toCategoryKey(cat.name);
+    const translated = t(`categories.${catKey}_${tagKey}`, { defaultValue: "" });
+    if (translated) return translated;
+  }
+  return tag;
+}
+
 export function formatTranslatedCategoryTrail(
   categoryName: string | null | undefined,
   subcategory: string | null | undefined,
   t: (key: string, options?: { defaultValue?: string }) => string,
   separator = " | ",
 ) {
-  const resolvedCategoryKey = resolveCategoryKey(categoryName, subcategory);
+  const tags = subcategory
+    ? subcategory.split(/\s*[·|]\s*|\s*,\s*/).map((s) => s.trim()).filter(Boolean)
+    : [];
+  return formatListingTagsDisplay(categoryName, tags.length ? tags : null, subcategory, t, separator);
+}
 
+export function formatListingTagsDisplay(
+  categoryName: string | null | undefined,
+  tags: string[] | null | undefined,
+  subcategoryFallback: string | null | undefined,
+  t: (key: string, options?: { defaultValue?: string }) => string,
+  separator = " · ",
+) {
+  const tagList =
+    tags && tags.length > 0
+      ? tags
+      : subcategoryFallback
+        ? subcategoryFallback.split(/\s*[·|]\s*|\s*,\s*/).map((s) => s.trim()).filter(Boolean)
+        : [];
+
+  const resolvedCategoryKey = resolveCategoryKey(categoryName, tagList[0]);
   const translatedCategory = resolvedCategoryKey
     ? t(`categories.${resolvedCategoryKey}`, { defaultValue: categoryName ?? resolvedCategoryKey })
-    : null;
+    : categoryName ?? null;
 
-  const resolvedSubcategoryMeta = subcategory ? subcategoryMetaByLabel.get(toCategoryKey(subcategory)) : undefined;
-  const translatedSubcategory = subcategory
-    ? resolvedSubcategoryMeta && (!resolvedCategoryKey || resolvedSubcategoryMeta.categoryKey === resolvedCategoryKey)
-      ? t(`categories.${resolvedSubcategoryMeta.categoryKey}_${resolvedSubcategoryMeta.subcategoryKey}`, { defaultValue: subcategory })
-      : resolvedCategoryKey
-        ? t(`categories.${resolvedCategoryKey}_${toCategoryKey(subcategory)}`, { defaultValue: subcategory })
-      : subcategory
-    : null;
+  const translatedTags = tagList.map((tag) => {
+    const resolvedSubcategoryMeta = subcategoryMetaByLabel.get(toCategoryKey(tag));
+    if (resolvedSubcategoryMeta && (!resolvedCategoryKey || resolvedSubcategoryMeta.categoryKey === resolvedCategoryKey)) {
+      return t(
+        `categories.${resolvedSubcategoryMeta.categoryKey}_${resolvedSubcategoryMeta.subcategoryKey}`,
+        { defaultValue: tag },
+      );
+    }
+    if (resolvedCategoryKey) {
+      return t(`categories.${resolvedCategoryKey}_${toCategoryKey(tag)}`, { defaultValue: tag });
+    }
+    return tag;
+  });
 
-  return [translatedCategory, translatedSubcategory].filter(Boolean).join(separator);
+  return [translatedCategory, ...translatedTags].filter(Boolean).join(separator);
 }
 
 

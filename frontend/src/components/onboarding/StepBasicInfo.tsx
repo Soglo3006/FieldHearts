@@ -41,7 +41,9 @@ export default function StepBasicInfo({ data, accountType, onChange }: Props) {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="fullName" className="text-base font-medium text-gray-900">{t("profileEdit.fullName")}</Label>
+              <Label htmlFor="fullName" className="text-base font-medium text-gray-900">
+                {t("profileEdit.fullName")} <span className="text-red-500">*</span>
+              </Label>
               <Input
                 id="fullName"
                 type="text"
@@ -58,19 +60,31 @@ export default function StepBasicInfo({ data, accountType, onChange }: Props) {
             <div className="flex flex-col items-center">
               <ProfilePictureUploader
                 currentProfilePicture={data.avatar}
-                userName={data.companyName || ""}
+                userName={data.companyName || data.fullName || ""}
                 onProfileChange={(pic) => onChange({ avatar: pic })}
                 size="xl"
                 showLabel={true}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="companyName" className="text-base font-medium text-gray-900">{t("profileEdit.companyName")} <span className="text-red-500">*</span></Label>
+              <Label htmlFor="companyName" className="text-base font-medium text-gray-900">{t("profileEdit.companyName")}</Label>
               <Input
                 id="companyName"
                 type="text"
                 value={data.companyName || ""}
                 onChange={(e) => onChange({ companyName: e.target.value })}
+                className="h-12"
+              />
+            </div>
+            <div className="space-y-2 mt-4">
+              <Label htmlFor="repName" className="text-base font-medium text-gray-900">
+                {t("onboarding.representativeName")} <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="repName"
+                type="text"
+                value={data.fullName || ""}
+                onChange={(e) => onChange({ fullName: e.target.value })}
                 className="h-12"
               />
             </div>

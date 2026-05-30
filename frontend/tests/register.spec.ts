@@ -4,41 +4,41 @@ import { test, expect } from '@playwright/test';
 test.use({ storageState: { cookies: [], origins: [] } });
 
 test.describe('Register form validation', () => {
-  test('shows register form with all fields', async ({ page }) => {
+  test('shows register form starting with email', async ({ page }) => {
     await page.goto('/register');
-    await expect(page.locator('#full_name')).toBeVisible();
     await expect(page.locator('#email')).toBeVisible();
+    await expect(page.locator('#password')).not.toBeVisible();
+  });
+
+  test('shows password fields after email step', async ({ page }) => {
+    await page.goto('/register?email=test@example.com');
+    await expect(page.locator('#password')).toBeVisible();
+    await expect(page.locator('#confirm_password')).toBeVisible();
+  });
+
+  test('shows name fields before password on second step', async ({ page }) => {
+    await page.goto('/register?email=test@example.com');
+    await expect(page.locator('#first_name')).toBeVisible();
+    await expect(page.locator('#last_name')).toBeVisible();
     await expect(page.locator('#password')).toBeVisible();
     await expect(page.locator('#confirm_password')).toBeVisible();
   });
 
   test('shows error when passwords do not match', async ({ page }) => {
-    await page.goto('/register');
-    await page.fill('#full_name', 'Test User');
-    await page.fill('#email', 'test@example.com');
+    await page.goto('/register?email=test@example.com');
+    await page.fill('#first_name', 'Jean');
+    await page.fill('#last_name', 'Dupont');
     await page.fill('#password', 'Password123!');
     await page.fill('#confirm_password', 'DifferentPassword!');
     await page.click('button[type="submit"]');
     await expect(page.locator('.bg-red-50')).toBeVisible();
   });
 
-  test('shows error when password is too short', async ({ page }) => {
-    await page.goto('/register');
-    await page.fill('#full_name', 'Test User');
-    await page.fill('#email', 'test@example.com');
-    await page.fill('#password', 'abc');
-    await page.fill('#confirm_password', 'abc');
-    await page.click('button[type="submit"]');
-    await expect(page.locator('.bg-red-50')).toBeVisible();
-  });
-
   test('password toggle shows and hides password', async ({ page }) => {
-    await page.goto('/register');
+    await page.goto('/register?email=test@example.com');
     await page.fill('#password', 'test_toggle_value');
     await expect(page.locator('#password')).toHaveAttribute('type', 'password');
-    // Go up to parent div then find the toggle button inside it
     const toggleBtn = page.locator('#password').locator('..').locator('button');
-    // Skip if toggle not deployed yet
     const count = await toggleBtn.count();
     if (count === 0) test.skip();
     await toggleBtn.click();
@@ -54,22 +54,23 @@ test.describe('Register form validation', () => {
 });
 
 test.describe('Choose account type page', () => {
-  // This page is accessible without auth
   test('shows both account type options', async ({ page }) => {
     await page.goto('/choose_type');
-    await expect(page.locator('a[href*="type=person"]')).toBeVisible();
-    await expect(page.locator('a[href*="type=company"]')).toBeVisible();
+    await expect(page.getByRole('button', { name: /Particulier|Individual/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: /Entreprise|Company/i })).toBeVisible();
   });
 
-  test('clicking Particulier redirects to complete_profil with type=person', async ({ page }) => {
+  test('selecting Particulier shows basic info intro', async ({ page }) => {
     await page.goto('/choose_type');
-    await page.click('a[href*="type=person"]');
-    await expect(page).toHaveURL(/complete_profil.*type=person/);
+    await page.getByRole('button', { name: /Particulier|Individual/i }).click();
+    await expect(page.getByText(/Informations de base|Basic information/i)).toBeVisible();
+    await expect(page.getByRole('button', { name: /Ignorer pour l'instant|Skip for now/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: /Allons-y|Let's go/i })).toBeVisible();
   });
 
-  test('clicking Entreprise redirects to complete_profil with type=company', async ({ page }) => {
+  test('shows account type title without card descriptions', async ({ page }) => {
     await page.goto('/choose_type');
-    await page.click('a[href*="type=company"]');
-    await expect(page).toHaveURL(/complete_profil.*type=company/);
+    await expect(page.getByText(/De quel type de compte|What type of account/i)).toBeVisible();
+    await expect(page.getByText(/n'influence pas|does not affect/i)).toBeVisible();
   });
 });

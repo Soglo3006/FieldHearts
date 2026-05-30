@@ -17,9 +17,40 @@ import {
 } from "../utils/serviceFieldCanonical.js";
 import { normalizeDurationForStorage } from "../utils/serviceDuration.js";
 import { resolveServicePricingFields } from "../utils/servicePricing.js";
+import {
+  normalizeListingTags,
+  ensureListingTagsSchema,
+  OTHER_CATEGORY_NAME,
+} from "../utils/listingTags.js";
+
+function normalizeTagKey(value) {
+  return String(value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function isOtherCategoryName(name) {
+  const key = normalizeTagKey(name);
+  return key === "other" || key === "autre" || key === "autres";
+}
+
+function listingTagMatchClause(paramCount) {
+  return `(
+    s.subcategory ILIKE $${paramCount}
+    OR EXISTS (
+      SELECT 1
+      FROM jsonb_array_elements_text(COALESCE(s.listing_tags, '[]'::jsonb)) AS tag(value)
+      WHERE tag.value ILIKE $${paramCount}
+    )
+  )`;
+}
 
 export const createService = async (req, res) => {
   try {
+    await ensureListingTagsSchema(pool);
     const translationsSanitized = sanitizeListingTranslations(req.body.translations);
     const canon = canonicalListingTexts(translationsSanitized);
 
@@ -76,16 +107,19 @@ export const createService = async (req, res) => {
       : (image_url ? [image_url] : []);
     const resolvedImageUrl = resolvedImageUrls[0] ?? null;
 
+    const tagFields = normalizeListingTags(req.body);
+
     // Créer le service
     const result = await pool.query(
       `INSERT INTO services (
         user_id, type, title, description, category, category_id, subcategory,
+        listing_tags, has_custom_tags,
         price, location, address, latitude, longitude, city,
         poster_type, availability,
         language, mobility, duration, urgency, image_url, image_urls, is_one_time, hide_exact_location,
         pricing_mode, price_min, price_max,
         translations
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27::jsonb)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29::jsonb)
       RETURNING *`,
       [
         req.user.id,
@@ -94,7 +128,9 @@ export const createService = async (req, res) => {
         data.description,
         category || null,
         category_id || null,
-        subcategory || null,
+        tagFields.subcategory,
+        JSON.stringify(tagFields.tags),
+        tagFields.hasCustomTags,
         pricingResolved.price,
         location,
         address || location,
@@ -185,19 +221,35 @@ export const getAllServices = async (req, res) => {
     }
 
     if (categoryNames.length > 0) {
-      const categoryClauses = categoryNames.map((name) => {
-        const clause = `(c.name ILIKE $${paramCount} OR s.category ILIKE $${paramCount})`;
-        params.push(`%${name}%`);
-        paramCount++;
-        return clause;
-      });
+      const otherFilter = categoryNames.some(isOtherCategoryName);
+      const regularCategoryNames = categoryNames.filter((name) => !isOtherCategoryName(name));
 
-      query += ` AND (${categoryClauses.join(" OR ")})`;
+      const categoryClauses = [];
+
+      if (regularCategoryNames.length > 0) {
+        regularCategoryNames.forEach((name) => {
+          categoryClauses.push(`(c.name ILIKE $${paramCount} OR s.category ILIKE $${paramCount})`);
+          params.push(`%${name}%`);
+          paramCount++;
+        });
+      }
+
+      if (otherFilter) {
+        categoryClauses.push(
+          `(s.category ILIKE $${paramCount} OR s.has_custom_tags = true)`,
+        );
+        params.push(`%${OTHER_CATEGORY_NAME}%`);
+        paramCount++;
+      }
+
+      if (categoryClauses.length > 0) {
+        query += ` AND (${categoryClauses.join(" OR ")})`;
+      }
     }
 
     if (subcategories.length > 0) {
       const subcategoryClauses = subcategories.map((name) => {
-        const clause = `s.subcategory ILIKE $${paramCount}`;
+        const clause = listingTagMatchClause(paramCount);
         params.push(`%${name}%`);
         paramCount++;
         return clause;
@@ -351,6 +403,11 @@ export const getAllServices = async (req, res) => {
             `s.description ILIKE $${paramCount}`,
             `COALESCE(c.name, s.category) ILIKE $${paramCount}`,
             `s.subcategory ILIKE $${paramCount}`,
+            `EXISTS (
+              SELECT 1
+              FROM jsonb_array_elements_text(COALESCE(s.listing_tags, '[]'::jsonb)) AS tag(value)
+              WHERE tag.value ILIKE $${paramCount}
+            )`,
             `s.city ILIKE $${paramCount}`,
             `s.location ILIKE $${paramCount}`
           );
@@ -371,6 +428,11 @@ export const getAllServices = async (req, res) => {
         CASE WHEN s.title ILIKE $${paramCount + 1} THEN 60 ELSE 0 END +
         CASE WHEN COALESCE(c.name, s.category) ILIKE $${paramCount} THEN 30 ELSE 0 END +
         CASE WHEN s.subcategory ILIKE $${paramCount} THEN 20 ELSE 0 END +
+        CASE WHEN EXISTS (
+          SELECT 1
+          FROM jsonb_array_elements_text(COALESCE(s.listing_tags, '[]'::jsonb)) AS tag(value)
+          WHERE tag.value ILIKE $${paramCount}
+        ) THEN 20 ELSE 0 END +
         CASE WHEN s.description ILIKE $${paramCount} THEN 10 ELSE 0 END
       )`;
       params.push(scoreParam, `${search.trim()}%`);
@@ -507,6 +569,7 @@ export const getServiceById = async (req, res) => {
 
 export const updateService = async (req, res) => {
   try {
+    await ensureListingTagsSchema(pool);
     const { id } = req.params;
     const {
       title, description, category, category_id, subcategory,
@@ -598,6 +661,12 @@ export const updateService = async (req, res) => {
       mergedPriceMax = r.price_max;
     }
 
+    const touchesTags =
+      req.body.listing_tags !== undefined ||
+      req.body.tags !== undefined ||
+      req.body.subcategory !== undefined;
+    const tagFields = touchesTags ? normalizeListingTags(req.body) : null;
+
     const updated = await pool.query(
       `UPDATE services
        SET title        = $1,
@@ -605,34 +674,38 @@ export const updateService = async (req, res) => {
            category     = $3,
            category_id  = $4,
            subcategory  = $5,
-           price        = $6,
-           location     = $7,
-           address      = $8,
-           latitude     = $9,
-           longitude    = $10,
-           city         = $11,
-           poster_type  = $12,
-           availability = $13,
-           language     = $14,
-           mobility     = $15,
-           duration     = $16,
-           urgency      = $17,
-           image_url    = $18,
-           image_urls          = $19,
-           is_one_time         = $20,
-           hide_exact_location = $21,
-           translations       = $22::jsonb,
-           pricing_mode       = $23,
-           price_min          = $24,
-           price_max          = $25
-       WHERE id = $26
+           listing_tags = $6::jsonb,
+           has_custom_tags = $7,
+           price        = $8,
+           location     = $9,
+           address      = $10,
+           latitude     = $11,
+           longitude    = $12,
+           city         = $13,
+           poster_type  = $14,
+           availability = $15,
+           language     = $16,
+           mobility     = $17,
+           duration     = $18,
+           urgency      = $19,
+           image_url    = $20,
+           image_urls          = $21,
+           is_one_time         = $22,
+           hide_exact_location = $23,
+           translations       = $24::jsonb,
+           pricing_mode       = $25,
+           price_min          = $26,
+           price_max          = $27
+       WHERE id = $28
        RETURNING *`,
       [
         mergedTitleFinal,
         mergedDescFinal,
         category     !== undefined ? category     : existing.category,
         category_id  !== undefined ? category_id  : existing.category_id,
-        subcategory  !== undefined ? subcategory  : existing.subcategory,
+        tagFields ? tagFields.subcategory : (subcategory !== undefined ? subcategory : existing.subcategory),
+        tagFields ? JSON.stringify(tagFields.tags) : JSON.stringify(existing.listing_tags ?? []),
+        tagFields ? tagFields.hasCustomTags : (existing.has_custom_tags ?? false),
         mergedPrice,
         location     !== undefined ? location     : existing.location,
         address      !== undefined ? (address || location || existing.location) : existing.address,
@@ -709,18 +782,32 @@ export const getUserServices = async (req, res) => {
 
 export const getCategoryCounts = async (req, res) => {
   try {
+    await ensureListingTagsSchema(pool);
     const result = await pool.query(`
-      SELECT
-        COALESCE(c.name, s.category) AS category_name,
-        COUNT(*)::int AS count
-      FROM services s
-      LEFT JOIN categories c ON c.id = s.category_id
-      WHERE s.is_active = true
-        AND COALESCE(c.name, s.category) IS NOT NULL
-        AND COALESCE(c.name, s.category) != ''
-      GROUP BY COALESCE(c.name, s.category)
+      SELECT category_name, SUM(count)::int AS count
+      FROM (
+        SELECT
+          COALESCE(c.name, s.category) AS category_name,
+          COUNT(*)::int AS count
+        FROM services s
+        LEFT JOIN categories c ON c.id = s.category_id
+        WHERE s.is_active = true
+          AND COALESCE(c.name, s.category) IS NOT NULL
+          AND COALESCE(c.name, s.category) != ''
+        GROUP BY COALESCE(c.name, s.category)
+
+        UNION ALL
+
+        SELECT
+          $1 AS category_name,
+          COUNT(*)::int AS count
+        FROM services s
+        WHERE s.is_active = true
+          AND s.has_custom_tags = true
+      ) grouped
+      GROUP BY category_name
       ORDER BY count DESC
-    `);
+    `, [OTHER_CATEGORY_NAME]);
     res.json(result.rows);
   } catch (err) {
     console.error(err);

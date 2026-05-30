@@ -2,18 +2,18 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useMyProfile } from "@/hooks/useMyProfile";
+import { isProfileDetailsIncomplete } from "@/lib/onboardingSteps";
 
 export function useFavorites() {
   const { user, session } = useAuth();
+  const { profile, loading: profileLoading } = useMyProfile();
   const [ids, setIds] = useState<Set<string>>(new Set());
   const [loaded, setLoaded] = useState(false);
+  const [showCompleteProfile, setShowCompleteProfile] = useState(false);
 
   const token = session?.access_token;
-  const authHeaders = token
-    ? { Authorization: `Bearer ${token}` }
-    : undefined;
 
-  // Load favorites on mount / auth change
   useEffect(() => {
     if (user && token) {
       fetch(`${process.env.NEXT_PUBLIC_API_URL}/favorites/ids`, {
@@ -26,7 +26,6 @@ export function useFavorites() {
         })
         .catch(() => setLoaded(true));
     } else {
-      // Guest: use localStorage (deferred to avoid synchronous setState in effect)
       Promise.resolve().then(() => {
         try {
           const raw = localStorage.getItem("savedListings");
@@ -47,8 +46,13 @@ export function useFavorites() {
 
   const toggle = useCallback(
     async (serviceId: string) => {
+      if (profileLoading) return;
+      if (user && isProfileDetailsIncomplete(profile)) {
+        setShowCompleteProfile(true);
+        return;
+      }
+
       const wasSaved = ids.has(serviceId);
-      // Optimistic update
       setIds((prev) => {
         const next = new Set(prev);
         if (wasSaved) next.delete(serviceId);
@@ -73,7 +77,6 @@ export function useFavorites() {
           }).catch(() => {});
         }
       } else {
-        // Guest: persist to localStorage
         try {
           setIds((current) => {
             localStorage.setItem("savedListings", JSON.stringify([...current]));
@@ -82,8 +85,8 @@ export function useFavorites() {
         } catch {}
       }
     },
-    [ids, user, token] // eslint-disable-line react-hooks/exhaustive-deps
+    [ids, user, token, profile, profileLoading] // eslint-disable-line react-hooks/exhaustive-deps
   );
 
-  return { ids, isSaved, toggle, loaded };
+  return { ids, isSaved, toggle, loaded, showCompleteProfile, setShowCompleteProfile };
 }

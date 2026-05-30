@@ -17,6 +17,7 @@ import { ListingsRegionEmptyState } from "@/components/listings/ListingsRegionEm
 import { ListingCardImageCarousel, getListingGalleryUrls } from "@/components/listings/ListingCardImageCarousel";
 import { ListingTrustLine } from "@/components/listings/ListingTrustLine";
 import { formatListingPriceLine } from "@/lib/listingPrice";
+import { LOCATION_SEARCH_RADIUS_KM } from "@/lib/geocodeCanadianLocation";
 
 interface ApiService {
   id: string;
@@ -54,6 +55,9 @@ export interface ListingsFilters {
   category?: string;
   subcategory?: string;
   location?: string;
+  locationLat?: number;
+  locationLng?: number;
+  locationRadius?: number;
   minPrice?: number;
   maxPrice?: number;
   /** `fixed` | `range` | `quote` — omit or empty for all */
@@ -223,6 +227,9 @@ export default function ListingsGrid({ filters }: { filters?: ListingsFilters })
     filters?.category,
     filters?.subcategory,
     filters?.location,
+    filters?.locationLat,
+    filters?.locationLng,
+    filters?.locationRadius,
     filters?.minPrice,
     filters?.maxPrice,
     filters?.pricingMode,
@@ -243,7 +250,13 @@ export default function ListingsGrid({ filters }: { filters?: ListingsFilters })
         else if (filters?.category)                        params.set("categoryName", filters.category);
         if (filters?.subcategories?.length)                params.set("subcategory", filters.subcategories.join(","));
         else if (filters?.subcategory)                     params.set("subcategory", filters.subcategory);
-        if (filters?.location)                             params.set("location", filters.location);
+        if (filters?.locationLat != null && filters?.locationLng != null) {
+          params.set("userLat", String(filters.locationLat));
+          params.set("userLng", String(filters.locationLng));
+          params.set("radius", String(filters.locationRadius ?? LOCATION_SEARCH_RADIUS_KM));
+        } else if (filters?.location) {
+          params.set("location", filters.location);
+        }
         if (filters?.minPrice && filters.minPrice > 0)     params.set("minPrice", String(filters.minPrice));
         if (filters?.maxPrice && filters.maxPrice < 1000)  params.set("maxPrice", String(filters.maxPrice));
         if (filters?.serviceType && filters.serviceType !== "all") params.set("type", filters.serviceType);
@@ -286,6 +299,9 @@ export default function ListingsGrid({ filters }: { filters?: ListingsFilters })
     filters?.category,
     filters?.subcategory,
     filters?.location,
+    filters?.locationLat,
+    filters?.locationLng,
+    filters?.locationRadius,
     filters?.minPrice,
     filters?.maxPrice,
     filters?.pricingMode,

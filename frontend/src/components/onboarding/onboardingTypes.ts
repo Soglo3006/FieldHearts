@@ -41,12 +41,36 @@ export interface OnboardingData {
   portfolio: PortfolioItem[];
 }
 
+export const BIO_MAX = 2500;
+
 export const languageOptions = [
   "English", "French", "Spanish", "Arabic", "Mandarin",
   "Portuguese", "German", "Italian", "Japanese", "Korean", "Hindi", "Russian",
 ];
 
+export const languageLabels: Record<string, Record<string, string>> = {
+  English:    { en: "English",    fr: "Anglais" },
+  French:     { en: "French",     fr: "Français" },
+  Spanish:    { en: "Spanish",    fr: "Espagnol" },
+  Arabic:     { en: "Arabic",     fr: "Arabe" },
+  Mandarin:   { en: "Mandarin",   fr: "Mandarin" },
+  Portuguese: { en: "Portuguese", fr: "Portugais" },
+  German:     { en: "German",     fr: "Allemand" },
+  Italian:    { en: "Italian",    fr: "Italien" },
+  Japanese:   { en: "Japanese",   fr: "Japonais" },
+  Korean:     { en: "Korean",     fr: "Coréen" },
+  Hindi:      { en: "Hindi",      fr: "Hindi" },
+  Russian:    { en: "Russian",    fr: "Russe" },
+};
+
 export const proficiencyOptions = ["Basic", "Conversational", "Fluent", "Native"];
+
+export const proficiencyLabels: Record<string, Record<string, string>> = {
+  Basic:          { en: "Basic",          fr: "Débutant" },
+  Conversational: { en: "Conversational", fr: "Conversationnel" },
+  Fluent:         { en: "Fluent",         fr: "Courant" },
+  Native:         { en: "Native",         fr: "Natif" },
+};
 
 export const professionSuggestions: Record<string, string[]> = {
   en: [

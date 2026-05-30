@@ -455,6 +455,7 @@ export const getAllServices = async (req, res) => {
         ORDER BY ${hasSearch ? `${relevanceExpr} DESC,` : ""} ${distExpr} ASC
       `;
       params.push(lat, lng, km);
+      paramCount += 3;
     } else {
       query += hasSearch
         ? ` ORDER BY ${relevanceExpr} DESC, s.created_at DESC`

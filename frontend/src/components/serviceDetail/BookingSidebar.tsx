@@ -65,7 +65,7 @@ export default function BookingSidebar({
           <div className="bg-white rounded-lg p-3 space-y-3 mb-6 text-sm border border-gray-100">
             <div className="flex justify-between gap-2">
               <span className="text-gray-600">
-                {serviceType === "offer" ? t("serviceDetail.servicePrice") : t("listings.price")}
+                {serviceType === "offer" ? t("serviceDetail.servicePrice") : t("serviceDetail.earnings")}
               </span>
               <span className="font-semibold text-gray-900 text-right">{displayPriceLabel}</span>
             </div>
@@ -92,7 +92,7 @@ export default function BookingSidebar({
             return (
               <div className="bg-white rounded-lg p-3 space-y-1.5 mb-6 text-sm border border-gray-100">
                 <div className="flex justify-between gap-2">
-                  <span className="text-gray-600">{serviceType === "offer" ? t("serviceDetail.servicePrice") : t("listings.price")}</span>
+                  <span className="text-gray-600">{serviceType === "offer" ? t("serviceDetail.servicePrice") : t("serviceDetail.earnings")}</span>
                   <span className="font-semibold text-gray-900 text-right">{displayPriceLabel}</span>
                 </div>
                 {showBuyerFees && (

@@ -100,38 +100,41 @@ export default function RootLayout({
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
-            __html: JSON.stringify([
-              {
-                "@context": "https://schema.org",
-                "@type": "Organization",
-                name: "Uneden",
-                url: "https://uneden.ca",
-                logo: "https://uneden.ca/logo.png",
-                description: "Uneden connecte les gens de ta communauté pour offrir et trouver des services locaux.",
-                address: { "@type": "PostalAddress", addressCountry: "CA", addressRegion: "QC" },
-                sameAs: [
-                  "https://github.com/Uneden",
-                  "https://www.linkedin.com/company/uneden",
-                ],
-              },
-              {
-                "@context": "https://schema.org",
-                "@type": "WebSite",
-                name: "Uneden",
-                alternateName: "Uneden.ca",
-                url: "https://uneden.ca",
-                description: "Uneden connecte les gens de ta communauté pour offrir et trouver des services locaux.",
-                inLanguage: ["fr-CA", "en-CA"],
-                potentialAction: {
-                  "@type": "SearchAction",
-                  target: {
-                    "@type": "EntryPoint",
-                    urlTemplate: "https://uneden.ca/search?q={search_term_string}",
-                  },
-                  "query-input": "required name=search_term_string",
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "Organization",
+              name: "Uneden",
+              url: "https://uneden.ca",
+              logo: "https://uneden.ca/logo.png",
+              description: "Uneden connecte les gens de ta communauté pour offrir et trouver des services locaux.",
+              address: { "@type": "PostalAddress", addressCountry: "CA", addressRegion: "QC" },
+              sameAs: [
+                "https://github.com/Uneden",
+                "https://www.linkedin.com/company/uneden",
+              ],
+            }),
+          }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "WebSite",
+              name: "Uneden",
+              alternateName: "Uneden.ca",
+              url: "https://uneden.ca",
+              description: "Uneden connecte les gens de ta communauté pour offrir et trouver des services locaux.",
+              inLanguage: ["fr-CA", "en-CA"],
+              potentialAction: {
+                "@type": "SearchAction",
+                target: {
+                  "@type": "EntryPoint",
+                  urlTemplate: "https://uneden.ca/search?q={search_term_string}",
                 },
+                "query-input": "required name=search_term_string",
               },
-            ]),
+            }),
           }}
         />
       </head>

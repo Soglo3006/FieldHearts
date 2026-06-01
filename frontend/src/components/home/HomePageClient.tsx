@@ -85,13 +85,14 @@ function ListingCard({
   i18nLang: string | undefined;
   priority?: boolean;
 }) {
+  const router = useRouter();
   const galleryUrls = getListingGalleryUrls(listing.image_urls, listing.image_url);
   const resolvedTitle = resolveListingTitle(listing, i18nLang);
   const detailHref = `/serviceDetail/${listing.id}`;
   return (
     <div className="group h-full border rounded-xl shadow-sm bg-white flex flex-col overflow-hidden hover:shadow-md transition-shadow">
       <AspectRatio ratio={16 / 9}>
-        <div className="relative w-full h-full">
+        <div className="relative w-full h-full cursor-pointer" onClick={() => router.push(detailHref)}>
           <ListingLangPills service={listing} />
           {galleryUrls.length > 0 ? (
             <>

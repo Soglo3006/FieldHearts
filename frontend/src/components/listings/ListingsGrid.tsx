@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useTranslation } from "react-i18next";
 import { MapPin, Clock, Grid3x3 } from "lucide-react";
@@ -134,13 +135,14 @@ function gridVacancyPads(count: number) {
 
 function ListingGridCard({ s, globalIndex }: { s: ApiService; globalIndex: number }) {
   const { t, i18n } = useTranslation();
+  const router = useRouter();
   const detailHref = `/serviceDetail/${s.id}`;
   const galleryUrls = getListingGalleryUrls(s.image_urls, s.image_url);
   return (
     <div className="group flex flex-col border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white hover:shadow-md transition-shadow">
       <AspectRatio ratio={16 / 9}>
         {galleryUrls.length > 0 ? (
-          <div className="relative w-full h-full">
+          <div className="relative w-full h-full cursor-pointer" onClick={() => router.push(detailHref)}>
             <ListingLangPills service={s} />
             <ListingCardImageCarousel
               urls={galleryUrls}

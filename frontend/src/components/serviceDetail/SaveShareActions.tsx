@@ -11,14 +11,16 @@ import CompleteProfileModal from "@/components/profile/CompleteProfileModal";
 interface Props {
   serviceId: string;
   title: string;
+  ownerId?: string;
 }
 
-export default function SaveShareActions({ serviceId, title }: Props) {
+export default function SaveShareActions({ serviceId, title, ownerId }: Props) {
   const { t } = useTranslation();
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
   const { isSaved, toggle, showCompleteProfile, setShowCompleteProfile } = useFavorites();
   const saved = Boolean(user) && isSaved(serviceId);
+  const isOwner = !!user && !!ownerId && user.id === ownerId;
 
   const handleSave = () => {
     if (authLoading) return;
@@ -52,10 +54,12 @@ export default function SaveShareActions({ serviceId, title }: Props) {
   return (
     <>
       <div className="flex items-center gap-2 mt-3">
-        <Button variant="outline" className="gap-2" onClick={handleSave}>
-          <Bookmark className={`h-4 w-4 ${saved ? "fill-green-700 text-green-700" : ""}`} />
-          {saved ? t("serviceDetail.saved") : t("serviceDetail.save")}
-        </Button>
+        {!isOwner && (
+          <Button variant="outline" className="gap-2" onClick={handleSave}>
+            <Bookmark className={`h-4 w-4 ${saved ? "fill-green-700 text-green-700" : ""}`} />
+            {saved ? t("serviceDetail.saved") : t("serviceDetail.save")}
+          </Button>
+        )}
         <Button variant="outline" className="gap-2" onClick={handleShare}>
           <Share2 className="h-4 w-4" />
           {t("serviceDetail.share")}

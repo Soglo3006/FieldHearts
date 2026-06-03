@@ -312,6 +312,11 @@ export const getAllServices = async (req, res) => {
       paramCount++;
     }
 
+    const lat = parseFloat(userLat);
+    const lng = parseFloat(userLng);
+    const km  = parseFloat(radius) || 50;
+    const hasGeo = !isNaN(lat) && !isNaN(lng);
+
     if (location) {
       const locPatterns = expandLocationILIKEpatterns(String(location));
       const clauses = locPatterns.map(
@@ -439,21 +444,18 @@ export const getAllServices = async (req, res) => {
       paramCount += 2;
     }
 
-    const lat = parseFloat(userLat);
-    const lng = parseFloat(userLng);
-    const km  = parseFloat(radius) || 50;
-
-    if (!isNaN(lat) && !isNaN(lng)) {
+    if (hasGeo) {
       const distExpr = `(6371 * acos(
           cos(radians($${paramCount})) * cos(radians(s.latitude)) *
           cos(radians(s.longitude) - radians($${paramCount + 1})) +
           sin(radians($${paramCount})) * sin(radians(s.latitude))
         ))`;
+
       query += `
-        AND s.latitude IS NOT NULL AND s.longitude IS NOT NULL
-        AND ${distExpr} <= $${paramCount + 2}
-        ORDER BY ${hasSearch ? `${relevanceExpr} DESC,` : ""} ${distExpr} ASC
-      `;
+          AND s.latitude IS NOT NULL AND s.longitude IS NOT NULL
+          AND ${distExpr} <= $${paramCount + 2}
+          ORDER BY ${hasSearch ? `${relevanceExpr} DESC,` : ""} ${distExpr} ASC
+        `;
       params.push(lat, lng, km);
       paramCount += 3;
     } else {

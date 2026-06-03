@@ -69,7 +69,9 @@ export default function BookingSidebar({
               </span>
               <span className="font-semibold text-gray-900 text-right">{displayPriceLabel}</span>
             </div>
-            <p className="text-xs text-gray-600 leading-relaxed">{t("listingPrice.quoteTotalsHint")}</p>
+            {serviceType === "offer" && (
+              <p className="text-xs text-gray-600 leading-relaxed">{t("listingPrice.quoteTotalsHint")}</p>
+            )}
           </div>
         ) : (
           (() => {

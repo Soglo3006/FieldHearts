@@ -86,10 +86,14 @@ export default function BookingModal({
               {estimatedTotalBase === null ? (
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between gap-2">
-                    <span className="text-gray-600">{t("serviceDetail.servicePrice")}</span>
+                    <span className="text-gray-600">
+                      {serviceType === "offer" ? t("serviceDetail.servicePrice") : t("serviceDetail.earnings")}
+                    </span>
                     <span className="font-semibold text-right">{displayPriceLabel}</span>
                   </div>
-                  <p className="text-xs text-gray-600 leading-relaxed">{t("listingPrice.quoteTotalsHint")}</p>
+                  {serviceType === "offer" && (
+                    <p className="text-xs text-gray-600 leading-relaxed">{t("listingPrice.quoteTotalsHint")}</p>
+                  )}
                 </div>
               ) : (
                 (() => {
@@ -112,7 +116,7 @@ export default function BookingModal({
                     <div className="space-y-1.5 text-sm">
                       <div className="flex justify-between gap-2">
                         <span className="text-gray-600">
-                          {serviceType === "offer" ? t("serviceDetail.servicePrice") : t("listings.price")}
+                          {serviceType === "offer" ? t("serviceDetail.servicePrice") : t("serviceDetail.earnings")}
                         </span>
                         <span className="font-semibold text-right">{displayPriceLabel}</span>
                       </div>

@@ -101,7 +101,7 @@ export default function ServiceTitleCard({
             <span>{formatRelativeDate(service.created_at)}</span>
           </div>
 
-          <SaveShareActions serviceId={service.id} title={displayTitle} />
+          <SaveShareActions serviceId={service.id} title={displayTitle} ownerId={service.owner_id} />
 
           {favoritesCount > 0 && (
             <div className="text-sm text-gray-600 mt-2">

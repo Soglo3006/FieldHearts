@@ -795,9 +795,9 @@ export default function Header() {
                           </Link>
                           <Link href="/bookings" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
                             <CalendarDays className="h-5 w-5 text-gray-400" />
-                            <span className="flex-1">{t("header.bookings")}</span>
+                            {t("header.bookings")}
                             {unseenCount > 0 && (
-                              <span className="h-5 min-w-5 px-1 bg-red-500 rounded-full flex items-center justify-center text-[10px] font-bold text-white">
+                              <span className="ml-auto h-5 min-w-5 px-1 bg-red-500 rounded-full flex items-center justify-center text-[10px] font-bold text-white">
                                 {unseenCount > 9 ? "9+" : unseenCount}
                               </span>
                             )}

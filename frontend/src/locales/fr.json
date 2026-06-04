@@ -1244,6 +1244,196 @@
     "hoursAgo": "{{count}}h",
     "daysAgo": "{{count}}j"
   },
+  "helpPage": {
+    "eyebrow": "Centre d'aide",
+    "heroImageAlt": "Personne prête à aider au centre d'assistance Uneden",
+    "heroTitle": "Comment pouvons-nous vous aider ?",
+    "heroSubtitle": "Guides, réponses rapides et FAQ pour publier, réserver et échanger en toute confiance sur Uneden.",
+    "contactCta": "Contactez-nous",
+    "browseTitle": "Parcourir par sujet",
+    "seeAllArticles": "Voir tous les articles",
+    "tabs": {
+      "providers": "Pour les prestataires",
+      "clients": "Pour les clients"
+    },
+    "faqTitle": "FAQ",
+    "faqSubtitle": "Les questions les plus fréquentes de la communauté.",
+    "moreQuestions": "Vous ne trouvez pas ce que vous cherchez ?",
+    "moreQuestionsSubtitle": "Nous sommes là pour vous aider.",
+    "providerSections": [
+      {
+        "iconKey": "account",
+        "title": "Compte et profil",
+        "seeAllHref": "/login",
+        "articles": [
+          { "title": "Créer un compte Uneden", "href": "/register" },
+          { "title": "Compléter votre profil prestataire", "href": "/profile/complete_profil" },
+          { "title": "Paramètres du compte", "href": "/login" },
+          { "title": "Connexion avec Google ou Facebook", "href": "/login" }
+        ]
+      },
+      {
+        "iconKey": "listings",
+        "title": "Publier et gérer vos annonces",
+        "seeAllHref": "/post",
+        "articles": [
+          { "title": "Publier une offre de service", "href": "/post" },
+          { "title": "Modifier ou retirer une annonce", "href": "/my-listings" },
+          { "title": "Choisir catégorie et étiquettes", "href": "/post" },
+          { "title": "Annonce « Offre » vs « Recherche »", "href": "/help#faq" }
+        ]
+      },
+      {
+        "iconKey": "orders",
+        "title": "Réservations et mandats",
+        "seeAllHref": "/bookings",
+        "articles": [
+          { "title": "Accepter ou refuser une demande", "href": "/bookings" },
+          { "title": "Communiquer avec le client", "href": "/messages" },
+          { "title": "Marquer un mandat comme terminé", "href": "/bookings" },
+          { "title": "Gérer un litige (centre de résolution)", "href": "/trust-safety#disputes" },
+          { "title": "Recevoir des avis", "href": "/trust-safety#reviews" }
+        ]
+      },
+      {
+        "iconKey": "payments",
+        "title": "Paiements et versements",
+        "seeAllHref": "/payment-terms",
+        "articles": [
+          { "title": "Conditions de paiement", "href": "/payment-terms" },
+          { "title": "Consulter votre portefeuille", "href": "/wallet" },
+          { "title": "Frais, taxes et versements", "href": "/payment-terms" },
+          { "title": "Paiements sécurisés (Stripe)", "href": "/payment-terms" }
+        ]
+      },
+      {
+        "iconKey": "messages",
+        "title": "Messagerie",
+        "seeAllHref": "/messages",
+        "articles": [
+          { "title": "Accéder à vos conversations", "href": "/messages" },
+          { "title": "Échanger avant d'accepter un mandat", "href": "/messages" },
+          { "title": "Clarifier le prix et le périmètre", "href": "/help#faq" },
+          { "title": "Signaler un message inapproprié", "href": "/trust-safety#reporting" }
+        ]
+      },
+      {
+        "iconKey": "trust",
+        "title": "Confiance et sécurité",
+        "seeAllHref": "/trust-safety",
+        "articles": [
+          { "title": "Nos engagements plateforme", "href": "/trust-safety" },
+          { "title": "Signaler une annonce ou un profil", "href": "/trust-safety#reporting" },
+          { "title": "Litiges et centre de résolution", "href": "/trust-safety#disputes" },
+          { "title": "Avis après une réservation", "href": "/trust-safety#reviews" }
+        ]
+      }
+    ],
+    "clientSections": [
+      {
+        "iconKey": "account",
+        "title": "Compte et profil",
+        "seeAllHref": "/register",
+        "articles": [
+          { "title": "Créer un compte Uneden", "href": "/register" },
+          { "title": "Se connecter à votre compte", "href": "/login" },
+          { "title": "Compléter votre profil", "href": "/profile/complete_profil" },
+          { "title": "Paramètres et sécurité", "href": "/login" }
+        ]
+      },
+      {
+        "iconKey": "finding",
+        "title": "Trouver un service",
+        "seeAllHref": "/listings",
+        "articles": [
+          { "title": "Rechercher des annonces près de chez vous", "href": "/listings" },
+          { "title": "Filtrer par ville ou région (rayon 50 km)", "href": "/" },
+          { "title": "Contacter un prestataire", "href": "/messages" },
+          { "title": "Enregistrer des favoris", "href": "/favorites" },
+          { "title": "Publier une demande de travail", "href": "/post" }
+        ]
+      },
+      {
+        "iconKey": "payments",
+        "title": "Réservations et paiements",
+        "seeAllHref": "/payment-terms",
+        "articles": [
+          { "title": "Réserver ou postuler à un mandat", "href": "/bookings" },
+          { "title": "Comprendre les frais et taxes", "href": "/payment-terms" },
+          { "title": "Suivre vos réservations", "href": "/bookings" },
+          { "title": "Problème pendant une commande", "href": "/help#faq" },
+          { "title": "Signaler une annonce", "href": "/trust-safety#reporting" }
+        ]
+      },
+      {
+        "iconKey": "messages",
+        "title": "Messagerie",
+        "seeAllHref": "/messages",
+        "articles": [
+          { "title": "Contacter un prestataire", "href": "/messages" },
+          { "title": "Suivre vos échanges", "href": "/messages" },
+          { "title": "Confirmer les détails avant de réserver", "href": "/help#faq" },
+          { "title": "Signaler un comportement inapproprié", "href": "/trust-safety#reporting" }
+        ]
+      },
+      {
+        "iconKey": "trust",
+        "title": "Confiance et sécurité",
+        "seeAllHref": "/trust-safety",
+        "articles": [
+          { "title": "Vérifier un profil et les avis", "href": "/trust-safety" },
+          { "title": "Signaler une annonce ou un utilisateur", "href": "/trust-safety#reporting" },
+          { "title": "Problème pendant une commande", "href": "/help#faq" },
+          { "title": "Centre de résolution et litiges", "href": "/trust-safety#disputes" }
+        ]
+      },
+      {
+        "iconKey": "policies",
+        "title": "Conditions et politiques",
+        "seeAllHref": "/terms",
+        "articles": [
+          { "title": "Conditions d'utilisation", "href": "/terms" },
+          { "title": "Politique de confidentialité", "href": "/privacy-policy" },
+          { "title": "Conditions de paiement", "href": "/payment-terms" },
+          { "title": "Contactez-nous", "href": "/contact" }
+        ]
+      }
+    ],
+    "faq": [
+      {
+        "question": "Comment puis-je faire confiance aux prestataires ? Y a-t-il des informations transparentes ?",
+        "answer": "Chaque annonce affiche le profil du prestataire, ses avis et son historique de réservations complétées lorsque disponible. Lisez les descriptions, posez des questions par messagerie avant de réserver et consultez notre page Confiance et sécurité pour connaître nos engagements."
+      },
+      {
+        "question": "Quelles précautions prendre avant et après une réservation ?",
+        "answer": "Échangez dans la messagerie Uneden, confirmez le périmètre du travail et le prix avant d'accepter. Pour les rencontres en personne, choisissez un lieu public lorsque c'est possible et informez une personne de confiance. Après le service, laissez un avis honnête pour aider la communauté."
+      },
+      {
+        "question": "Que faire en cas de problème pendant une commande ?",
+        "answer": "Contactez d'abord l'autre partie par la messagerie pour clarifier la situation. Si le litige persiste, ouvrez une demande depuis votre réservation dans les délais indiqués. Notre équipe examine les preuves (messages, photos, détails du mandat) selon nos conditions."
+      },
+      {
+        "question": "Que faire si je ne suis pas satisfait du prestataire ou du client ?",
+        "answer": "Signalez le problème via la réservation ou le formulaire de signalement. Selon les circonstances, un remboursement partiel ou une médiation peut être envisagé. Les avis et signalements répétés peuvent entraîner des mesures sur le compte."
+      },
+      {
+        "question": "À quoi servent les avis et les notes ?",
+        "answer": "Les avis reflètent les expériences réelles après des réservations terminées. Ils aident les clients à choisir et les prestataires à bâtir leur réputation. Uneden ne vend pas de « niveaux » artificiels : la confiance repose sur l'historique, les avis et le respect des règles."
+      },
+      {
+        "question": "Comment fonctionnent les paiements sur Uneden ?",
+        "answer": "Les paiements passent par notre système sécurisé (Stripe). Le client voit le détail des frais avant de confirmer ; le prestataire reçoit son versement selon le calendrier indiqué dans les conditions de paiement, une fois le mandat accepté comme complété."
+      },
+      {
+        "question": "Quelle est la différence entre une annonce « Offre » et « Recherche » ?",
+        "answer": "« Offre » : un prestataire propose un service (ex. ménage, réparation). « Recherche » : quelqu'un cherche de l'aide pour une tâche précise avec un budget. Les deux types utilisent la messagerie et les réservations."
+      },
+      {
+        "question": "Puis-je annuler une réservation ?",
+        "answer": "Les conditions d'annulation dépendent du stade de la réservation et des règles affichées au moment de la confirmation. Consultez les conditions d'utilisation et de paiement, ou contactez le support si la situation est exceptionnelle."
+      }
+    ]
+  },
   "support": {
     "title": "Support",
     "subtitle": "Comment pouvons-nous vous aider ?",

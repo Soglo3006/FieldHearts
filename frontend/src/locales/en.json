@@ -1248,6 +1248,196 @@
     "hoursAgo": "{{count}}h",
     "daysAgo": "{{count}}d"
   },
+  "helpPage": {
+    "eyebrow": "Help Center",
+    "heroImageAlt": "Person ready to help at the Uneden support center",
+    "heroTitle": "How can we help you?",
+    "heroSubtitle": "Guides, quick answers, and FAQs for posting, booking, and connecting with confidence on Uneden.",
+    "contactCta": "Contact us",
+    "browseTitle": "Browse by topic",
+    "seeAllArticles": "See all articles",
+    "tabs": {
+      "providers": "For service providers",
+      "clients": "For clients"
+    },
+    "faqTitle": "FAQs",
+    "faqSubtitle": "The most common questions from our community.",
+    "moreQuestions": "Can't find what you're looking for?",
+    "moreQuestionsSubtitle": "We're here to help.",
+    "providerSections": [
+      {
+        "iconKey": "account",
+        "title": "Account & profile",
+        "seeAllHref": "/login",
+        "articles": [
+          { "title": "Create an Uneden account", "href": "/register" },
+          { "title": "Complete your provider profile", "href": "/profile/complete_profil" },
+          { "title": "Account settings", "href": "/login" },
+          { "title": "Sign in with Google or Facebook", "href": "/login" }
+        ]
+      },
+      {
+        "iconKey": "listings",
+        "title": "Posting & managing listings",
+        "seeAllHref": "/post",
+        "articles": [
+          { "title": "Post a service offer", "href": "/post" },
+          { "title": "Edit or remove a listing", "href": "/my-listings" },
+          { "title": "Choose category and tags", "href": "/post" },
+          { "title": "\"Offer\" vs \"Looking\" listings", "href": "/help#faq" }
+        ]
+      },
+      {
+        "iconKey": "orders",
+        "title": "Bookings & jobs",
+        "seeAllHref": "/bookings",
+        "articles": [
+          { "title": "Accept or decline a request", "href": "/bookings" },
+          { "title": "Message your client", "href": "/messages" },
+          { "title": "Mark a job as complete", "href": "/bookings" },
+          { "title": "Handle a dispute", "href": "/trust-safety#disputes" },
+          { "title": "Getting reviews", "href": "/trust-safety#reviews" }
+        ]
+      },
+      {
+        "iconKey": "payments",
+        "title": "Payments & payouts",
+        "seeAllHref": "/payment-terms",
+        "articles": [
+          { "title": "Payment terms", "href": "/payment-terms" },
+          { "title": "View your wallet", "href": "/wallet" },
+          { "title": "Fees, taxes, and payouts", "href": "/payment-terms" },
+          { "title": "Secure payments (Stripe)", "href": "/payment-terms" }
+        ]
+      },
+      {
+        "iconKey": "messages",
+        "title": "Messaging",
+        "seeAllHref": "/messages",
+        "articles": [
+          { "title": "Open your conversations", "href": "/messages" },
+          { "title": "Chat before accepting a job", "href": "/messages" },
+          { "title": "Confirm scope and price", "href": "/help#faq" },
+          { "title": "Report inappropriate messages", "href": "/trust-safety#reporting" }
+        ]
+      },
+      {
+        "iconKey": "trust",
+        "title": "Trust & safety",
+        "seeAllHref": "/trust-safety",
+        "articles": [
+          { "title": "Our platform commitments", "href": "/trust-safety" },
+          { "title": "Report a listing or profile", "href": "/trust-safety#reporting" },
+          { "title": "Disputes and resolution center", "href": "/trust-safety#disputes" },
+          { "title": "Reviews after a booking", "href": "/trust-safety#reviews" }
+        ]
+      }
+    ],
+    "clientSections": [
+      {
+        "iconKey": "account",
+        "title": "Account & profile",
+        "seeAllHref": "/register",
+        "articles": [
+          { "title": "Create an Uneden account", "href": "/register" },
+          { "title": "Sign in to your account", "href": "/login" },
+          { "title": "Complete your profile", "href": "/profile/complete_profil" },
+          { "title": "Settings and security", "href": "/login" }
+        ]
+      },
+      {
+        "iconKey": "finding",
+        "title": "Find a service",
+        "seeAllHref": "/listings",
+        "articles": [
+          { "title": "Search listings near you", "href": "/listings" },
+          { "title": "Filter by city or area (50 km radius)", "href": "/" },
+          { "title": "Contact a provider", "href": "/messages" },
+          { "title": "Save favorites", "href": "/favorites" },
+          { "title": "Post a job request", "href": "/post" }
+        ]
+      },
+      {
+        "iconKey": "payments",
+        "title": "Bookings & payments",
+        "seeAllHref": "/payment-terms",
+        "articles": [
+          { "title": "Book or apply for a job", "href": "/bookings" },
+          { "title": "Understand fees and taxes", "href": "/payment-terms" },
+          { "title": "Track your bookings", "href": "/bookings" },
+          { "title": "Issues during an order", "href": "/help#faq" },
+          { "title": "Report a listing", "href": "/trust-safety#reporting" }
+        ]
+      },
+      {
+        "iconKey": "messages",
+        "title": "Messaging",
+        "seeAllHref": "/messages",
+        "articles": [
+          { "title": "Contact a provider", "href": "/messages" },
+          { "title": "Follow your conversations", "href": "/messages" },
+          { "title": "Confirm details before booking", "href": "/help#faq" },
+          { "title": "Report inappropriate behavior", "href": "/trust-safety#reporting" }
+        ]
+      },
+      {
+        "iconKey": "trust",
+        "title": "Trust & safety",
+        "seeAllHref": "/trust-safety",
+        "articles": [
+          { "title": "Check profiles and reviews", "href": "/trust-safety" },
+          { "title": "Report a listing or user", "href": "/trust-safety#reporting" },
+          { "title": "Issues during an order", "href": "/help#faq" },
+          { "title": "Resolution center and disputes", "href": "/trust-safety#disputes" }
+        ]
+      },
+      {
+        "iconKey": "policies",
+        "title": "Terms & policies",
+        "seeAllHref": "/terms",
+        "articles": [
+          { "title": "Terms of use", "href": "/terms" },
+          { "title": "Privacy policy", "href": "/privacy-policy" },
+          { "title": "Payment terms", "href": "/payment-terms" },
+          { "title": "Contact us", "href": "/contact" }
+        ]
+      }
+    ],
+    "faq": [
+      {
+        "question": "How can I trust providers? Is information transparent?",
+        "answer": "Each listing shows the provider's profile, reviews, and completed bookings when available. Read descriptions, ask questions via messaging before booking, and see our Trust & Safety page for platform commitments."
+      },
+      {
+        "question": "What safety steps should I take before and after a booking?",
+        "answer": "Communicate through Uneden messaging, confirm scope and price before accepting. For in-person work, meet in public when possible and tell someone you trust. After the job, leave an honest review to help the community."
+      },
+      {
+        "question": "What should I do if I have issues during an order?",
+        "answer": "Contact the other party via messaging first. If the dispute continues, open a request from your booking within the stated timeframe. Our team reviews evidence (messages, photos, job details) per our terms."
+      },
+      {
+        "question": "What if I'm not satisfied with the provider or client?",
+        "answer": "Report the issue via the booking or report form. Depending on circumstances, partial refunds or mediation may apply. Repeated poor reviews or reports can lead to account action."
+      },
+      {
+        "question": "What do reviews and ratings mean?",
+        "answer": "Reviews reflect real experiences after completed bookings. They help clients choose and providers build reputation. Uneden does not sell artificial \"levels\"—trust comes from history, reviews, and following the rules."
+      },
+      {
+        "question": "How do payments work on Uneden?",
+        "answer": "Payments go through our secure system (Stripe). Clients see fee details before confirming; providers receive payouts per the payment terms schedule once the job is marked complete."
+      },
+      {
+        "question": "What's the difference between \"Offer\" and \"Looking\" listings?",
+        "answer": "\"Offer\": a provider offers a service (e.g. cleaning, repairs). \"Looking\": someone needs help for a task with a budget. Both use messaging and bookings."
+      },
+      {
+        "question": "Can I cancel a booking?",
+        "answer": "Cancellation rules depend on booking stage and terms shown at confirmation. See the terms of use and payment terms, or contact support for exceptional cases."
+      }
+    ]
+  },
   "support": {
     "title": "Support",
     "subtitle": "How can we help you?",

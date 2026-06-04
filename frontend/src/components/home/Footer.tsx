@@ -1,13 +1,32 @@
 "use client";
+import { usePathname } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { getLanguageToggleValue } from "@/lib/locale";
+import { cn } from "@/lib/utils";
+
+const FLUSH_FOOTER_ROUTES = [
+  "/help",
+  "/about",
+  "/contact",
+  "/privacy-policy",
+  "/terms",
+  "/payment-terms",
+  "/trust-safety",
+];
 
 export default function Footer() {
   const { t, i18n } = useTranslation();
+  const pathname = usePathname();
+  const flushFooter = FLUSH_FOOTER_ROUTES.some((r) => pathname.startsWith(r));
 
   return (
-    <footer className="bg-green-900 text-gray-300 border-t border-green-800 mt-20">
+    <footer
+      className={cn(
+        "border-t border-green-800 bg-green-900 text-gray-300",
+        flushFooter ? "mt-0" : "mt-20",
+      )}
+    >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10">
 
         {/* Rangée principale */}
@@ -21,6 +40,7 @@ export default function Footer() {
           {/* Nav links */}
           <nav className="flex flex-wrap justify-center sm:justify-start gap-x-4 gap-y-2 text-xs font-medium">
             <a href="/about" className="whitespace-nowrap hover:text-white transition-colors cursor-pointer">{t("footer.about")}</a>
+            <a href="/help" className="whitespace-nowrap hover:text-white transition-colors cursor-pointer">{t("footer.help")}</a>
             <a href="/contact" className="whitespace-nowrap hover:text-white transition-colors cursor-pointer">{t("footer.contact")}</a>
             <a href="/privacy-policy" className="whitespace-nowrap hover:text-white transition-colors cursor-pointer">{t("footer.privacyPolicy")}</a>
             <a href="/terms" className="whitespace-nowrap hover:text-white transition-colors cursor-pointer">{t("footer.termsOfUse")}</a>

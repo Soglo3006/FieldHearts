@@ -370,7 +370,9 @@ export default function RegisterPage() {
         <span>·</span>
         <Link href="/terms" className="hover:text-gray-600 hover:underline">{t("footer.termsOfUse")}</Link>
         <span>·</span>
-        <span className="text-gray-300 cursor-default">{t("footer.help")}</span>
+        <Link href="/help" className="hover:text-gray-600 hover:underline">
+          {t("footer.help")}
+        </Link>
       </div>
       <p className="mt-3 text-xs text-gray-400">{t("footer.rights", { year: new Date().getFullYear() })}</p>
     </div>

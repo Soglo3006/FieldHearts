@@ -32,6 +32,7 @@ const NO_CATEGORY_ROUTES = [
   "/trust-safety",
   "/about",
   "/contact",
+  "/help",
 ];
 
 const NO_FOOTER_ROUTES = [

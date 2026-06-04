@@ -50,7 +50,7 @@ import { Category } from "./types";
         "Copywriting",
         "Brand Identity",
       ],
-      image: "/Categories/tech_support.webp",
+      image: "https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?w=600&q=80",
     },
     {
       name: "Personal & Care Services",
@@ -70,7 +70,7 @@ import { Category } from "./types";
     {
       name: "Other",
       subcategories: [],
-      image: "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=600&q=80",
+      image: "https://images.unsplash.com/photo-1521737604893-d14cc237f11d?w=600&q=80",
     },
   ];
 

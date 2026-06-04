@@ -349,6 +349,23 @@ function CategoryNavInner() {
                     ) : (
                       <p className="text-sm text-gray-500">{t("home.otherCategoryBrowseHint")}</p>
                     )}
+
+                    {/* Category image — mobile/tablet only (desktop shows it in its own right column) */}
+                    {activeCategory.image && (
+                      <div className="lg:hidden mt-5 shrink-0">
+                        <div className="border-t border-gray-200 pt-4">
+                          <div className="relative aspect-video w-full overflow-hidden rounded-2xl border border-gray-200 bg-gray-100">
+                            <AppImage
+                              src={activeCategory.image}
+                              alt={t(`categories.${toKey(activeCategory.name)}`, { defaultValue: activeCategory.name })}
+                              fill
+                              sizes="(max-width: 1023px) 60vw, 0px"
+                              className="object-cover"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   <div className="hidden self-stretch bg-gray-200 lg:block" aria-hidden="true" />

@@ -17,11 +17,11 @@ import { useScrollLock } from "@/hooks/useScrollLock"
 import { useAuth } from "@/contexts/AuthContext"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
-import { FcGoogle } from "react-icons/fc";
-import { FaFacebookF } from "react-icons/fa";
+import { SocialOAuthButtons } from "@/components/auth/SocialOAuthButtons";
 import { useTranslation } from "react-i18next";
 import { Spinner } from "@/components/ui/Spinner";
 import { getLanguageCode } from "@/lib/locale";
+import { getEmailValidationIssue } from "@/lib/emailValidation";
 
 type Step = "email" | "password";
 
@@ -35,13 +35,14 @@ export default function RegisterPage() {
   const [error, setError] = useState("")
   const [step, setStep] = useState<Step>("email")
   const [checkingEmail, setCheckingEmail] = useState(false)
+  const [emailError, setEmailError] = useState("")
   const [chargement, setChargement] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [showSuccess, setShowSuccess] = useState(false)
   useScrollLock(showSuccess)
 
-  const { signUpWithEmail, signInWithGoogle, signInWithFacebook } = useAuth();
+  const { signUpWithEmail } = useAuth();
   const router = useRouter();
   const { t, i18n } = useTranslation();
   const selectedLanguage = getLanguageCode(i18n.language);
@@ -61,7 +62,16 @@ export default function RegisterPage() {
 
   const handleCheckEmail = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email.trim()) return;
+    const issue = getEmailValidationIssue(email);
+    if (issue === "empty") {
+      setEmailError(t("register.emailRequired"));
+      return;
+    }
+    if (issue === "invalid") {
+      setEmailError(t("register.emailInvalid"));
+      return;
+    }
+    setEmailError("");
     setError("");
     setCheckingEmail(true);
     try {
@@ -119,6 +129,7 @@ export default function RegisterPage() {
   const resetToEmail = () => {
     setStep("email");
     setError("");
+    setEmailError("");
     setPassword("");
     setConfirmPassword("");
     setFirstName("");
@@ -189,7 +200,7 @@ export default function RegisterPage() {
 
           {step === "email" && (
             <>
-              <form onSubmit={handleCheckEmail}>
+              <form onSubmit={handleCheckEmail} noValidate>
                 <div className="flex flex-col gap-6 font-semibold text-sm">
                   <div className="grid gap-2">
                     <Label htmlFor="email">{t("register.email")}</Label>
@@ -197,20 +208,32 @@ export default function RegisterPage() {
                       id="email"
                       type="email"
                       value={email}
-                      onChange={(e) => setEmail(e.target.value)}
+                      onChange={(e) => {
+                        setEmail(e.target.value);
+                        if (emailError) setEmailError("");
+                      }}
                       autoComplete="email"
                       autoFocus
-                      required
+                      aria-invalid={Boolean(emailError)}
+                      aria-describedby={emailError ? "register-email-error" : undefined}
+                      className={emailError ? "border-red-500 focus-visible:ring-red-300" : undefined}
                     />
+                    {emailError ? (
+                      <p id="register-email-error" className="text-xs font-normal text-red-600">
+                        {emailError}
+                      </p>
+                    ) : null}
                   </div>
                   <Button
                     type="submit"
-                    className="w-full bg-green-800 hover:bg-green-900 cursor-pointer"
+                    className="flex w-full items-center justify-center bg-green-800 hover:bg-green-900 cursor-pointer"
                     disabled={checkingEmail}
                   >
-                    {checkingEmail
-                      ? <><Loader2 className="h-4 w-4 animate-spin mr-2" />{t("register.continue")}</>
-                      : t("register.continue")}
+                    {checkingEmail ? (
+                      <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                    ) : (
+                      t("register.continue")
+                    )}
                   </Button>
                 </div>
               </form>
@@ -219,16 +242,10 @@ export default function RegisterPage() {
                 <span className="px-4 text-sm">{t("register.orContinueWith")}</span>
                 <div className="flex-1 h-px bg-gray-400" />
               </div>
-              <div className="flex flex-col gap-2">
-                <Button variant="outline" type="button" className="cursor-pointer" onClick={() => signInWithGoogle()}>
-                  <FcGoogle />
-                  {t("register.signInWithGoogle")}
-                </Button>
-                <Button variant="outline" type="button" className="cursor-pointer" onClick={() => signInWithFacebook()}>
-                  <FaFacebookF className="text-blue-600 h-5 w-5"/>
-                  {t("register.signInWithFacebook")}
-                </Button>
-              </div>
+              <SocialOAuthButtons
+                googleLabel={t("register.signInWithGoogle")}
+                facebookLabel={t("register.signInWithFacebook")}
+              />
             </>
           )}
 

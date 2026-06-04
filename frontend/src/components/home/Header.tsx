@@ -45,6 +45,9 @@ import { formatListingPriceLine } from "@/lib/listingPrice";
 import { getLanguageCode, getLanguageToggleValue } from "@/lib/locale";
 import AppImage from "@/components/ui/AppImage";
 
+/** Hauteur commune : barre de recherche, menus, langue, connexion, publier */
+const HEADER_CONTROL_H = "h-9";
+
 interface SearchResult {
   id: string;
   title: string;
@@ -208,10 +211,10 @@ export default function Header() {
   const [showSearchDrop, setShowSearchDrop] = useState(false);
   const [searchLoading, setSearchLoading] = useState(false);
   const [focusedIndex, setFocusedIndex] = useState(-1);
-  const [recentSearches, setRecentSearches] = useState<string[]>(() => {
-    if (typeof window === "undefined") return [];
-    try { return JSON.parse(localStorage.getItem("uneden_recent_searches") || "[]"); } catch { return []; }
-  });
+  const [recentSearches, setRecentSearches] = useState<string[]>([]);
+  useEffect(() => {
+    try { setRecentSearches(JSON.parse(localStorage.getItem("uneden_recent_searches") || "[]")); } catch {}
+  }, []);
   const searchRef = useRef<HTMLDivElement>(null);
   const searchDropdownRef = useRef<HTMLDivElement>(null);
   const [searchDropdownStyle, setSearchDropdownStyle] = useState<{ top: number; left: number; width: number } | null>(null);
@@ -436,7 +439,7 @@ export default function Header() {
 
             {/* Search — live dropdown */}
             <div ref={searchRef} className="relative z-20 flex-1 min-w-0">
-              <div className="flex items-center border border-gray-300 hover:border-gray-400 rounded-xl px-3 py-1.5 transition-colors">
+              <div className={`flex w-full min-w-0 items-center rounded-lg border border-gray-300 px-3 transition-colors hover:border-gray-400 ${HEADER_CONTROL_H}`}>
                 <Search className="shrink-0 text-gray-400 mr-2" size={16} />
                 <input
                   placeholder={t("header.search")}
@@ -464,7 +467,7 @@ export default function Header() {
             <div className="hidden lg:flex items-center gap-2 shrink-0">
               <DropdownMenu modal={false}>
                 <DropdownMenuTrigger asChild>
-                  <button className="w-[110px] lg:w-[130px] xl:w-[140px] h-9 border border-gray-300 rounded-lg cursor-pointer text-xs lg:text-sm px-3 flex items-center justify-between bg-white text-left">
+                  <button className={`w-[110px] lg:w-[130px] xl:w-[140px] ${HEADER_CONTROL_H} shrink-0 border border-gray-300 rounded-lg cursor-pointer text-xs lg:text-sm px-3 flex items-center justify-between bg-white text-left`}>
                     <span className="truncate">{postTypeLabel}</span>
                     <ChevronDown className="h-4 w-4 text-gray-400 shrink-0" />
                   </button>
@@ -478,7 +481,7 @@ export default function Header() {
 
               <DropdownMenu modal={false}>
                 <DropdownMenuTrigger asChild>
-                  <button className="w-[100px] lg:w-[130px] xl:w-[140px] h-9 border border-gray-300 rounded-lg cursor-pointer text-xs lg:text-sm px-3 flex items-center justify-between bg-white text-left">
+                  <button className={`w-[100px] lg:w-[130px] xl:w-[140px] ${HEADER_CONTROL_H} shrink-0 border border-gray-300 rounded-lg cursor-pointer text-xs lg:text-sm px-3 flex items-center justify-between bg-white text-left`}>
                     <span className="truncate">Canada</span>
                     <ChevronDown className="h-4 w-4 text-gray-400 shrink-0" />
                   </button>
@@ -488,9 +491,15 @@ export default function Header() {
                 </DropdownMenuContent>
               </DropdownMenu>
 
-              <ToggleGroup type="single" variant="outline" value={languageToggleValue} onValueChange={(val) => { if (val) { const lng = val.toLowerCase(); i18n.changeLanguage(lng); localStorage.setItem("i18nextLng", lng); } }}>
-                <ToggleGroupItem value="FR" className="cursor-pointer text-xs px-2 lg:px-3 h-8">FR</ToggleGroupItem>
-                <ToggleGroupItem value="EN" className="cursor-pointer text-xs px-2 lg:px-3 h-8">EN</ToggleGroupItem>
+              <ToggleGroup
+                type="single"
+                variant="outline"
+                value={languageToggleValue}
+                className={HEADER_CONTROL_H}
+                onValueChange={(val) => { if (val) { const lng = val.toLowerCase(); i18n.changeLanguage(lng); localStorage.setItem("i18nextLng", lng); } }}
+              >
+                <ToggleGroupItem value="FR" className={`cursor-pointer text-xs px-2 lg:px-3 ${HEADER_CONTROL_H}`}>FR</ToggleGroupItem>
+                <ToggleGroupItem value="EN" className={`cursor-pointer text-xs px-2 lg:px-3 ${HEADER_CONTROL_H}`}>EN</ToggleGroupItem>
               </ToggleGroup>
 
 
@@ -546,7 +555,7 @@ export default function Header() {
                   />
                 ) : (
                   <Link href="/login">
-                    <Button variant="outline" size="sm" className="cursor-pointer">
+                    <Button variant="outline" className={`${HEADER_CONTROL_H} cursor-pointer`}>
                       {t("header.loginRegister") || "Se connecter / S'inscrire"}
                     </Button>
                   </Link>
@@ -555,7 +564,7 @@ export default function Header() {
 
               {/* md+: bouton + */}
               <PostPublishLink className="hidden md:block">
-                <Button className="bg-green-700 text-white hover:bg-green-800 cursor-pointer">
+                <Button className={`${HEADER_CONTROL_H} bg-green-700 text-white hover:bg-green-800 cursor-pointer`}>
                   {t("header.post")}
                 </Button>
               </PostPublishLink>
@@ -617,8 +626,8 @@ export default function Header() {
             </DropdownMenu>
 
             <ToggleGroup type="single" variant="outline" value={languageToggleValue} onValueChange={(val) => { if (val) { const lng = val.toLowerCase(); i18n.changeLanguage(lng); localStorage.setItem("i18nextLng", lng); } }}>
-              <ToggleGroupItem value="FR" className="cursor-pointer text-xs px-2 h-8">FR</ToggleGroupItem>
-              <ToggleGroupItem value="EN" className="cursor-pointer text-xs px-2 h-8">EN</ToggleGroupItem>
+              <ToggleGroupItem value="FR" className={`cursor-pointer text-xs px-2 ${HEADER_CONTROL_H}`}>FR</ToggleGroupItem>
+              <ToggleGroupItem value="EN" className={`cursor-pointer text-xs px-2 ${HEADER_CONTROL_H}`}>EN</ToggleGroupItem>
             </ToggleGroup>
 
             {/* Support + Login — visible on mobile when not logged in (replaces hamburger) */}
@@ -634,7 +643,7 @@ export default function Header() {
                   <MessageSquareText className="h-5 w-5" />
                 </Button>
                 <Link href="/login" className="shrink-0">
-                  <Button size="sm" className="h-9 px-3 text-xs bg-green-700 hover:bg-green-800 text-white cursor-pointer whitespace-nowrap">
+                  <Button className={`${HEADER_CONTROL_H} px-3 text-xs bg-green-700 hover:bg-green-800 text-white cursor-pointer whitespace-nowrap`}>
                     <span className="sm:hidden">{t("header.login")}</span>
                     <span className="hidden sm:inline">{t("header.loginRegister")}</span>
                   </Button>

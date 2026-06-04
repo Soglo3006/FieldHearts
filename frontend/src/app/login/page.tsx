@@ -21,6 +21,8 @@ import { Spinner } from "@/components/ui/Spinner";
 import { getLanguageCode } from "@/lib/locale";
 import { useSearchParams } from "next/navigation";
 import { getLoginPageContext } from "@/lib/loginRedirectContext";
+import { getEmailValidationIssue } from "@/lib/emailValidation";
+import { SocialOAuthButtons } from "@/components/auth/SocialOAuthButtons";
 
 type Step = "email" | "password" | "not-found";
 
@@ -32,9 +34,10 @@ export default function LoginPage() {
   const [checkingEmail, setCheckingEmail] = useState(false);
   const [loggingIn, setLoggingIn] = useState(false);
   const [emailNotConfirmed, setEmailNotConfirmed] = useState(false);
+  const [emailError, setEmailError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
-  const { signInWithEmail, signInWithGoogle, signInWithFacebook } = useAuth();
+  const { signInWithEmail } = useAuth();
   const { t, i18n } = useTranslation();
   const selectedLanguage = getLanguageCode(i18n.language);
   const searchParams = useSearchParams();
@@ -55,7 +58,16 @@ export default function LoginPage() {
 
   const handleCheckEmail = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email) return;
+    const issue = getEmailValidationIssue(email);
+    if (issue === "empty") {
+      setEmailError(t("login.emailRequired"));
+      return;
+    }
+    if (issue === "invalid") {
+      setEmailError(t("login.emailInvalid"));
+      return;
+    }
+    setEmailError("");
     setError("");
     setCheckingEmail(true);
     try {
@@ -100,6 +112,7 @@ export default function LoginPage() {
   const resetToEmail = () => {
     setStep("email");
     setError("");
+    setEmailError("");
     setPassword("");
   };
 
@@ -145,7 +158,7 @@ export default function LoginPage() {
             {/* ── STEP: email ── */}
             {step === "email" && (
               <>
-                <form onSubmit={handleCheckEmail}>
+                <form onSubmit={handleCheckEmail} noValidate>
                   <div className="flex flex-col gap-5">
                     {error && <div className="bg-red-50 text-red-600 p-3 rounded-md text-sm">{error}</div>}
                     <div className="grid gap-2">
@@ -154,16 +167,34 @@ export default function LoginPage() {
                         id="email"
                         type="email"
                         value={email}
-                        onChange={(e) => setEmail(e.target.value)}
+                        onChange={(e) => {
+                          setEmail(e.target.value);
+                          if (emailError) setEmailError("");
+                        }}
                         autoComplete="email"
                         autoFocus
-                        required
+                        aria-invalid={Boolean(emailError)}
+                        aria-describedby={emailError ? "login-email-error" : undefined}
+                        className={emailError ? "border-red-500 focus-visible:ring-red-300" : undefined}
                       />
+                      {emailError ? (
+                        <p id="login-email-error" className="text-xs text-red-600">
+                          {emailError}
+                        </p>
+                      ) : null}
                     </div>
-                    <Button type="submit" className="w-full bg-green-800 hover:bg-green-900 cursor-pointer" disabled={checkingEmail}>
-                      {checkingEmail
-                        ? <><Loader2 className="h-4 w-4 animate-spin mr-2" />{t("login.checking")}</>
-                        : t("login.continue")}
+                    <Button
+                      type="submit"
+                      className="flex w-full items-center justify-center bg-green-800 hover:bg-green-900 cursor-pointer"
+                      disabled={checkingEmail}
+                      aria-busy={checkingEmail}
+                      aria-label={checkingEmail ? t("login.checking") : undefined}
+                    >
+                      {checkingEmail ? (
+                        <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                      ) : (
+                        t("login.continue")
+                      )}
                     </Button>
                   </div>
                 </form>
@@ -173,19 +204,12 @@ export default function LoginPage() {
                   <span className="px-4 text-sm text-gray-500">{t("login.orContinueWith")}</span>
                   <div className="flex-1 h-px bg-gray-300" />
                 </div>
-                <div className="flex flex-col gap-2">
-                  <Button variant="outline" type="button" className="cursor-pointer w-full" onClick={() => signInWithGoogle({ redirectTo: redirectAfterLogin })}>
-                    <FcGoogle /> {t("login.loginWithGoogle")}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    type="button"
-                    className="cursor-pointer w-full"
-                    onClick={() => signInWithFacebook({ redirectTo: redirectAfterLogin })}
-                  >
-                    <FaFacebookF className="text-blue-600 h-5 w-5" /> {t("login.loginWithFacebook")}
-                  </Button>
-                </div>
+                <SocialOAuthButtons
+                  fullWidth
+                  googleLabel={t("login.loginWithGoogle")}
+                  facebookLabel={t("login.loginWithFacebook")}
+                  redirectTo={redirectAfterLogin}
+                />
 
                 <p className="text-center text-xs text-gray-500 mt-5">
                   {t("login.noAccount")}{" "}
@@ -254,10 +278,18 @@ export default function LoginPage() {
                     </div>
                   </div>
 
-                  <Button type="submit" className="w-full bg-green-800 hover:bg-green-900 cursor-pointer" disabled={loggingIn}>
-                    {loggingIn
-                      ? <><Loader2 className="h-4 w-4 animate-spin mr-2" />{t("login.loading")}</>
-                      : t("login.loginButton")}
+                  <Button
+                    type="submit"
+                    className="flex w-full items-center justify-center bg-green-800 hover:bg-green-900 cursor-pointer"
+                    disabled={loggingIn}
+                    aria-busy={loggingIn}
+                    aria-label={loggingIn ? t("login.loading") : undefined}
+                  >
+                    {loggingIn ? (
+                      <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                    ) : (
+                      t("login.loginButton")
+                    )}
                   </Button>
                 </div>
               </form>

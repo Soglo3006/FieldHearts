@@ -169,6 +169,24 @@ export default function WalletPage() {
     charges_enabled: boolean;
     details_submitted: boolean;
   } | null>(null);
+
+  // Read sessionStorage cache after hydration (uses localStorage to derive userId so no hydration mismatch)
+  useEffect(() => {
+    try {
+      const projectRef = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL ?? '').hostname.split('.')[0];
+      const raw = localStorage.getItem(`sb-${projectRef}-auth-token`);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as { user?: { id?: string } };
+      const userId = parsed?.user?.id;
+      if (!userId) return;
+      const walletRaw = sessionStorage.getItem(`wallet-${userId}`);
+      if (walletRaw) { setWallet(JSON.parse(walletRaw)); setLoading(false); }
+      const txRaw = sessionStorage.getItem(`wallet-tx-${userId}-2weeks`);
+      if (txRaw) setTransactions(JSON.parse(txRaw));
+      const connectRaw = sessionStorage.getItem(`wallet-connect-${userId}`);
+      if (connectRaw) setConnectStatus(JSON.parse(connectRaw));
+    } catch {}
+  }, []);
   const [connectLoading, setConnectLoading] = useState(false);
   const [detailBooking, setDetailBooking] = useState<{ booking: BookingDetail; role: "worker" | "client" } | null>(null);
   const [detailLoading, setDetailLoading] = useState<string | null>(null);
@@ -183,17 +201,24 @@ export default function WalletPage() {
     if (!user) { router.push("/login"); return; }
     if (!session?.access_token) return;
 
+    const hasCached = !!sessionStorage.getItem(`wallet-${user.id}`);
+    if (!hasCached) setLoading(true);
+
     const headers = { Authorization: `Bearer ${session.access_token}` };
-    setLoading(true);
     Promise.all([
       fetch(`${process.env.NEXT_PUBLIC_API_URL}/wallet`, { headers }).then((r) => r.json()),
-      fetch(`${process.env.NEXT_PUBLIC_API_URL}/wallet/transactions?period=${period}`, { headers }).then((r) => r.json()),
+      fetch(`${process.env.NEXT_PUBLIC_API_URL}/wallet/transactions?period=2weeks`, { headers }).then((r) => r.json()),
       fetch(`${process.env.NEXT_PUBLIC_API_URL}/payments/connect/status`, { headers }).then((r) => r.json()),
     ])
       .then(([walletData, txData, statusData]) => {
         setWallet(walletData);
         setTransactions(Array.isArray(txData) ? txData : []);
         setConnectStatus(statusData);
+        try {
+          sessionStorage.setItem(`wallet-${user.id}`, JSON.stringify(walletData));
+          sessionStorage.setItem(`wallet-tx-${user.id}-2weeks`, JSON.stringify(txData));
+          sessionStorage.setItem(`wallet-connect-${user.id}`, JSON.stringify(statusData));
+        } catch {}
       })
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -286,7 +311,7 @@ export default function WalletPage() {
     }
   }, [searchParams, session]);
 
-  if (authLoading || loading) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-white">
         <main className="max-w-3xl mx-auto px-3 sm:px-4 py-6 sm:py-10">
@@ -388,7 +413,7 @@ export default function WalletPage() {
                 </div>
                 <p className="text-xl font-bold text-green-700">{fmt(wallet?.available_for_payout ?? 0)}&nbsp;$</p>
                 <p className="text-[11px] text-gray-400 mt-1">{t("wallet.approvedAmountDesc")}</p>
-              </div>Oui faites ceci
+              </div>
               <div className="px-5 py-4">
                 <div className="flex items-center gap-1.5 mb-1">
                   <div className="h-2 w-2 rounded-full bg-amber-400" />

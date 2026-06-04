@@ -751,11 +751,33 @@ function MessagesContent() {
     ? displayedConversationUser?.company_name || ''
     : displayedConversationUser?.full_name || '';
 
+  // Show a full skeleton while chats are loading to avoid the jarring
+  // "Aucune conversation" + skeleton list appearing simultaneously.
   if (chatsLoading && chats.length === 0) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-white">
-        <Spinner size="xl" />
-      </div>
+      <TooltipProvider>
+        <div className="flex-1 flex flex-col bg-white min-h-0">
+          <div className="flex-1 max-w-400 w-full mx-auto p-0 sm:p-5 min-h-0 flex flex-col">
+            <div className="bg-white sm:rounded-xl shadow-sm overflow-hidden flex-1 min-h-0">
+              <div className="flex h-full min-h-0 overflow-hidden">
+                <div className="flex w-full md:w-64 lg:w-80 border-r flex-col bg-white min-h-0 p-3 space-y-2">
+                  <div className="h-10 bg-gray-100 rounded-lg animate-pulse mb-2" />
+                  {Array.from({ length: 8 }).map((_, i) => (
+                    <div key={i} className="flex gap-3 p-2">
+                      <div className="w-10 h-10 bg-gray-100 rounded-full shrink-0 animate-pulse" />
+                      <div className="flex-1 space-y-2 pt-1">
+                        <div className="h-3 bg-gray-100 rounded w-3/4 animate-pulse" />
+                        <div className="h-3 bg-gray-100 rounded w-1/2 animate-pulse" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex-1 bg-white hidden md:block" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </TooltipProvider>
     );
   }
 
@@ -1156,18 +1178,10 @@ function MessagesContent() {
 }
 
 function MessagesProfileGate() {
-  const { loading: authLoading } = useProtectedRoute({ requireAuth: true, requireProfileCompleted: true });
+  useProtectedRoute({ requireAuth: true, requireProfileCompleted: true });
   const { profile, loading: profileLoading } = useMyProfile();
 
-  if (authLoading || profileLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-white">
-        <Spinner size="xl" />
-      </div>
-    );
-  }
-
-  if (isProfileDetailsIncomplete(profile)) {
+  if (!profileLoading && isProfileDetailsIncomplete(profile)) {
     return <ProfileCompletionRequiredScreen />;
   }
 
@@ -1176,11 +1190,7 @@ function MessagesProfileGate() {
 
 export default function MessagesPage() {
   return (
-    <Suspense fallback={
-      <div className="flex items-center justify-center min-h-screen">
-        <Spinner size="md" />
-      </div>
-    }>
+    <Suspense fallback={<div className="min-h-screen bg-white" />}>
       <MessagesProfileGate />
     </Suspense>
   );

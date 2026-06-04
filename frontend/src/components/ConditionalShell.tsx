@@ -74,14 +74,6 @@ export default function ConditionalShell({ children }: { children: React.ReactNo
     return <main className="flex-1">{children}</main>;
   }
 
-  if (authLoading) {
-    return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-white">
-        <Spinner size="lg" />
-      </div>
-    );
-  }
-
   if (supportShouldBeInAdmin) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-white">

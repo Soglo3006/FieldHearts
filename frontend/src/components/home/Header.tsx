@@ -436,7 +436,7 @@ export default function Header() {
 
             {/* Search — live dropdown */}
             <div ref={searchRef} className="relative z-20 flex-1 min-w-0">
-              <div className={`flex items-center border rounded-xl px-3 py-1.5 transition-colors ${showSearchDrop ? "border-green-500 ring-1 ring-green-200" : "border-gray-300 hover:border-gray-400"}`}>
+              <div className="flex items-center border border-gray-300 hover:border-gray-400 rounded-xl px-3 py-1.5 transition-colors">
                 <Search className="shrink-0 text-gray-400 mr-2" size={16} />
                 <input
                   placeholder={t("header.search")}
@@ -567,20 +567,22 @@ export default function Header() {
                 </Button>
               </PostPublishLink>
 
-              {/* Mobile only: hamburger */}
-              <div className="relative md:hidden">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="cursor-pointer hover:bg-gray-100"
-                  onClick={() => setMobileMenuOpen(true)}
-                >
-                  <Menu className="h-5 w-5 text-gray-700" />
-                </Button>
-                {user && hasAnyUnread && (
-                  <span className="absolute top-1 right-1 h-2.5 w-2.5 bg-red-500 rounded-full ring-2 ring-white pointer-events-none" />
-                )}
-              </div>
+              {/* Mobile only: hamburger — only shown when logged in */}
+              {user && (
+                <div className="relative md:hidden">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="cursor-pointer hover:bg-gray-100"
+                    onClick={() => setMobileMenuOpen(true)}
+                  >
+                    <Menu className="h-5 w-5 text-gray-700" />
+                  </Button>
+                  {hasAnyUnread && (
+                    <span className="absolute top-1 right-1 h-2.5 w-2.5 bg-red-500 rounded-full ring-2 ring-white pointer-events-none" />
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
@@ -588,7 +590,8 @@ export default function Header() {
           <div className="flex lg:hidden items-center justify-center gap-2 pb-3">
             <DropdownMenu modal={false}>
               <DropdownMenuTrigger asChild>
-                <button className="w-[130px] h-9 shrink-0 border border-gray-300 rounded-lg cursor-pointer text-xs px-3 flex items-center justify-between bg-white text-left">
+                {/* Slightly narrower when not logged in to fit support + login buttons */}
+                <button className={`h-9 shrink-0 border border-gray-300 rounded-lg cursor-pointer text-xs px-3 flex items-center justify-between bg-white text-left ${user ? "w-[130px]" : "w-[115px]"}`}>
                   <span className="truncate">{postTypeLabel}</span>
                   <ChevronDown className="h-4 w-4 text-gray-400 shrink-0" />
                 </button>
@@ -600,9 +603,10 @@ export default function Header() {
               </DropdownMenuContent>
             </DropdownMenu>
 
+            {/* Canada dropdown — hidden on mobile when not logged in to make room for login button */}
             <DropdownMenu modal={false}>
               <DropdownMenuTrigger asChild>
-                <button className="w-[120px] h-9 shrink-0 border border-gray-300 rounded-lg cursor-pointer text-xs px-3 flex items-center justify-between bg-white text-left">
+                <button className={`h-9 shrink-0 border border-gray-300 rounded-lg cursor-pointer text-xs px-3 flex items-center justify-between bg-white text-left ${user ? "w-[120px]" : "hidden sm:flex w-[120px]"}`}>
                   <span className="truncate">Canada</span>
                   <ChevronDown className="h-4 w-4 text-gray-400 shrink-0" />
                 </button>
@@ -616,6 +620,27 @@ export default function Header() {
               <ToggleGroupItem value="FR" className="cursor-pointer text-xs px-2 h-8">FR</ToggleGroupItem>
               <ToggleGroupItem value="EN" className="cursor-pointer text-xs px-2 h-8">EN</ToggleGroupItem>
             </ToggleGroup>
+
+            {/* Support + Login — visible on mobile when not logged in (replaces hamburger) */}
+            {!user && (
+              <>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-9 w-9 shrink-0 text-gray-600 hover:bg-gray-100 cursor-pointer"
+                  onClick={() => setShowSupport(true)}
+                  title={t("support.button")}
+                >
+                  <MessageSquareText className="h-5 w-5" />
+                </Button>
+                <Link href="/login" className="shrink-0">
+                  <Button size="sm" className="h-9 px-3 text-xs bg-green-700 hover:bg-green-800 text-white cursor-pointer whitespace-nowrap">
+                    <span className="sm:hidden">{t("header.login")}</span>
+                    <span className="hidden sm:inline">{t("header.loginRegister")}</span>
+                  </Button>
+                </Link>
+              </>
+            )}
           </div>
 
         </div>

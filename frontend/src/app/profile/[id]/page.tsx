@@ -19,7 +19,7 @@ import ProfileListings from "@/components/profile/ProfileListings";
 import BlockedBanner from "@/components/profile/BlockedBanner";
 import { toast } from "sonner";
 import { type Service as Listing } from "@/components/listings/EditListingModal";
-import { Spinner } from "@/components/ui/Spinner";
+import { Skeleton } from "@/components/ui/skeleton";
 import { OverlayModal } from "@/components/ui/OverlayModal";
 import CompleteProfileModal from "@/components/profile/CompleteProfileModal";
 
@@ -70,15 +70,33 @@ export default function UserProfilePage() {
   const { startConversation, loading: sendMessageLoading, showCompleteProfile: showConvComplete, setShowCompleteProfile: setShowConvComplete } = useStartConversation();
   const { t, i18n } = useTranslation();
 
-  useEffect(() => { hasFetchedRef.current = false; }, [profileId]);
+  useEffect(() => {
+    hasFetchedRef.current = false;
+    setError("");
+    try {
+      const raw = sessionStorage.getItem(`profile-${profileId}`);
+      if (raw) {
+        setProfileUser(JSON.parse(raw) as ProfileUser);
+        setLoading(false);
+      } else {
+        setProfileUser(null);
+        setLoading(true);
+      }
+    } catch {
+      setProfileUser(null);
+      setLoading(true);
+    }
+  }, [profileId]);
 
   useEffect(() => {
     if (!profileId || hasFetchedRef.current) return;
     const fetchProfile = async () => {
+      const hasCachedData = (() => {
+        try { return typeof window !== 'undefined' && !!sessionStorage.getItem(`profile-${profileId}`); }
+        catch { return false; }
+      })();
       try {
-        setLoading(true);
-        setError("");
-        setProfileUser(null);
+        if (!hasCachedData) { setLoading(true); setError(""); }
         let url = `${process.env.NEXT_PUBLIC_API_URL}/profiles/${profileId}`;
         const headers: HeadersInit = {};
         if (session?.access_token) {
@@ -89,7 +107,9 @@ export default function UserProfilePage() {
         }
         const res = await fetch(url, { headers });
         if (!res.ok) throw new Error("Profile not found");
-        setProfileUser(await res.json());
+        const data = await res.json();
+        setProfileUser(data);
+        try { sessionStorage.setItem(`profile-${profileId}`, JSON.stringify(data)); } catch {}
         hasFetchedRef.current = true;
       } catch (err: unknown) {
         setError(err instanceof Error ? err.message : t("profile.profileNotFound"));
@@ -152,12 +172,46 @@ export default function UserProfilePage() {
   const viewingOtherWhileLoggedIn = Boolean(user && user.id !== profileId);
   const blockStatusPending = viewingOtherWhileLoggedIn && !blockResolved;
 
-  if (loading || isLoggingOut || authLoading || blockStatusPending) {
+  if (loading) {
     return (
-      <div className="min-h-screen bg-white">
-        <div className="flex items-center justify-center min-h-[60vh]">
-          <Spinner size="xl" />
-        </div>
+      <div className="min-h-screen bg-white flex flex-col">
+        <main className="flex-1 py-4 sm:py-8 px-3 sm:px-6 lg:px-8">
+          <div className="max-w-6xl mx-auto">
+            {/* Breadcrumb */}
+            <div className="flex items-center gap-2 mb-4">
+              <Skeleton className="h-4 w-32 rounded" />
+              <Skeleton className="h-4 w-4 rounded" />
+              <Skeleton className="h-4 w-40 rounded" />
+            </div>
+            {/* Profile header card */}
+            <div className="border border-gray-200 rounded-2xl p-6 mb-6 flex gap-6 items-start">
+              <Skeleton className="h-24 w-24 rounded-full shrink-0" />
+              <div className="flex-1 space-y-3 pt-1">
+                <Skeleton className="h-7 w-48 rounded" />
+                <Skeleton className="h-4 w-32 rounded" />
+                <Skeleton className="h-4 w-24 rounded" />
+                <div className="flex gap-2 pt-1">
+                  <Skeleton className="h-9 w-36 rounded-lg" />
+                  <Skeleton className="h-9 w-36 rounded-lg" />
+                  <Skeleton className="h-9 w-36 rounded-lg" />
+                </div>
+              </div>
+            </div>
+            {/* Listings section */}
+            <div className="border border-gray-200 rounded-2xl p-6">
+              <Skeleton className="h-6 w-28 rounded mb-4" />
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <div key={i} className="space-y-2">
+                    <Skeleton className="aspect-video w-full rounded-xl" />
+                    <Skeleton className="h-4 w-3/4 rounded" />
+                    <Skeleton className="h-3 w-1/2 rounded" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </main>
       </div>
     );
   }

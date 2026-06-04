@@ -33,6 +33,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [profilesById, setProfilesById] = useState<Record<string, unknown>>({});
   const intentionalSignOut = useRef(false);

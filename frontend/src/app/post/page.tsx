@@ -8,8 +8,6 @@ import { POST_LOGIN_REDIRECT } from "@/lib/postRoutes";
 import OfferServiceForm from "@/components/post/OfferServiceForm";
 import LookingForWorkerForm from "@/components/post/LookingForWorkerForm";
 import SuccessPopup from "@/components/post/SuccessPopup";
-import { Spinner } from "@/components/ui/Spinner";
-import { useAuth } from "@/contexts/AuthContext";
 import { needsOnboardingSetup } from "@/lib/onboarding";
 import { isProfileDetailsIncomplete } from "@/lib/onboardingSteps";
 import ProfileCompletionRequiredScreen from "@/components/profile/ProfileCompletionRequiredScreen";
@@ -30,12 +28,19 @@ type AccessGate = "checking" | "denied" | "allowed";
 export default function PostServicePage() {
   const router = useRouter();
   const { t } = useTranslation();
-  const { session } = useAuth();
   const { profile, loading: profileLoading } = useMyProfile();
   const [access, setAccess] = useState<AccessGate>("checking");
   const [mode, setMode] = useState<PostMode>("offer");
   const [success, setSuccess] = useState<{ type: PostMode; id: string } | null>(null);
-  const [locationAllowed, setLocationAllowed] = useState<boolean | null>(null);
+
+  // Derive location-allowed from the profile already fetched by useMyProfile (no extra API call)
+  const locationAllowed: boolean | null = profileLoading
+    ? null
+    : (() => {
+        const province = (profile?.province || "").trim();
+        if (!province) return false;
+        return CANADIAN_PROVINCES.some((p) => p.toLowerCase() === province.toLowerCase());
+      })();
 
   useLayoutEffect(() => {
     let alive = true;
@@ -70,19 +75,6 @@ export default function PostServicePage() {
     return () => subscription.unsubscribe();
   }, [router]);
 
-  useEffect(() => {
-    if (access !== "allowed" || !session?.access_token) return;
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/profiles/me`, {
-      headers: { Authorization: `Bearer ${session.access_token}` },
-    })
-      .then((r) => r.json())
-      .then((data) => {
-        const province = (data?.province || "").trim();
-        const allowed = CANADIAN_PROVINCES.some((p) => p.toLowerCase() === province.toLowerCase());
-        setLocationAllowed(province === "" ? false : allowed);
-      })
-      .catch(() => setLocationAllowed(false));
-  }, [access, session]);
 
   if (access === "checking") {
     return <div className="min-h-screen bg-white" aria-busy="true" />;
@@ -91,27 +83,11 @@ export default function PostServicePage() {
     return null;
   }
 
-  if (profileLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-white">
-        <Spinner size="xl" />
-      </div>
-    );
-  }
-
-  if (isProfileDetailsIncomplete(profile)) {
+  if (!profileLoading && isProfileDetailsIncomplete(profile)) {
     return <ProfileCompletionRequiredScreen />;
   }
 
-  if (locationAllowed === null) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-white">
-        <Spinner size="xl" />
-      </div>
-    );
-  }
-
-  if (!locationAllowed) {
+  if (!profileLoading && locationAllowed === false) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center p-4">
         <div className="bg-white rounded-xl shadow-md p-8 max-w-md w-full text-center">

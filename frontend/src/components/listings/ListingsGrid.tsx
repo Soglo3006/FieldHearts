@@ -139,6 +139,7 @@ function ListingGridCard({ s, globalIndex }: { s: ApiService; globalIndex: numbe
   const router = useRouter();
   const detailHref = `/serviceDetail/${s.id}`;
   const galleryUrls = getListingGalleryUrls(s.image_urls, s.image_url);
+  const categoryLine = formatListingCategoryLine(s.category_name, s, t, " | ");
   return (
     <div className="group flex flex-col border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white hover:shadow-md transition-shadow">
       <AspectRatio ratio={16 / 9}>
@@ -189,11 +190,9 @@ function ListingGridCard({ s, globalIndex }: { s: ApiService; globalIndex: numbe
           className="mb-1"
         />
 
-        {(s.category_name || s.subcategory || s.listing_tags) && (
-          <p className="text-xs text-gray-400 mb-1 line-clamp-1">
-            {formatListingCategoryLine(s.category_name, s, t, " | ")}
-          </p>
-        )}
+        {categoryLine ? (
+          <p className="text-xs text-gray-400 mb-1 line-clamp-1">{categoryLine}</p>
+        ) : null}
 
         <p className="text-green-700 font-bold text-base mb-2">{formatListingPriceLine(t, s)}</p>
 

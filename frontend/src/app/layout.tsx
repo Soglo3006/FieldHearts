@@ -3,6 +3,7 @@ import "@/lib/i18n";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { AuthGateProvider } from "@/contexts/AuthGateContext";
 import ConditionalShell from "@/components/ConditionalShell";
 import LogoutOverlay from "@/components/LogoutOverlay";
 import ComingSoonOverlay from "@/components/ComingSoonOverlay";
@@ -143,14 +144,14 @@ export default function RootLayout({
         suppressHydrationWarning
       >
         <AuthProvider>
-
+          <AuthGateProvider>
           <ComingSoonOverlay />
           <ConditionalShell>{children}</ConditionalShell>
           <LogoutOverlay />
           <Toaster richColors position="top-right" />
           <SpeedInsights />
           <Analytics />
-
+          </AuthGateProvider>
         </AuthProvider>
       </body>
     </html>

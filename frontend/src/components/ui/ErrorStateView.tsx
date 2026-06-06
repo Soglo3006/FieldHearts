@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { AlertCircle, RefreshCw, Home } from "lucide-react";
+import { AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 type ErrorStateViewProps = {
@@ -59,7 +59,6 @@ export function ErrorStateView({
               className="h-10 w-full cursor-pointer bg-green-700 text-white hover:bg-green-800 sm:w-auto sm:min-w-[140px]"
               onClick={onRetry}
             >
-              <RefreshCw className="mr-2 h-4 w-4" />
               {tryAgainLabel}
             </Button>
             <Button
@@ -67,10 +66,7 @@ export function ErrorStateView({
               className="h-10 w-full cursor-pointer border-gray-300 text-gray-800 hover:bg-gray-50 sm:w-auto sm:min-w-[140px]"
               asChild
             >
-              <Link href={homeHref}>
-                <Home className="mr-2 h-4 w-4" />
-                {goHomeLabel}
-              </Link>
+              <Link href={homeHref}>{goHomeLabel}</Link>
             </Button>
           </div>
         </div>

@@ -133,6 +133,22 @@
       "contact": {
         "title": "Envoyer un message",
         "subtitle": "Connectez-vous pour ouvrir la messagerie et échanger avec l'annonceur."
+      },
+      "booking": {
+        "title": "Demander une réservation",
+        "subtitle": "Connectez-vous pour envoyer une demande de réservation ou postuler à ce mandat."
+      },
+      "bookings": {
+        "title": "Accéder à vos réservations",
+        "subtitle": "Connectez-vous pour consulter et gérer vos mandats et réservations."
+      },
+      "favorites": {
+        "title": "Voir vos favoris",
+        "subtitle": "Connectez-vous pour enregistrer des annonces et retrouver vos favoris."
+      },
+      "support": {
+        "title": "Contacter le support",
+        "subtitle": "Connectez-vous pour envoyer une demande à notre équipe d'assistance."
       }
     },
     "email": "Courriel",
@@ -150,6 +166,7 @@
     "continue": "Continuer",
     "emailRequired": "Veuillez entrer votre courriel.",
     "emailInvalid": "Veuillez entrer une adresse courriel valide.",
+    "passwordRequired": "Veuillez entrer votre mot de passe.",
     "change": "Modifier",
     "checking": "Vérification...",
     "noAccountFound": "Compte introuvable",

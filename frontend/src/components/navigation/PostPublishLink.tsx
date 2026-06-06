@@ -1,10 +1,13 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
-import { POST_LOGIN_REDIRECT, POST_PATH } from "@/lib/postRoutes";
+import { POST_PATH } from "@/lib/postRoutes";
 import CompleteProfileModal from "@/components/profile/CompleteProfileModal";
 import { useProfileCompletionGate } from "@/hooks/useProfileCompletionGate";
+import { useAuthGate } from "@/hooks/useAuthGate";
+import { useAuthResumeAction } from "@/hooks/useAuthResumeAction";
 
 type PostPublishLinkProps = {
   children: React.ReactNode;
@@ -14,6 +17,8 @@ type PostPublishLinkProps = {
 
 export function PostPublishLink({ children, className, prefetch = false }: PostPublishLinkProps) {
   const { user, loading } = useAuth();
+  const router = useRouter();
+  const { requireAuth } = useAuthGate();
   const {
     profileDetailsIncomplete,
     guardProfileAction,
@@ -22,11 +27,43 @@ export function PostPublishLink({ children, className, prefetch = false }: PostP
     profile,
   } = useProfileCompletionGate();
 
+  const goToPublish = () => {
+    router.push(POST_PATH);
+  };
+
+  useAuthResumeAction("publish", () => {
+    goToPublish();
+  });
+
+  const openPublishLogin = () => {
+    requireAuth({
+      context: "publish",
+      redirect: POST_PATH,
+      from: "publish",
+      onSuccess: goToPublish,
+      resume: { type: "publish" },
+    });
+  };
+
   if (!loading && !user) {
     return (
-      <Link href={POST_LOGIN_REDIRECT} className={className} prefetch={prefetch}>
+      <span
+        role="button"
+        tabIndex={0}
+        className={className}
+        onClick={(e) => {
+          e.preventDefault();
+          openPublishLogin();
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            openPublishLogin();
+          }
+        }}
+      >
         {children}
-      </Link>
+      </span>
     );
   }
 

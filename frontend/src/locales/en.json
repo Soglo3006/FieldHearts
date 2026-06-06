@@ -133,6 +133,22 @@
       "contact": {
         "title": "Send a message",
         "subtitle": "Sign in to open your inbox and chat with the poster."
+      },
+      "booking": {
+        "title": "Request a booking",
+        "subtitle": "Sign in to send a booking request or apply for this job."
+      },
+      "bookings": {
+        "title": "Access your bookings",
+        "subtitle": "Sign in to view and manage your jobs and bookings."
+      },
+      "favorites": {
+        "title": "View your favorites",
+        "subtitle": "Sign in to save listings and find your favorites again."
+      },
+      "support": {
+        "title": "Contact support",
+        "subtitle": "Sign in to send a request to our support team."
       }
     },
     "email": "Email",
@@ -150,6 +166,7 @@
     "continue": "Continue",
     "emailRequired": "Please enter your email.",
     "emailInvalid": "Please enter a valid email address.",
+    "passwordRequired": "Please enter your password.",
     "change": "Change",
     "checking": "Checking...",
     "noAccountFound": "Account not found",

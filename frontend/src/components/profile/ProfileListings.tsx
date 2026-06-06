@@ -157,9 +157,13 @@ export default function ProfileListings({
               {resolved}
             </h3>
           </Link>
-          {listing.type === "looking" && (
-            <Badge className="bg-blue-100 text-blue-700 text-xs shrink-0 border-0">
+          {listing.type === "looking" ? (
+            <Badge className="shrink-0 border-0 bg-blue-100 text-xs text-blue-700">
               {t("listings.looking")}
+            </Badge>
+          ) : (
+            <Badge className="shrink-0 border-0 bg-green-100 text-xs text-green-700">
+              {t("listings.offering")}
             </Badge>
           )}
         </div>

@@ -1,10 +1,11 @@
 "use client";
 import { useTranslation } from "react-i18next";
-import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Bookmark, Share2 } from "lucide-react";
 import { useFavorites } from "@/hooks/useFavorites";
 import { useAuth } from "@/contexts/AuthContext";
+import { useAuthGate } from "@/hooks/useAuthGate";
+import { useAuthResumeAction } from "@/hooks/useAuthResumeAction";
 import { toast } from "sonner";
 import CompleteProfileModal from "@/components/profile/CompleteProfileModal";
 
@@ -16,20 +17,34 @@ interface Props {
 
 export default function SaveShareActions({ serviceId, title, ownerId }: Props) {
   const { t } = useTranslation();
-  const router = useRouter();
   const { user, loading: authLoading } = useAuth();
+  const { requireAuth } = useAuthGate();
   const { isSaved, toggle, showCompleteProfile, setShowCompleteProfile } = useFavorites();
   const saved = Boolean(user) && isSaved(serviceId);
   const isOwner = !!user && !!ownerId && user.id === ownerId;
 
+  useAuthResumeAction("favorite", (payload) => {
+    if (payload.serviceId === serviceId) {
+      void toggle(serviceId);
+    }
+  });
+
+  const saveListing = () => {
+    void toggle(serviceId);
+  };
+
   const handleSave = () => {
     if (authLoading) return;
-    if (!user) {
-      const path = `/serviceDetail/${serviceId}`;
-      router.push(`/login?redirect=${encodeURIComponent(path)}&from=favorite`);
+    if (!requireAuth({
+      context: "favorite",
+      redirect: `/serviceDetail/${serviceId}`,
+      from: "favorite",
+      onSuccess: saveListing,
+      resume: { type: "favorite", payload: { serviceId } },
+    })) {
       return;
     }
-    void toggle(serviceId);
+    saveListing();
   };
 
   const handleShare = async () => {

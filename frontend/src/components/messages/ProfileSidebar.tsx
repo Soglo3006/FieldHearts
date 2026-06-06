@@ -314,12 +314,12 @@ export function ProfileSidebar({ otherUser, onClose, onOpenSettings, isBlocked, 
                                   <h5 className="font-semibold text-sm text-gray-900 line-clamp-1 flex-1">
                                     {listing.title}
                                   </h5>
-                                  {listing.type === 'looking' ? (
-                                    <Badge className="bg-gray-100 text-gray-600 text-[10px] border-0 shrink-0">
+                                  {listing.type === "looking" ? (
+                                    <Badge className="shrink-0 border-0 bg-blue-100 text-[10px] text-blue-700">
                                       {t("listings.looking")}
                                     </Badge>
                                   ) : (
-                                    <Badge className="bg-green-100 text-green-700 text-[10px] border-0 shrink-0">
+                                    <Badge className="shrink-0 border-0 bg-green-100 text-[10px] text-green-700">
                                       {t("listings.offering")}
                                     </Badge>
                                   )}

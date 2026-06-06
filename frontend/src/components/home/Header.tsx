@@ -18,6 +18,8 @@ import { ButtonGroup } from "@/components/ui/button-group";
 import { Badge } from "@/components/ui/badge";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
+import { useAuthGate } from "@/hooks/useAuthGate";
+import { useAuthResumeAction } from "@/hooks/useAuthResumeAction";
 import { isAdminUser } from "@/lib/auth";
 import {
   isProfileDetailsIncomplete,
@@ -73,11 +75,11 @@ interface UserDropdownProps {
   completeProfileHref: string;
   user: { id: string; email?: string } | null;
   setShowSettings: (v: boolean) => void;
-  setShowSupport: (v: boolean) => void;
+  onOpenSupport: () => void;
   handleSignOut: () => void;
 }
 
-function UserDropdown({ avatarUrl, displayName, fallbackInitial, unseenCount, profileData, isPerson, isCompany, profileDetailsIncomplete, completeProfileHref, user, setShowSettings, setShowSupport, handleSignOut }: UserDropdownProps) {
+function UserDropdown({ avatarUrl, displayName, fallbackInitial, unseenCount, profileData, isPerson, isCompany, profileDetailsIncomplete, completeProfileHref, user, setShowSettings, onOpenSupport, handleSignOut }: UserDropdownProps) {
   const { t } = useTranslation();
   return (
     <DropdownMenu modal={false}>
@@ -168,7 +170,7 @@ function UserDropdown({ avatarUrl, displayName, fallbackInitial, unseenCount, pr
           </>
         )}
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => setShowSupport(true)} className="cursor-pointer">
+        <DropdownMenuItem onClick={onOpenSupport} className="cursor-pointer">
           <MessageSquareText className="mr-2 h-4 w-4" />
           <span>{t("support.button")}</span>
         </DropdownMenuItem>
@@ -185,6 +187,7 @@ function UserDropdown({ avatarUrl, displayName, fallbackInitial, unseenCount, pr
 export default function Header() {
   const { t, i18n } = useTranslation();
   const { user, signOut, session } = useAuth();
+  const { requireAuth } = useAuthGate();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -196,6 +199,27 @@ export default function Header() {
 
   const [showSettings, setShowSettings] = useState(false);
   const [showSupport, setShowSupport] = useState(false);
+
+  const openSupportModal = () => {
+    setShowSupport(true);
+  };
+
+  useAuthResumeAction("support", () => {
+    openSupportModal();
+  });
+
+  const openSupport = () => {
+    if (!user) {
+      requireAuth({
+        context: "support",
+        from: "support",
+        onSuccess: openSupportModal,
+        resume: { type: "support" },
+      });
+      return;
+    }
+    openSupportModal();
+  };
   const [showCompleteProfileModal, setShowCompleteProfileModal] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -550,7 +574,7 @@ export default function Header() {
                     completeProfileHref={completeProfileHref}
                     user={user}
                     setShowSettings={setShowSettings}
-                    setShowSupport={setShowSupport}
+                    onOpenSupport={openSupport}
                     handleSignOut={handleSignOut}
                   />
                 ) : (
@@ -637,7 +661,7 @@ export default function Header() {
                   variant="ghost"
                   size="icon"
                   className="h-9 w-9 shrink-0 text-gray-600 hover:bg-gray-100 cursor-pointer"
-                  onClick={() => setShowSupport(true)}
+                  onClick={openSupport}
                   title={t("support.button")}
                 >
                   <MessageSquareText className="h-5 w-5" />
@@ -851,7 +875,7 @@ export default function Header() {
                         </>
                       )}
                       <div className="border-t border-gray-100 mt-1 pt-1">
-                        <button onClick={() => { setMobileMenuOpen(false); setShowSupport(true); }} className="cursor-pointer w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                        <button onClick={() => { setMobileMenuOpen(false); openSupport(); }} className="cursor-pointer w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
                           <MessageSquareText className="h-5 w-5 text-gray-400" /> {t("support.button")}
                         </button>
                         <button onClick={() => { setMobileMenuOpen(false); handleSignOut(); }} className="cursor-pointer w-full flex items-center gap-3 px-4 py-3 text-sm text-red-600 hover:bg-red-50 transition-colors">
@@ -861,7 +885,7 @@ export default function Header() {
                     </>
                   ) : (
                     <>
-                      <button onClick={() => { setMobileMenuOpen(false); setShowSupport(true); }} className="cursor-pointer w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                      <button onClick={() => { setMobileMenuOpen(false); openSupport(); }} className="cursor-pointer w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
                         <MessageSquareText className="h-5 w-5 text-gray-400" /> {t("support.button")}
                       </button>
                       <Link href="/login" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors">

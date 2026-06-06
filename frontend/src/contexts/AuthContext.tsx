@@ -18,7 +18,7 @@ interface AuthContextType {
   signInWithEmail: (
     email: string,
     password: string,
-    options?: { redirectTo?: string }
+    options?: { redirectTo?: string; stayOnPage?: boolean }
   ) => Promise<void>;
   signUpWithEmail: (email: string, password: string, firstName: string, lastName: string) => Promise<void>;
   signInWithGoogle: (options?: { redirectTo?: string }) => Promise<void>;
@@ -127,7 +127,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signInWithEmail = async (
     email: string,
     password: string,
-    options?: { redirectTo?: string }
+    options?: { redirectTo?: string; stayOnPage?: boolean }
   ) => {
     clearAdminStepUpToken();
     const { data, error } = await supabase.auth.signInWithPassword({
@@ -136,18 +136,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
 
     if (error) throw new Error(error.message);
+
+    if (data.session) {
+      setSession(data.session);
+      setUser(data.session.user ?? null);
+      setLoading(false);
+      setIsLoggingOut(false);
+    }
+
     if (canAccessAdminPortal(data.user)) {
       router.push("/admin");
-    } else {
-      if (needsOnboardingSetup(data.user)) {
-        router.push("/choose_type");
-        return;
-      }
-      if (!data.user.user_metadata?.profile_completed) {
-        const accountType = data.user.user_metadata?.account_type || "person";
-        router.push(`/profile/complete_profil?type=${accountType}`);
-        return;
-      }
+      return;
+    }
+    if (needsOnboardingSetup(data.user)) {
+      router.push("/choose_type");
+      return;
+    }
+    if (!data.user.user_metadata?.profile_completed) {
+      const accountType = data.user.user_metadata?.account_type || "person";
+      router.push(`/profile/complete_profil?type=${accountType}`);
+      return;
+    }
+
+    if (!options?.stayOnPage) {
       const dest = safeInternalPath(options?.redirectTo ?? "", "/");
       router.push(dest);
     }

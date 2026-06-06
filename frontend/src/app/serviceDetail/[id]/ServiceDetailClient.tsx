@@ -3,9 +3,10 @@
 import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useStartConversation } from "@/hooks/useStartConversation";
 import { useAuth } from "@/contexts/AuthContext";
+import { useServiceDetailBooking } from "@/hooks/useServiceDetailBooking";
 import EditListingModal from "@/components/listings/EditListingModal";
 import ServiceHero from "@/components/serviceDetail/ServiceHero";
 import ServiceTitleCard from "@/components/serviceDetail/ServiceTitleCard";
@@ -20,7 +21,6 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import CompleteProfileModal from "@/components/profile/CompleteProfileModal";
 import { useMyProfile } from "@/hooks/useMyProfile";
-import { isProfileDetailsIncomplete } from "@/lib/onboardingSteps";
 import { getPublicServiceLocation, hasApproximateServiceLocation } from "@/lib/serviceLocation";
 import { resolveListingTitle, type ServiceLikeWithI18n } from "@/lib/serviceListingI18n";
 import {
@@ -121,15 +121,32 @@ export default function ServiceDetailClient() {
 
   const { startConversation, loading: contactLoading, showCompleteProfile: showConvCompleteProfile, setShowCompleteProfile: setShowConvCompleteProfile } = useStartConversation();
   const { user, session } = useAuth();
-  const { profile } = useMyProfile();
+  const { profile, loading: profileLoading } = useMyProfile();
   const router = useRouter();
 
   const [showCompleteProfileModal, setShowCompleteProfileModal] = useState(false);
-  const [showBookingModal, setShowBookingModal] = useState(false);
-  const [bookingState, setBookingState] = useState<"idle" | "loading" | "success" | "error">("idle");
-  const [bookingNote, setBookingNote] = useState("");
-  const [bookingErrorMsg, setBookingErrorMsg] = useState("");
   const [existingBookingStatus, setExistingBookingStatus] = useState<string | null>(null);
+
+  const onProfileIncomplete = useCallback(() => {
+    setShowCompleteProfileModal(true);
+  }, []);
+
+  const {
+    showBookingModal,
+    setShowBookingModal,
+    bookingState,
+    setBookingState,
+    bookingNote,
+    setBookingNote,
+    bookingErrorMsg,
+    setBookingErrorMsg,
+    handleBookingRequest,
+  } = useServiceDetailBooking({
+    serviceId,
+    profile,
+    profileLoading,
+    onProfileIncomplete,
+  });
 
   const [showEditModal, setShowEditModal] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -266,17 +283,6 @@ export default function ServiceDetailClient() {
       setDeleting(false);
       setConfirmDelete(false);
     }
-  };
-
-  const handleBookingRequest = () => {
-    if (!user) { router.push(`/login?redirect=/serviceDetail/${serviceId}`); return; }
-    if (isProfileDetailsIncomplete(profile)) {
-      setShowCompleteProfileModal(true);
-      return;
-    }
-    setBookingState("idle");
-    setBookingNote("");
-    setShowBookingModal(true);
   };
 
   const submitBooking = async () => {

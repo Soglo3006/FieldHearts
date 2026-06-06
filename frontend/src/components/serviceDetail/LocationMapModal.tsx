@@ -33,14 +33,14 @@ function MapEmbedPanel({ mapSrc, isApproximate }: { mapSrc: string; isApproximat
       <iframe
         title="Location Map"
         className={cn(
-          "absolute inset-0 h-full w-full transition-opacity duration-300",
+          "absolute inset-0 z-0 h-full w-full transition-opacity duration-300",
           mapLoaded ? "opacity-100" : "opacity-0"
         )}
         referrerPolicy="no-referrer-when-downgrade"
         src={mapSrc}
         onLoad={() => setMapLoaded(true)}
       />
-      <div className="absolute inset-0 z-1" aria-hidden />
+      {isApproximate && <div className="absolute inset-0 z-1" aria-hidden />}
       {isApproximate && mapLoaded && <div className={circleStyle} />}
       {!mapLoaded && (
         <div className="absolute inset-0 z-3 flex flex-col items-center justify-center gap-3 bg-gray-100">
@@ -57,19 +57,21 @@ export default function LocationMapModal({ location, lat, lng, isApproximate = f
   useScrollLock(true);
 
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
-  const hasExactCoords = !isApproximate && lat != null && lng != null;
-  const mapQuery = hasExactCoords ? `${lat},${lng}` : location;
+  const addressQuery = location.trim();
+  const mapQuery =
+    addressQuery || (lat != null && lng != null ? `${lat},${lng}` : "");
   const mapSrc = `https://www.google.com/maps/embed/v1/place?key=${apiKey}&q=${encodeURIComponent(mapQuery)}&zoom=${isApproximate ? 12 : 16}`;
   const mapsHref = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapQuery)}`;
+  const headerTitle = isApproximate
+    ? t("serviceDetail.approximateLocation")
+    : addressQuery || t("serviceDetail.exactLocation");
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
       <div className="relative bg-white rounded-xl shadow-xl w-full max-w-2xl overflow-hidden z-10">
-        <div className="flex items-center justify-between px-4 py-3 border-b">
-          <h3 className="font-semibold text-gray-900">
-            {isApproximate ? t("serviceDetail.approximateLocation") : t("serviceDetail.exactLocation")}
-          </h3>
+        <div className="flex items-center justify-between gap-3 px-4 py-3 border-b">
+          <h3 className="min-w-0 font-semibold text-gray-900 line-clamp-2">{headerTitle}</h3>
           <button
             onClick={onClose}
             className="cursor-pointer text-gray-500 hover:text-gray-700"

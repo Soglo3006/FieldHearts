@@ -8,6 +8,8 @@ import { useStartConversation } from "@/hooks/useStartConversation";
 import { useState, useEffect, useRef } from "react";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
+import { useAuthGate } from "@/hooks/useAuthGate";
+import { useAuthResumeAction } from "@/hooks/useAuthResumeAction";
 import { useTranslation } from "react-i18next";
 import SettingsPage from "@/components/profile/Settings";
 import EllipsisPage from "@/components/profile/Ellipsis";
@@ -46,6 +48,7 @@ export default function UserProfilePage() {
   const pathname = usePathname();
   const router = useRouter();
   const { user, session, isLoggingOut, loading: authLoading } = useAuth();
+  const { requireAuth } = useAuthGate();
 
   const [profileUser, setProfileUser] = useState<ProfileUser | null>(null);
   const [loading, setLoading] = useState(true);
@@ -256,13 +259,29 @@ export default function UserProfilePage() {
   const languages = typeof profileUser.languages === "string" ? JSON.parse(profileUser.languages) : profileUser.languages || [];
   const portfolio = typeof profileUser.portfolio === "string" ? JSON.parse(profileUser.portfolio) : profileUser.portfolio || [];
 
+  const openProfileOptionsMenu = () => {
+    setShowEllipsis(true);
+  };
+
+  useAuthResumeAction("profile", (payload) => {
+    if (!payload.profileId || payload.profileId === profileId) {
+      openProfileOptionsMenu();
+    }
+  });
+
   const openProfileOptions = () => {
     if (authLoading) return;
-    if (!user) {
-      router.push(`/login?redirect=${encodeURIComponent(pathname)}`);
+    if (
+      !requireAuth({
+        context: "profile",
+        redirect: pathname,
+        onSuccess: openProfileOptionsMenu,
+        resume: { type: "profile", payload: { profileId } },
+      })
+    ) {
       return;
     }
-    setShowEllipsis(true);
+    openProfileOptionsMenu();
   };
 
   const handleUnblock = async () => {

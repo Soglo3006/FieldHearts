@@ -187,7 +187,7 @@ function UserDropdown({ avatarUrl, displayName, fallbackInitial, unseenCount, pr
 export default function Header() {
   const { t, i18n } = useTranslation();
   const { user, signOut, session } = useAuth();
-  const { requireAuth } = useAuthGate();
+  const { requireAuth, notifyAuthActionReady } = useAuthGate();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -202,6 +202,7 @@ export default function Header() {
 
   const openSupportModal = () => {
     setShowSupport(true);
+    notifyAuthActionReady();
   };
 
   useAuthResumeAction("support", () => {
@@ -474,6 +475,7 @@ export default function Header() {
                   onKeyDown={handleSearchKeyDown}
                   className="w-full text-sm outline-none bg-transparent placeholder:text-gray-400"
                   autoComplete="off"
+                  suppressHydrationWarning
                 />
                 {searchLoading && <Spinner size="xs" className="ml-2 shrink-0" />}
                 {headerSearch && !searchLoading && (

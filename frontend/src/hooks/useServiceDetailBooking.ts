@@ -21,7 +21,7 @@ export function useServiceDetailBooking({
   profileLoading,
   onProfileIncomplete,
 }: Options) {
-  const { requireAuth } = useAuthGate();
+  const { requireAuth, notifyAuthActionReady } = useAuthGate();
   const [showBookingModal, setShowBookingModal] = useState(false);
   const [bookingState, setBookingState] = useState<BookingState>("idle");
   const [bookingNote, setBookingNote] = useState("");
@@ -31,12 +31,14 @@ export function useServiceDetailBooking({
   const openBookingFlow = useCallback(() => {
     if (isProfileDetailsIncomplete(profile)) {
       onProfileIncomplete();
+      notifyAuthActionReady();
       return;
     }
     setBookingState("idle");
     setBookingNote("");
     setShowBookingModal(true);
-  }, [profile, onProfileIncomplete]);
+    notifyAuthActionReady();
+  }, [profile, onProfileIncomplete, notifyAuthActionReady]);
 
   const queueBookingFlow = useCallback(() => {
     setPendingBooking(true);

@@ -18,7 +18,7 @@ interface Props {
 export default function SaveShareActions({ serviceId, title, ownerId }: Props) {
   const { t } = useTranslation();
   const { user, loading: authLoading } = useAuth();
-  const { requireAuth } = useAuthGate();
+  const { requireAuth, notifyAuthActionReady } = useAuthGate();
   const { isSaved, toggle, showCompleteProfile, setShowCompleteProfile } = useFavorites();
   const saved = Boolean(user) && isSaved(serviceId);
   const isOwner = !!user && !!ownerId && user.id === ownerId;
@@ -33,13 +33,18 @@ export default function SaveShareActions({ serviceId, title, ownerId }: Props) {
     void toggle(serviceId);
   };
 
+  const saveListingAfterAuth = () => {
+    saveListing();
+    notifyAuthActionReady();
+  };
+
   const handleSave = () => {
     if (authLoading) return;
     if (!requireAuth({
       context: "favorite",
       redirect: `/serviceDetail/${serviceId}`,
       from: "favorite",
-      onSuccess: saveListing,
+      onSuccess: saveListingAfterAuth,
       resume: { type: "favorite", payload: { serviceId } },
     })) {
       return;

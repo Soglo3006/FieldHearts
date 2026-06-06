@@ -48,7 +48,7 @@ export default function UserProfilePage() {
   const pathname = usePathname();
   const router = useRouter();
   const { user, session, isLoggingOut, loading: authLoading } = useAuth();
-  const { requireAuth } = useAuthGate();
+  const { requireAuth, notifyAuthActionReady } = useAuthGate();
 
   const [profileUser, setProfileUser] = useState<ProfileUser | null>(null);
   const [loading, setLoading] = useState(true);
@@ -261,6 +261,7 @@ export default function UserProfilePage() {
 
   const openProfileOptionsMenu = () => {
     setShowEllipsis(true);
+    notifyAuthActionReady();
   };
 
   useAuthResumeAction("profile", (payload) => {

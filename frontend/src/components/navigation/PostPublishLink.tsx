@@ -18,7 +18,7 @@ type PostPublishLinkProps = {
 export function PostPublishLink({ children, className, prefetch = false }: PostPublishLinkProps) {
   const { user, loading } = useAuth();
   const router = useRouter();
-  const { requireAuth } = useAuthGate();
+  const { requireAuth, notifyAuthActionReady } = useAuthGate();
   const {
     profileDetailsIncomplete,
     guardProfileAction,
@@ -29,6 +29,7 @@ export function PostPublishLink({ children, className, prefetch = false }: PostP
 
   const goToPublish = () => {
     router.push(POST_PATH);
+    notifyAuthActionReady();
   };
 
   useAuthResumeAction("publish", () => {

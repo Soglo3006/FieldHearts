@@ -13,7 +13,7 @@ export function useStartConversation() {
   const router = useRouter();
   const { t } = useTranslation();
   const { user, loading: authLoading } = useAuth();
-  const { requireAuth } = useAuthGate();
+  const { requireAuth, notifyAuthActionReady } = useAuthGate();
   const { profile, loading: profileLoading } = useMyProfile();
   const [loading, setLoading] = useState(false);
   const [showCompleteProfile, setShowCompleteProfile] = useState(false);
@@ -23,47 +23,50 @@ export function useStartConversation() {
   } | null>(null);
 
   const continueConversation = useCallback(
-    async (otherUserId: string, redirectBack?: string) => {
-      if (authLoading || profileLoading) return;
-      if (!user) return;
+    async (otherUserId: string) => {
+      if (authLoading || profileLoading || !user) return;
+
+      notifyAuthActionReady();
 
       if (isProfileDetailsIncomplete(profile)) {
+        setLoading(false);
         setShowCompleteProfile(true);
         return;
       }
 
       if (user.id === otherUserId) {
+        setLoading(false);
         toast.error("You cannot message yourself!");
-        return;
-      }
-
-      const [{ data: iBlocked }, { data: theyBlocked }] = await Promise.all([
-        supabase
-          .from("blocked_users")
-          .select("id")
-          .eq("blocker_id", user.id)
-          .eq("blocked_user_id", otherUserId)
-          .maybeSingle(),
-        supabase
-          .from("blocked_users")
-          .select("id")
-          .eq("blocker_id", otherUserId)
-          .eq("blocked_user_id", user.id)
-          .maybeSingle(),
-      ]);
-      if (iBlocked || theyBlocked) {
-        toast.error(t("messages.cannotStartChatBlocked"));
         return;
       }
 
       setLoading(true);
       try {
+        const [{ data: iBlocked }, { data: theyBlocked }] = await Promise.all([
+          supabase
+            .from("blocked_users")
+            .select("id")
+            .eq("blocker_id", user.id)
+            .eq("blocked_user_id", otherUserId)
+            .maybeSingle(),
+          supabase
+            .from("blocked_users")
+            .select("id")
+            .eq("blocker_id", otherUserId)
+            .eq("blocked_user_id", user.id)
+            .maybeSingle(),
+        ]);
+        if (iBlocked || theyBlocked) {
+          toast.error(t("messages.cannotStartChatBlocked"));
+          return;
+        }
+
         router.push(`/messages?compose=${encodeURIComponent(otherUserId)}`);
       } finally {
         setLoading(false);
       }
     },
-    [authLoading, profileLoading, user, profile, router, t],
+    [authLoading, profileLoading, user, profile, router, t, notifyAuthActionReady],
   );
 
   useAuthResumeAction(
@@ -71,6 +74,7 @@ export function useStartConversation() {
     (payload) => {
       const otherUserId = String(payload.otherUserId ?? "");
       if (!otherUserId) return;
+      setLoading(true);
       setPendingContact({
         otherUserId,
         redirectBack:
@@ -82,9 +86,9 @@ export function useStartConversation() {
 
   useEffect(() => {
     if (!pendingContact || authLoading || profileLoading || !user) return;
-    const { otherUserId, redirectBack } = pendingContact;
+    const { otherUserId } = pendingContact;
     setPendingContact(null);
-    void continueConversation(otherUserId, redirectBack);
+    void continueConversation(otherUserId);
   }, [pendingContact, authLoading, profileLoading, user, continueConversation]);
 
   const startConversation = async (otherUserId: string, redirectBack?: string) => {
@@ -93,9 +97,10 @@ export function useStartConversation() {
       if (
         !requireAuth({
           context: "contact",
-          redirect: `/messages?compose=${encodeURIComponent(otherUserId)}`,
+          redirect: redirectBack ?? `/messages?compose=${encodeURIComponent(otherUserId)}`,
           from: "contact",
           onSuccess: () => {
+            setLoading(true);
             setPendingContact({ otherUserId, redirectBack });
           },
           resume: { type: "contact", payload: { otherUserId, redirectBack } },
@@ -106,7 +111,8 @@ export function useStartConversation() {
       return;
     }
 
-    await continueConversation(otherUserId, redirectBack);
+    setLoading(true);
+    await continueConversation(otherUserId);
   };
 
   return { startConversation, loading, showCompleteProfile, setShowCompleteProfile };

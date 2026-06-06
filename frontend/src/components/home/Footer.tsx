@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
@@ -34,7 +35,11 @@ export default function Footer() {
 
           {/* Logo */}
           <div className="text-center sm:text-left">
-            <h1 className="text-2xl font-bold text-white">Uneden</h1>
+            <Link href="/" className="inline-block outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-green-900 rounded-sm">
+              <h1 className="text-2xl font-bold text-white cursor-pointer hover:opacity-90 transition-opacity">
+                Uneden
+              </h1>
+            </Link>
           </div>
 
           {/* Nav links */}

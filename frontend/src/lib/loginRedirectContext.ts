@@ -57,3 +57,15 @@ export function getLoginPageContext(
 export function resolveAuthGateContext(options: AuthGateOptions): LoginPageContext {
   return options.context ?? getLoginPageContext(options.redirect, options.from);
 }
+
+export function normalizeRedirectPath(redirect?: string | null): string | null {
+  const raw = redirect?.trim();
+  if (!raw) return null;
+  const path = raw.split("?")[0]?.split("#")[0] ?? "";
+  return path || null;
+}
+
+export function pathnameMatchesRedirect(pathname: string, redirectPath: string): boolean {
+  if (redirectPath === "/") return pathname === "/";
+  return pathname === redirectPath || pathname.startsWith(`${redirectPath}/`);
+}

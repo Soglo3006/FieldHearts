@@ -61,6 +61,8 @@ export default function ServiceTitleCard({
   const displayTitle = resolveListingTitle(service, i18n.language);
   const displayDescription = resolveListingDescription(service, i18n.language);
   const isQuotePricing = normalizePricingMode(service.pricing_mode) === "quote";
+  const categoryLine = formatListingCategoryLine(service.category_name, service, t, " · ");
+  const hasCategory = Boolean(service.category_name || service.subcategory || categoryLine);
 
   return (
     <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
@@ -73,11 +75,6 @@ export default function ServiceTitleCard({
             }`}>
               {service.type === "offer" ? t("listings.offering") : t("listings.looking")}
             </span>
-            {service.category_name && (
-              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-700">
-                {formatListingCategoryLine(service.category_name, service, t, " · ")}
-              </span>
-            )}
             {service.is_one_time && (
               <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800">
                 <Tag className="h-3 w-3" />
@@ -87,6 +84,10 @@ export default function ServiceTitleCard({
           </div>
 
           <h1 className="text-3xl font-bold text-gray-900">{displayTitle}</h1>
+
+          {hasCategory && (
+            <p className="mt-2 text-sm text-gray-500 line-clamp-2">{categoryLine}</p>
+          )}
 
           <div className="flex flex-wrap items-center gap-3 mt-4 text-sm text-gray-600">
             <button

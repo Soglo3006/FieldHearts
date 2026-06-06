@@ -63,6 +63,7 @@ interface Service {
   owner_account_type: string | null;
   owner_province?: string | null;
   category_name: string | null;
+  listing_tags?: unknown;
   faq?: Array<{ question: string; answer: string }> | string | null;
   favorites_count?: number;
   is_one_time?: boolean;

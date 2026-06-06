@@ -40,7 +40,6 @@ function MapEmbedPanel({ mapSrc, isApproximate }: { mapSrc: string; isApproximat
         src={mapSrc}
         onLoad={() => setMapLoaded(true)}
       />
-      {isApproximate && <div className="absolute inset-0 z-1" aria-hidden />}
       {isApproximate && mapLoaded && <div className={circleStyle} />}
       {!mapLoaded && (
         <div className="absolute inset-0 z-3 flex flex-col items-center justify-center gap-3 bg-gray-100">
@@ -62,9 +61,9 @@ export default function LocationMapModal({ location, lat, lng, isApproximate = f
     addressQuery || (lat != null && lng != null ? `${lat},${lng}` : "");
   const mapSrc = `https://www.google.com/maps/embed/v1/place?key=${apiKey}&q=${encodeURIComponent(mapQuery)}&zoom=${isApproximate ? 12 : 16}`;
   const mapsHref = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapQuery)}`;
-  const headerTitle = isApproximate
-    ? t("serviceDetail.approximateLocation")
-    : addressQuery || t("serviceDetail.exactLocation");
+  const headerTitle =
+    addressQuery ||
+    (isApproximate ? t("serviceDetail.approximateLocation") : t("serviceDetail.exactLocation"));
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">

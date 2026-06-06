@@ -10,13 +10,14 @@ import { useTranslation } from "react-i18next";
 
 export default function SupportButton({ floating = false }: { floating?: boolean }) {
   const { user } = useAuth();
-  const { requireAuth } = useAuthGate();
+  const { requireAuth, notifyAuthActionReady } = useAuthGate();
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
 
   const openSupportModal = useCallback(() => {
     setOpen(true);
-  }, []);
+    notifyAuthActionReady();
+  }, [notifyAuthActionReady]);
 
   useAuthResumeAction("support", () => {
     openSupportModal();

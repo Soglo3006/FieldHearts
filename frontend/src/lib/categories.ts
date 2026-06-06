@@ -255,6 +255,78 @@ for (const [labelKey, meta] of Object.entries(legacySubcategoryAliases)) {
   subcategoryMetaByLabel.set(labelKey, meta);
 }
 
+const presetTagGlobalOrderIndex = new Map<string, number>();
+let presetTagOrder = 0;
+
+for (const category of categories) {
+  const categoryKey = toCategoryKey(category.name);
+
+  for (const subcategory of category.subcategories ?? []) {
+    const subcategoryKey = toCategoryKey(subcategory);
+    if (!presetTagGlobalOrderIndex.has(subcategoryKey)) {
+      presetTagGlobalOrderIndex.set(subcategoryKey, presetTagOrder++);
+    }
+
+    for (const localeCategories of localeCategoryMaps) {
+      const localizedSubcategory = localeCategories[
+        `${categoryKey}_${subcategoryKey}` as keyof typeof localeCategories
+      ];
+      if (localizedSubcategory) {
+        const localizedKey = toCategoryKey(localizedSubcategory);
+        if (!presetTagGlobalOrderIndex.has(localizedKey)) {
+          presetTagGlobalOrderIndex.set(
+            localizedKey,
+            presetTagGlobalOrderIndex.get(subcategoryKey)!,
+          );
+        }
+      }
+    }
+  }
+}
+
+function getCategorySubcategoryOrderIndex(tag: string, categoryKey: string): number | null {
+  const cat = categories.find((c) => toCategoryKey(c.name) === categoryKey);
+  if (!cat) return null;
+
+  const tagKey = toCategoryKey(tag);
+  const meta = subcategoryMetaByLabel.get(tagKey);
+
+  for (let i = 0; i < (cat.subcategories ?? []).length; i++) {
+    const subKey = toCategoryKey(cat.subcategories![i]);
+    if (tagKey === subKey) return i;
+    if (meta?.categoryKey === categoryKey && meta.subcategoryKey === subKey) return i;
+  }
+
+  return null;
+}
+
+function getTagSortIndex(tag: string, resolvedCategoryKey?: string): number {
+  if (resolvedCategoryKey) {
+    const localIdx = getCategorySubcategoryOrderIndex(tag, resolvedCategoryKey);
+    if (localIdx !== null) return localIdx;
+  }
+
+  const tagKey = toCategoryKey(tag);
+  const globalIdx = presetTagGlobalOrderIndex.get(tagKey);
+  if (globalIdx !== undefined) return globalIdx;
+
+  const meta = subcategoryMetaByLabel.get(tagKey);
+  if (meta) {
+    const metaGlobalIdx = presetTagGlobalOrderIndex.get(meta.subcategoryKey);
+    if (metaGlobalIdx !== undefined) return metaGlobalIdx;
+  }
+
+  return Number.MAX_SAFE_INTEGER;
+}
+
+function sortTagsByCategoryNavOrder(tags: string[], resolvedCategoryKey?: string): string[] {
+  return [...tags].sort((a, b) => {
+    const indexDiff = getTagSortIndex(a, resolvedCategoryKey) - getTagSortIndex(b, resolvedCategoryKey);
+    if (indexDiff !== 0) return indexDiff;
+    return a.localeCompare(b, undefined, { sensitivity: "base" });
+  });
+}
+
 function resolveCategoryKey(categoryName: string | null | undefined, subcategory: string | null | undefined) {
   const directCategoryKey = categoryName ? categoryKeyByLabel.get(toCategoryKey(categoryName)) : undefined;
   if (directCategoryKey) return directCategoryKey;
@@ -305,11 +377,12 @@ export function formatListingTagsDisplay(
         : [];
 
   const resolvedCategoryKey = resolveCategoryKey(categoryName, tagList[0]);
+  const sortedTagList = sortTagsByCategoryNavOrder(tagList, resolvedCategoryKey);
   const translatedCategory = resolvedCategoryKey
     ? t(`categories.${resolvedCategoryKey}`, { defaultValue: categoryName ?? resolvedCategoryKey })
     : categoryName ?? null;
 
-  const translatedTags = tagList.map((tag) => {
+  const translatedTags = sortedTagList.map((tag) => {
     const resolvedSubcategoryMeta = subcategoryMetaByLabel.get(toCategoryKey(tag));
     if (resolvedSubcategoryMeta && (!resolvedCategoryKey || resolvedSubcategoryMeta.categoryKey === resolvedCategoryKey)) {
       return t(

@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import AdBanner from "@/components/AdBanner";
-import { formatTranslatedCategoryTrail } from "@/lib/categories";
+import { formatListingCategoryLine } from "@/lib/listingTags";
 import { getPublicServiceLocation } from "@/lib/serviceLocation";
 import { resolveListingTitle, type ServiceLikeWithI18n } from "@/lib/serviceListingI18n";
 import ListingLangPills from "@/components/ui/ListingLangPills";
@@ -36,6 +36,7 @@ interface ApiService {
   image_urls?: string[] | null;
   category_name: string | null;
   subcategory: string | null;
+  listing_tags?: unknown;
   type?: string;
   translations?: ServiceLikeWithI18n["translations"];
   language?: string | null;
@@ -188,9 +189,9 @@ function ListingGridCard({ s, globalIndex }: { s: ApiService; globalIndex: numbe
           className="mb-1"
         />
 
-        {(s.category_name || s.subcategory) && (
+        {(s.category_name || s.subcategory || s.listing_tags) && (
           <p className="text-xs text-gray-400 mb-1 line-clamp-1">
-            {formatTranslatedCategoryTrail(s.category_name, s.subcategory, t)}
+            {formatListingCategoryLine(s.category_name, s, t, " | ")}
           </p>
         )}
 

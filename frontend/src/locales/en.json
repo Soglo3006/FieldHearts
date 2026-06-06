@@ -70,7 +70,7 @@
     "trust3Desc": "3-day protection with fair resolution",
     "trust4Title": "Local & Transparent",
     "trust4Desc": "Find trusted people near you",
-    "locationPrivacyHint": "Optional — shows listings closest to your chosen location within a 50 km radius.",
+    "locationPrivacyHint": "Shows listings closest to your chosen location within a 50 km radius.",
     "extraPhotosAria": "{{count}} more in gallery"
   },
   "listings": {
@@ -156,6 +156,7 @@
     "forgotPassword": "Forgot your password?",
     "loginButton": "Login",
     "loading": "Loading...",
+    "redirecting": "Redirecting...",
     "orContinueWith": "Or continue with",
     "loginWithGoogle": "Login with Google",
     "loginWithFacebook": "Login with Facebook",

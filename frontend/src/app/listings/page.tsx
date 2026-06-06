@@ -5,7 +5,8 @@ import { useSearchParams } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { useJsApiLoader, type Libraries } from "@react-google-maps/api";
 import { Slider } from "@/components/ui/slider";
-import { ChevronDown, ChevronRight, X, SlidersHorizontal } from "lucide-react";
+import { ChevronRight, X, SlidersHorizontal } from "lucide-react";
+import { cn } from "@/lib/utils";
 import CityAutocomplete from "@/components/ui/CityAutocomplete";
 import { categories } from "@/lib/categories";
 import ListingsGrid from "@/components/listings/ListingsGrid";
@@ -446,37 +447,50 @@ function ListingsContent({ username }: { username?: string }) {
                           onClick={() => toggleExpand(cat.name)}
                           className="cursor-pointer p-2 shrink-0 text-gray-400 hover:text-gray-700"
                           aria-label={isExpanded ? "Réduire" : "Développer"}
+                          aria-expanded={isExpanded}
                         >
-                          {isExpanded ? (
-                            <ChevronDown className="h-4 w-4" />
-                          ) : (
-                            <ChevronRight className="h-4 w-4" />
-                          )}
+                          <ChevronRight
+                            className={cn(
+                              "h-4 w-4 transition-transform duration-300 ease-in-out",
+                              isExpanded && "rotate-90",
+                            )}
+                            aria-hidden
+                          />
                         </button>
                       </div>
-                      {isExpanded && (
-                        <div className="ml-3 pl-3 border-l-2 border-gray-100 space-y-0.5 mb-1">
-                          {cat.subcategories?.map((sub) => (
-                            (() => {
+                      <div
+                        className={cn(
+                          "grid transition-[grid-template-rows] duration-300 ease-in-out",
+                          isExpanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
+                        )}
+                      >
+                        <div className="overflow-hidden">
+                          <div
+                            className={cn(
+                              "ml-3 space-y-0.5 border-l-2 border-gray-100 pl-3 mb-1 transition-opacity duration-300 ease-in-out",
+                              isExpanded ? "opacity-100" : "opacity-0",
+                            )}
+                          >
+                            {cat.subcategories?.map((sub) => {
                               const encoded = encodeSubcategoryFilter(cat.name, sub);
 
                               return (
-                            <button
-                              key={encoded}
-                              onClick={() => selectSubcategory(cat.name, sub)}
-                              className={`cursor-pointer block w-full text-left py-1.5 px-2 rounded text-xs transition-colors ${
-                                selectedSubcategories.includes(encoded)
-                                  ? "text-green-800 bg-green-50 font-semibold"
-                                  : "text-gray-600 hover:text-green-700 hover:bg-green-50"
-                              }`}
-                            >
-                              {t(`categories.${toKey(cat.name)}_${toKey(sub)}`, { defaultValue: sub })}
-                            </button>
+                                <button
+                                  key={encoded}
+                                  onClick={() => selectSubcategory(cat.name, sub)}
+                                  className={`cursor-pointer block w-full text-left py-1.5 px-2 rounded text-xs transition-colors ${
+                                    selectedSubcategories.includes(encoded)
+                                      ? "text-green-800 bg-green-50 font-semibold"
+                                      : "text-gray-600 hover:text-green-700 hover:bg-green-50"
+                                  }`}
+                                >
+                                  {t(`categories.${toKey(cat.name)}_${toKey(sub)}`, { defaultValue: sub })}
+                                </button>
                               );
-                            })()
-                          ))}
+                            })}
+                          </div>
                         </div>
-                      )}
+                      </div>
                     </div>
                   );
                 })}

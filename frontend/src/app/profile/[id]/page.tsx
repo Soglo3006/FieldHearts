@@ -73,6 +73,17 @@ export default function UserProfilePage() {
   const { startConversation, loading: sendMessageLoading, showCompleteProfile: showConvComplete, setShowCompleteProfile: setShowConvComplete } = useStartConversation();
   const { t, i18n } = useTranslation();
 
+  const openProfileOptionsMenu = () => {
+    setShowEllipsis(true);
+    notifyAuthActionReady();
+  };
+
+  useAuthResumeAction("profile", (payload) => {
+    if (!payload.profileId || payload.profileId === profileId) {
+      openProfileOptionsMenu();
+    }
+  });
+
   useEffect(() => {
     hasFetchedRef.current = false;
     setError("");
@@ -258,17 +269,6 @@ export default function UserProfilePage() {
   const skills = typeof profileUser.skills === "string" ? JSON.parse(profileUser.skills) : profileUser.skills || [];
   const languages = typeof profileUser.languages === "string" ? JSON.parse(profileUser.languages) : profileUser.languages || [];
   const portfolio = typeof profileUser.portfolio === "string" ? JSON.parse(profileUser.portfolio) : profileUser.portfolio || [];
-
-  const openProfileOptionsMenu = () => {
-    setShowEllipsis(true);
-    notifyAuthActionReady();
-  };
-
-  useAuthResumeAction("profile", (payload) => {
-    if (!payload.profileId || payload.profileId === profileId) {
-      openProfileOptionsMenu();
-    }
-  });
 
   const openProfileOptions = () => {
     if (authLoading) return;

@@ -23,6 +23,7 @@ interface MessageActionsProps {
   onDelete?: () => void;
   onEdit?: () => void;
   onEmojiOpenChange?: (open: boolean) => void;
+  showDelete?: boolean;
 }
 
 export function MessageActions({
@@ -37,6 +38,7 @@ export function MessageActions({
   onDelete,
   onEdit,
   onEmojiOpenChange,
+  showDelete = true,
 }: MessageActionsProps) {
   const { t } = useTranslation();
   const [isReactTooltipOpen, setIsReactTooltipOpen] = useState(false);
@@ -144,7 +146,8 @@ export function MessageActions({
         </TooltipContent>
       </Tooltip>
 
-      {/* Bouton Supprimer */}
+      {/* Bouton Supprimer — uniquement pour vos messages */}
+      {showDelete && onDelete && (
       <Tooltip>
         <TooltipTrigger asChild>
           <Button
@@ -165,6 +168,7 @@ export function MessageActions({
           <p>{t("messages.delete")}</p>
         </TooltipContent>
       </Tooltip>
+      )}
     </div>
   );
 }

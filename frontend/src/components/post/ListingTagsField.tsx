@@ -44,6 +44,19 @@ export default function ListingTagsField({ category, tags, onTagsChange, require
     }
   };
 
+  if (!category) {
+    return (
+      <div className="space-y-2 sm:col-span-2">
+        <Label className="text-base font-medium text-gray-900">
+          {t("post.listingTags")} {required && <span className="text-red-500">*</span>}
+        </Label>
+        <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50/80 px-4 py-3">
+          <p className="text-sm text-gray-500">{t("post.selectCategoryForTags")}</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-2 sm:col-span-2">
       <Label className="text-base font-medium text-gray-900">

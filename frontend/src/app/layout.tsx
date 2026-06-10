@@ -6,6 +6,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { AuthGateProvider } from "@/contexts/AuthGateContext";
 import ConditionalShell from "@/components/ConditionalShell";
 import LogoutOverlay from "@/components/LogoutOverlay";
+import { AuthBootstrapOverlay } from "@/components/auth/AuthBootstrapOverlay";
 import ComingSoonOverlay from "@/components/ComingSoonOverlay";
 import { Toaster } from "sonner";
 import { SpeedInsights } from "@vercel/speed-insights/next";
@@ -148,6 +149,7 @@ export default function RootLayout({
           <ComingSoonOverlay />
           <ConditionalShell>{children}</ConditionalShell>
           <LogoutOverlay />
+          <AuthBootstrapOverlay />
           <Toaster richColors position="top-right" />
           <SpeedInsights />
           <Analytics />

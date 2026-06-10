@@ -209,7 +209,8 @@ export function FileMessage({
               onActionComplete={() => suppressActionsForKey(keyText)}
               onReact={onReact}  
               onReply={onReply}
-              onDelete={onDelete} 
+              onDelete={onDelete}
+              showDelete={isOwn}
             />
           )}
 
@@ -299,6 +300,7 @@ export function FileMessage({
               onReply={onReply}
               onPin={onPin}
               onDelete={onDelete}
+              showDelete={isOwn}
             />
           )}
 

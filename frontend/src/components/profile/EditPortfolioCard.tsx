@@ -5,8 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import AppImage from "@/components/ui/AppImage";
 import { Upload, Trash2, Camera, Plus, Pencil } from "lucide-react";
-import Cropper from "react-easy-crop";
 import type { Area } from "react-easy-crop";
+import ImageCropModal from "@/components/ui/ImageCropModal";
 import getCroppedImg from "@/utils/cropImage";
 import { toast } from "sonner";
 import { useScrollLock } from "@/hooks/useScrollLock";
@@ -38,11 +38,8 @@ export default function EditPortfolioCard({ portfolio, isPerson, onAdd, onUpdate
   const [showActionModal, setShowActionModal] = useState(false);
   const [selectedItem, setSelectedItem] = useState<PortfolioItem | null>(null);
   const [image, setImage] = useState<string | null>(null);
-  useScrollLock(showModal || showActionModal);
+  useScrollLock(showActionModal);
   const [title, setTitle] = useState("");
-  const [crop, setCrop] = useState({ x: 0, y: 0 });
-  const [zoom, setZoom] = useState(1);
-  const [croppedPixels, setCroppedPixels] = useState<Area | null>(null);
   const [error, setError] = useState(false);
 
   const handleUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -55,18 +52,15 @@ export default function EditPortfolioCard({ portfolio, isPerson, onAdd, onUpdate
       setSelectedItem(null);
       setImage(reader.result as string);
       setTitle("");
-      setCrop({ x: 0, y: 0 });
-      setZoom(1);
-      setCroppedPixels(null);
       setShowModal(true);
     };
     reader.readAsDataURL(file);
   };
 
-  const handleSave = async () => {
+  const handleCropSave = async (croppedAreaPixels: Area) => {
     if (!image || !title.trim()) { setError(true); return; }
     try {
-      const nextImage = croppedPixels ? await getCroppedImg(image, croppedPixels) : image;
+      const nextImage = await getCroppedImg(image, croppedAreaPixels);
       if (selectedItem) {
         onUpdate({ ...selectedItem, image: nextImage, title: title.trim() });
       } else {
@@ -83,9 +77,6 @@ export default function EditPortfolioCard({ portfolio, isPerson, onAdd, onUpdate
     setSelectedItem(item);
     setImage(item.image);
     setTitle(item.title);
-    setCrop({ x: 0, y: 0 });
-    setZoom(1);
-    setCroppedPixels(null);
     setError(false);
     setShowActionModal(false);
     setShowModal(true);
@@ -106,9 +97,6 @@ export default function EditPortfolioCard({ portfolio, isPerson, onAdd, onUpdate
     setSelectedItem(null);
     setImage(null);
     setTitle("");
-    setCrop({ x: 0, y: 0 });
-    setZoom(1);
-    setCroppedPixels(null);
     setError(false);
   };
 
@@ -235,71 +223,26 @@ export default function EditPortfolioCard({ portfolio, isPerson, onAdd, onUpdate
       )}
 
       {showModal && image && (
-        <div className="fixed inset-0 z-100 bg-black flex flex-col">
-          {/* Header */}
-          <div className="shrink-0 flex items-center justify-between px-5 py-4 bg-black/80">
-            <h3 className="text-white font-semibold text-base">{selectedItem ? t("common.edit") : addItemLabel}</h3>
-            <button
-              type="button"
-              onClick={closeModal}
-              className="text-white/70 hover:text-white text-sm cursor-pointer px-3 py-1.5 rounded-lg hover:bg-white/10 transition-colors"
-            >
-              {t("profile.cancel")}
-            </button>
-          </div>
-
-          {/* Crop area */}
-          <div className="relative flex-1 bg-gray-900">
-            <Cropper
-              image={image}
-              crop={crop}
-              zoom={zoom}
-              aspect={4 / 3}
-              showGrid={true}
-              onCropChange={setCrop}
-              onZoomChange={setZoom}
-              onCropComplete={(_, pixels) => setCroppedPixels(pixels)}
-            />
-          </div>
-
-          {/* Controls */}
-          <div className="shrink-0 bg-black/90 px-5 pt-5 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
-            {/* Zoom */}
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-white/70 text-sm font-medium">{t("profile.zoom")}</span>
-              <span className="text-white/50 text-xs tabular-nums">{Math.round((zoom - 1) / 2 * 100)}%</span>
-            </div>
-            <div className="flex items-center gap-3 mb-4">
-              <button type="button" onClick={() => setZoom((z) => Math.max(1, +(z - 0.1).toFixed(2)))}
-                className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white text-lg flex items-center justify-center shrink-0 cursor-pointer select-none">−</button>
-              <input type="range" title={t("profile.zoom")} min="1" max="3" step="0.05"
-                value={zoom} onChange={(e) => setZoom(Number(e.target.value))}
-                className="flex-1 h-1.5 rounded-full cursor-pointer accent-green-500" />
-              <button type="button" onClick={() => setZoom((z) => Math.min(3, +(z + 0.1).toFixed(2)))}
-                className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white text-lg flex items-center justify-center shrink-0 cursor-pointer select-none">+</button>
-            </div>
-
-            {/* Title */}
-            <div className="mb-4">
+        <ImageCropModal
+          image={image}
+          aspect={4 / 3}
+          title={selectedItem ? t("common.edit") : addItemLabel}
+          saveLabel={selectedItem ? t("common.save") : addButtonLabel}
+          onCancel={closeModal}
+          onSave={handleCropSave}
+          footer={
+            <div>
               <Input
                 type="text"
                 placeholder={titlePlaceholder}
                 value={title}
                 onChange={(e) => { setTitle(e.target.value); setError(false); }}
-                className={`bg-white/10 border-white/20 text-white placeholder:text-white/40 focus:border-green-500 ${error ? "border-red-500" : ""}`}
+                className={error ? "border-red-500" : ""}
               />
-              {error && <p className="text-xs text-red-400 mt-1">{t("profile.titleRequired")}</p>}
+              {error && <p className="text-xs text-red-500 mt-1">{t("profile.titleRequired")}</p>}
             </div>
-
-            <Button
-              onClick={handleSave}
-              type="button"
-              className="w-full bg-green-700 hover:bg-green-800 text-white h-12 text-base font-semibold rounded-xl cursor-pointer"
-            >
-              {selectedItem ? t("common.save") : addButtonLabel}
-            </Button>
-          </div>
-        </div>
+          }
+        />
       )}
     </>
   );

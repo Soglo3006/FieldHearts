@@ -491,6 +491,7 @@
     "listingTags": "Balises / sous-catégories",
     "listingTagsHint": "Choisissez jusqu'à 5 balises parmi les suggestions ou écrivez les vôtres. Les balises personnalisées apparaissent sous « Autre » dans la navigation.",
     "listingTagsPlaceholder": "Écrivez une balise et appuyez sur Entrée…",
+    "selectCategoryForTags": "Choisissez d'abord une catégorie pour ajouter des balises / sous-catégories.",
     "removeTag": "Retirer la balise",
     "selectCategory": "Choisir une catégorie",
     "selectSubcategory": "Choisir une sous-catégorie",

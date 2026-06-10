@@ -38,7 +38,10 @@ export default function CategorySubcategoryFields({
           </Label>
           <PostSelect
             value={category}
-            onValueChange={onCategoryChange}
+            onValueChange={(value) => {
+              if (value !== category) onTagsChange([]);
+              onCategoryChange(value);
+            }}
             placeholder={t("post.selectCategory")}
             options={categoryOptions}
           />

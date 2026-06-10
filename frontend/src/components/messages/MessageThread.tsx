@@ -7,7 +7,13 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PinnedMessages } from "./PinnedMessages";
 import { MessageItem } from "./MessageItem";
+import { MessageOptionsSheet } from "./MessageOptionsSheet";
 import { getIntlLocale } from "@/lib/locale";
+
+function resolveMessageByKey(key: string | null, messages: Message[]): Message | undefined {
+  if (!key) return undefined;
+  return messages.find((m) => m.id === key || key.startsWith(`${m.id}-`));
+}
 
 function getDateLabel(dateStr: string, t: (k: string) => string, lng: string): string {
   const date = new Date(dateStr);
@@ -264,6 +270,9 @@ export function MessageThread({
     );
   }
 
+  const selectedMessage = resolveMessageByKey(selectedMessageKey, messages);
+  const selectedIsOwn = selectedMessage?.user_id === currentUserId;
+
   return (
     <div className="relative flex-1 min-h-0 overflow-hidden flex flex-col">
       <PinnedMessages
@@ -355,6 +364,37 @@ export function MessageThread({
           <ArrowDown className="h-5 w-5" />
         </button>
       )}
+
+      <MessageOptionsSheet
+        open={Boolean(selectedMessageKey && selectedMessage && !selectedMessage.deleted_at)}
+        onOpenChange={(open) => {
+          if (!open) setSelectedMessageKey(null);
+        }}
+        isOwn={!!selectedIsOwn}
+        isPinned={!!selectedMessage?.pinned_at}
+        onReact={(emoji) => {
+          if (!selectedMessage) return;
+          void onReactionToggle?.(selectedMessage.id, emoji, selectedMessage.reactions || []);
+          setSelectedMessageKey(null);
+        }}
+        onReply={() => {
+          if (!selectedMessage) return;
+          onReply?.(selectedMessage);
+          setSelectedMessageKey(null);
+        }}
+        onPin={() => {
+          if (!selectedMessage) return;
+          onPin?.(selectedMessage.id, !!selectedMessage.pinned_at);
+          setSelectedMessageKey(null);
+        }}
+        onDelete={
+          selectedIsOwn && selectedMessage
+            ? () => {
+                void onDelete?.(selectedMessage.id);
+              }
+            : undefined
+        }
+      />
     </div>
   );
 }

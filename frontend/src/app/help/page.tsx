@@ -9,9 +9,9 @@ import {
   type HelpTopicSection,
 } from "@/components/help/HelpAudienceSection";
 
-/** Même URL que la page À propos (chargement fiable) — personne au travail / support */
+/** Support / centre d'aide — conseillère avec casque, prête à aider */
 const HELP_HERO_IMAGE =
-  "https://images.unsplash.com/photo-1600880292203-757bb62b4baf?w=1800&q=80&auto=format&fit=crop";
+  "https://images.unsplash.com/photo-1563986768609-322da135588a?w=1800&q=80&auto=format&fit=crop";
 
 export default function HelpPage() {
   const { t } = useTranslation();
@@ -89,7 +89,7 @@ export default function HelpPage() {
           <p className="mt-2 text-sm text-gray-600 sm:text-base">{t("helpPage.moreQuestionsSubtitle")}</p>
           <Link
             href="/contact"
-            className="mt-6 inline-flex h-11 items-center justify-center rounded-full bg-gray-900 px-7 text-sm font-semibold text-white transition-colors hover:bg-gray-800"
+            className="mt-6 inline-flex h-11 items-center justify-center rounded-full bg-green-700 px-7 text-sm font-semibold text-white transition-colors hover:bg-green-800"
           >
             {t("helpPage.contactCta")}
           </Link>

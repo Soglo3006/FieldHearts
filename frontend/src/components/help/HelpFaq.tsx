@@ -35,6 +35,7 @@ export function HelpFaq({ items }: { items: HelpFaqItem[] }) {
               type="button"
               onClick={() => toggle(index)}
               aria-expanded={isOpen ? "true" : "false"}
+              suppressHydrationWarning
               className="flex w-full cursor-pointer items-center justify-between gap-4 py-5 text-left"
             >
               <span className="text-sm font-medium text-gray-900 sm:text-base">{item.question}</span>

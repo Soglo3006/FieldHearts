@@ -208,9 +208,12 @@ export function MessageBubble({
   });
 
   const handleBubbleClick = () => {
-    if (isSending) return;
-    if (typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches) return;
-    setSelectedMessageKey(isSelected ? null : messageId);
+    if (isSending || isFailed || isDeleted || isEditing) return;
+    const isCoarse = typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches;
+    if (isCoarse) return;
+    if (!isOwn) {
+      setSelectedMessageKey(isSelected ? null : messageId);
+    }
   };
 
   return (
@@ -235,6 +238,37 @@ export function MessageBubble({
         onClick={handleBubbleClick}
       className={`flex gap-2 items-start ${isOwn ? 'flex-row' : 'flex-row-reverse'}`}
     >
+  {/* Actions inline — visibles sans être coupées par le scroll */}
+  {showActions && !isSending && !isFailed && !isDeleted && !isEditing && (
+    <div
+      ref={actionsRef}
+      className="shrink-0 self-center"
+      onMouseEnter={() => {
+        cancelHide();
+        if (!isSending) setHoveredMessageId(messageId);
+      }}
+      onMouseLeave={scheduleHide}
+    >
+      <MessageActions
+        messageKey={messageId}
+        openMenuKey={openMenuKey}
+        onActionComplete={clearInteractionState}
+        onEmojiOpenChange={setIsEmojiOpen}
+        setOpenMenuKey={setOpenMenuKey}
+        isPinned={isPinned}
+        onReact={(emoji) => {
+          onReact?.(emoji);
+          clearInteractionState();
+        }}
+        onReply={onReply}
+        onEdit={isOwn ? handleStartEdit : undefined}
+        onPin={onPin}
+        onDelete={onDelete}
+        showDelete={isOwn}
+      />
+    </div>
+  )}
+
   {/* Avatar + Message */}
   <div className="flex items-end gap-2">
     {/* Avatar pour les messages de l'autre personne */}
@@ -360,36 +394,6 @@ export function MessageBubble({
               />
             </div>
           )}
-
-          {/* Boutons d'action - alignés avec la bulle */}
-        {showActions && !isSending && !isFailed && !isDeleted && !isEditing && (
-          <div
-            ref={actionsRef}
-            className={`absolute ${isOwn ? 'right-full mr-2' : 'left-full ml-2'} top-0 bottom-0 flex items-center`}
-            onMouseEnter={() => {
-              cancelHide();
-              if (!isSending) setHoveredMessageId(messageId);
-            }}
-            onMouseLeave={scheduleHide}
-          >
-            <MessageActions
-              messageKey={messageId}
-              openMenuKey={openMenuKey}
-              onActionComplete={clearInteractionState}
-              onEmojiOpenChange={setIsEmojiOpen}
-              setOpenMenuKey={setOpenMenuKey}
-              isPinned={isPinned}
-              onReact={(emoji) => {
-                onReact?.(emoji);
-                clearInteractionState();
-              }}
-              onReply={onReply}
-              onEdit={isOwn ? handleStartEdit : undefined}
-              onPin={onPin}
-              onDelete={onDelete}
-            />
-          </div>
-        )}
 
         </div>
 

@@ -18,12 +18,9 @@ const TOPIC_DIVIDER = "border-green-600/35";
 
 function topicCellBorderClass(index: number, total: number) {
   return cn(
-    // Mobile — trait horizontal entre chaque bloc
     index < total - 1 && `border-b ${TOPIC_DIVIDER} pb-10`,
-    // Tablette (2 col.) — traits verticaux et horizontaux entre rangées
     index % 2 !== 1 && `md:border-r ${TOPIC_DIVIDER} lg:border-r-0`,
     index < total - 2 && `md:border-b ${TOPIC_DIVIDER} md:pb-10`,
-    // Desktop (3 col.) — traits verticaux uniquement
     "lg:border-b-0 lg:pb-0",
     index % 3 !== 2 && `lg:border-r ${TOPIC_DIVIDER}`,
   );
@@ -99,40 +96,6 @@ type HelpAudienceSectionProps = {
 
 type Audience = "providers" | "clients";
 
-function AudiencePanel({
-  audience,
-  activeAudience,
-  sections,
-  seeAllLabel,
-}: {
-  audience: Audience;
-  activeAudience: Audience;
-  sections: HelpTopicSection[];
-  seeAllLabel: string;
-}) {
-  const isActive = audience === activeAudience;
-
-  return (
-    <div
-      className={cn(
-        "col-start-1 row-start-1 w-full transition-all duration-300 ease-in-out",
-        isActive
-          ? "relative z-10 translate-x-0 opacity-100"
-          : cn(
-              "pointer-events-none absolute inset-x-0 top-0 z-0 opacity-0",
-              audience === "providers"
-                ? "-translate-x-8 sm:-translate-x-12"
-                : "translate-x-8 sm:translate-x-12",
-            ),
-      )}
-      aria-hidden={!isActive}
-      inert={!isActive ? true : undefined}
-    >
-      <TopicsGrid sections={sections} seeAllLabel={seeAllLabel} />
-    </div>
-  );
-}
-
 export function HelpAudienceSection({
   browseTitle,
   providerSections,
@@ -155,6 +118,7 @@ export function HelpAudienceSection({
           <button
             type="button"
             onClick={() => selectAudience("providers")}
+            suppressHydrationWarning
             className={cn(
               "cursor-pointer px-3 pb-3 text-xs font-semibold transition-colors duration-300 sm:px-6 sm:text-sm md:text-base",
               audience === "providers"
@@ -167,6 +131,7 @@ export function HelpAudienceSection({
           <button
             type="button"
             onClick={() => selectAudience("clients")}
+            suppressHydrationWarning
             className={cn(
               "cursor-pointer px-3 pb-3 text-xs font-semibold transition-colors duration-300 sm:px-6 sm:text-sm md:text-base",
               audience === "clients"
@@ -179,19 +144,29 @@ export function HelpAudienceSection({
         </div>
       </div>
 
-      <div className="relative grid w-full overflow-hidden">
-        <AudiencePanel
-          audience="providers"
-          activeAudience={audience}
-          sections={providerSections}
-          seeAllLabel={seeAllLabel}
-        />
-        <AudiencePanel
-          audience="clients"
-          activeAudience={audience}
-          sections={clientSections}
-          seeAllLabel={seeAllLabel}
-        />
+      <div className="relative w-full overflow-hidden">
+        <div
+          className={cn(
+            "flex w-[200%] transition-transform duration-500 ease-in-out motion-reduce:transition-none",
+            audience === "clients" && "-translate-x-1/2",
+          )}
+          aria-live="polite"
+        >
+          <div
+            className="w-1/2 shrink-0"
+            aria-hidden={audience !== "providers"}
+            inert={audience !== "providers" ? true : undefined}
+          >
+            <TopicsGrid sections={providerSections} seeAllLabel={seeAllLabel} />
+          </div>
+          <div
+            className="w-1/2 shrink-0"
+            aria-hidden={audience !== "clients"}
+            inert={audience !== "clients" ? true : undefined}
+          >
+            <TopicsGrid sections={clientSections} seeAllLabel={seeAllLabel} />
+          </div>
+        </div>
       </div>
     </div>
   );

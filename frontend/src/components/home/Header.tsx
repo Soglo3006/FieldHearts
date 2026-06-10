@@ -186,7 +186,7 @@ function UserDropdown({ avatarUrl, displayName, fallbackInitial, unseenCount, pr
 
 export default function Header() {
   const { t, i18n } = useTranslation();
-  const { user, signOut, session } = useAuth();
+  const { user, signOut, session, loading: authLoading } = useAuth();
   const { requireAuth, notifyAuthActionReady } = useAuthGate();
   const router = useRouter();
   const pathname = usePathname();
@@ -535,7 +535,7 @@ export default function Header() {
             <div className="flex items-center gap-2 shrink-0">
 
               {/* md+: icônes individuelles */}
-              {user && (
+              {!authLoading && user && (
                 <div className="hidden md:flex items-center gap-2">
                   {profileDetailsIncomplete ? (
                     <Button
@@ -563,7 +563,12 @@ export default function Header() {
 
               {/* md+: avatar dropdown */}
               <div className="hidden md:flex items-center gap-2">
-                {user ? (
+                {authLoading ? (
+                  <div
+                    className={`${HEADER_CONTROL_H} w-[148px] rounded-lg bg-gray-200 animate-pulse`}
+                    aria-hidden
+                  />
+                ) : user ? (
                   <UserDropdown
                     avatarUrl={avatarUrl}
                     displayName={displayName}
@@ -603,7 +608,7 @@ export default function Header() {
               </PostPublishLink>
 
               {/* Mobile only: hamburger — only shown when logged in */}
-              {user && (
+              {!authLoading && user && (
                 <div className="relative md:hidden">
                   <Button
                     variant="ghost"
@@ -657,7 +662,7 @@ export default function Header() {
             </ToggleGroup>
 
             {/* Support + Login — visible on mobile when not logged in (replaces hamburger) */}
-            {!user && (
+            {!authLoading && !user && (
               <>
                 <Button
                   variant="ghost"

@@ -166,6 +166,7 @@ export function MessageItem({
                     onReact={(emoji) => onReactionToggle?.(message.id, emoji, message.reactions || [])}
                     onReply={() => onReply?.(message)}
                     onDelete={() => onDelete?.(message.id)}
+                    showDelete={isOwn}
                   />
                 </div>
               )}

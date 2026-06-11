@@ -20,6 +20,33 @@ export function getMetadataAccountType(
   return undefined;
 }
 
+const OAUTH_AVATAR_HOSTS = [
+  "googleusercontent.com",
+  "ggpht.com",
+  "graph.facebook.com",
+  "fbcdn.net",
+  "fbsbx.com",
+  "platform-lookaside.fbsbx.com",
+];
+
+/** True when the URL is a social-login profile photo (Google, Facebook, etc.). */
+export function isOAuthProviderAvatarUrl(url: string | null | undefined): boolean {
+  if (!url?.trim()) return false;
+  try {
+    const host = new URL(url).hostname.toLowerCase();
+    return OAUTH_AVATAR_HOSTS.some((h) => host === h || host.endsWith(`.${h}`));
+  } catch {
+    return false;
+  }
+}
+
+/** Only returns avatars uploaded on Uneden — never OAuth provider photos. */
+export function resolveUnedenAvatarUrl(avatar: string | null | undefined): string {
+  const trimmed = avatar?.trim();
+  if (!trimmed || isOAuthProviderAvatarUrl(trimmed)) return "";
+  return trimmed;
+}
+
 export function resolveHeaderDisplayName(
   user: User | null | undefined,
   profile: {

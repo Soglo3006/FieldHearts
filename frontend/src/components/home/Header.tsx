@@ -22,7 +22,7 @@ import { useAuthGate } from "@/hooks/useAuthGate";
 import { useAuthResumeAction } from "@/hooks/useAuthResumeAction";
 import { useMyProfile } from "@/hooks/useMyProfile";
 import { isAdminUser } from "@/lib/auth";
-import { resolveHeaderDisplayName } from "@/lib/userDisplay";
+import { resolveHeaderDisplayName, resolveUnedenAvatarUrl } from "@/lib/userDisplay";
 import {
   isProfileDetailsIncomplete,
   profileCompletionPath,
@@ -89,7 +89,7 @@ function UserDropdown({ avatarUrl, displayName, fallbackInitial, unseenCount, pr
       <DropdownMenuTrigger asChild>
         <div className="relative cursor-pointer">
           <Avatar className="h-9 w-9 lg:h-10 lg:w-10 border-4 border-white shadow-lg">
-            <AvatarImage src={avatarUrl} alt={displayName || "User"} />
+            {avatarUrl ? <AvatarImage src={avatarUrl} alt={displayName || "User"} /> : null}
             <AvatarFallback className="text-sm bg-green-100 text-green-800 font-semibold">{fallbackInitial}</AvatarFallback>
           </Avatar>
           {unseenCount > 0 && (
@@ -424,7 +424,7 @@ export default function Header() {
   const profileSubtitle = isCompany
     ? (profileData?.industry ?? (typeof user?.user_metadata?.industry === "string" ? user.user_metadata.industry : undefined))
     : (profileData?.profession ?? (typeof user?.user_metadata?.profession === "string" ? user.user_metadata.profession : undefined));
-  const avatarUrl = (profileData as { avatar?: string } | null)?.avatar || user?.user_metadata?.avatar_url || user?.user_metadata?.avatar || "";
+  const avatarUrl = resolveUnedenAvatarUrl((profileData as { avatar?: string } | null)?.avatar);
   const fallbackInitial = (displayName ?? user?.email)?.charAt(0).toUpperCase() || "";
   const postTypeLabel =
     postTypeValue === "find"
@@ -782,7 +782,7 @@ export default function Header() {
                       ) : (
                         <div className="flex items-center gap-3">
                           <Avatar className="h-10 w-10 border-2 border-white shadow">
-                            <AvatarImage src={avatarUrl} alt={displayName || "User"} />
+                            {avatarUrl ? <AvatarImage src={avatarUrl} alt={displayName || "User"} /> : null}
                             <AvatarFallback className="text-sm bg-green-100 text-green-800 font-semibold">{fallbackInitial}</AvatarFallback>
                           </Avatar>
                           <div className="text-left">

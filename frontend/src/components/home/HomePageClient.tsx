@@ -40,8 +40,8 @@ function formatRelativeDate(dateStr: string, t: (key: string, opts?: Record<stri
     if (minutes < 60) return t("home.minutesAgo", { minutes });
     if (hours < 24) return t("home.hoursAgo", { hours });
     if (days === 1) return t("home.yesterday");
-    if (days < 7) return t("home.daysAgo", { days });
-    return t("home.weeksAgo", { weeks: Math.floor(days / 7) });
+    if (days < 7) return t("home.daysAgo", { count: days });
+    return t("home.weeksAgo", { count: Math.floor(days / 7) });
   } catch {
     return t("home.recently");
   }

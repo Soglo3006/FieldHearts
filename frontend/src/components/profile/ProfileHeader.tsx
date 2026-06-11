@@ -9,6 +9,7 @@ import {
   Ellipsis, UserStar, Users, Ban,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { resolveUnedenAvatarUrl } from "@/lib/userDisplay";
 
 interface ProfileUser {
   avatar?: string;
@@ -48,11 +49,12 @@ export default function ProfileHeader({
   onSendMessage, onSettings, onEllipsis, onRatings, onUnblock,
 }: Props) {
   const { t } = useTranslation();
+  const avatarUrl = resolveUnedenAvatarUrl(profileUser.avatar);
   return (
     <Card className="p-4 sm:p-8 mb-4 sm:mb-8">
       <div className="flex flex-col md:flex-row gap-4 sm:gap-6 items-start md:items-center">
         <Avatar className="w-24 h-24 sm:w-32 sm:h-32 border-4 border-white shadow-lg">
-          <AvatarImage src={profileUser.avatar} alt={displayName} />
+          {avatarUrl ? <AvatarImage src={avatarUrl} alt={displayName} /> : null}
           <AvatarFallback className="text-2xl bg-green-100 text-green-800 font-semibold">{displayName.charAt(0)}</AvatarFallback>
         </Avatar>
 

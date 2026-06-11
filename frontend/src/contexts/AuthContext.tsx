@@ -5,6 +5,8 @@ import { useRouter, usePathname } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { isAdminUser, isSupportOnlyUser, canAccessAdminPortal, safeInternalPath } from "@/lib/auth";
 import { needsOnboardingSetup } from "@/lib/onboarding";
+import { clearMyProfileCache } from "@/lib/myProfileCache";
+import { fetchMyProfileOnce } from "@/lib/fetchMyProfile";
 import { clearAdminStepUpToken } from "@/lib/adminStepUp";
 import type { User, Session } from "@supabase/supabase-js";
 
@@ -64,6 +66,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       router.replace("/admin");
     }
   }, [user, pathname, loading]);
+
+  // Prefetch profile as soon as session is ready (deduped with useMyProfile)
+  useEffect(() => {
+    if (!user?.id || !session?.access_token || needsOnboardingSetup(user)) return;
+    void fetchMyProfileOnce(user.id, session.access_token);
+  }, [user?.id, session?.access_token, user]);
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
@@ -224,6 +232,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsLoggingOut(true);
     intentionalSignOut.current = true;
     clearAdminStepUpToken();
+    clearMyProfileCache(user?.id);
     await supabase.auth.signOut();
     router.push("/");
   };

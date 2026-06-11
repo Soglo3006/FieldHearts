@@ -20,7 +20,9 @@ import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAuthGate } from "@/hooks/useAuthGate";
 import { useAuthResumeAction } from "@/hooks/useAuthResumeAction";
+import { useMyProfile } from "@/hooks/useMyProfile";
 import { isAdminUser } from "@/lib/auth";
+import { resolveHeaderDisplayName } from "@/lib/userDisplay";
 import {
   isProfileDetailsIncomplete,
   profileCompletionPath,
@@ -69,6 +71,7 @@ interface UserDropdownProps {
   fallbackInitial: string;
   unseenCount: number;
   profileData: (ProfileForCompletion & { company_name?: string; avatar?: string }) | null;
+  profileSubtitle?: string;
   isPerson: boolean;
   isCompany: boolean;
   profileDetailsIncomplete: boolean;
@@ -79,7 +82,7 @@ interface UserDropdownProps {
   handleSignOut: () => void;
 }
 
-function UserDropdown({ avatarUrl, displayName, fallbackInitial, unseenCount, profileData, isPerson, isCompany, profileDetailsIncomplete, completeProfileHref, user, setShowSettings, onOpenSupport, handleSignOut }: UserDropdownProps) {
+function UserDropdown({ avatarUrl, displayName, fallbackInitial, unseenCount, profileData, profileSubtitle, isPerson, isCompany, profileDetailsIncomplete, completeProfileHref, user, setShowSettings, onOpenSupport, handleSignOut }: UserDropdownProps) {
   const { t } = useTranslation();
   return (
     <DropdownMenu modal={false}>
@@ -102,10 +105,9 @@ function UserDropdown({ avatarUrl, displayName, fallbackInitial, unseenCount, pr
             <div className="px-2 py-2">
               <p className="text-sm font-medium">{displayName || user?.email}</p>
               <p className="text-xs text-gray-500">{user?.email}</p>
-              {profileData && (
+              {profileSubtitle && (
                 <p className="text-xs text-gray-400 mt-1">
-                  {isPerson && profileData.profession && <span>{profileData.profession}</span>}
-                  {isCompany && profileData.industry && <span>{profileData.industry}</span>}
+                  <span>{profileSubtitle}</span>
                 </p>
               )}
             </div>
@@ -186,7 +188,7 @@ function UserDropdown({ avatarUrl, displayName, fallbackInitial, unseenCount, pr
 
 export default function Header() {
   const { t, i18n } = useTranslation();
-  const { user, signOut, session, loading: authLoading } = useAuth();
+  const { user, signOut, loading: authLoading } = useAuth();
   const { requireAuth, notifyAuthActionReady } = useAuthGate();
   const router = useRouter();
   const pathname = usePathname();
@@ -225,9 +227,7 @@ export default function Header() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mobileView, setMobileView] = useState<"menu" | "notifications">("menu");
-  const [profileData, setProfileData] = useState<
-    (ProfileForCompletion & { company_name?: string; avatar?: string }) | null
-  >(null);
+  const { profile: profileData } = useMyProfile();
   const settingsScrollRef = useRef<HTMLDivElement>(null);
 
   // Live search
@@ -243,24 +243,6 @@ export default function Header() {
   const searchRef = useRef<HTMLDivElement>(null);
   const searchDropdownRef = useRef<HTMLDivElement>(null);
   const [searchDropdownStyle, setSearchDropdownStyle] = useState<{ top: number; left: number; width: number } | null>(null);
-
-  useEffect(() => {
-    const fetchProfile = async () => {
-      if (!user || !session?.access_token) return;
-      try {
-        const response = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/profiles/me`,
-          { headers: { Authorization: `Bearer ${session.access_token}` } }
-        );
-        if (response.ok) {
-          const data = await response.json();
-          setProfileData(data);
-        }
-      } catch (error) {
-      }
-    };
-    fetchProfile();
-  }, [user?.id, session?.access_token]);
 
   // Debounced live search
   useEffect(() => {
@@ -430,16 +412,20 @@ export default function Header() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, permission]);
 
-  const isPerson = profileData?.account_type === "person";
-  const isCompany = profileData?.account_type === "company";
+  const accountType = profileData?.account_type ?? user?.user_metadata?.account_type;
+  const isCompany = accountType === "company";
+  const isPerson = !isCompany;
   const profileDetailsIncomplete = isProfileDetailsIncomplete(profileData);
   const completeProfileHref =
     isPerson || isCompany
       ? profileCompletionPath(profileData?.account_type)
       : "/choose_type";
-  const displayName = (isPerson ? profileData?.full_name : profileData?.company_name) ?? undefined;
-  const avatarUrl = profileData?.avatar || user?.user_metadata?.avatar || "";
-  const fallbackInitial = displayName?.charAt(0).toUpperCase() || "";
+  const displayName = resolveHeaderDisplayName(user, profileData as ProfileForCompletion & { company_name?: string });
+  const profileSubtitle = isCompany
+    ? (profileData?.industry ?? (typeof user?.user_metadata?.industry === "string" ? user.user_metadata.industry : undefined))
+    : (profileData?.profession ?? (typeof user?.user_metadata?.profession === "string" ? user.user_metadata.profession : undefined));
+  const avatarUrl = (profileData as { avatar?: string } | null)?.avatar || user?.user_metadata?.avatar_url || user?.user_metadata?.avatar || "";
+  const fallbackInitial = (displayName ?? user?.email)?.charAt(0).toUpperCase() || "";
   const postTypeLabel =
     postTypeValue === "find"
       ? t("header.findWork")
@@ -575,6 +561,7 @@ export default function Header() {
                     fallbackInitial={fallbackInitial}
                     unseenCount={unseenCount}
                     profileData={profileData}
+                    profileSubtitle={profileSubtitle}
                     isPerson={isPerson}
                     isCompany={isCompany}
                     profileDetailsIncomplete={profileDetailsIncomplete}

@@ -1,54 +1,35 @@
 import { useEffect } from "react";
 
 let activeLocks = 0;
-let previousBodyStyles: Partial<CSSStyleDeclaration> | null = null;
-let previousHtmlStyles: Partial<CSSStyleDeclaration> | null = null;
-let previousScrollLockPadding = "";
-
-function getScrollbarWidth() {
-  return Math.max(0, window.innerWidth - document.documentElement.clientWidth);
-}
+let savedScrollY = 0;
+let previousBodyPosition = "";
+let previousBodyTop = "";
+let previousBodyWidth = "";
+let previousBodyOverflow = "";
+let previousHtmlOverflowY = "";
 
 export function useScrollLock(active: boolean) {
   useEffect(() => {
     if (!active) return;
 
     const { body, documentElement } = document;
-    const scrollbarWidth = getScrollbarWidth();
 
     if (activeLocks === 0) {
-      previousScrollLockPadding =
-        documentElement.style.getPropertyValue("--scroll-lock-padding");
+      savedScrollY = window.scrollY;
+      previousBodyPosition = body.style.position;
+      previousBodyTop = body.style.top;
+      previousBodyWidth = body.style.width;
+      previousBodyOverflow = body.style.overflow;
+      previousHtmlOverflowY = documentElement.style.overflowY;
 
-      previousBodyStyles = {
-        overflow: body.style.overflow,
-        overscrollBehavior: body.style.overscrollBehavior,
-        paddingRight: body.style.paddingRight,
-      };
-      previousHtmlStyles = {
-        overflow: documentElement.style.overflow,
-        overscrollBehavior: documentElement.style.overscrollBehavior,
-        paddingRight: documentElement.style.paddingRight,
-      };
-
-      documentElement.style.setProperty(
-        "--scroll-lock-padding",
-        `${scrollbarWidth}px`,
-      );
       documentElement.setAttribute("data-scroll-locked", "");
       body.setAttribute("data-scroll-locked", "");
 
-      Object.assign(documentElement.style, {
-        overflow: "hidden",
-        overscrollBehavior: "none",
-        paddingRight: scrollbarWidth > 0 ? `${scrollbarWidth}px` : "",
-      });
-
-      Object.assign(body.style, {
-        overflow: "hidden",
-        overscrollBehavior: "none",
-        paddingRight: scrollbarWidth > 0 ? `${scrollbarWidth}px` : "",
-      });
+      body.style.position = "fixed";
+      body.style.top = `-${savedScrollY}px`;
+      body.style.width = "100%";
+      body.style.overflow = "hidden";
+      documentElement.style.overflowY = "scroll";
     }
 
     activeLocks += 1;
@@ -56,36 +37,24 @@ export function useScrollLock(active: boolean) {
     return () => {
       activeLocks = Math.max(0, activeLocks - 1);
 
-      if (activeLocks > 0) {
-        return;
-      }
+      if (activeLocks > 0) return;
 
       documentElement.removeAttribute("data-scroll-locked");
       body.removeAttribute("data-scroll-locked");
 
-      if (previousScrollLockPadding) {
-        documentElement.style.setProperty(
-          "--scroll-lock-padding",
-          previousScrollLockPadding,
-        );
-      } else {
-        documentElement.style.removeProperty("--scroll-lock-padding");
-      }
+      body.style.position = previousBodyPosition;
+      body.style.top = previousBodyTop;
+      body.style.width = previousBodyWidth;
+      body.style.overflow = previousBodyOverflow;
+      documentElement.style.overflowY = previousHtmlOverflowY;
 
-      Object.assign(body.style, previousBodyStyles ?? {
-        overflow: "",
-        overscrollBehavior: "",
-        paddingRight: "",
-      });
-      Object.assign(documentElement.style, previousHtmlStyles ?? {
-        overflow: "",
-        overscrollBehavior: "",
-        paddingRight: "",
-      });
+      window.scrollTo(0, savedScrollY);
 
-      previousBodyStyles = null;
-      previousHtmlStyles = null;
-      previousScrollLockPadding = "";
+      previousBodyPosition = "";
+      previousBodyTop = "";
+      previousBodyWidth = "";
+      previousBodyOverflow = "";
+      previousHtmlOverflowY = "";
     };
   }, [active]);
 }

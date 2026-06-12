@@ -435,7 +435,7 @@ export default function Header() {
 
   return (
     <>
-      <div className="relative z-40 w-full border-b border-gray-200 bg-white overflow-x-hidden scroll-lock-aware">
+      <div className="relative z-40 w-full border-b border-gray-200 bg-white overflow-x-hidden">
         <div className="max-w-7xl mx-auto px-4">
 
           {/* ── RANGÉE 1 : Logo + Search + actions droite ── */}

@@ -9,7 +9,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useCallback } from "react";
 import { Grid3x3, MapPin, Clock } from "lucide-react";
-import { useJsApiLoader, type Libraries } from "@react-google-maps/api";
+import { useJsApiLoader } from "@react-google-maps/api";
+import { GOOGLE_MAPS_LIBRARIES } from "@/lib/googleMapsConfig";
 import { geocodeCanadianLocation, LOCATION_SEARCH_RADIUS_KM } from "@/lib/geocodeCanadianLocation";
 import { ListingsRegionEmptyState } from "@/components/listings/ListingsRegionEmptyState";
 import AppImage from "@/components/ui/AppImage";
@@ -28,7 +29,6 @@ import { formatListingPriceLine } from "@/lib/listingPrice";
 const CityAutocomplete = dynamic(() => import("@/components/ui/CityAutocomplete"), { ssr: false });
 const toKey = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
-const MAPS_LIBRARIES: Libraries = ["places"];
 
 function formatRelativeDate(dateStr: string, t: (key: string, opts?: Record<string, unknown>) => string) {
   try {
@@ -181,7 +181,7 @@ export default function HomePageClient({
 
   const { isLoaded: mapsReady } = useJsApiLoader({
     googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "",
-    libraries: MAPS_LIBRARIES,
+    libraries: GOOGLE_MAPS_LIBRARIES,
   });
 
   const buildLocationQuery = useCallback(

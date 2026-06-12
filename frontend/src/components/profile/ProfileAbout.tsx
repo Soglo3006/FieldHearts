@@ -33,7 +33,7 @@ export default function ProfileAbout({ profileUser, isPerson, isCompany, skills,
       <h2 className="text-2xl font-bold text-gray-900 mb-4">
         {isPerson ? t("profile.aboutMe") : t("profile.aboutCompany")}
       </h2>
-      <p className="text-gray-700 leading-relaxed mb-6 break-all">{profileUser.bio}</p>
+      <p className="text-gray-700 leading-relaxed mb-6 break-words">{profileUser.bio}</p>
       <Separator className="my-4" />
 
       <div className="grid md:grid-cols-2 gap-6">

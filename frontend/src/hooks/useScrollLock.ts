@@ -25,10 +25,13 @@ export function useScrollLock(active: boolean) {
       documentElement.setAttribute("data-scroll-locked", "");
       body.setAttribute("data-scroll-locked", "");
 
+      // position:fixed sur body bloque le scroll background
       body.style.position = "fixed";
       body.style.top = `-${savedScrollY}px`;
       body.style.width = "100%";
       body.style.overflow = "hidden";
+
+      // overflow-y:scroll sur html (toujours à y=0) force la bande de scrollbar visible
       documentElement.style.overflowY = "scroll";
     }
 

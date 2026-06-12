@@ -2,14 +2,14 @@
 
 import { useEffect } from "react";
 import usePlacesAutocomplete, { getGeocode, getLatLng } from "use-places-autocomplete";
-import { useJsApiLoader, type Libraries } from "@react-google-maps/api";
+import { useJsApiLoader } from "@react-google-maps/api";
+import { GOOGLE_MAPS_LIBRARIES } from "@/lib/googleMapsConfig";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { MapPin } from "lucide-react";
 import { repairUtf8MojibakeIfNeeded } from "@/lib/repairUtf8Mojibake";
 
-const LIBRARIES: Libraries = ["places"];
 
 export interface LocationDetails {
   address: string;
@@ -123,7 +123,7 @@ function PlacesInput({ value, onChange, placeholder, id, required }: Props) {
 export default function LocationAutocomplete(props: Props) {
   const { isLoaded } = useJsApiLoader({
     googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "",
-    libraries: LIBRARIES,
+    libraries: GOOGLE_MAPS_LIBRARIES,
   });
 
   if (!isLoaded) {

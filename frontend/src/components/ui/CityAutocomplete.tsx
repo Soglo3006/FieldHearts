@@ -2,14 +2,13 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import usePlacesAutocomplete from "use-places-autocomplete";
-import { useJsApiLoader, type Libraries } from "@react-google-maps/api";
+import { useJsApiLoader } from "@react-google-maps/api";
 import { MapPin, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import { CANADA_REGIONS, filterCanadaRegions, getRegionDisplayLabel } from "@/lib/canadaRegions";
 import { geocodeCanadianLocation, geocodePlaceId, type LatLng } from "@/lib/geocodeCanadianLocation";
-
-const LIBRARIES: Libraries = ["places"];
+import { GOOGLE_MAPS_LIBRARIES } from "@/lib/googleMapsConfig";
 
 interface Props {
   value: string;
@@ -213,7 +212,7 @@ function CityInput({ value, onChange, onCoordsChange, placeholder, className, id
 export default function CityAutocomplete(props: Props) {
   const { isLoaded } = useJsApiLoader({
     googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "",
-    libraries: LIBRARIES,
+    libraries: GOOGLE_MAPS_LIBRARIES,
   });
 
   if (!isLoaded) {

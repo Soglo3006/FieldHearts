@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition, type MouseEvent, Suspense } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useScrollLock } from "@/hooks/useScrollLock";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useTranslation } from "react-i18next";
 import AppImage from "@/components/ui/AppImage";
@@ -43,17 +44,7 @@ function CategoryNavInner() {
   const navRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const { t } = useTranslation();
-  const searchParams = useSearchParams();
 
-  const urlCategoryParam = searchParams.get("category");
-  const urlSubcategoryParam = searchParams.get("subcategory");
-
-  // The first category name in the URL (e.g. "Home Services")
-  const urlCategoryName = urlCategoryParam?.split(",")[0] ?? null;
-  const urlCategory = urlCategoryName
-    ? (categories.find((c) => c.name === urlCategoryName) ?? null)
-    : null;
-  const urlSubcategories = urlSubcategoryParam ? urlSubcategoryParam.split(",") : [];
   const [activeCategoryName, setActiveCategoryName] = useState<string | null>(null);
   const [pendingNavigationPath, setPendingNavigationPath] = useState<string | null>(null);
   const [isNavigating, startNavigationTransition] = useTransition();
@@ -70,20 +61,7 @@ function CategoryNavInner() {
         ? "lg:grid-cols-2"
         : "lg:grid-cols-3";
 
-  useEffect(() => {
-    if (!activeCategoryName) return;
-
-    const previousBodyOverflow = document.body.style.overflow;
-    const previousHtmlOverflow = document.documentElement.style.overflow;
-
-    document.body.style.overflow = "hidden";
-    document.documentElement.style.overflow = "hidden";
-
-    return () => {
-      document.body.style.overflow = previousBodyOverflow;
-      document.documentElement.style.overflow = previousHtmlOverflow;
-    };
-  }, [activeCategoryName]);
+  useScrollLock(!!activeCategoryName);
 
   useEffect(() => {
     if (!pendingNavigationPath || activeCategoryName !== null) return;
@@ -242,7 +220,15 @@ function CategoryNavInner() {
           </button>
         </div>
 
-        <Sheet open={Boolean(activeCategory)} onOpenChange={(open) => { if (!open) setActiveCategoryName(null); }}>
+        {activeCategory && (
+          <div
+            className="fixed inset-0 z-40 bg-black/50 animate-in fade-in-0 duration-300"
+            aria-hidden
+            onClick={() => setActiveCategoryName(null)}
+          />
+        )}
+
+        <Sheet modal={false} open={Boolean(activeCategory)} onOpenChange={(open) => { if (!open) setActiveCategoryName(null); }}>
           <SheetContent
             side="left"
             className="inset-y-0 left-0 flex h-dvh w-screen max-w-none flex-col gap-0 overflow-hidden border-0 p-0 sm:w-screen sm:max-w-none md:w-screen md:max-w-none lg:w-[min(86vw,68rem)] lg:max-w-none lg:border-r"
@@ -388,38 +374,6 @@ function CategoryNavInner() {
         </Sheet>
       </div>
     </div>
-
-    {urlCategory && (urlCategory.subcategories?.length ?? 0) > 0 && (
-      <div className="w-full border-b border-gray-100 bg-white">
-        <div className="mx-auto max-w-7xl px-4 sm:px-5">
-          <div className="flex items-center gap-1 overflow-x-auto py-2 no-scrollbar">
-            <Link
-              href={listingsBrowseHref(urlCategory.name)}
-              className="mr-3 shrink-0 whitespace-nowrap border-r border-gray-200 pr-3 text-xs font-semibold text-green-700 hover:underline"
-            >
-              {t(`categories.${toKey(urlCategory.name)}`, { defaultValue: urlCategory.name })}
-            </Link>
-            {urlCategory.subcategories?.map((sub) => {
-              const isActive = urlSubcategories.includes(sub);
-              return (
-                <Link
-                  key={sub}
-                  href={listingsBrowseHref(urlCategory.name, sub)}
-                  className={cn(
-                    "shrink-0 whitespace-nowrap rounded-full px-3 py-1 text-xs transition-colors",
-                    isActive
-                      ? "bg-green-700 text-white font-medium"
-                      : "text-gray-600 hover:bg-gray-200 hover:text-gray-900"
-                  )}
-                >
-                  {t(`categories.${toKey(urlCategory.name)}_${toKey(sub)}`, { defaultValue: sub })}
-                </Link>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-    )}
   </>
   );
 }

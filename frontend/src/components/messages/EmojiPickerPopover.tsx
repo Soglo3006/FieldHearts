@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import EmojiPicker, { EmojiClickData } from 'emoji-picker-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
@@ -13,6 +14,7 @@ interface EmojiPickerPopoverProps {
 }
 
 export function EmojiPickerPopover({ onEmojiSelect, onOpenChange }: EmojiPickerPopoverProps) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [showFullPicker, setShowFullPicker] = useState(false);
 
@@ -76,7 +78,7 @@ export function EmojiPickerPopover({ onEmojiSelect, onOpenChange }: EmojiPickerP
               onEmojiClick={handleEmojiClick}
               width={340}
               height={420}
-              searchPlaceHolder="Search"
+              searchPlaceHolder={t("common.search")}
               skinTonesDisabled
               previewConfig={{ showPreview: false }}
               lazyLoadEmojis

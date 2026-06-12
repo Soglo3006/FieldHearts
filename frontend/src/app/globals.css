@@ -129,9 +129,14 @@
 }
 
 /* Outside @layer so it beats Radix/react-remove-scroll injected styles */
-html[data-scroll-locked],
+html[data-scroll-locked] {
+  overflow-y: scroll !important;
+  overscroll-behavior: none !important;
+}
+
 body[data-scroll-locked] {
   margin-right: 0px !important;
+  padding-right: 0px !important;
   overflow: hidden !important;
   overscroll-behavior: none !important;
 }

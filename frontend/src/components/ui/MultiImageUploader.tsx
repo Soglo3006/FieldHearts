@@ -148,7 +148,7 @@ export default function MultiImageUploader({ images, onChange, aspectRatio = 16 
             {/* Close */}
             <button
               type="button"
-              aria-label="Fermer"
+              aria-label={t("common.close")}
               onClick={() => setPreviewIndex(null)}
               className="absolute -top-10 right-0 text-white/70 hover:text-white cursor-pointer"
             >
@@ -184,7 +184,7 @@ export default function MultiImageUploader({ images, onChange, aspectRatio = 16 
               )}
               <button
                 type="button"
-                aria-label="Supprimer"
+                aria-label={t("common.delete")}
                 onClick={() => { removeImage(previewIndex); }}
                 className="cursor-pointer flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors"
               >

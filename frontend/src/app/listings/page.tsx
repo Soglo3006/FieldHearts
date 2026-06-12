@@ -3,7 +3,8 @@
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useTranslation } from "react-i18next";
-import { useJsApiLoader, type Libraries } from "@react-google-maps/api";
+import { useJsApiLoader } from "@react-google-maps/api";
+import { GOOGLE_MAPS_LIBRARIES } from "@/lib/googleMapsConfig";
 import { Slider } from "@/components/ui/slider";
 import { ChevronRight, X, SlidersHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -18,7 +19,6 @@ import {
   type LatLng,
 } from "@/lib/geocodeCanadianLocation";
 
-const MAPS_LIBRARIES: Libraries = ["places"];
 
 const toKey = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
 const FILTER_KEY_SEPARATOR = "::";
@@ -82,7 +82,7 @@ function ListingsContent({ username }: { username?: string }) {
 
   const { isLoaded: mapsReady } = useJsApiLoader({
     googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "",
-    libraries: MAPS_LIBRARIES,
+    libraries: GOOGLE_MAPS_LIBRARIES,
   });
 
   // Sync all filters from URL when CategoryNav or header search navigates here

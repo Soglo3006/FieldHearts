@@ -2,11 +2,10 @@
 
 import { useEffect } from "react";
 import usePlacesAutocomplete, { getGeocode } from "use-places-autocomplete";
-import { useJsApiLoader, type Libraries } from "@react-google-maps/api";
+import { useJsApiLoader } from "@react-google-maps/api";
 import { MapPin } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-const LIBRARIES: Libraries = ["places"];
+import { GOOGLE_MAPS_LIBRARIES } from "@/lib/googleMapsConfig";
 
 export interface AddressResult {
   adresse: string;
@@ -123,7 +122,7 @@ function AddressInput({ value, onChange, onSelect, placeholder, className, id }:
 export default function AddressAutocomplete(props: Props) {
   const { isLoaded } = useJsApiLoader({
     googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "",
-    libraries: LIBRARIES,
+    libraries: GOOGLE_MAPS_LIBRARIES,
   });
 
   if (!isLoaded) {

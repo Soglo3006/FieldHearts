@@ -239,7 +239,7 @@ export default function SettingsPage({ onClose, scrollRef }: { onClose: () => vo
         <div className="flex justify-center pt-3 pb-1 sm:hidden">
           <div className="w-10 h-1 rounded-full bg-gray-300" />
         </div>
-        <button aria-label="Close settings" title="Close settings" onClick={onClose} className="absolute top-2 right-2 sm:top-3 sm:right-3 p-2 rounded-full hover:bg-gray-100 text-gray-500 hover:text-gray-900 cursor-pointer leading-none touch-manipulation">
+        <button aria-label={t("common.close")} title={t("common.close")} onClick={onClose} className="absolute top-2 right-2 sm:top-3 sm:right-3 p-2 rounded-full hover:bg-gray-100 text-gray-500 hover:text-gray-900 cursor-pointer leading-none touch-manipulation">
           <X className="h-5 w-5" />
         </button>
         <div className="w-full px-6 py-3 pr-14 sm:px-8 sm:py-6">

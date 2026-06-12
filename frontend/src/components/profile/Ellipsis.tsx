@@ -46,8 +46,8 @@ export default function EllipsisPage({ onClose, profileId, displayName, userList
               <button
                 type="button"
                 onClick={() => setScreen("default")}
-                aria-label="Back"
-                title="Back"
+                aria-label={t("common.back")}
+                title={t("common.back")}
                 className="flex items-center justify-center w-8 h-8 rounded-full hover:bg-gray-100 text-gray-500 hover:text-gray-900 cursor-pointer transition-colors"
               >
                 <ArrowLeft className="h-5 w-5" />
@@ -64,8 +64,8 @@ export default function EllipsisPage({ onClose, profileId, displayName, userList
           <button
             type="button"
             onClick={onClose}
-            aria-label="Close options"
-            title="Close options"
+            aria-label={t("common.close")}
+            title={t("common.close")}
             className="w-8 h-8 shrink-0 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-500 hover:text-gray-900 cursor-pointer transition-colors"
           >
             <X className="h-5 w-5" />

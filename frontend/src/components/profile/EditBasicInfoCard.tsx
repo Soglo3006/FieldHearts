@@ -177,7 +177,7 @@ export default function EditBasicInfoCard({ formData, accountType, onChange }: P
                 {t("profileEdit.profession")}
             </Label>
             <Input id="profession" type="text" value={formData.profession}
-              placeholder="Software Developer, Plumber, Electrician..."
+              placeholder={t("profileEdit.professionPlaceholder")}
               onChange={(e) => onChange({ profession: e.target.value })} className="h-12" />
           </div>
         ) : (
@@ -187,7 +187,7 @@ export default function EditBasicInfoCard({ formData, accountType, onChange }: P
                 {t("profileEdit.industry")}
               </Label>
               <Input id="industry" type="text" value={formData.industry}
-                placeholder="Construction, IT Services, Manufacturing..."
+                placeholder={t("profileEdit.industryPlaceholder")}
                 onChange={(e) => onChange({ industry: e.target.value })} className="h-12" />
             </div>
             <div className="space-y-2">

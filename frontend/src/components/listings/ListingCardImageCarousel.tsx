@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, type MouseEvent, type TouchEvent, type TransitionEvent } from "react";
+import { useTranslation } from "react-i18next";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import AppImage from "@/components/ui/AppImage";
 import { cn } from "@/lib/utils";
@@ -39,6 +40,7 @@ export function ListingCardImageCarousel({
 }: ListingCardImageCarouselProps) {
   const n = urls.length;
   /** Physical slide index on extended track (0..n+1), starts at first real slide */
+  const { t } = useTranslation();
   const [physical, setPhysical] = useState(1);
   const [disableTransition, setDisableTransition] = useState(false);
   const [dragPx, setDragPx] = useState(0);
@@ -216,7 +218,7 @@ export function ListingCardImageCarousel({
 
       <button
         type="button"
-        aria-label="Previous photo"
+        aria-label={t("common.previous")}
         onClick={goDelta(-1)}
         className={cn(
           "absolute left-3 top-1/2 z-10 flex size-8 -translate-y-1/2 items-center justify-center rounded-full",
@@ -230,7 +232,7 @@ export function ListingCardImageCarousel({
       </button>
       <button
         type="button"
-        aria-label="Next photo"
+        aria-label={t("common.next")}
         onClick={goDelta(1)}
         className={cn(
           "absolute right-3 top-1/2 z-10 flex size-8 -translate-y-1/2 items-center justify-center rounded-full",

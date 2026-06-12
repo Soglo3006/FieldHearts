@@ -148,9 +148,13 @@ export default function UserListingsPage() {
           <Link href={`/profile/${id}`} className="text-gray-500 hover:text-gray-700 transition-colors">
             <ArrowLeft className="h-5 w-5" />
           </Link>
-          <h1 className="text-2xl font-bold text-gray-900">
-            {ownerName ? `${ownerName} · ${t("profile.listings")}` : t("profile.listings")}
-          </h1>
+          {loading && !ownerName ? (
+            <div className="h-8 w-56 bg-gray-200 rounded animate-pulse" />
+          ) : (
+            <h1 className="text-2xl font-bold text-gray-900">
+              {ownerName ? `${ownerName} · ${t("profile.listings")}` : t("profile.listings")}
+            </h1>
+          )}
         </div>
 
         {loading ? (

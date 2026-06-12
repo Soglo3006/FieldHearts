@@ -18,6 +18,7 @@ import { getPublicServiceLocation } from "@/lib/serviceLocation";
 import { resolveListingTitle } from "@/lib/serviceListingI18n";
 import ListingLangPills from "@/components/ui/ListingLangPills";
 import { formatListingPriceLine } from "@/lib/listingPrice";
+import { formatTranslatedCategoryTrail } from "@/lib/categories";
 
 const PAGE_SIZE = 9;
 
@@ -177,7 +178,7 @@ export default function ProfileListings({
 
         {listing.category && (
           <p className="text-xs text-gray-500 line-clamp-1 mb-3">
-            {listing.category}{listing.subcategory && ` • ${listing.subcategory}`}
+            {formatTranslatedCategoryTrail(listing.category, listing.subcategory, t, " • ")}
           </p>
         )}
 

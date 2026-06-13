@@ -1,6 +1,7 @@
 import "dotenv/config";
 import pool from "../src/config/db.js";
 
+/** Dev fixtures: prefix titles with [TEST]. Hidden on uneden.ca when NODE_ENV=production. */
 const EMAIL = "ablbooh0+test3@gmail.com";
 
 const LISTINGS = [

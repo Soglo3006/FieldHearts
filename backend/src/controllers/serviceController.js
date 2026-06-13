@@ -27,6 +27,11 @@ import {
   parseDepositFields,
   resolveDepositBaseAmount,
 } from "../utils/depositSchema.js";
+import {
+  isTestListingTitle,
+  publicTestListingFilter,
+  shouldHideTestListingsFromPublic,
+} from "../utils/testListings.js";
 
 function normalizeTagKey(value) {
   return String(value ?? "")
@@ -233,6 +238,7 @@ export const getAllServices = async (req, res) => {
       FROM services s
       LEFT JOIN categories c ON c.id = s.category_id
       WHERE s.is_active = true
+      ${publicTestListingFilter("s")}
     `;
 
     const params = [];
@@ -586,6 +592,9 @@ export const getServiceById = async (req, res) => {
     }
 
     const row = result.rows[0];
+    if (shouldHideTestListingsFromPublic() && isTestListingTitle(row.title)) {
+      return res.status(404).json({ message: "Service not found" });
+    }
     canonServiceFieldsInPlace(row);
     res.json(row);
   } catch (err) {
@@ -849,6 +858,7 @@ export const getUserServices = async (req, res) => {
       LEFT JOIN categories c ON c.id = s.category_id
       WHERE s.user_id = $1
         AND s.is_active = true
+        ${publicTestListingFilter("s")}
       ORDER BY s.created_at DESC`,
       [userId]
     );
@@ -865,6 +875,7 @@ export const getCategoryCounts = async (req, res) => {
   try {
     await ensureListingTagsSchema(pool);
     await ensureDepositsAndCalendarSchema(pool);
+    const testFilter = publicTestListingFilter("s");
     const result = await pool.query(`
       SELECT category_name, SUM(count)::int AS count
       FROM (
@@ -874,6 +885,7 @@ export const getCategoryCounts = async (req, res) => {
         FROM services s
         LEFT JOIN categories c ON c.id = s.category_id
         WHERE s.is_active = true
+          ${testFilter}
           AND COALESCE(c.name, s.category) IS NOT NULL
           AND COALESCE(c.name, s.category) != ''
         GROUP BY COALESCE(c.name, s.category)
@@ -885,6 +897,7 @@ export const getCategoryCounts = async (req, res) => {
           COUNT(*)::int AS count
         FROM services s
         WHERE s.is_active = true
+          ${testFilter}
           AND s.has_custom_tags = true
       ) grouped
       GROUP BY category_name

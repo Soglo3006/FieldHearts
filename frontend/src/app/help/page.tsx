@@ -11,7 +11,7 @@ import {
 
 /** Support / centre d'aide — conseillère avec casque, prête à aider */
 const HELP_HERO_IMAGE =
-  "https://images.unsplash.com/photo-1563986768609-322da135588a?w=1800&q=80&auto=format&fit=crop";
+  "https://images.unsplash.com/photo-1521791136064-7986c2920216?w=1800&q=80&auto=format&fit=crop";
 
 export default function HelpPage() {
   const { t } = useTranslation();

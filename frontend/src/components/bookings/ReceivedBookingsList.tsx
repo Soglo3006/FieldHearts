@@ -9,6 +9,7 @@ import { type BookingDetail } from "./BookingDetailModal";
 import PayNowButton from "./PayNowButton";
 import { useTranslation } from "react-i18next";
 import { getDisputeWindowState } from "@/lib/disputes";
+import { resolveBookingCheckoutBase } from "@/lib/listingPrice";
 
 function StatusBadge({ status }: { status: BookingStatus }) {
   const c = STATUS_CONFIG[status] ?? STATUS_CONFIG.pending;
@@ -117,7 +118,7 @@ export default function ReceivedBookingsList({
                         </Link>
                       </p>
 
-                      <p className="text-green-700 font-bold text-lg mb-1">{Number(b.custom_price ?? b.price).toFixed(2)} $</p>
+                      <p className="text-green-700 font-bold text-lg mb-1">{resolveBookingCheckoutBase(b).toFixed(2)} $</p>
 
                       {b.service_location && (
                         <div className="flex items-center text-xs text-gray-500 mb-1">
@@ -159,7 +160,7 @@ export default function ReceivedBookingsList({
                               bookingId={b.id}
                               accessToken={accessToken}
                               bookingTitle={b.title}
-                              price={Number(b.custom_price ?? b.price)}
+                              price={resolveBookingCheckoutBase(b)}
                               clientProvince={b.client_province ?? null}
                               taxRateStored={b.tax_rate ? Number(b.tax_rate) : null}
                             />

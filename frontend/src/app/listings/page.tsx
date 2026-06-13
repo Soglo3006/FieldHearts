@@ -45,7 +45,7 @@ function ListingsContent({ username }: { username?: string }) {
   const initialSpoken = searchParams.get("spokenLanguage") ?? "";
   const initialSpokenValid = ["french", "english", "bilingual"].includes(initialSpoken) ? initialSpoken : "";
   const initialPricing = searchParams.get("pricingMode") ?? "";
-  const initialPricingValid = ["fixed", "range", "quote"].includes(initialPricing) ? initialPricing : "";
+  const initialPricingValid = ["fixed", "range", "quote", "hourly"].includes(initialPricing) ? initialPricing : "";
 
   const initialCategories = parseFilterList(searchParams.get("category"));
   const initialSubcategories = parseFilterList(searchParams.get("subcategory")).map((subcategory) => {
@@ -105,7 +105,7 @@ function ListingsContent({ username }: { username?: string }) {
   const spokenParam = searchParams.get("spokenLanguage") ?? "";
   const validSpoken = ["french", "english", "bilingual"].includes(spokenParam) ? spokenParam : "";
   const pricingParam = searchParams.get("pricingMode") ?? "";
-  const validPricing = ["fixed", "range", "quote"].includes(pricingParam) ? pricingParam : "";
+  const validPricing = ["fixed", "range", "quote", "hourly"].includes(pricingParam) ? pricingParam : "";
 
   useEffect(() => {
     setSearch(urlSearch);
@@ -261,7 +261,9 @@ function ListingsContent({ username }: { username?: string }) {
           ? t("post.pricingModeFixed")
           : pricingMode === "range"
             ? t("post.pricingModeRange")
-            : t("post.pricingModeQuote"),
+            : pricingMode === "hourly"
+              ? t("post.pricingModeHourly")
+              : t("post.pricingModeQuote"),
       clear: () => setPricingMode(""),
     },
     (debouncedPrice[0] > 0 || debouncedPrice[1] < 1000) && {
@@ -367,6 +369,7 @@ function ListingsContent({ username }: { username?: string }) {
                   { value: "", label: t("listings.all") },
                   { value: "fixed", label: t("post.pricingModeFixed") },
                   { value: "range", label: t("post.pricingModeRange") },
+                  { value: "hourly", label: t("post.pricingModeHourly") },
                   { value: "quote", label: t("post.pricingModeQuote") },
                 ].map(({ value, label }) => (
                   <button

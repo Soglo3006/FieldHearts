@@ -18,6 +18,9 @@ interface Props {
   serviceTitle: string;
   providerFirstName: string;
   workerProvince?: string | null;
+  pricingMode?: string | null;
+  estimatedHours?: string;
+  onEstimatedHoursChange?: (v: string) => void;
   onNoteChange: (v: string) => void;
   onSubmit: () => void;
   onClose: () => void;
@@ -34,6 +37,9 @@ export default function BookingModal({
   estimatedTotalBaseMax,
   serviceTitle,
   providerFirstName,
+  pricingMode,
+  estimatedHours = "",
+  onEstimatedHoursChange,
   onNoteChange,
   onSubmit,
   onClose,
@@ -42,6 +48,7 @@ export default function BookingModal({
   const { t, i18n } = useTranslation();
   const { taxRate, taxLabel } = useClientTax(getLanguageCode(i18n.language));
   const showBuyerFees = serviceType === "offer";
+  const isHourly = String(pricingMode ?? "").toLowerCase() === "hourly";
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div
@@ -150,6 +157,26 @@ export default function BookingModal({
                 })()
               )}
             </div>
+
+            {isHourly && (
+              <div className="mb-4">
+                <label className="text-sm font-medium text-gray-700 mb-1.5 block">
+                  {t("post.estimatedHoursLabel")}{" "}
+                  <span className="text-gray-400 font-normal">{t("serviceDetail.optional")}</span>
+                </label>
+                <input
+                  type="number"
+                  min="0.25"
+                  step="0.25"
+                  value={estimatedHours}
+                  onChange={(e) => onEstimatedHoursChange?.(e.target.value)}
+                  placeholder="2"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-green-600"
+                  disabled={state === "loading"}
+                />
+                <p className="text-xs text-gray-500 mt-1">{t("post.estimatedHoursHint")}</p>
+              </div>
+            )}
 
             <div className="mb-4">
               <label className="text-sm font-medium text-gray-700 mb-1.5 block">

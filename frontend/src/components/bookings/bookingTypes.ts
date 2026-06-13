@@ -35,6 +35,14 @@ interface BookingBase {
   dispute_status?: "open" | "resolved" | "rejected" | null;
   dispute_resolution?: string | null;
   dispute_created_at?: string | null;
+  deposit_enabled?: boolean;
+  deposit_type?: string | null;
+  deposit_value?: number | string | null;
+  deposit_amount_cents?: number | null;
+  pricing_mode?: string | null;
+  estimated_hours?: number | string | null;
+  approved_hours_total?: number | string | null;
+  price_max?: number | string | null;
 }
 
 export interface ReceivedBooking extends BookingBase {

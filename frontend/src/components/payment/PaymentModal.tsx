@@ -4,6 +4,7 @@ import { X } from "lucide-react";
 import { useScrollLock } from "@/hooks/useScrollLock";
 import { useTranslation } from "react-i18next";
 import PaymentInlinePanel from "@/components/payment/PaymentInlinePanel";
+import type { DepositConfig } from "@/lib/deposit";
 
 interface Props {
   open: boolean;
@@ -13,9 +14,20 @@ interface Props {
   price: number;
   accessToken: string;
   clientProvince: string | null;
+  depositConfig?: DepositConfig | null;
+  depositAmountCents?: number | null;
 }
 
-function PaymentModalInner({ onClose, bookingId, bookingTitle, price, accessToken, clientProvince }: Omit<Props, "open">) {
+function PaymentModalInner({
+  onClose,
+  bookingId,
+  bookingTitle,
+  price,
+  accessToken,
+  clientProvince,
+  depositConfig,
+  depositAmountCents,
+}: Omit<Props, "open">) {
   const { t } = useTranslation();
   useScrollLock(true);
 
@@ -38,6 +50,8 @@ function PaymentModalInner({ onClose, bookingId, bookingTitle, price, accessToke
           price={price}
           accessToken={accessToken}
           clientProvince={clientProvince}
+          depositConfig={depositConfig}
+          depositAmountCents={depositAmountCents}
         />
       </div>
     </div>

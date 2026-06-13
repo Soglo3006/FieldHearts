@@ -2,6 +2,7 @@ import pool from "../config/db.js";
 import stripe from "../config/stripe.js";
 import { notifyPaymentReceipt } from "../services/emailService.js";
 import { processBookingRefund } from "../services/refundService.js";
+import { calculateDepositAmount, ensureDepositsAndCalendarSchema, resolveCheckoutBaseAmount } from "../utils/depositSchema.js";
 
 // ─── Ensure platform_earnings table exists ────────────────────────────────────
 pool.query(`
@@ -340,12 +341,17 @@ export const getConnectStatus = async (req, res) => {
 // ─── Create Stripe Checkout Session (client pays for accepted booking) ────────
 export const createCheckoutSession = async (req, res) => {
   try {
+    await ensureDepositsAndCalendarSchema(pool);
     const { booking_id, billing_province, billing_address_id } = req.body;
     const clientId = req.user.id;
 
     // Fetch booking + service + worker + client info
     const booking = await pool.query(
-      `SELECT b.*, s.title, s.price, s.image_url,
+      `SELECT b.*, s.title, s.price, s.price_max, s.image_url,
+              COALESCE(b.pricing_mode, s.pricing_mode) AS pricing_mode,
+              COALESCE(b.estimated_hours, s.estimated_hours) AS estimated_hours,
+              s.estimated_hours AS service_estimated_hours,
+              s.deposit_enabled, s.deposit_type, s.deposit_value,
               u.email AS worker_email, u.province AS worker_province,
               uc.email AS client_email,
               uc.full_name AS client_full_name,
@@ -398,8 +404,19 @@ export const createCheckoutSession = async (req, res) => {
     // otherwise fall back to stored tax_rate or client's profile province
     // normalizeProvince ensures we always store a 2-letter code (e.g. "QC" not "Quebec")
     const effectiveProvince    = normalizeProvince(billingAddress?.province ?? billing_province ?? b.client_province ?? "QC");
-    const effectivePrice       = Number(b.custom_price ?? b.price);
-    if (!Number.isFinite(effectivePrice) || effectivePrice < 0.01) {
+    const effectivePrice = resolveCheckoutBaseAmount(
+      {
+        pricing_mode: b.pricing_mode,
+        price: b.price,
+        price_max: b.price_max,
+        estimated_hours: b.estimated_hours ?? b.service_estimated_hours,
+        deposit_enabled: b.deposit_enabled,
+        deposit_type: b.deposit_type,
+        deposit_value: b.deposit_value,
+      },
+      b,
+    );
+    if (effectivePrice == null || !Number.isFinite(effectivePrice) || effectivePrice < 0.01) {
       return res.status(400).json({
         message:
           req.lang === "en"
@@ -408,6 +425,8 @@ export const createCheckoutSession = async (req, res) => {
       });
     }
     const servicePriceCents    = Math.round(effectivePrice * 100);
+    const depositAmount        = calculateDepositAmount(effectivePrice, b);
+    const depositAmountCents   = Math.round(depositAmount * 100);
     const buyerCommissionCents = Math.round(servicePriceCents * BUYER_COMMISSION_RATE);
     const taxRate              = getTaxRate(effectiveProvince);
     const taxesCents           = Math.round(servicePriceCents * taxRate);
@@ -444,8 +463,8 @@ export const createCheckoutSession = async (req, res) => {
 
     // Update the booking's tax_rate to reflect the billing address province used
     await pool.query(
-      "UPDATE bookings SET tax_rate = $1, client_province = $2 WHERE id = $3",
-      [taxRate, effectiveProvince, booking_id]
+      "UPDATE bookings SET tax_rate = $1, client_province = $2, deposit_amount_cents = $3 WHERE id = $4",
+      [taxRate, effectiveProvince, depositAmountCents, booking_id]
     );
 
     // Create Checkout Session — funds go directly to platform account
@@ -490,6 +509,7 @@ export const createCheckoutSession = async (req, res) => {
       metadata: {
         booking_id,
         service_price_cents: String(servicePriceCents),
+        deposit_amount_cents: String(depositAmountCents),
         ...(billing_address_id ? { billing_address_id: String(billing_address_id) } : {}),
       },
     });
@@ -497,10 +517,10 @@ export const createCheckoutSession = async (req, res) => {
     // Record pending payment in DB
     await pool.query(
       `INSERT INTO payments
-         (booking_id, amount, status, stripe_checkout_session_id, platform_fee, currency)
-       VALUES ($1, $2, 'pending', $3, $4, 'cad')
+         (booking_id, amount, status, stripe_checkout_session_id, platform_fee, currency, deposit_amount_cents)
+       VALUES ($1, $2, 'pending', $3, $4, 'cad', $5)
        ON CONFLICT DO NOTHING`,
-      [booking_id, totalCents, session.id, buyerCommissionCents]
+      [booking_id, totalCents, session.id, buyerCommissionCents, depositAmountCents]
     );
 
     res.json({ url: session.url, session_id: session.id });
@@ -542,9 +562,13 @@ export const stripeWebhook = async (req, res) => {
         );
 
         // Update booking payment_status and advance status to 'active'
+        const paidServiceCents = Number(session.metadata?.service_price_cents) || 0;
         await pool.query(
-          "UPDATE bookings SET payment_status = 'paid', status = 'active' WHERE id = $1 AND status = 'accepted'",
-          [bookingId]
+          `UPDATE bookings
+           SET payment_status = 'paid', status = 'active',
+               paid_service_base_cents = CASE WHEN $2 > 0 THEN $2 ELSE paid_service_base_cents END
+           WHERE id = $1 AND status = 'accepted'`,
+          [bookingId, paidServiceCents],
         );
 
         // Record transaction in wallet for the client (debit)

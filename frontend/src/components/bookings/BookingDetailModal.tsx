@@ -25,7 +25,11 @@ import { getBookingDisputeFinancialOutcome } from "@/lib/disputeFinancials";
 import { getIntlLocale } from "@/lib/locale";
 import { sanitizePlainText } from "@/lib/sanitize";
 import AppImage from "@/components/ui/AppImage";
+import { toast } from "sonner";
 import PaymentInlinePanel from "@/components/payment/PaymentInlinePanel";
+import { BookingCalendarPanel } from "@/components/calendar/CalendarPageClient";
+import WorkSessionsPanel from "@/components/bookings/WorkSessionsPanel";
+import { normalizePricingMode, resolveBookingCheckoutBase, getEffectiveBookingPrice } from "@/lib/listingPrice";
 import {
   Carousel,
   CarouselContent,
@@ -76,6 +80,14 @@ export interface BookingDetail {
   dispute_resolution?: string | null;
   dispute_created_at?: string | null;
   dispute_refund_percentage?: number | null;
+  deposit_enabled?: boolean;
+  deposit_type?: string | null;
+  deposit_value?: number | string | null;
+  deposit_amount_cents?: number | null;
+  price_max?: number | string | null;
+  pricing_mode?: string | null;
+  estimated_hours?: number | string | null;
+  approved_hours_total?: number | string | null;
 }
 
 interface Props {
@@ -251,6 +263,24 @@ export default function BookingDetailModal({
     } finally { setUpdating(false); }
   };
 
+  const callCancelWithDeposit = async () => {
+    if (!window.confirm(t("deposit.cancelConfirm"))) return;
+    setUpdating(true);
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/bookings/${booking.id}/cancel-deposit`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      if (!res.ok) return;
+      await res.json();
+      setBooking((prev) => ({ ...prev, status: "cancelled", payment_status: "refunded" }));
+      onUpdated(booking.id, { status: "cancelled", payment_status: "refunded" });
+      onClose();
+    } finally {
+      setUpdating(false);
+    }
+  };
+
   const callMarkCompleted = async () => {
     setUpdating(true);
     try {
@@ -258,7 +288,15 @@ export default function BookingDetailModal({
         method: "POST",
         headers: { Authorization: `Bearer ${accessToken}` },
       });
-      if (!res.ok) return;
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        if (err.code === "HOURLY_SESSIONS_PENDING") {
+          toast.error(t("bookings.hourlySessionsRequired"));
+        } else if (err.message) {
+          toast.error(err.message);
+        }
+        return;
+      }
       const data = await res.json();
       setBooking((prev) => ({ ...prev, ...data }));
       onUpdated(booking.id, data);
@@ -638,8 +676,14 @@ export default function BookingDetailModal({
 
             {/* Payment breakdown — top */}
             {(() => {
-                const base = Number(booking.custom_price ?? booking.price);
-                const origBase = Number(booking.price);
+                const base =
+                  booking.status === "completed"
+                    ? getEffectiveBookingPrice(booking)
+                    : resolveBookingCheckoutBase(booking);
+                const origBase = resolveBookingCheckoutBase({
+                  ...booking,
+                  custom_price: null,
+                });
                 const fmt = (n: number) => n.toFixed(2);
 
                 const taxRate         = booking.tax_rate ? Number(booking.tax_rate) : getTaxRate(booking.client_province ?? "QC");
@@ -936,6 +980,13 @@ export default function BookingDetailModal({
               </div>
             </div>
 
+            {booking.deposit_enabled && (
+              <div className="rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                <p className="font-medium">{t("deposit.listingNoticeTitle")}</p>
+                <p className="text-xs mt-1 text-amber-800">{t("deposit.nonRefundableNotice")}</p>
+              </div>
+            )}
+
             {/* Client description */}
             {booking.client_description ? (
               <div className="bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 space-y-1">
@@ -962,13 +1013,42 @@ export default function BookingDetailModal({
             )}
 
             {/* Worker note → client */}
-            {userRole === "client" && (booking.worker_note || booking.custom_price) && (
+            {userRole === "client" && (booking.worker_note || booking.custom_price || booking.estimated_hours) && (
               <div className="bg-green-50 border border-green-100 rounded-xl px-4 py-3 space-y-1">
                 <p className="text-xs font-semibold text-green-700 uppercase tracking-wide">{t("bookings.providerNote")}</p>
+                {normalizePricingMode(booking.pricing_mode) === "hourly" && booking.estimated_hours != null && (
+                  <p className="text-sm text-gray-700">
+                    {t("post.estimatedHoursLabel")}:{" "}
+                    <span className="font-semibold text-green-700">{Number(booking.estimated_hours)} h</span>
+                  </p>
+                )}
                 {booking.custom_price && Number(booking.custom_price) !== Number(booking.price) && (
                   <p className="text-sm text-gray-700">{t("bookings.adjustedPrice")} <span className="font-semibold text-green-700">{Number(booking.custom_price).toFixed(2)} $</span></p>
                 )}
                 {booking.worker_note && <p className="text-sm text-gray-600 whitespace-pre-line">{booking.worker_note}</p>}
+              </div>
+            )}
+
+            {["accepted", "active"].includes(booking.status) && (
+              <div className="rounded-xl border border-gray-200 bg-white p-4">
+                <h3 className="text-sm font-semibold text-gray-900 mb-3">{t("calendar.bookingSchedule")}</h3>
+                <BookingCalendarPanel
+                  bookingId={booking.id}
+                  bookingTitle={booking.title}
+                  serviceLocation={booking.service_location}
+                  canEdit={["accepted", "active"].includes(booking.status)}
+                />
+              </div>
+            )}
+
+            {["accepted", "active"].includes(booking.status) &&
+              normalizePricingMode(booking.pricing_mode) === "hourly" && (
+              <div className="rounded-xl border border-gray-200 bg-white p-4">
+                <WorkSessionsPanel
+                  bookingId={booking.id}
+                  isHourly
+                  canEdit={booking.status === "active"}
+                />
               </div>
             )}
 
@@ -1107,6 +1187,7 @@ export default function BookingDetailModal({
             setLayoutMode("payment");
             setStep("payment");
           }}
+          onCancelWithDeposit={callCancelWithDeposit}
         />
           </div>{/* end panel 2 */}
 
@@ -1191,9 +1272,19 @@ export default function BookingDetailModal({
             <PaymentInlinePanel
               bookingId={booking.id}
               bookingTitle={booking.title}
-              price={Number(booking.custom_price ?? booking.price)}
+              price={resolveBookingCheckoutBase(booking)}
               accessToken={accessToken}
               clientProvince={booking.client_province ?? null}
+              depositConfig={
+                booking.deposit_enabled
+                  ? {
+                      deposit_enabled: true,
+                      deposit_type: booking.deposit_type,
+                      deposit_value: booking.deposit_value,
+                    }
+                  : null
+              }
+              depositAmountCents={booking.deposit_amount_cents}
             />
           </div>{/* end panel 4 */}
 

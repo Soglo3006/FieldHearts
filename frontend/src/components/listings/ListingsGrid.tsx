@@ -62,7 +62,7 @@ export interface ListingsFilters {
   locationRadius?: number;
   minPrice?: number;
   maxPrice?: number;
-  /** `fixed` | `range` | `quote` — omit or empty for all */
+  /** `fixed` | `range` | `quote` | `hourly` — omit or empty for all */
   pricingMode?: string;
   serviceType?: string;
   username?: string;
@@ -78,7 +78,7 @@ function hasRestrictiveFilters(f?: ListingsFilters): boolean {
       f.location?.trim() ||
       (f.serviceType && f.serviceType !== "all") ||
       f.spokenLanguage ||
-      (f.pricingMode && ["fixed", "range", "quote"].includes(f.pricingMode)) ||
+      (f.pricingMode && ["fixed", "range", "quote", "hourly"].includes(f.pricingMode)) ||
       (f.minPrice != null && f.minPrice > 0) ||
       (f.maxPrice != null && f.maxPrice < 1000) ||
       f.username
@@ -264,7 +264,7 @@ export default function ListingsGrid({ filters }: { filters?: ListingsFilters })
         if (filters?.serviceType && filters.serviceType !== "all") params.set("type", filters.serviceType);
         if (filters?.username)                                      params.set("username", filters.username);
         if (filters?.spokenLanguage)                               params.set("spokenLanguage", filters.spokenLanguage);
-        if (filters?.pricingMode && ["fixed", "range", "quote"].includes(filters.pricingMode)) {
+        if (filters?.pricingMode && ["fixed", "range", "quote", "hourly"].includes(filters.pricingMode)) {
           params.set("pricingMode", filters.pricingMode);
         }
         params.set("page", String(currentPage));

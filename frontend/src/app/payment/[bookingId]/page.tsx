@@ -12,7 +12,10 @@ import Link from "next/link";
 import { useTranslation } from "react-i18next";
 import { getTaxLabel, formatTaxRate, getTaxRate } from "@/lib/taxes";
 import { getIntlLocale } from "@/lib/locale";
+import { resolveBookingCheckoutBase } from "@/lib/listingPrice";
 import BillingAddressSelector, { type BillingAddress } from "@/components/payment/BillingAddressSelector";
+
+import { PaymentDepositRows } from "@/components/payment/PaymentDepositRows";
 
 interface Booking {
   id: string;
@@ -20,9 +23,16 @@ interface Booking {
   payment_status: string;
   price: number;
   custom_price: number | null;
+  pricing_mode?: string | null;
+  price_max?: number | null;
+  estimated_hours?: number | string | null;
   tax_rate: number | null;
   worker_province: string | null;
   client_province: string | null;
+  deposit_enabled?: boolean;
+  deposit_type?: string | null;
+  deposit_value?: number | string | null;
+  deposit_amount_cents?: number | null;
   service_id: string;
   worker_id: string;
   created_at: string;
@@ -210,7 +220,7 @@ export default function PaymentPage() {
 
   // Use selected billing address province for live tax recalculation
   const billingProvince = selectedAddress?.province ?? booking.client_province ?? "QC";
-  const price = Number(booking.custom_price ?? booking.price);
+  const price = resolveBookingCheckoutBase(booking);
   const taxRate = getTaxRate(billingProvince);
   const taxLabel = getTaxLabel(billingProvince, i18n.language ?? "fr");
   const buyerCommission = price * 0.05;
@@ -284,6 +294,19 @@ export default function PaymentPage() {
                       <span>{t("payment.servicePrice")}</span>
                       <span className="font-medium text-gray-900">{fmt(price)} $</span>
                     </div>
+                    <PaymentDepositRows
+                      price={price}
+                      depositConfig={
+                        booking.deposit_enabled
+                          ? {
+                              deposit_enabled: true,
+                              deposit_type: booking.deposit_type,
+                              deposit_value: booking.deposit_value,
+                            }
+                          : null
+                      }
+                      depositAmountCents={booking.deposit_amount_cents}
+                    />
                     <div className="flex justify-between text-gray-500">
                       <div>
                         <div>{t("payment.buyerCommission")}</div>

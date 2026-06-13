@@ -10,6 +10,7 @@ import PayNowButton from "./PayNowButton";
 import { useTranslation } from "react-i18next";
 import { getTaxRate } from "@/lib/taxes";
 import { getDisputeWindowState } from "@/lib/disputes";
+import { resolveBookingCheckoutBase } from "@/lib/listingPrice";
 
 function StatusBadge({ status }: { status: BookingStatus }) {
   const c = STATUS_CONFIG[status] ?? STATUS_CONFIG.pending;
@@ -119,7 +120,7 @@ export default function SentBookingsList({
                       </p>
 
                       <p className="text-green-700 font-bold text-lg mb-1">
-                        {(Number(b.custom_price ?? b.price) * (1 + 0.05 + (b.tax_rate ? Number(b.tax_rate) : getTaxRate(b.client_province ?? "QC")))).toFixed(2)} $
+                        {(resolveBookingCheckoutBase(b) * (1 + 0.05 + (b.tax_rate ? Number(b.tax_rate) : getTaxRate(b.client_province ?? "QC")))).toFixed(2)} $
                       </p>
 
                       {b.service_location && (
@@ -160,7 +161,7 @@ export default function SentBookingsList({
                             bookingId={b.id}
                             accessToken={accessToken}
                             bookingTitle={b.title}
-                            price={Number(b.custom_price ?? b.price)}
+                            price={resolveBookingCheckoutBase(b)}
                             clientProvince={b.client_province ?? null}
                             taxRateStored={b.tax_rate ? Number(b.tax_rate) : null}
                           />

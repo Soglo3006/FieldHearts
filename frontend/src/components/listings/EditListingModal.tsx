@@ -25,8 +25,11 @@ import { normalizeAvailability, normalizeMobility } from "@/lib/serviceFieldCano
 import type { PricingMode } from "@/lib/listingPrice";
 import { normalizePricingMode } from "@/lib/listingPrice";
 import type { ListingPricingFields } from "@/lib/listingPrice";
+import { resolveDepositBaseAmount } from "@/lib/deposit";
 import { cn } from "@/lib/utils";
 import { parseListingTags } from "@/lib/listingTags";
+import DepositFields from "@/components/post/DepositFields";
+import type { DepositType } from "@/lib/deposit";
 
 function stringNumPrice(v: unknown): string {
   if (v === null || v === undefined || v === "") return "";
@@ -34,18 +37,34 @@ function stringNumPrice(v: unknown): string {
   return Number.isFinite(n) ? String(n) : "";
 }
 
-function seedPricingFromService(service: Service): { mode: PricingMode; price: string; min: string; max: string } {
+function seedPricingFromService(service: Service): {
+  mode: PricingMode;
+  price: string;
+  min: string;
+  max: string;
+  hours: string;
+} {
   const mode = normalizePricingMode(service.pricing_mode);
-  if (mode === "quote") return { mode: "quote", price: "", min: "", max: "" };
+  if (mode === "quote") return { mode: "quote", price: "", min: "", max: "", hours: "" };
+  if (mode === "hourly") {
+    return {
+      mode: "hourly",
+      price: stringNumPrice(service.price),
+      min: "",
+      max: "",
+      hours: stringNumPrice((service as Service & { estimated_hours?: unknown }).estimated_hours),
+    };
+  }
   if (mode === "range") {
     return {
       mode: "range",
       price: "",
       min: stringNumPrice(service.price_min ?? service.price),
       max: stringNumPrice(service.price_max),
+      hours: "",
     };
   }
-  return { mode: "fixed", price: stringNumPrice(service.price), min: "", max: "" };
+  return { mode: "fixed", price: stringNumPrice(service.price), min: "", max: "", hours: "" };
 }
 
 function seedListingTranslations(service: Service, uiLang: string): ListingTranslationsPayload {
@@ -94,6 +113,9 @@ export interface Service {
   image_urls?: string[] | null;
   is_one_time?: boolean;
   hide_exact_location?: boolean;
+  deposit_enabled?: boolean;
+  deposit_type?: string | null;
+  deposit_value?: number | string | null;
   translations?: ServiceLikeWithI18n["translations"];
 }
 
@@ -116,6 +138,7 @@ export default function EditListingModal({ service, accessToken, onClose, onSave
   const [price, setPrice] = useState(() => seedPricingFromService(service).price);
   const [priceMin, setPriceMin] = useState(() => seedPricingFromService(service).min);
   const [priceMax, setPriceMax] = useState(() => seedPricingFromService(service).max);
+  const [estimatedHours, setEstimatedHours] = useState(() => seedPricingFromService(service).hours);
   const [location, setLocation] = useState(service.location);
   const [locationDetails, setLocationDetails] = useState<LocationDetails | null>(() => {
     const lat = service.latitude != null ? Number(service.latitude) : NaN;
@@ -141,6 +164,13 @@ export default function EditListingModal({ service, accessToken, onClose, onSave
   );
   const [isOneTime, setIsOneTime] = useState(service.is_one_time ?? false);
   const [hideExactLocation, setHideExactLocation] = useState(service.hide_exact_location ?? false);
+  const [depositEnabled, setDepositEnabled] = useState(service.deposit_enabled ?? false);
+  const [depositType, setDepositType] = useState<DepositType>(
+    service.deposit_type === "percent" ? "percent" : "fixed",
+  );
+  const [depositValue, setDepositValue] = useState(
+    service.deposit_value != null ? String(service.deposit_value) : "",
+  );
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -152,6 +182,7 @@ export default function EditListingModal({ service, accessToken, onClose, onSave
     setPrice(seed.price);
     setPriceMin(seed.min);
     setPriceMax(seed.max);
+    setEstimatedHours(seed.hours);
     setTranslations(seedListingTranslations(service, i18n.language));
     setAvailability(normalizeAvailability(service.availability ?? "") || "");
     setMobility(normalizeMobility(service.mobility ?? "") || "");
@@ -162,14 +193,26 @@ export default function EditListingModal({ service, accessToken, onClose, onSave
   function editPricingFields(): ListingPricingFields {
     if (pricingMode === "quote") return { pricing_mode: "quote" };
     if (pricingMode === "fixed") return { pricing_mode: "fixed", price: parseFloat(price) };
+    if (pricingMode === "hourly") {
+      const rate = parseFloat(price);
+      const hours = parseFloat(estimatedHours);
+      return {
+        pricing_mode: "hourly",
+        price: rate,
+        estimated_hours: Number.isFinite(hours) && hours > 0 ? hours : null,
+      };
+    }
     const lo = parseFloat(priceMin);
     const hi = parseFloat(priceMax);
     return { pricing_mode: "range", price_min: lo, price_max: hi, price: lo };
   }
 
+  const depositBase = resolveDepositBaseAmount(editPricingFields(), null);
+
   const pricingOk =
     pricingMode === "quote" ||
     (pricingMode === "fixed" && price.trim() !== "" && Number(price) >= 0.01) ||
+    (pricingMode === "hourly" && price.trim() !== "" && Number(price) >= 0.01) ||
     (pricingMode === "range" &&
       priceMin.trim() !== "" &&
       priceMax.trim() !== "" &&
@@ -225,6 +268,9 @@ export default function EditListingModal({ service, accessToken, onClose, onSave
             image_urls: images,
             is_one_time: isOneTime,
             hide_exact_location: hideExactLocation,
+            deposit_enabled: depositEnabled,
+            deposit_type: depositEnabled ? depositType : null,
+            deposit_value: depositEnabled ? Number(depositValue) : null,
           }),
         }
       );
@@ -292,6 +338,7 @@ export default function EditListingModal({ service, accessToken, onClose, onSave
                 [
                   ["fixed", t("post.pricingModeFixed")],
                   ["range", t("post.pricingModeRange")],
+                  ["hourly", t("post.pricingModeHourly")],
                   ["quote", t("post.pricingModeQuote")],
                 ] as const
               ).map(([value, label]) => (
@@ -337,6 +384,49 @@ export default function EditListingModal({ service, accessToken, onClose, onSave
             )}
           </div>
           )}
+
+          {pricingMode === "hourly" && (
+            <>
+              <div className="space-y-2">
+                <Label className="text-base font-medium text-gray-900">
+                  {t("post.hourlyRateLabel")} <span className="text-red-500">*</span>
+                </Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-medium">$</span>
+                  <Input
+                    type="number"
+                    value={price}
+                    onChange={(e) => setPrice(e.target.value)}
+                    min="0.01"
+                    step="0.01"
+                    className="h-12 pl-8"
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-base font-medium text-gray-900">{t("post.estimatedHoursLabel")}</Label>
+                <Input
+                  type="number"
+                  value={estimatedHours}
+                  onChange={(e) => setEstimatedHours(e.target.value)}
+                  min="0.25"
+                  step="0.25"
+                  className="h-12"
+                />
+              </div>
+            </>
+          )}
+
+          <DepositFields
+            enabled={depositEnabled}
+            onEnabledChange={setDepositEnabled}
+            type={depositType}
+            onTypeChange={setDepositType}
+            value={depositValue}
+            onValueChange={setDepositValue}
+            pricingMode={pricingMode}
+            servicePrice={depositBase}
+          />
 
           {pricingMode === "range" && (
           <>

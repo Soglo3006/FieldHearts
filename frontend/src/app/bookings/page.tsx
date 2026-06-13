@@ -19,6 +19,7 @@ import { Spinner } from "@/components/ui/Spinner";
 import AppImage from "@/components/ui/AppImage";
 import { getBookingDisputeFinancialOutcome } from "@/lib/disputeFinancials";
 import { getIntlLocale } from "@/lib/locale";
+import { toast } from "sonner";
 
 function LoadingSkeleton() {
   return (
@@ -218,7 +219,15 @@ function BookingsContent() {
         method: "POST",
         headers: { Authorization: `Bearer ${session?.access_token}` },
       });
-      if (!res.ok) return;
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        if (err.code === "HOURLY_SESSIONS_PENDING") {
+          toast.error(t("bookings.hourlySessionsRequired"));
+        } else if (err.message) {
+          toast.error(err.message);
+        }
+        return;
+      }
       const updated = await res.json();
       if (side === "received") {
         setReceived((prev) => prev.map((b) => b.id === bookingId ? { ...b, ...updated } : b));

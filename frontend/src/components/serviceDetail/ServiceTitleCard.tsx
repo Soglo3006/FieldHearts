@@ -7,6 +7,7 @@ import { useTranslation } from "react-i18next";
 import { getPublicServiceLocation } from "@/lib/serviceLocation";
 import { resolveListingDescription, resolveListingTitle, type ServiceLikeWithI18n } from "@/lib/serviceListingI18n";
 import { formatListingPriceLine, normalizePricingMode } from "@/lib/listingPrice";
+import { formatDepositLabel, resolveDepositBaseAmount } from "@/lib/deposit";
 import { cn } from "@/lib/utils";
 import { formatListingCategoryLine } from "@/lib/listingTags";
 import {
@@ -40,6 +41,9 @@ interface Service {
   mobility: string | null;
   urgency: string | null;
   is_one_time?: boolean;
+  deposit_enabled?: boolean;
+  deposit_type?: string | null;
+  deposit_value?: number | string | null;
   owner_name: string;
   owner_id: string;
   owner_avatar: string | null;
@@ -61,6 +65,11 @@ export default function ServiceTitleCard({
   const displayTitle = resolveListingTitle(service, i18n.language);
   const displayDescription = resolveListingDescription(service, i18n.language);
   const isQuotePricing = normalizePricingMode(service.pricing_mode) === "quote";
+  const depositBase = resolveDepositBaseAmount(service, null);
+  const depositLabel =
+    service.deposit_enabled && depositBase != null
+      ? formatDepositLabel(t, service, depositBase)
+      : "";
   const categoryLine = formatListingCategoryLine(service.category_name, service, t, " · ");
   const hasCategory = Boolean(service.category_name || service.subcategory || categoryLine);
 
@@ -124,6 +133,12 @@ export default function ServiceTitleCard({
           >
             {formatListingPriceLine(t, service, "detail")}
           </p>
+          {depositLabel && (
+            <p className="mt-2 text-sm font-medium text-amber-800 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
+              {depositLabel}
+              <span className="block text-xs font-normal text-amber-700 mt-0.5">{t("deposit.nonRefundableNotice")}</span>
+            </p>
+          )}
         </div>
 
         {/* Provider mini-card */}

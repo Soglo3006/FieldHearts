@@ -27,6 +27,7 @@ import {
   estimateBaseAmountForTotals,
   estimateMaxBaseAmountForTotals,
   formatListingPriceLine,
+  normalizePricingMode,
 } from "@/lib/listingPrice";
 
 interface Service {
@@ -43,6 +44,7 @@ interface Service {
   price: number | string | null;
   price_min?: number | string | null;
   price_max?: number | string | null;
+  estimated_hours?: number | string | null;
   location: string;
   address?: string | null;
   latitude?: number | null;
@@ -68,6 +70,9 @@ interface Service {
   favorites_count?: number;
   is_one_time?: boolean;
   hide_exact_location?: boolean;
+  deposit_enabled?: boolean;
+  deposit_type?: string | null;
+  deposit_value?: number | string | null;
 }
 
 interface SimilarService {
@@ -150,6 +155,7 @@ export default function ServiceDetailClient() {
   });
 
   const [showEditModal, setShowEditModal] = useState(false);
+  const [bookingEstimatedHours, setBookingEstimatedHours] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
@@ -161,6 +167,11 @@ export default function ServiceDetailClient() {
         if (!res.ok) { setError(true); return; }
         const data: Service = await res.json();
         setService(data);
+        setBookingEstimatedHours(
+          data.estimated_hours != null && data.estimated_hours !== ""
+            ? String(data.estimated_hours)
+            : "",
+        );
         setFavoritesCount(typeof data.favorites_count === "number" ? data.favorites_count : 0);
 
         const rawFaq = data.faq;
@@ -289,10 +300,19 @@ export default function ServiceDetailClient() {
   const submitBooking = async () => {
     setBookingState("loading");
     try {
+      const body: Record<string, unknown> = {
+        service_id: service.id,
+        client_description: bookingNote || null,
+      };
+      if (normalizePricingMode(service.pricing_mode) === "hourly" && bookingEstimatedHours.trim()) {
+        const hours = Number(bookingEstimatedHours);
+        if (Number.isFinite(hours) && hours > 0) body.estimated_hours = hours;
+      }
+
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/bookings`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token}` },
-        body: JSON.stringify({ service_id: service.id, client_description: bookingNote || null }),
+        body: JSON.stringify(body),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
@@ -394,6 +414,9 @@ export default function ServiceDetailClient() {
           providerFirstName={providerShortName}
           workerProvince={service.owner_province}
           onNoteChange={setBookingNote}
+          pricingMode={service.pricing_mode}
+          estimatedHours={bookingEstimatedHours}
+          onEstimatedHoursChange={setBookingEstimatedHours}
           onSubmit={submitBooking}
           onClose={() => setShowBookingModal(false)}
           onMessageProvider={() => {

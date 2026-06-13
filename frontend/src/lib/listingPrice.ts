@@ -1,4 +1,4 @@
-export type PricingMode = "fixed" | "range" | "quote";
+export type PricingMode = "fixed" | "range" | "quote" | "hourly";
 
 /** Fields returned by `/services` and sent on POST/PUT. */
 export interface ListingPricingFields {
@@ -6,6 +6,7 @@ export interface ListingPricingFields {
   price?: number | string | null;
   price_min?: number | string | null;
   price_max?: number | string | null;
+  estimated_hours?: number | string | null;
 }
 
 export function parseListingPriceNum(v: unknown): number | null {
@@ -19,7 +20,7 @@ export function normalizePricingMode(raw: unknown): PricingMode {
     raw === null || raw === undefined
       ? "fixed"
       : String(raw).toLowerCase().trim();
-  if (s === "range" || s === "quote") return s;
+  if (s === "range" || s === "quote" || s === "hourly") return s;
   return "fixed";
 }
 
@@ -34,6 +35,12 @@ export function hasDistinctPriceRange(s: ListingPricingFields): boolean {
 export function estimateBaseAmountForTotals(s: ListingPricingFields): number | null {
   const mode = normalizePricingMode(s.pricing_mode);
   if (mode === "quote") return null;
+  if (mode === "hourly") {
+    const rate = parseListingPriceNum(s.price);
+    const hours = parseListingPriceNum(s.estimated_hours) ?? 1;
+    if (rate == null) return null;
+    return rate * hours;
+  }
   if (mode === "range" || hasDistinctPriceRange(s)) {
     return parseListingPriceNum(s.price_min ?? s.price);
   }
@@ -44,6 +51,7 @@ export function estimateBaseAmountForTotals(s: ListingPricingFields): number | n
 export function estimateMaxBaseAmountForTotals(s: ListingPricingFields): number | null {
   const mode = normalizePricingMode(s.pricing_mode);
   if (mode === "quote") return null;
+  if (mode === "hourly") return estimateBaseAmountForTotals(s);
   if (mode !== "range" && !hasDistinctPriceRange(s)) return null;
   const hi = parseListingPriceNum(s.price_max);
   const lo = parseListingPriceNum(s.price_min ?? s.price);
@@ -61,11 +69,21 @@ export type ListingPriceLineVariant = "compact" | "detail";
 export function formatListingPriceLine(
   t: (key: string, opts?: Record<string, unknown>) => string,
   s: ListingPricingFields,
-  variant: ListingPriceLineVariant = "compact"
+  variant: ListingPriceLineVariant = "compact",
 ): string {
   const mode = normalizePricingMode(s.pricing_mode);
   if (mode === "quote") {
     return variant === "detail" ? t("post.pricingModeQuote") : t("listingPrice.quote");
+  }
+
+  if (mode === "hourly") {
+    const rate = parseListingPriceNum(s.price);
+    if (rate == null) return t("listingPrice.quote");
+    const hours = parseListingPriceNum(s.estimated_hours);
+    if (hours != null && hours > 0) {
+      return t("listingPrice.hourlyWithHours", { rate: rate.toFixed(2), hours });
+    }
+    return t("listingPrice.hourlyRate", { rate: rate.toFixed(2) });
   }
 
   const lo = parseListingPriceNum(s.price_min ?? s.price);
@@ -90,6 +108,11 @@ export function listingMetaPriceSegment(service: ListingPricingFields, lang: "en
   if (mode === "quote") {
     return lang === "en" ? "Price to discuss" : "Prix à discuter";
   }
+  if (mode === "hourly") {
+    const rate = parseListingPriceNum(service.price);
+    if (rate == null) return lang === "en" ? "Hourly rate" : "Tarif horaire";
+    return lang === "en" ? `${rate.toFixed(2)} $/h` : `${rate.toFixed(2)} $/h`;
+  }
   const lo = parseListingPriceNum(service.price_min ?? service.price);
   const hi = parseListingPriceNum(service.price_max);
   if (mode === "range" && lo != null && hi != null) {
@@ -98,4 +121,46 @@ export function listingMetaPriceSegment(service: ListingPricingFields, lang: "en
   const p = parseListingPriceNum(service.price);
   if (p != null) return `${p.toFixed(2)} $`;
   return lang === "en" ? "Price to discuss" : "Prix à discuter";
+}
+
+import { resolveDepositBaseAmount } from "./deposit";
+
+export function resolveBookingCheckoutBase(booking: {
+  pricing_mode?: string | null;
+  price?: number | string | null;
+  price_max?: number | string | null;
+  custom_price?: number | string | null;
+  estimated_hours?: number | string | null;
+}): number {
+  const base = resolveDepositBaseAmount(
+    {
+      pricing_mode: booking.pricing_mode,
+      price: booking.price,
+      price_max: booking.price_max,
+      estimated_hours: booking.estimated_hours,
+    },
+    booking,
+  );
+  if (base != null && Number.isFinite(base) && base >= 0.01) return base;
+  return getEffectiveBookingPrice(booking);
+}
+
+export function getEffectiveBookingPrice(booking: {
+  pricing_mode?: string | null;
+  price?: number | string | null;
+  custom_price?: number | string | null;
+  estimated_hours?: number | string | null;
+  approved_hours_total?: number | string | null;
+}): number {
+  const mode = normalizePricingMode(booking.pricing_mode);
+  if (mode === "hourly") {
+    const rate = Number(booking.price);
+    const approved = Number(booking.approved_hours_total);
+    const hours =
+      Number.isFinite(approved) && approved > 0
+        ? approved
+        : Number(booking.estimated_hours ?? 1);
+    return Math.round(rate * hours * 100) / 100;
+  }
+  return Number(booking.custom_price ?? booking.price);
 }

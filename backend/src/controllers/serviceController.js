@@ -22,6 +22,11 @@ import {
   ensureListingTagsSchema,
   OTHER_CATEGORY_NAME,
 } from "../utils/listingTags.js";
+import {
+  ensureDepositsAndCalendarSchema,
+  parseDepositFields,
+  resolveDepositBaseAmount,
+} from "../utils/depositSchema.js";
 
 function normalizeTagKey(value) {
   return String(value ?? "")
@@ -51,6 +56,7 @@ function listingTagMatchClause(paramCount) {
 export const createService = async (req, res) => {
   try {
     await ensureListingTagsSchema(pool);
+    await ensureDepositsAndCalendarSchema(pool);
     const translationsSanitized = sanitizeListingTranslations(req.body.translations);
     const canon = canonicalListingTexts(translationsSanitized);
 
@@ -109,6 +115,19 @@ export const createService = async (req, res) => {
 
     const tagFields = normalizeListingTags(req.body);
 
+    const depositBase = resolveDepositBaseAmount(
+      { ...pricingResolved, pricing_mode: pricingResolved.pricing_mode },
+      null,
+    );
+    const depositParsed = parseDepositFields(
+      req.body,
+      depositBase,
+      pricingResolved.pricing_mode,
+    );
+    if (depositParsed.error) {
+      return res.status(400).json({ message: depositParsed.error });
+    }
+
     // Créer le service
     const result = await pool.query(
       `INSERT INTO services (
@@ -117,9 +136,10 @@ export const createService = async (req, res) => {
         price, location, address, latitude, longitude, city,
         poster_type, availability,
         language, mobility, duration, urgency, image_url, image_urls, is_one_time, hide_exact_location,
-        pricing_mode, price_min, price_max,
+        pricing_mode, price_min, price_max, estimated_hours,
+        deposit_enabled, deposit_type, deposit_value,
         translations
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29::jsonb)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33::jsonb)
       RETURNING *`,
       [
         req.user.id,
@@ -150,6 +170,10 @@ export const createService = async (req, res) => {
         pricingResolved.pricing_mode,
         pricingResolved.price_min,
         pricingResolved.price_max,
+        pricingResolved.estimated_hours ?? null,
+        depositParsed.deposit_enabled,
+        depositParsed.deposit_type,
+        depositParsed.deposit_value,
         translationsSanitized,
       ]
     );
@@ -306,7 +330,7 @@ export const getAllServices = async (req, res) => {
     const pricingModeRaw = String(pricingMode || pricing_mode || "")
       .trim()
       .toLowerCase();
-    if (["fixed", "range", "quote"].includes(pricingModeRaw)) {
+    if (["fixed", "range", "quote", "hourly"].includes(pricingModeRaw)) {
       query += ` AND COALESCE(NULLIF(trim(s.pricing_mode), ''), 'fixed') = $${paramCount}`;
       params.push(pricingModeRaw);
       paramCount++;
@@ -573,6 +597,7 @@ export const getServiceById = async (req, res) => {
 export const updateService = async (req, res) => {
   try {
     await ensureListingTagsSchema(pool);
+    await ensureDepositsAndCalendarSchema(pool);
     const { id } = req.params;
     const {
       title, description, category, category_id, subcategory,
@@ -638,12 +663,15 @@ export const updateService = async (req, res) => {
       req.body.price_min !== undefined ||
       req.body.priceMin !== undefined ||
       req.body.price_max !== undefined ||
-      req.body.priceMax !== undefined;
+      req.body.priceMax !== undefined ||
+      req.body.estimated_hours !== undefined ||
+      req.body.estimatedHours !== undefined;
 
     let mergedPm = existing.pricing_mode ?? "fixed";
     let mergedPrice = existing.price;
     let mergedPriceMin = existing.price_min;
     let mergedPriceMax = existing.price_max;
+    let mergedEstimatedHours = existing.estimated_hours ?? null;
 
     if (touchesPricing) {
       const merged = {
@@ -655,6 +683,9 @@ export const updateService = async (req, res) => {
         price_max:
           req.body.price_max !== undefined ? req.body.price_max
             : req.body.priceMax !== undefined ? req.body.priceMax : existing.price_max,
+        estimated_hours:
+          req.body.estimated_hours !== undefined ? req.body.estimated_hours
+            : req.body.estimatedHours !== undefined ? req.body.estimatedHours : existing.estimated_hours,
       };
       const r = resolveServicePricingFields(merged, { isCreate: false, existing });
       if (r.error) return res.status(400).json({ message: r.error });
@@ -662,6 +693,7 @@ export const updateService = async (req, res) => {
       mergedPrice = r.price;
       mergedPriceMin = r.price_min;
       mergedPriceMax = r.price_max;
+      if (r.estimated_hours !== undefined) mergedEstimatedHours = r.estimated_hours;
     }
 
     const touchesTags =
@@ -669,6 +701,44 @@ export const updateService = async (req, res) => {
       req.body.tags !== undefined ||
       req.body.subcategory !== undefined;
     const tagFields = touchesTags ? normalizeListingTags(req.body) : null;
+
+    const touchesDeposit =
+      req.body.deposit_enabled !== undefined ||
+      req.body.depositEnabled !== undefined ||
+      req.body.deposit_type !== undefined ||
+      req.body.depositType !== undefined ||
+      req.body.deposit_value !== undefined ||
+      req.body.depositValue !== undefined ||
+      touchesPricing;
+
+    let depositEnabled = existing.deposit_enabled ?? false;
+    let depositType = existing.deposit_type ?? null;
+    let depositValue = existing.deposit_value ?? null;
+
+    if (touchesDeposit) {
+      const depositBase = resolveDepositBaseAmount(
+        {
+          pricing_mode: mergedPm,
+          price: mergedPrice,
+          price_max: mergedPriceMax,
+          estimated_hours: mergedEstimatedHours,
+        },
+        null,
+      );
+      const depositParsed = parseDepositFields(
+        {
+          deposit_enabled: req.body.deposit_enabled ?? req.body.depositEnabled ?? existing.deposit_enabled,
+          deposit_type: req.body.deposit_type ?? req.body.depositType ?? existing.deposit_type,
+          deposit_value: req.body.deposit_value ?? req.body.depositValue ?? existing.deposit_value,
+        },
+        depositBase,
+        mergedPm,
+      );
+      if (depositParsed.error) return res.status(400).json({ message: depositParsed.error });
+      depositEnabled = depositParsed.deposit_enabled;
+      depositType = depositParsed.deposit_type;
+      depositValue = depositParsed.deposit_value;
+    }
 
     const updated = await pool.query(
       `UPDATE services
@@ -698,8 +768,12 @@ export const updateService = async (req, res) => {
            translations       = $24::jsonb,
            pricing_mode       = $25,
            price_min          = $26,
-           price_max          = $27
-       WHERE id = $28
+           price_max          = $27,
+           estimated_hours    = $28,
+           deposit_enabled    = $29,
+           deposit_type       = $30,
+           deposit_value      = $31
+       WHERE id = $32
        RETURNING *`,
       [
         mergedTitleFinal,
@@ -729,6 +803,10 @@ export const updateService = async (req, res) => {
         mergedPm,
         mergedPriceMin,
         mergedPriceMax,
+        mergedEstimatedHours,
+        depositEnabled,
+        depositType,
+        depositValue,
         id,
       ]
     );
@@ -786,6 +864,7 @@ export const getUserServices = async (req, res) => {
 export const getCategoryCounts = async (req, res) => {
   try {
     await ensureListingTagsSchema(pool);
+    await ensureDepositsAndCalendarSchema(pool);
     const result = await pool.query(`
       SELECT category_name, SUM(count)::int AS count
       FROM (

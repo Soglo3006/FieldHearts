@@ -1,7 +1,7 @@
 /**
  * Modes tarifaires pour les annonces (services.price + price_min/max + pricing_mode).
  */
-export const PRICING_MODES = ["fixed", "range", "quote"];
+export const PRICING_MODES = ["fixed", "range", "quote", "hourly"];
 
 /**
  * @param {unknown} raw
@@ -9,7 +9,7 @@ export const PRICING_MODES = ["fixed", "range", "quote"];
  */
 export function normalizePricingMode(raw) {
   const s = raw === null || raw === undefined ? "fixed" : String(raw).toLowerCase().trim();
-  if (s === "range" || s === "quote") return s;
+  if (s === "range" || s === "quote" || s === "hourly") return s;
   return "fixed";
 }
 
@@ -66,13 +66,31 @@ export function resolveServicePricingFields(body, opts) {
     };
   }
 
-  /** quote — prix affichés après accord (custom_price sur réservation) */
+  /** quote — prix après accord (custom_price sur réservation) */
   if (mode === "quote") {
     return {
       pricing_mode: "quote",
       price: null,
       price_min: null,
       price_max: null,
+    };
+  }
+
+  if (mode === "hourly") {
+    const rate = priceIn;
+    if (rate === undefined || Number.isNaN(rate) || rate < 0.01) {
+      return { error: "Hourly rate must be at least $0.01" };
+    }
+    if (rate > 1_000_000) return { error: "Hourly rate too high" };
+    const estHours = num(body.estimated_hours ?? body.estimatedHours);
+    const estimated_hours =
+      estHours !== undefined && !Number.isNaN(estHours) && estHours > 0 ? estHours : null;
+    return {
+      pricing_mode: "hourly",
+      price: rate,
+      price_min: rate,
+      price_max: rate,
+      estimated_hours,
     };
   }
 

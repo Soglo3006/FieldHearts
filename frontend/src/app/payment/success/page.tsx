@@ -12,11 +12,15 @@ import Link from "next/link";
 import { useTranslation } from "react-i18next";
 import { getTaxRate, getTaxLabel, formatTaxRate } from "@/lib/taxes";
 import { getIntlLocale } from "@/lib/locale";
+import { resolveBookingCheckoutBase } from "@/lib/listingPrice";
 
 interface Booking {
   id: string;
   price: number;
   custom_price: number | null;
+  pricing_mode?: string | null;
+  price_max?: number | null;
+  estimated_hours?: number | string | null;
   tax_rate: number | null;
   worker_province: string | null;
   client_province: string | null;
@@ -109,7 +113,7 @@ export default function PaymentSuccessPage() {
               </div>
               <div className="mt-4 pt-4 border-t border-gray-200 space-y-1.5 text-sm">
                 {(() => {
-                  const price = Number(booking.custom_price ?? booking.price);
+                  const price = resolveBookingCheckoutBase(booking);
                   const taxRate = booking.tax_rate ? Number(booking.tax_rate) : getTaxRate(booking.client_province ?? "QC");
                   const taxLabel = getTaxLabel(booking.client_province ?? "QC", i18n.language ?? "fr");
                   const buyerCommission = price * 0.05;

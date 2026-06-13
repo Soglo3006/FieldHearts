@@ -14,6 +14,7 @@ import { useTranslation } from "react-i18next";
 import PayNowButton from "./PayNowButton";
 import { type BookingDetail } from "./BookingDetailModal";
 import { getDisputeWindowState } from "@/lib/disputes";
+import { resolveBookingCheckoutBase } from "@/lib/listingPrice";
 
 type BookingStatus = "pending" | "accepted" | "active" | "completed" | "cancelled" | "rejected";
 
@@ -35,12 +36,13 @@ interface Props {
   onMessage: (userId: string) => void;
   onClose: () => void;
   onPayNow?: () => void;
+  onCancelWithDeposit?: () => void;
 }
 
 export default function BookingDetailFooter({
   booking, userRole, updating, hasMarkedDone, otherHasMarkedDone,
   needsPayment, accessToken, otherUserName, otherUserId,
-  onCallStatus, onMarkCompleted, onUndoMarkCompleted, onOpenDispute, onOpenReview, onMessage, onClose, onPayNow,
+  onCallStatus, onMarkCompleted, onUndoMarkCompleted, onOpenDispute, onOpenReview, onMessage, onClose, onPayNow, onCancelWithDeposit,
 }: Props) {
   const { t } = useTranslation();
   const [confirmDisputeOpen, setConfirmDisputeOpen] = useState(false);
@@ -98,7 +100,7 @@ export default function BookingDetailFooter({
           accessToken={accessToken}
           fullWidth
           bookingTitle={booking.title}
-          price={Number(booking.custom_price ?? booking.price)}
+          price={resolveBookingCheckoutBase(booking)}
           clientProvince={booking.client_province ?? null}
           taxRateStored={booking.tax_rate ? Number(booking.tax_rate) : null}
           onPayNow={onPayNow}
@@ -137,6 +139,34 @@ export default function BookingDetailFooter({
           <p className="text-xs font-semibold text-red-800">{t("bookings.disputeOpen")}</p>
           <p className="text-xs text-red-700">{t("bookings.disputePaused")}</p>
         </div>
+      )}
+
+      {booking.status === "active" && !booking.has_dispute && userRole === "client" &&
+        booking.payment_status === "paid" &&
+        booking.deposit_enabled &&
+        onCancelWithDeposit && (
+        <Button
+          variant="outline"
+          className="w-full text-amber-800 border-amber-200 hover:bg-amber-50 h-10"
+          onClick={onCancelWithDeposit}
+          disabled={updating}
+        >
+          {t("deposit.cancelWithDeposit")}
+        </Button>
+      )}
+
+      {booking.status === "active" && !booking.has_dispute && userRole === "client" &&
+        booking.payment_status === "paid" &&
+        booking.deposit_enabled &&
+        onCancelWithDeposit && (
+        <Button
+          variant="outline"
+          className="w-full text-amber-800 border-amber-200 hover:bg-amber-50 h-10"
+          onClick={onCancelWithDeposit}
+          disabled={updating}
+        >
+          {t("deposit.cancelWithDeposit")}
+        </Button>
       )}
 
       {booking.status === "active" && !booking.has_dispute && (

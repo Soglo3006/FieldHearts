@@ -147,6 +147,12 @@ function UserDropdown({ avatarUrl, displayName, fallbackInitial, unseenCount, pr
               </Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
+              <Link href="/calendar" className="cursor-pointer flex items-center">
+                <CalendarDays className="mr-2 h-4 w-4" />
+                <span>{t("header.calendar")}</span>
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
               <Link href={`/profile/${user?.id}`} className="cursor-pointer flex items-center">
                 {isPerson ? <User className="mr-2 h-4 w-4" /> : <Building2 className="mr-2 h-4 w-4" />}
                 <span>{t("header.profile")}</span>

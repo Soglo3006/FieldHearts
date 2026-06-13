@@ -21,6 +21,8 @@ import notificationRoutes from './routes/notificationRoutes.js';
 import metricsRoutes from './routes/metricsRoutes.js';
 import favoriteRoutes from './routes/favoriteRoutes.js';
 import billingAddressRoutes from './routes/billingAddressRoutes.js';
+import calendarRoutes from './routes/calendarRoutes.js';
+import workSessionRoutes from './routes/workSessionRoutes.js';
 import pool from './config/db.js';
 import { startMessageReminderJob } from './jobs/messageReminderJob.js';
 import { startHealthMonitorJob } from './jobs/healthMonitorJob.js';
@@ -118,6 +120,8 @@ app.use('/api/admin/metrics', generalLimiter, metricsRoutes);
 app.use('/api/admin', generalLimiter, adminRoutes);
 app.use('/api/favorites', generalLimiter, favoriteRoutes);
 app.use('/api/billing-addresses', generalLimiter, billingAddressRoutes);
+app.use('/api/calendar', generalLimiter, calendarRoutes);
+app.use('/api/work-sessions', generalLimiter, workSessionRoutes);
 app.use('/api/health', healthRoutes);
 
 // Sentry error handler — must be after all routes

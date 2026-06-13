@@ -1,5 +1,7 @@
 "use client";
 import { useState } from "react";
+import { Info } from "lucide-react";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { useTranslation } from "react-i18next";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -25,12 +27,15 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import type { PricingMode } from "@/lib/listingPrice";
 import { formatListingPriceLine, type ListingPricingFields } from "@/lib/listingPrice";
+import { resolveDepositBaseAmount } from "@/lib/deposit";
 import { cn } from "@/lib/utils";
 import {
   labelAvailability,
   labelSpokenLanguage,
   labelMobility,
 } from "@/lib/postFormConfirmLabels";
+import DepositFields from "@/components/post/DepositFields";
+import type { DepositType } from "@/lib/deposit";
 
 interface Props {
   onSuccess: (id: string) => void;
@@ -51,6 +56,7 @@ export default function OfferServiceForm({ onSuccess }: Props) {
   const [price, setPrice] = useState("");
   const [priceMin, setPriceMin] = useState("");
   const [priceMax, setPriceMax] = useState("");
+  const [estimatedHours, setEstimatedHours] = useState("");
   const [location, setLocation] = useState("");
   const [locationDetails, setLocationDetails] = useState<LocationDetails | null>(null);
   const [availability, setAvailability] = useState("");
@@ -59,6 +65,9 @@ export default function OfferServiceForm({ onSuccess }: Props) {
   const [images, setImages] = useState<string[]>([]);
   const [isOneTime, setIsOneTime] = useState(false);
   const [hideExactLocation, setHideExactLocation] = useState(false);
+  const [depositEnabled, setDepositEnabled] = useState(false);
+  const [depositType, setDepositType] = useState<DepositType>("fixed");
+  const [depositValue, setDepositValue] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
 
@@ -70,6 +79,15 @@ export default function OfferServiceForm({ onSuccess }: Props) {
     if (pricingMode === "fixed") {
       const p = Number(price);
       return { pricing_mode: "fixed", price: Number.isFinite(p) ? p : null };
+    }
+    if (pricingMode === "hourly") {
+      const rate = Number(price);
+      const hours = Number(estimatedHours);
+      return {
+        pricing_mode: "hourly",
+        price: Number.isFinite(rate) ? rate : null,
+        estimated_hours: Number.isFinite(hours) && hours > 0 ? hours : null,
+      };
     }
     const lo = Number(priceMin);
     const hi = Number(priceMax);
@@ -84,11 +102,14 @@ export default function OfferServiceForm({ onSuccess }: Props) {
   const pricingOk =
     pricingMode === "quote" ||
     (pricingMode === "fixed" && price.trim() !== "" && Number(price) >= 0.01) ||
+    (pricingMode === "hourly" && price.trim() !== "" && Number(price) >= 0.01) ||
     (pricingMode === "range" &&
       priceMin.trim() !== "" &&
       priceMax.trim() !== "" &&
       Number(priceMin) >= 0.01 &&
       Number(priceMax) >= Number(priceMin));
+
+  const depositBase = resolveDepositBaseAmount(offerPricingFields(), null);
 
   /** Short quote-pricing label; aligned with listing cards (`listingPrice.quote`). */
   const confirmPriceSummary =
@@ -102,12 +123,19 @@ export default function OfferServiceForm({ onSuccess }: Props) {
     ? formatListingTagsDisplay(category, tags, null, t, " · ")
     : "";
 
+  const depositOk =
+    !depositEnabled ||
+    (depositValue.trim() !== "" &&
+      Number(depositValue) > 0 &&
+      (depositType === "percent" ? Number(depositValue) < 100 : true));
+
   const isValid =
     hasRequiredBilingualFields(translations) &&
     category.trim() !== "" &&
     tags.length >= 1 &&
     pricingOk &&
-    locationOk;
+    locationOk &&
+    depositOk;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -158,6 +186,9 @@ export default function OfferServiceForm({ onSuccess }: Props) {
           image_urls: images,
           is_one_time: isOneTime,
           hide_exact_location: hideExactLocation,
+          deposit_enabled: depositEnabled,
+          deposit_type: depositEnabled ? depositType : null,
+          deposit_value: depositEnabled ? Number(depositValue) : null,
         }),
       });
       if (!res.ok) {
@@ -188,6 +219,7 @@ export default function OfferServiceForm({ onSuccess }: Props) {
             [
               ["fixed", t("post.pricingModeFixed")],
               ["range", t("post.pricingModeRange")],
+              ["hourly", t("post.pricingModeHourly")],
               ["quote", t("post.pricingModeQuote")],
             ] as const
           ).map(([value, label]) => (
@@ -280,35 +312,95 @@ export default function OfferServiceForm({ onSuccess }: Props) {
       </>
       )}
 
+      {pricingMode === "hourly" && (
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+          <div className="flex-1 space-y-2">
+            <Label className="text-base font-medium text-gray-900">
+              {t("post.hourlyRateLabel")} <span className="text-red-500">*</span>
+            </Label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-medium">$</span>
+              <Input
+                type="number"
+                value={price}
+                onChange={(e) => setPrice(e.target.value)}
+                min="0.01"
+                step="0.01"
+                placeholder="25.00"
+                className="h-10 pl-8"
+              />
+            </div>
+          </div>
+          <div className="flex-1 space-y-2">
+            <Label className="text-base font-medium text-gray-900">{t("post.estimatedHoursLabel")}</Label>
+            <Input
+              type="number"
+              value={estimatedHours}
+              onChange={(e) => setEstimatedHours(e.target.value)}
+              min="0.25"
+              step="0.25"
+              placeholder="2"
+              className="h-10"
+            />
+            <p className="text-xs text-gray-500">{t("post.estimatedHoursHint")}</p>
+          </div>
+        </div>
+      )}
+
+      <DepositFields
+        enabled={depositEnabled}
+        onEnabledChange={setDepositEnabled}
+        type={depositType}
+        onTypeChange={setDepositType}
+        value={depositValue}
+        onValueChange={setDepositValue}
+        pricingMode={pricingMode}
+        servicePrice={depositBase}
+      />
+
       <div className="space-y-2">
         <Label htmlFor="serviceLocation" className="text-base font-medium text-gray-900">
           {t("post.location")} <span className="text-red-500">*</span>
         </Label>
-        <LocationAutocomplete
-          id="serviceLocation"
-          value={location}
-          onChange={(val, details) => { setLocation(val); setLocationDetails(details ?? null); }}
-          placeholder={t("post.locationPlaceholder")}
-          required
-        />
-        <p className="text-xs text-gray-500">{t("post.locationPickerHint")}</p>
-        {location.trim() !== "" && !isResolvedLocationDetails(locationDetails) && (
-          <p className="text-sm font-medium text-red-600">{t("post.locationMustSelectSuggestion")}</p>
-        )}
-      </div>
-
-      <div className="flex items-start gap-3 px-4 py-3 bg-white border border-gray-200 rounded-lg">
-        <input
-          type="checkbox"
-          id="offerHideLocation"
-          checked={hideExactLocation}
-          onChange={(e) => setHideExactLocation(e.target.checked)}
-          className="mt-0.5 h-4 w-4 rounded border-gray-300 text-green-600 cursor-pointer"
-        />
-        <label htmlFor="offerHideLocation" className="cursor-pointer">
-          <span className="text-sm font-medium text-gray-800">{t("post.hideExactLocation")}</span>
-          <p className="text-xs text-gray-500 mt-0.5">{t("post.hideExactLocationDesc")}</p>
-        </label>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
+          <div className="flex-1 space-y-1">
+            <LocationAutocomplete
+              id="serviceLocation"
+              value={location}
+              onChange={(val, details) => { setLocation(val); setLocationDetails(details ?? null); }}
+              placeholder={t("post.locationPlaceholder")}
+              required
+            />
+            <p className="text-xs text-gray-500">{t("post.locationPickerHint")}</p>
+            {location.trim() !== "" && !isResolvedLocationDetails(locationDetails) && (
+              <p className="text-sm font-medium text-red-600">{t("post.locationMustSelectSuggestion")}</p>
+            )}
+          </div>
+          <div className="flex items-center gap-3 px-4 h-10 bg-white border border-gray-200 rounded-lg sm:w-56 sm:shrink-0">
+            <input
+              type="checkbox"
+              id="offerHideLocation"
+              checked={hideExactLocation}
+              onChange={(e) => setHideExactLocation(e.target.checked)}
+              className="h-4 w-4 shrink-0 rounded border-gray-300 text-green-600 cursor-pointer"
+            />
+            <div className="flex items-center gap-1">
+              <label htmlFor="offerHideLocation" className="cursor-pointer text-xs font-medium text-gray-800">
+                {t("post.hideExactLocation")}
+              </label>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button type="button" aria-label={t("post.hideExactLocationDesc")} className="flex items-center text-gray-400 hover:text-gray-600">
+                    <Info className="h-3.5 w-3.5" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="max-w-[200px] text-center">
+                  {t("post.hideExactLocationDesc")}
+                </TooltipContent>
+              </Tooltip>
+            </div>
+          </div>
+        </div>
       </div>
 
       <CategorySubcategoryFields

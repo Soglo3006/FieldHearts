@@ -70,7 +70,7 @@ function PlacesInput({ value, onChange, placeholder, id, required }: Props) {
           disabled={!ready}
           placeholder={placeholder}
           required={required}
-          className="h-12 pl-9"
+          className="h-10 pl-9"
           autoComplete="off"
         />
       </div>
@@ -136,7 +136,7 @@ export default function LocationAutocomplete(props: Props) {
           placeholder={props.placeholder}
           id={props.id}
           required={props.required}
-          className="h-12 pl-9"
+          className="h-10 pl-9"
           disabled
         />
       </div>

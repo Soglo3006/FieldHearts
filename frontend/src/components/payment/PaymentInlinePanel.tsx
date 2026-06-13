@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import BillingAddressSelector, { type BillingAddress } from "@/components/payment/BillingAddressSelector";
 import { getTaxRate, getTaxLabel, formatTaxRate } from "@/lib/taxes";
 import { getIntlLocale } from "@/lib/locale";
+import { PaymentDepositRows } from "@/components/payment/PaymentDepositRows";
+import type { DepositConfig } from "@/lib/deposit";
 
 interface Props {
   bookingId: string;
@@ -14,9 +16,19 @@ interface Props {
   price: number;
   accessToken: string;
   clientProvince: string | null;
+  depositConfig?: DepositConfig | null;
+  depositAmountCents?: number | null;
 }
 
-export default function PaymentInlinePanel({ bookingId, bookingTitle, price, accessToken, clientProvince }: Props) {
+export default function PaymentInlinePanel({
+  bookingId,
+  bookingTitle,
+  price,
+  accessToken,
+  clientProvince,
+  depositConfig,
+  depositAmountCents,
+}: Props) {
   const { t, i18n } = useTranslation();
   const checkoutLocale = getIntlLocale(i18n.language, { fr: "fr-CA", en: "en" });
 
@@ -134,6 +146,11 @@ export default function PaymentInlinePanel({ bookingId, bookingTitle, price, acc
             <span>{t("payment.servicePrice")}</span>
             <span className="font-medium text-gray-900">{fmt(price)} $</span>
           </div>
+          <PaymentDepositRows
+            price={price}
+            depositConfig={depositConfig}
+            depositAmountCents={depositAmountCents}
+          />
           <div className="flex justify-between text-gray-500">
             <div>
               <div>{t("payment.buyerCommission")}</div>

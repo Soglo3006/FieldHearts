@@ -4,7 +4,7 @@ import {
   createBooking, getMyBookings, updateBookingStatus,
   getReceivedBookings, markCompleted, undoMarkCompleted,
   customizeBooking, requestCancellation, declineCancellation,
-  getBookingById, getAdminBookingById,
+  getBookingById, getAdminBookingById, cancelWithDeposit,
 } from "../controllers/bookingController.js";
 import pool from "../config/db.js";
 
@@ -60,6 +60,7 @@ router.put("/:id/status", protect, updateBookingStatus);
 router.post("/:id/complete", protect, markCompleted);
 router.post("/:id/uncomplete", protect, undoMarkCompleted);
 router.patch("/:id/customize", protect, customizeBooking);
+router.post("/:id/cancel-deposit", protect, cancelWithDeposit);
 router.post("/:id/cancel-request", protect, requestCancellation);
 router.post("/:id/cancel-decline", protect, declineCancellation);
 

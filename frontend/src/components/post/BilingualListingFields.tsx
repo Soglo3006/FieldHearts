@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -75,6 +75,12 @@ export default function BilingualListingFields({ value, onChange, mode = "offer"
     onChange({ ...value, title: { ...(value.title ?? {}) }, description: next });
     setSecondDescOpen(false);
   };
+
+  const autoResize = useCallback((el: HTMLTextAreaElement | null) => {
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }, []);
 
   const tFirst = OTHER(firstTitleLang);
   const dFirst = OTHER(firstDescLang);
@@ -160,38 +166,25 @@ export default function BilingualListingFields({ value, onChange, mode = "offer"
         <Label htmlFor="desc-main" className="text-base font-medium text-gray-900">
           {t("post.description")} <span className="text-red-500">*</span>
         </Label>
-        <div className="rounded-xl border border-gray-200 bg-gray-50/50 p-3 sm:p-4">
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(11rem,14rem)_minmax(0,1fr)] sm:items-start sm:gap-4">
-            <div className="flex min-w-0 flex-col gap-1.5">
-              <span id="desc-lang-hint" className="text-xs font-medium text-gray-500">
-                {t("post.localeLabel")}
-              </span>
-              <PostSelect
-                value={firstDescLang}
-                onValueChange={(v) => setFirstDescLang(v as Locale)}
-                placeholder={t("post.localeLabel")}
-                options={localeSelectOptions}
-                ariaLabel={t("post.localeLabel")}
-                className="w-full"
-              />
-            </div>
-            <div className="flex min-w-0 flex-col gap-1.5">
-              <span
-                aria-hidden
-                className="invisible hidden text-xs font-medium text-gray-500 select-none sm:block"
-              >
-                {t("post.localeLabel")}
-              </span>
-              <Textarea
-                id="desc-main"
-                className="min-h-42 w-full flex-1 resize-y rounded-lg border-gray-200 bg-white text-sm shadow-sm"
-                placeholder={descPh}
-                value={value.description?.[firstDescLang] ?? ""}
-                onChange={(e) => patchDesc(firstDescLang, e.target.value)}
-                required
-              />
-            </div>
-          </div>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <PostSelect
+            value={firstDescLang}
+            onValueChange={(v) => setFirstDescLang(v as Locale)}
+            placeholder={t("post.localeLabel")}
+            options={localeSelectOptions}
+            ariaLabel={t("post.localeLabel")}
+            className="w-full shrink-0 sm:w-[min(100%,12.5rem)]"
+          />
+          <Textarea
+            id="desc-main"
+            rows={1}
+            className="flex-1 resize-none overflow-hidden rounded-md border-input bg-background text-sm shadow-sm"
+            placeholder={descPh}
+            value={value.description?.[firstDescLang] ?? ""}
+            ref={(el) => { if (el) autoResize(el); }}
+            onChange={(e) => { autoResize(e.target); patchDesc(firstDescLang, e.target.value); }}
+            required
+          />
         </div>
 
         {!secondDescOpen ? (
@@ -218,29 +211,18 @@ export default function BilingualListingFields({ value, onChange, mode = "offer"
                 <X className="h-4 w-4" />
               </button>
             </div>
-            <div className="rounded-xl border border-gray-200 bg-white/80 p-3 sm:p-4">
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(11rem,14rem)_minmax(0,1fr)] sm:items-start sm:gap-4">
-                <div className="flex min-w-0 flex-col gap-1.5">
-                  <span className="text-xs font-medium text-gray-500">{t("post.localeLabel")}</span>
-                  <div className="flex min-h-11 items-center rounded-lg border border-gray-200 bg-white px-3 text-sm font-semibold text-gray-900">
-                    {labelFor(dFirst)}
-                  </div>
-                </div>
-                <div className="flex min-w-0 flex-col gap-1.5">
-                  <span
-                    aria-hidden
-                    className="invisible hidden text-xs font-medium select-none sm:block"
-                  >
-                    {t("post.localeLabel")}
-                  </span>
-                  <Textarea
-                    className="min-h-42 w-full resize-y rounded-lg border-gray-200 bg-white text-sm shadow-sm"
-                    placeholder={descPhOther}
-                    value={value.description?.[dFirst] ?? ""}
-                    onChange={(e) => patchDesc(dFirst, e.target.value)}
-                  />
-                </div>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <div className="flex h-10 w-full shrink-0 items-center rounded-md border border-input bg-background px-3 text-sm font-medium text-gray-800 sm:w-[min(100%,12.5rem)]">
+                {labelFor(dFirst)}
               </div>
+              <Textarea
+                rows={1}
+                className="flex-1 resize-none overflow-hidden rounded-md border-input bg-background text-sm shadow-sm"
+                placeholder={descPhOther}
+                value={value.description?.[dFirst] ?? ""}
+                ref={(el) => { if (el) autoResize(el); }}
+                onChange={(e) => { autoResize(e.target); patchDesc(dFirst, e.target.value); }}
+              />
             </div>
           </div>
         )}

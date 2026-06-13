@@ -4,6 +4,11 @@ import { pushNewBooking, pushBookingStatus } from "../services/pushService.js";
 import stripe from "../config/stripe.js";
 import { createLocalizedNotification, shouldSendEmail } from "../services/notificationService.js";
 import { validateInput, sanitizeText } from "../utils/validate.js";
+import { processDepositCancellationRefund } from "../services/depositRefundService.js";
+import { assertHourlyReadyForCompletion } from "../services/hourlyCompletionGuard.js";
+import { processHourlyReconciliation } from "../services/hourlyReconciliationService.js";
+import { ensureDepositsAndCalendarSchema, resolveDepositBaseAmount } from "../utils/depositSchema.js";
+import { normalizePricingMode } from "../utils/servicePricing.js";
 
 const PROVINCE_TAX_RATES = {
   AB: 0.05, BC: 0.12, MB: 0.12, NB: 0.15, NL: 0.15, NS: 0.15,
@@ -22,6 +27,20 @@ function getWorkerTaxRate(province) {
     ? province.toUpperCase()
     : PROVINCE_NAME_TO_CODE[province.toLowerCase()];
   return PROVINCE_TAX_RATES[code] ?? PROVINCE_TAX_RATES.QC;
+}
+
+function getEffectiveBookingPrice(booking) {
+  const mode = normalizePricingMode(booking.pricing_mode ?? booking.service_pricing_mode);
+  if (mode === "hourly") {
+    const rate = Number(booking.price);
+    const approved = Number(booking.approved_hours_total);
+    const hours =
+      Number.isFinite(approved) && approved > 0
+        ? approved
+        : Number(booking.estimated_hours ?? booking.service_estimated_hours ?? 1);
+    return Math.round(rate * hours * 100) / 100;
+  }
+  return Number(booking.custom_price ?? booking.price);
 }
 
 export const createBooking = async (req, res) => {
@@ -85,11 +104,24 @@ export const createBooking = async (req, res) => {
     const clientProvince = clientResult.rows[0]?.province ?? null;
     const tax_rate = getWorkerTaxRate(clientProvince);
 
+    const estimatedHours =
+      req.body.estimated_hours != null || req.body.estimatedHours != null
+        ? Number(req.body.estimated_hours ?? req.body.estimatedHours)
+        : null;
+
     const result = await pool.query(
-      `INSERT INTO bookings (service_id, client_id, worker_id, status, client_description, tax_rate)
-       VALUES ($1, $2, $3, 'pending', $4, $5)
+      `INSERT INTO bookings (service_id, client_id, worker_id, status, client_description, tax_rate, estimated_hours, pricing_mode)
+       VALUES ($1, $2, $3, 'pending', $4, $5, $6, $7)
        RETURNING *`,
-      [service_id, client_id, worker_id, client_description || null, tax_rate]
+      [
+        service_id,
+        client_id,
+        worker_id,
+        client_description || null,
+        tax_rate,
+        Number.isFinite(estimatedHours) && estimatedHours > 0 ? estimatedHours : s.estimated_hours ?? null,
+        s.pricing_mode ?? "fixed",
+      ],
     );
 
     const booking = result.rows[0];
@@ -139,6 +171,7 @@ export const getMyBookings = async (req, res) => {
                 ELSE COALESCE(NULLIF(TRIM(s.address), ''), NULLIF(TRIM(s.location), ''), NULLIF(TRIM(s.city), ''))
               END AS service_location,
               s.is_one_time, s.type AS service_type,
+              s.deposit_enabled, s.deposit_type, s.deposit_value,
               -- worker_name = the OTHER person you're dealing with
               CASE
                 WHEN s.type = 'offer' THEN CASE WHEN u.account_type = 'company' THEN u.company_name ELSE u.full_name END
@@ -148,7 +181,12 @@ export const getMyBookings = async (req, res) => {
               (d.dispute_id IS NOT NULL) AS has_dispute,
               b.payment_status, b.completed_by_worker, b.completed_by_client,
               b.worker_note, b.custom_price, b.last_modified_at, b.modified_fields,
-              b.cancel_requested_by, b.cancel_reason, b.completed_at
+              b.cancel_requested_by, b.cancel_reason, b.completed_at,
+              b.deposit_amount_cents,
+              COALESCE(b.pricing_mode, s.pricing_mode) AS pricing_mode,
+              COALESCE(b.estimated_hours, s.estimated_hours) AS estimated_hours,
+              b.approved_hours_total,
+              s.price_max
        FROM bookings b
        JOIN services s ON b.service_id = s.id
        JOIN users u ON b.worker_id = u.id
@@ -190,6 +228,7 @@ export const getReceivedBookings = async (req, res) => {
                 ELSE COALESCE(NULLIF(TRIM(s.address), ''), NULLIF(TRIM(s.location), ''), NULLIF(TRIM(s.city), ''))
               END AS service_location,
               s.is_one_time, s.type AS service_type,
+              s.deposit_enabled, s.deposit_type, s.deposit_value,
               -- client_name = the OTHER person who initiated the booking
               CASE
                 WHEN s.type = 'offer' THEN CASE WHEN uc.account_type = 'company' THEN uc.company_name ELSE uc.full_name END
@@ -199,7 +238,12 @@ export const getReceivedBookings = async (req, res) => {
               (d.dispute_id IS NOT NULL) AS has_dispute,
               b.payment_status, b.completed_by_worker, b.completed_by_client,
               b.worker_note, b.custom_price, b.last_modified_at, b.modified_fields,
-              b.cancel_requested_by, b.cancel_reason, b.completed_at
+              b.cancel_requested_by, b.cancel_reason, b.completed_at,
+              b.deposit_amount_cents,
+              COALESCE(b.pricing_mode, s.pricing_mode) AS pricing_mode,
+              COALESCE(b.estimated_hours, s.estimated_hours) AS estimated_hours,
+              b.approved_hours_total,
+              s.price_max
        FROM bookings b
        JOIN services s ON b.service_id = s.id
        JOIN users uc ON b.client_id = uc.id
@@ -235,6 +279,7 @@ export const updateBookingStatus = async (req, res) => {
 
     const booking = await pool.query(
       `SELECT b.*, s.title, s.is_one_time, s.type AS service_type,
+              s.pricing_mode AS service_pricing_mode, s.estimated_hours AS service_estimated_hours,
               u.email as client_email,
               CASE WHEN u.account_type = 'company' THEN u.company_name ELSE u.full_name END AS client_name,
               wu.email as worker_email,
@@ -281,8 +326,16 @@ export const updateBookingStatus = async (req, res) => {
     }
 
     const result = await pool.query(
-      `UPDATE bookings SET status = $1 WHERE id = $2 RETURNING *`,
-      [status, id]
+      status === "accepted"
+        ? `UPDATE bookings
+           SET status = $1,
+               pricing_mode = COALESCE(pricing_mode, $3),
+               estimated_hours = COALESCE(estimated_hours, $4)
+           WHERE id = $2 RETURNING *`
+        : `UPDATE bookings SET status = $1 WHERE id = $2 RETURNING *`,
+      status === "accepted"
+        ? [status, id, b.service_pricing_mode ?? "fixed", b.service_estimated_hours ?? null]
+        : [status, id],
     );
 
     if (status === "accepted" || status === "rejected") {
@@ -336,6 +389,8 @@ export const markCompleted = async (req, res) => {
 
     const booking = await pool.query(
       `SELECT b.*, s.title, s.price, s.is_one_time,
+              COALESCE(b.pricing_mode, s.pricing_mode) AS pricing_mode,
+              s.pricing_mode AS service_pricing_mode, s.estimated_hours AS service_estimated_hours,
               CASE WHEN cw.account_type = 'company' THEN cw.company_name ELSE cw.full_name END AS worker_name,
               CASE WHEN cc.account_type = 'company' THEN cc.company_name ELSE cc.full_name END AS client_name,
               cw.id AS worker_user_id, cc.id AS client_user_id,
@@ -365,6 +420,19 @@ export const markCompleted = async (req, res) => {
 
     const isWorker = b.worker_id === userId;
     const updateField = isWorker ? "completed_by_worker" : "completed_by_client";
+    const otherAlreadyDone = isWorker ? b.completed_by_client : b.completed_by_worker;
+
+    if (otherAlreadyDone) {
+      try {
+        await assertHourlyReadyForCompletion(id, b.pricing_mode ?? b.service_pricing_mode);
+      } catch (guardErr) {
+        const status = guardErr.statusCode || 400;
+        return res.status(status).json({
+          message: guardErr.message,
+          code: guardErr.code || "COMPLETION_BLOCKED",
+        });
+      }
+    }
 
     // Set this party's completion flag
     await pool.query(
@@ -403,13 +471,30 @@ export const markCompleted = async (req, res) => {
         );
       }
 
+      // Hourly: refund overpayment before worker payout
+      await processHourlyReconciliation(id).catch((err) =>
+        console.error("Hourly reconciliation failed for booking", id, err.message),
+      );
+
+      // Reload booking with approved hours for payout
+      const freshBooking = await pool.query(
+        `SELECT b.*, s.pricing_mode AS service_pricing_mode, s.estimated_hours AS service_estimated_hours,
+                CASE WHEN cc.account_type = 'company' THEN cc.company_name ELSE cc.full_name END AS client_name
+         FROM bookings b
+         JOIN services s ON s.id = b.service_id
+         JOIN users cc ON cc.id = b.client_id
+         WHERE b.id = $1`,
+        [id],
+      );
+      const payoutBooking = freshBooking.rows[0] ?? b;
+
       // Credit worker wallet automatically
-      finalizeCompletion(b).catch((err) =>
+      finalizeCompletion(payoutBooking).catch((err) =>
         console.error("Finalize completion failed for booking", id, err.message)
       );
 
       // Both confirmed — send completion emails to both
-      const effectivePrice = Number(b.custom_price ?? b.price);
+      const effectivePrice = getEffectiveBookingPrice(payoutBooking);
       const taxRate = b.tax_rate ? Number(b.tax_rate) : getWorkerTaxRate(b.client_province);
       const totalPaid = (effectivePrice * (1 + 0.05 + taxRate)).toFixed(2);
       const workerReceives = (effectivePrice * 0.80).toFixed(2);
@@ -432,6 +517,7 @@ export const customizeBooking = async (req, res) => {
     const { id } = req.params;
     const { custom_price } = req.body;
     const worker_note = sanitizeText(req.body.worker_note);
+    const estimatedHoursRaw = req.body.estimated_hours ?? req.body.estimatedHours;
 
     const booking = await pool.query(
       `SELECT b.*, s.title,
@@ -453,23 +539,35 @@ export const customizeBooking = async (req, res) => {
         return res.status(400).json({ message: "Invalid price" });
       }
     }
+    let estimatedHours = b.estimated_hours;
+    if (estimatedHoursRaw !== undefined) {
+      const parsed = Number(estimatedHoursRaw);
+      if (!Number.isFinite(parsed) || parsed <= 0 || parsed > 1000) {
+        return res.status(400).json({ message: "Invalid estimated hours" });
+      }
+      estimatedHours = parsed;
+    }
 
     // Track which fields changed
     const modifiedFields = [];
     if (custom_price !== undefined && Number(custom_price) !== Number(b.price)) modifiedFields.push("price");
+    if (estimatedHoursRaw !== undefined && Number(estimatedHours) !== Number(b.estimated_hours)) {
+      modifiedFields.push("estimated_hours");
+    }
     if (worker_note !== undefined && worker_note !== b.worker_note) modifiedFields.push("description");
 
     const result = await pool.query(
       `UPDATE bookings
-       SET worker_note = $1, custom_price = $2,
-           last_modified_at = NOW(), modified_fields = $3
-       WHERE id = $4 RETURNING *`,
+       SET worker_note = $1, custom_price = $2, estimated_hours = $3,
+           last_modified_at = NOW(), modified_fields = $4
+       WHERE id = $5 RETURNING *`,
       [
         worker_note ?? b.worker_note,
         custom_price !== undefined ? Number(custom_price) : b.custom_price,
+        estimatedHours,
         modifiedFields.length > 0 ? modifiedFields : b.modified_fields,
         id,
-      ]
+      ],
     );
 
     // Notify client if something actually changed
@@ -572,6 +670,7 @@ export const getBookingById = async (req, res) => {
                 ELSE COALESCE(NULLIF(TRIM(s.address), ''), NULLIF(TRIM(s.location), ''), NULLIF(TRIM(s.city), ''))
               END AS service_location,
               s.is_one_time, s.type AS service_type,
+              s.deposit_enabled, s.deposit_type, s.deposit_value,
               CASE WHEN uw.account_type = 'company' THEN uw.company_name ELSE uw.full_name END AS worker_name,
               CASE WHEN uc.account_type = 'company' THEN uc.company_name ELSE uc.full_name END AS client_name,
               uc.province AS client_province,
@@ -580,7 +679,12 @@ export const getBookingById = async (req, res) => {
               (d.dispute_id IS NOT NULL) AS has_dispute,
               b.payment_status, b.completed_by_worker, b.completed_by_client,
               b.worker_note, b.custom_price, b.last_modified_at, b.modified_fields,
-              b.cancel_requested_by, b.cancel_reason, b.completed_at
+              b.cancel_requested_by, b.cancel_reason, b.completed_at,
+              b.deposit_amount_cents,
+              COALESCE(b.pricing_mode, s.pricing_mode) AS pricing_mode,
+              COALESCE(b.estimated_hours, s.estimated_hours) AS estimated_hours,
+              b.approved_hours_total,
+              s.price_max
        FROM bookings b
        JOIN services s ON b.service_id = s.id
        JOIN users uw ON b.worker_id = uw.id
@@ -605,6 +709,24 @@ export const getBookingById = async (req, res) => {
   }
 };
 
+export const cancelWithDeposit = async (req, res) => {
+  try {
+    await ensureDepositsAndCalendarSchema(pool);
+    const { id } = req.params;
+    const result = await processDepositCancellationRefund({
+      bookingId: id,
+      cancelledByUserId: req.user.id,
+    });
+    res.json({ success: true, ...result });
+  } catch (err) {
+    console.error(err);
+    if (err.statusCode) {
+      return res.status(err.statusCode).json({ message: err.message });
+    }
+    res.status(500).json({ message: "Server error while cancelling booking" });
+  }
+};
+
 export const getAdminBookingById = async (req, res) => {
   try {
     const { id } = req.params;
@@ -617,6 +739,7 @@ export const getAdminBookingById = async (req, res) => {
               d.dispute_refund_percentage,
               COALESCE(NULLIF(TRIM(s.address), ''), NULLIF(TRIM(s.location), ''), NULLIF(TRIM(s.city), '')) AS service_location,
               s.is_one_time, s.type AS service_type,
+              s.deposit_enabled, s.deposit_type, s.deposit_value,
               CASE WHEN uw.account_type = 'company' THEN uw.company_name ELSE uw.full_name END AS worker_name,
               CASE WHEN uc.account_type = 'company' THEN uc.company_name ELSE uc.full_name END AS client_name,
               uc.email AS client_email,
@@ -629,7 +752,12 @@ export const getAdminBookingById = async (req, res) => {
               (d.dispute_id IS NOT NULL) AS has_dispute,
               b.payment_status, b.completed_by_worker, b.completed_by_client,
               b.worker_note, b.custom_price, b.last_modified_at, b.modified_fields,
-              b.cancel_requested_by, b.cancel_reason, b.completed_at
+              b.cancel_requested_by, b.cancel_reason, b.completed_at,
+              b.deposit_amount_cents,
+              COALESCE(b.pricing_mode, s.pricing_mode) AS pricing_mode,
+              COALESCE(b.estimated_hours, s.estimated_hours) AS estimated_hours,
+              b.approved_hours_total,
+              s.price_max
        FROM bookings b
        JOIN services s ON b.service_id = s.id
        JOIN users uw ON b.worker_id = uw.id
@@ -754,8 +882,7 @@ async function autoRejectOtherRequests(serviceId, acceptedBookingId) {
 }
 
 async function finalizeCompletion(booking) {
-  // Use custom_price if worker adjusted it, otherwise the original service price
-  const effectivePrice = Number(booking.custom_price ?? booking.price);
+  const effectivePrice = getEffectiveBookingPrice(booking);
   // Worker receives 80% (platform keeps 20% commission)
   const workerReceives = effectivePrice * 0.80;
 

@@ -106,7 +106,7 @@
     "quote": "Price to discuss",
     "rangeCurrency": "{{min}} – {{max}} $",
     "hourlyRate": "{{rate}} $/h",
-    "hourlyWithHours": "{{rate}} $/h · ~{{hours}} h",
+    "hourlyWithHours": "{{rate}} $/h — {{hours}} h",
     "quoteTotalsHint": "Totals are finalized after you discuss the price. Commission and taxes are calculated at checkout on the confirmed amount."
   },
   "notFound": {
@@ -1915,6 +1915,7 @@
     "nonRefundableNotice": "Non-refundable if the client cancels.",
     "fixedLabel": "Deposit required: ${{amount}}",
     "percentLabel": "Deposit required: {{percent}}% (${{amount}})",
+    "percentOnlyLabel": "Deposit required: {{percent}}%",
     "paymentLine": "Deposit (guarantee)",
     "cancelPolicy": "If you cancel, the deposit is kept by the provider (5% platform fee is non-refundable).",
     "cancelWithDeposit": "Cancel (deposit retained)",

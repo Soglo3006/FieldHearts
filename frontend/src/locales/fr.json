@@ -106,7 +106,7 @@
     "quote": "Prix à discuter",
     "rangeCurrency": "{{min}} – {{max}} $",
     "hourlyRate": "{{rate}} $/h",
-    "hourlyWithHours": "{{rate}} $/h · ~{{hours}} h",
+    "hourlyWithHours": "{{rate}} $/h — {{hours}} h",
     "quoteTotalsHint": "Le total est fixé après discussion du prix. Commission et taxes au paiement une fois le montant confirmé."
   },
   "notFound": {
@@ -2480,6 +2480,7 @@
     "nonRefundableNotice": "Non remboursable en cas d'annulation par le client.",
     "fixedLabel": "Dépôt requis : {{amount}} $",
     "percentLabel": "Dépôt requis : {{percent}} % ({{amount}} $)",
+    "percentOnlyLabel": "Dépôt requis : {{percent}} %",
     "paymentLine": "Dépôt (garantie)",
     "cancelPolicy": "En cas d'annulation, le dépôt est conservé par le prestataire (frais plateforme 5 % non remboursables).",
     "cancelWithDeposit": "Annuler (dépôt retenu)",

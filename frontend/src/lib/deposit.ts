@@ -72,13 +72,18 @@ export function calculateDepositAmount(
 
 export function formatDepositLabel(
   t: (key: string, opts?: Record<string, unknown>) => string,
-  config: DepositConfig,
+  config: DepositConfig & { pricing_mode?: string | null },
   servicePrice: number,
 ): string {
   const amount = calculateDepositAmount(servicePrice, config);
   if (amount <= 0) return "";
 
   if (config.deposit_type === "percent") {
+    const mode = normalizePricingMode(config.pricing_mode);
+    // For range/hourly, exact amount is variable — show percentage only
+    if (mode === "range" || mode === "hourly") {
+      return t("deposit.percentOnlyLabel", { percent: config.deposit_value });
+    }
     return t("deposit.percentLabel", {
       percent: config.deposit_value,
       amount: amount.toFixed(2),

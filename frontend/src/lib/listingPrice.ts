@@ -79,9 +79,11 @@ export function formatListingPriceLine(
   if (mode === "hourly") {
     const rate = parseListingPriceNum(s.price);
     if (rate == null) return t("listingPrice.quote");
-    const hours = parseListingPriceNum(s.estimated_hours);
-    if (hours != null && hours > 0) {
-      return t("listingPrice.hourlyWithHours", { rate: rate.toFixed(2), hours });
+    if (variant === "detail") {
+      const hours = parseListingPriceNum(s.estimated_hours);
+      if (hours != null && hours > 0) {
+        return t("listingPrice.hourlyWithHours", { rate: rate.toFixed(2), hours });
+      }
     }
     return t("listingPrice.hourlyRate", { rate: rate.toFixed(2) });
   }

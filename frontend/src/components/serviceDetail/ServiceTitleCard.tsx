@@ -128,16 +128,16 @@ export default function ServiceTitleCard({
               "mt-4 text-green-700 font-bold leading-snug",
               isQuotePricing
                 ? "text-lg sm:text-xl max-w-2xl text-green-800"
-                : "text-2xl sm:text-3xl font-extrabold text-green-700"
+                : "text-2xl sm:text-3xl font-bold text-green-700"
             )}
           >
             {formatListingPriceLine(t, service, "detail")}
           </p>
           {depositLabel && (
-            <p className="mt-2 text-sm font-medium text-amber-800 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
-              {depositLabel}
-              <span className="block text-xs font-normal text-amber-700 mt-0.5">{t("deposit.nonRefundableNotice")}</span>
-            </p>
+            <div className="mt-2 w-fit rounded-lg border border-green-200 bg-green-50 px-3 py-2">
+              <p className="text-sm font-medium text-green-800">{depositLabel}</p>
+              <p className="mt-0.5 text-xs text-green-700">{t("deposit.nonRefundableNotice")}</p>
+            </div>
           )}
         </div>
 

@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -61,7 +60,6 @@ function toDateInputValue(iso: string) {
 export default function CalendarPageClient() {
   const { t, i18n } = useTranslation();
   const { session } = useAuth();
-  const searchParams = useSearchParams();
   const locale = getIntlLocale(i18n.language, { fr: "fr-CA", en: "en-CA" });
 
   const [cursor, setCursor] = useState(() => startOfMonth(new Date()));
@@ -69,103 +67,9 @@ export default function CalendarPageClient() {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [eventsLoading, setEventsLoading] = useState(true);
   const [selectedDay, setSelectedDay] = useState<Date | null>(new Date());
-  const [feedUrl, setFeedUrl] = useState<string | null>(null);
-  const [feedLoading, setFeedLoading] = useState(false);
-  const [googleConnected, setGoogleConnected] = useState(false);
-  const [googleConfigured, setGoogleConfigured] = useState(false);
-  const [googleBusy, setGoogleBusy] = useState(false);
   const [dayPage, setDayPage] = useState(0);
 
   const EVENTS_PER_PAGE = 3;
-
-  useEffect(() => {
-    const g = searchParams.get("google");
-    if (g === "connected") toast.success(t("calendar.googleConnected"));
-    if (g === "error") toast.error(t("calendar.googleConnectError"));
-  }, [searchParams, t]);
-
-  const loadGoogleStatus = useCallback(async () => {
-    if (!session?.access_token) return;
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/calendar/google/status`, {
-      headers: { Authorization: `Bearer ${session.access_token}` },
-    });
-    if (!res.ok) return;
-    const data = await res.json();
-    setGoogleConnected(!!data.connected);
-    setGoogleConfigured(!!data.configured);
-  }, [session?.access_token]);
-
-  useEffect(() => {
-    loadGoogleStatus();
-  }, [loadGoogleStatus]);
-
-  const connectGoogle = async () => {
-    if (!session?.access_token) return;
-    setGoogleBusy(true);
-    try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/calendar/google/connect`, {
-        headers: { Authorization: `Bearer ${session.access_token}` },
-      });
-      const data = await res.json();
-      if (data.url) window.location.href = data.url;
-      else toast.error(data.message || t("calendar.googleConnectError"));
-    } finally {
-      setGoogleBusy(false);
-    }
-  };
-
-  const disconnectGoogle = async () => {
-    if (!session?.access_token) return;
-    setGoogleBusy(true);
-    try {
-      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/calendar/google/disconnect`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${session.access_token}` },
-      });
-      setGoogleConnected(false);
-      toast.success(t("calendar.googleDisconnected"));
-    } finally {
-      setGoogleBusy(false);
-    }
-  };
-
-  const syncGoogle = async () => {
-    if (!session?.access_token) return;
-    setGoogleBusy(true);
-    try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/calendar/google/sync`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${session.access_token}` },
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        toast.error(data.message || t("calendar.googleSyncError"));
-        return;
-      }
-      toast.success(t("calendar.googleSyncDone", { pulled: data.pulled ?? 0, pushed: data.pushed ?? 0 }));
-      await loadEvents();
-    } finally {
-      setGoogleBusy(false);
-    }
-  };
-
-  const loadFeedToken = useCallback(async () => {
-    if (!session?.access_token) return;
-    setFeedLoading(true);
-    try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/calendar/feed-token`, {
-        headers: { Authorization: `Bearer ${session.access_token}` },
-      });
-      const data = await res.json();
-      if (data.webcal_url) setFeedUrl(data.webcal_url);
-    } finally {
-      setFeedLoading(false);
-    }
-  }, [session?.access_token]);
-
-  useEffect(() => {
-    loadFeedToken();
-  }, [loadFeedToken]);
 
   const goToMonth = (delta: -1 | 1) => {
     setSlideDirection(delta === -1 ? "prev" : "next");
@@ -255,46 +159,6 @@ export default function CalendarPageClient() {
           </Button>
         </Link>
       </div>
-
-      {(feedUrl || googleConfigured) && (
-        <div className="mb-6 rounded-xl border border-green-100 bg-green-50/60 p-4 text-sm space-y-4">
-          {feedUrl && (
-            <div>
-              <p className="font-medium text-gray-900">{t("calendar.syncTitle")}</p>
-              <p className="mt-1 text-gray-600">{t("calendar.syncHint")}</p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                <a href={feedUrl}>
-                  <Button type="button" variant="outline" size="sm" disabled={feedLoading}>
-                    {t("calendar.subscribeIcal")}
-                  </Button>
-                </a>
-              </div>
-            </div>
-          )}
-          {googleConfigured && (
-            <div className="border-t border-green-100 pt-4">
-              <p className="font-medium text-gray-900">{t("calendar.googleSyncTitle")}</p>
-              <p className="mt-1 text-gray-600">{t("calendar.googleSyncHint")}</p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {googleConnected ? (
-                  <>
-                    <Button type="button" variant="outline" size="sm" onClick={syncGoogle} disabled={googleBusy}>
-                      {t("calendar.googleSyncNow")}
-                    </Button>
-                    <Button type="button" variant="ghost" size="sm" onClick={disconnectGoogle} disabled={googleBusy}>
-                      {t("calendar.googleDisconnect")}
-                    </Button>
-                  </>
-                ) : (
-                  <Button type="button" size="sm" className="bg-green-700 hover:bg-green-800" onClick={connectGoogle} disabled={googleBusy}>
-                    {t("calendar.googleConnect")}
-                  </Button>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
         <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5">

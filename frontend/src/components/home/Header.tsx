@@ -205,6 +205,9 @@ export default function Header() {
   const urlType = searchParams.get("type");
   const postTypeValue = isOnListings && urlType ? (urlType === "offer" ? "find" : urlType === "looking" ? "hire" : "all") : "";
 
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
+
   const [showSettings, setShowSettings] = useState(false);
   const [showSupport, setShowSupport] = useState(false);
 
@@ -527,7 +530,7 @@ export default function Header() {
             <div className="flex items-center gap-2 shrink-0">
 
               {/* md+: icônes individuelles */}
-              {!authLoading && user && (
+              {mounted && !authLoading && user && (
                 <div className="hidden md:flex items-center gap-2">
                   {profileDetailsIncomplete ? (
                     <Button

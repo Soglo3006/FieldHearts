@@ -388,6 +388,9 @@ export default function BookingDetailModal({
     if (booking.has_dispute && disputeIsClosed) {
       return { label: t("bookings.disputeClosedBadge"), className: "bg-gray-100 text-gray-700 border-gray-200" };
     }
+    if (booking.payment_status === "refunded") {
+      return { label: t("bookings.refunded"), className: "bg-gray-100 text-gray-600 border-gray-200" };
+    }
     if (booking.payment_status && booking.payment_status !== "unpaid") {
       return {
         label: booking.payment_status === "transferred" ? t("bookings.paidOut") : t("bookings.paid"),
@@ -725,7 +728,155 @@ export default function BookingDetailModal({
                 const commission20    = base * 0.20;
                 const workerReceives  = base * 0.80;
 
-                if (["cancelled", "rejected"].includes(booking.status)) return null;
+                if (booking.status === "rejected") return null;
+
+                const wasPaid = Boolean(
+                  booking.payment_status && booking.payment_status !== "unpaid",
+                );
+
+                if (booking.status === "cancelled") {
+                  if (!wasPaid) return null;
+
+                  const depositDollars = (booking.deposit_amount_cents ?? 0) / 100;
+                  const hasDepositCancellation =
+                    booking.payment_status === "refunded" &&
+                    booking.deposit_enabled &&
+                    depositDollars > 0;
+                  const refundBase = Math.max(0, base - depositDollars);
+                  const refundTaxes = Math.round(refundBase * taxRate * 100) / 100;
+                  const refundedToClient = hasDepositCancellation
+                    ? Math.round((refundBase + refundTaxes) * 100) / 100
+                    : booking.payment_status === "refunded"
+                      ? totalPaid
+                      : null;
+                  const workerDepositPayout = hasDepositCancellation
+                    ? Math.round(depositDollars * 0.8 * 100) / 100
+                    : null;
+
+                  if (userRole === "worker") {
+                    return (
+                      <div className="space-y-3">
+                        <Card className="overflow-hidden shadow-none">
+                          <div className="flex items-center gap-2 bg-white px-4 py-2.5 border-b border-gray-100">
+                            <TrendingDown className="h-3.5 w-3.5 text-gray-500" />
+                            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                              {t("bookings.paymentReceipt")}
+                            </span>
+                          </div>
+                          <CardContent className="px-4 pt-0 pb-4 space-y-2 text-sm">
+                            <div className="flex justify-between text-gray-600">
+                              <span>{t("serviceDetail.servicePrice")}</span>
+                              <span className="font-medium">{fmt(base)} $</span>
+                            </div>
+                            <div className="flex justify-between text-gray-500">
+                              <span>{t("serviceDetail.buyerCommission")}</span>
+                              <span>{fmt(buyerCommission)} $</span>
+                            </div>
+                            <div className="flex justify-between text-gray-500">
+                              <span>{t("serviceDetail.taxes")} ({formatTaxRate(taxRate)}%)</span>
+                              <span>{fmt(taxes)} $</span>
+                            </div>
+                            <Separator />
+                            <div className="flex justify-between font-bold text-base">
+                              <span>{t("serviceDetail.total")}</span>
+                              <span className="text-gray-900">{fmt(totalPaid)} $</span>
+                            </div>
+                          </CardContent>
+                        </Card>
+                        {workerDepositPayout !== null && (
+                          <Card className="overflow-hidden border-green-100 shadow-none">
+                            <div className="flex items-center gap-2 bg-green-50 px-4 py-2.5 border-b border-green-100">
+                              <TrendingUp className="h-3.5 w-3.5 text-green-600" />
+                              <span className="text-xs font-semibold text-green-700 uppercase tracking-wide">
+                                {t("bookings.workerDepositPayoutLabel")}
+                              </span>
+                            </div>
+                            <CardContent className="px-4 pt-0 pb-4">
+                              <div className="flex justify-between font-bold text-base">
+                                <span className="text-gray-900">{t("bookings.youWillReceive")}</span>
+                                <span className="text-green-600">{fmt(workerDepositPayout)} $</span>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        )}
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div className="space-y-3">
+                      <Card className="overflow-hidden shadow-none">
+                        <div className="flex items-center gap-2 bg-white px-4 py-2.5 border-b border-gray-100">
+                          <TrendingDown className="h-3.5 w-3.5 text-gray-500" />
+                          <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                            {t("bookings.paymentReceipt")}
+                          </span>
+                        </div>
+                        <CardContent className="px-4 pt-0 pb-4 space-y-2 text-sm">
+                          <div className="flex justify-between text-gray-600">
+                            <span>{t("serviceDetail.servicePrice")}</span>
+                            <span className="font-medium">
+                              {fmt(base)} $
+                              {booking.custom_price && Number(booking.custom_price) !== origBase && (
+                                <span className="text-xs text-gray-400 line-through ml-2">{fmt(origBase)} $</span>
+                              )}
+                            </span>
+                          </div>
+                          <div className="flex justify-between text-gray-500">
+                            <div>
+                              <div>{t("serviceDetail.buyerCommission")}</div>
+                              <div className="text-[11px] text-red-500">{t("payment.nonRefundable")}</div>
+                            </div>
+                            <span>{fmt(buyerCommission)} $</span>
+                          </div>
+                          <div className="flex justify-between text-gray-500">
+                            <div>
+                              <div>{t("serviceDetail.taxes")} ({formatTaxRate(taxRate)}%)</div>
+                              <div className="text-[11px] text-gray-400">{taxLabel}</div>
+                            </div>
+                            <span>{fmt(taxes)} $</span>
+                          </div>
+                          <Separator />
+                          <div className="flex justify-between font-bold text-base">
+                            <span>{t("serviceDetail.total")}</span>
+                            <span className="text-gray-900">{fmt(totalPaid)} $</span>
+                          </div>
+                        </CardContent>
+                      </Card>
+                      {hasDepositCancellation && (
+                        <Card className="overflow-hidden border-red-200 shadow-none">
+                          <div className="flex items-center gap-2 bg-red-50 px-4 py-2.5 border-b border-red-100">
+                            <span className="text-xs font-semibold text-red-800 uppercase tracking-wide">
+                              {t("bookings.cancellationReceiptTitle")}
+                            </span>
+                          </div>
+                          <CardContent className="px-4 pt-0 pb-4 space-y-2 text-sm">
+                            <div className="flex justify-between text-red-700">
+                              <span>{t("bookings.depositRetainedLabel")}</span>
+                              <span>-{fmt(depositDollars)} $</span>
+                            </div>
+                            {refundedToClient !== null && (
+                              <div className="flex justify-between text-green-700">
+                                <span>{t("bookings.amountRefundedLabel")}</span>
+                                <span>{fmt(refundedToClient)} $</span>
+                              </div>
+                            )}
+                          </CardContent>
+                        </Card>
+                      )}
+                      {booking.payment_status === "refunded" && !hasDepositCancellation && refundedToClient !== null && (
+                        <Card className="overflow-hidden border-gray-200 shadow-none">
+                          <CardContent className="px-4 py-3">
+                            <div className="flex justify-between text-sm font-semibold text-gray-700">
+                              <span>{t("bookings.amountRefundedLabel")}</span>
+                              <span>{fmt(refundedToClient)} $</span>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )}
+                    </div>
+                  );
+                }
 
                 // Completed: worker sees client summary + payout, client sees total paid only
                 if (booking.status === "completed") {

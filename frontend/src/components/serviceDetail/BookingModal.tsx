@@ -1,5 +1,6 @@
 "use client";
 import { useTranslation } from "react-i18next";
+import { useScrollLock } from "@/hooks/useScrollLock";
 import { formatTaxRate } from "@/lib/taxes";
 import { useClientTax } from "@/hooks/useClientTax";
 import { Button } from "@/components/ui/button";
@@ -46,6 +47,7 @@ export default function BookingModal({
   onMessageProvider,
 }: Props) {
   const { t, i18n } = useTranslation();
+  useScrollLock(true);
   const { taxRate, taxLabel } = useClientTax(getLanguageCode(i18n.language));
   const showBuyerFees = serviceType === "offer";
   const isHourly = String(pricingMode ?? "").toLowerCase() === "hourly";
@@ -72,7 +74,7 @@ export default function BookingModal({
             </div>
             <h4 className="text-lg font-semibold text-gray-900 mb-1">{t("serviceDetail.requestSent")}</h4>
             <p className="text-sm text-gray-600 mb-6">
-              {t("serviceDetail.willReview", { name: providerFirstName })}
+              {t("serviceDetail.willReview")}
             </p>
             <div className="space-y-2">
               <Button
@@ -166,12 +168,12 @@ export default function BookingModal({
                 </label>
                 <input
                   type="number"
-                  min="0.25"
-                  step="0.25"
+                  min="1"
+                  step="1"
                   value={estimatedHours}
                   onChange={(e) => onEstimatedHoursChange?.(e.target.value)}
                   placeholder="2"
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-green-600"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-green-600 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                   disabled={state === "loading"}
                 />
                 <p className="text-xs text-gray-500 mt-1">{t("post.estimatedHoursHint")}</p>

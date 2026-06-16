@@ -192,6 +192,41 @@ function BookingsContent() {
     }
   }, [paymentResult, fetchBookings]);
 
+  const openBookingId = searchParams.get("booking");
+  const suppressOpenFromUrlRef = useRef(false);
+
+  const closeDetailBooking = useCallback(() => {
+    suppressOpenFromUrlRef.current = true;
+    setDetailBooking(null);
+    if (searchParams.get("booking")) {
+      const params = new URLSearchParams(searchParams.toString());
+      params.delete("booking");
+      const qs = params.toString();
+      router.replace(qs ? `/bookings?${qs}` : "/bookings", { scroll: false });
+    }
+  }, [router, searchParams]);
+
+  useEffect(() => {
+    if (!openBookingId) {
+      suppressOpenFromUrlRef.current = false;
+      return;
+    }
+    if (loadingReceived || loadingSent) return;
+    if (suppressOpenFromUrlRef.current) return;
+    if (detailBooking?.booking.id === openBookingId) return;
+
+    const asWorker = received.find((b) => b.id === openBookingId);
+    const asClient = sent.find((b) => b.id === openBookingId);
+
+    if (asWorker) {
+      setDetailBooking({ booking: asWorker as BookingDetail, role: "worker" });
+      setTab("received");
+    } else if (asClient) {
+      setDetailBooking({ booking: asClient as BookingDetail, role: "client" });
+      setTab("sent");
+    }
+  }, [openBookingId, received, sent, loadingReceived, loadingSent, detailBooking?.booking.id]);
+
   const updateStatus = async (bookingId: string, status: BookingStatus, side: "received" | "sent") => {
     setUpdating(bookingId);
     try {
@@ -538,7 +573,7 @@ function BookingsContent() {
           booking={detailBooking.booking}
           userRole={detailBooking.role}
           accessToken={session.access_token}
-          onClose={() => setDetailBooking(null)}
+          onClose={closeDetailBooking}
           onUpdated={(bookingId, updates) => {
             setReceived((prev) => prev.map((b) => b.id === bookingId ? { ...b, ...updates } : b));
             setSent((prev) => prev.map((b) => b.id === bookingId ? { ...b, ...updates } : b));

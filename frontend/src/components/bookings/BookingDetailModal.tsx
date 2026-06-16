@@ -10,8 +10,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import {
-  X, MapPin, CalendarDays, Tag, CheckCircle, CreditCard, FileText, Grid3x3,
-  TrendingDown, TrendingUp, ChevronLeft, AlertTriangle, Star,
+  X, MapPin, Tag, CheckCircle, FileText, Grid3x3,
+  TrendingDown, TrendingUp, ChevronLeft, Star,
   ImagePlus, Loader2,
 } from "lucide-react";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
@@ -27,6 +27,7 @@ import { sanitizePlainText } from "@/lib/sanitize";
 import AppImage from "@/components/ui/AppImage";
 import { toast } from "sonner";
 import PaymentInlinePanel from "@/components/payment/PaymentInlinePanel";
+import CancelConfirmPanel from "@/components/bookings/CancelConfirmPanel";
 import { BookingCalendarPanel } from "@/components/calendar/CalendarPageClient";
 import WorkSessionsPanel from "@/components/bookings/WorkSessionsPanel";
 import { normalizePricingMode, resolveBookingCheckoutBase, getEffectiveBookingPrice } from "@/lib/listingPrice";
@@ -40,7 +41,8 @@ import {
 } from "@/components/ui/carousel";
 
 type BookingStatus = "pending" | "accepted" | "active" | "completed" | "cancelled" | "rejected";
-type BookingStep = "detail" | "payment" | "review" | "dispute";
+type BookingStep = "detail" | "payment" | "review" | "dispute" | "cancel";
+type CancelMode = "deposit" | "dispute";
 
 export interface BookingDetail {
   id: string;
@@ -197,7 +199,8 @@ export default function BookingDetailModal({
   const [serviceDescription, setServiceDescription] = useState<string | null>(null);
   const [updating, setUpdating] = useState(false);
   const [step, setStep] = useState<BookingStep>("detail");
-  const [layoutMode, setLayoutMode] = useState<"review" | "dispute" | "payment">("review");
+  const [layoutMode, setLayoutMode] = useState<"review" | "dispute" | "payment" | "cancel">("review");
+  const [cancelMode, setCancelMode] = useState<CancelMode>("dispute");
   const [reviewRating, setReviewRating] = useState(0);
   const [reviewHovered, setReviewHovered] = useState(0);
   const [reviewComment, setReviewComment] = useState("");
@@ -264,7 +267,6 @@ export default function BookingDetailModal({
   };
 
   const callCancelWithDeposit = async () => {
-    if (!window.confirm(t("deposit.cancelConfirm"))) return;
     setUpdating(true);
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/bookings/${booking.id}/cancel-deposit`, {
@@ -279,6 +281,24 @@ export default function BookingDetailModal({
     } finally {
       setUpdating(false);
     }
+  };
+
+  const openCancelDepositStep = () => {
+    setCancelMode("deposit");
+    setLayoutMode("cancel");
+    setStep("cancel");
+  };
+
+  const openCancelDisputeStep = () => {
+    setCancelMode("dispute");
+    setLayoutMode("cancel");
+    setStep("cancel");
+  };
+
+  const proceedToDisputeFromCancel = () => {
+    setLayoutMode("dispute");
+    resetDisputePanel();
+    setStep("dispute");
   };
 
   const callMarkCompleted = async () => {
@@ -326,13 +346,21 @@ export default function BookingDetailModal({
   const hasMarkedDone = userRole === "worker" ? booking.completed_by_worker : booking.completed_by_client;
   const otherHasMarkedDone = userRole === "worker" ? booking.completed_by_client : booking.completed_by_worker;
   const panelOrders = layoutMode === "dispute"
-    ? { review: 0, detail: 1, dispute: 2, payment: 3 }
+    ? { review: 0, detail: 1, dispute: 2, cancel: 3, payment: 4 }
     : layoutMode === "payment"
-      ? { review: 0, detail: 1, payment: 2, dispute: 3 }
-      : { dispute: 0, detail: 1, review: 2, payment: 3 };
+      ? { review: 0, detail: 1, payment: 2, cancel: 3, dispute: 4 }
+      : layoutMode === "cancel"
+        ? { dispute: 0, detail: 1, cancel: 2, review: 3, payment: 4 }
+        : { dispute: 0, detail: 1, review: 2, cancel: 3, payment: 4 };
   const activeIndex = panelOrders[step];
-  const translateClass = ["translate-x-0", "-translate-x-1/4", "-translate-x-1/2", "-translate-x-3/4"][activeIndex];
-  const orderClasses = ["order-1", "order-2", "order-3", "order-4"];
+  const translateClass = [
+    "translate-x-0",
+    "-translate-x-1/5",
+    "-translate-x-2/5",
+    "-translate-x-3/5",
+    "-translate-x-4/5",
+  ][activeIndex];
+  const orderClasses = ["order-1", "order-2", "order-3", "order-4", "order-5"];
   const disputeIsValid = disputeDescription.trim().length >= 20;
   const disputeStatus = booking.dispute_status ?? (booking.has_dispute ? "open" : null);
   const disputeIsClosed = disputeStatus === "resolved" || disputeStatus === "rejected";
@@ -524,9 +552,13 @@ export default function BookingDetailModal({
                 <ChevronLeft className="h-4 w-4" />
                 {step === "payment"
                   ? t("payment.completePayment")
-                  : step === "review"
-                    ? t("bookings.leaveReview")
-                    : t("bookings.openDispute")}
+                  : step === "cancel"
+                    ? cancelMode === "deposit"
+                      ? t("deposit.cancelWithDeposit")
+                      : t("bookings.cancelActiveBooking")
+                    : step === "review"
+                      ? t("bookings.leaveReview")
+                      : t("bookings.openDispute")}
               </button>
             ) : (
               <>
@@ -540,8 +572,7 @@ export default function BookingDetailModal({
                     </span>
                   )}
                   {displayPaymentBadge && (
-                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold border ${displayPaymentBadge.className}`}>
-                      <CreditCard className="h-3 w-3" />
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold border ${displayPaymentBadge.className}`}>
                       {displayPaymentBadge.label}
                     </span>
                   )}
@@ -558,9 +589,9 @@ export default function BookingDetailModal({
         </div>
 
         {/* Sliding panels container */}
-        <div className={`flex flex-1 min-h-0 w-[400%] transition-transform duration-300 ease-in-out ${translateClass}`}>
+        <div className={`flex flex-1 min-h-0 w-[500%] transition-transform duration-300 ease-in-out ${translateClass}`}>
           {/* Panel 1 — dispute step */}
-          <div className={`flex flex-col overflow-hidden w-1/4 ${orderClasses[panelOrders.dispute]}`}>
+          <div className={`flex flex-col overflow-hidden w-1/5 ${orderClasses[panelOrders.dispute]}`}>
             <div className="overflow-y-auto flex-1 px-5 py-5 space-y-4">
               <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-800 space-y-1.5">
                 <p>{t("bookings.openDisputeModal.intro")}</p>
@@ -654,7 +685,7 @@ export default function BookingDetailModal({
           </div>{/* end panel 1 */}
 
           {/* Panel 2 — booking detail */}
-          <div className={`flex flex-col overflow-hidden w-1/4 ${orderClasses[panelOrders.detail]}`}>
+          <div className={`flex flex-col overflow-hidden w-1/5 ${orderClasses[panelOrders.detail]}`}>
 
         {/* Scrollable body */}
         <div className="overflow-y-auto flex-1 min-h-0">
@@ -811,7 +842,6 @@ export default function BookingDetailModal({
                       {disputeFinancialOutcome.hasFinancialAdjustment && disputeFinancialOutcome.finalClientPaid !== null && disputeFinancialOutcome.refundedAmount !== null && (
                         <Card className="overflow-hidden border-amber-200 shadow-none">
                           <div className="flex items-center gap-2 bg-amber-50 px-4 py-2.5 border-b border-amber-100">
-                            <AlertTriangle className="h-3.5 w-3.5 text-amber-600" />
                             <span className="text-xs font-semibold text-amber-800 uppercase tracking-wide">{t("bookings.finalOutcomeTitle")}</span>
                           </div>
                           <CardContent className="px-4 pt-0 pb-4 space-y-2 text-sm">
@@ -981,9 +1011,36 @@ export default function BookingDetailModal({
             </div>
 
             {booking.deposit_enabled && (
-              <div className="rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-                <p className="font-medium">{t("deposit.listingNoticeTitle")}</p>
-                <p className="text-xs mt-1 text-amber-800">{t("deposit.nonRefundableNotice")}</p>
+              <div className="rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-900">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="font-medium">{t("deposit.listingNoticeTitle")}</p>
+                  {(() => {
+                    const cents = booking.deposit_amount_cents;
+                    if (cents && cents > 0) {
+                      return (
+                        <span className="font-semibold text-green-800 whitespace-nowrap">
+                          {(cents / 100).toFixed(2)} $
+                        </span>
+                      );
+                    }
+                    if (booking.deposit_type === "percent" && booking.deposit_value) {
+                      return (
+                        <span className="font-semibold text-green-800 whitespace-nowrap">
+                          {booking.deposit_value} %
+                        </span>
+                      );
+                    }
+                    if (booking.deposit_type === "fixed" && booking.deposit_value) {
+                      return (
+                        <span className="font-semibold text-green-800 whitespace-nowrap">
+                          {Number(booking.deposit_value).toFixed(2)} $
+                        </span>
+                      );
+                    }
+                    return null;
+                  })()}
+                </div>
+                <p className="text-xs mt-1 text-green-700">{t("deposit.nonRefundableNotice")}</p>
               </div>
             )}
 
@@ -1036,6 +1093,8 @@ export default function BookingDetailModal({
                   bookingId={booking.id}
                   bookingTitle={booking.title}
                   serviceLocation={booking.service_location}
+                  bookingStatus={booking.status}
+                  userRole={userRole}
                   canEdit={["accepted", "active"].includes(booking.status)}
                 />
               </div>
@@ -1063,8 +1122,7 @@ export default function BookingDetailModal({
             )}
             {booking.status === "active" && booking.has_dispute && disputeStatus === "open" && (
               <div className="bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-xs text-red-700 space-y-1">
-                <div className="flex items-center gap-1.5 font-semibold">
-                  <AlertTriangle className="h-3.5 w-3.5" />
+                <div className="font-semibold">
                   {t("bookings.disputeInProgress")}
                 </div>
                 <p>{t("bookings.disputePaused")}</p>
@@ -1096,8 +1154,7 @@ export default function BookingDetailModal({
                 if (booking.has_dispute) return null;
                 return (
                   <div className="bg-white border border-gray-200 rounded-lg px-3 py-2 text-xs text-gray-600 space-y-1">
-                    <div className="flex items-center gap-1.5 font-semibold text-gray-700">
-                      <AlertTriangle className="h-3.5 w-3.5" />
+                    <div className="font-semibold text-gray-700">
                       {t('bookings.disputeWindowTitle')}
                     </div>
                     <p>{t("bookings.disputeExpiredNotice")}</p>
@@ -1125,8 +1182,7 @@ export default function BookingDetailModal({
                     ? "bg-white border-gray-200 text-gray-700"
                     : "bg-red-50 border-red-200 text-red-700"
               }`}>
-                <div className="flex items-center gap-1.5 font-semibold">
-                  <AlertTriangle className="h-3.5 w-3.5" />
+                <div className="font-semibold">
                   {disputeStatus === "resolved"
                     ? t("bookings.disputeResolvedNotice")
                     : disputeStatus === "rejected"
@@ -1187,12 +1243,13 @@ export default function BookingDetailModal({
             setLayoutMode("payment");
             setStep("payment");
           }}
-          onCancelWithDeposit={callCancelWithDeposit}
+          onOpenCancelDeposit={openCancelDepositStep}
+          onOpenCancelDispute={openCancelDisputeStep}
         />
           </div>{/* end panel 2 */}
 
           {/* Panel 3 — review step */}
-          <div className={`flex flex-col overflow-hidden w-1/4 ${orderClasses[panelOrders.review]}`}>
+          <div className={`flex flex-col overflow-hidden w-1/5 ${orderClasses[panelOrders.review]}`}>
             <div className="overflow-y-auto flex-1 px-5 py-5 space-y-5">
               {reviewError && (
                 <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-3 py-2">
@@ -1268,7 +1325,7 @@ export default function BookingDetailModal({
           </div>{/* end panel 3 */}
 
           {/* Panel 4 — payment step */}
-          <div className={`flex flex-col overflow-hidden w-1/4 ${orderClasses[panelOrders.payment]}`}>
+          <div className={`flex flex-col overflow-hidden w-1/5 ${orderClasses[panelOrders.payment]}`}>
             <PaymentInlinePanel
               bookingId={booking.id}
               bookingTitle={booking.title}
@@ -1286,7 +1343,18 @@ export default function BookingDetailModal({
               }
               depositAmountCents={booking.deposit_amount_cents}
             />
-          </div>{/* end panel 4 */}
+          </div>{/* end panel 5 */}
+
+          {/* Panel — cancel confirmation step */}
+          <div className={`flex flex-col overflow-hidden w-1/5 ${orderClasses[panelOrders.cancel]}`}>
+            <CancelConfirmPanel
+              mode={cancelMode}
+              updating={updating}
+              onBack={() => setStep("detail")}
+              onConfirmDeposit={callCancelWithDeposit}
+              onProceedDispute={proceedToDisputeFromCancel}
+            />
+          </div>{/* end cancel panel */}
 
         </div>{/* end sliding panels */}
       </div>

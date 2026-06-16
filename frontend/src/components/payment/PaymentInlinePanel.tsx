@@ -146,6 +146,7 @@ export default function PaymentInlinePanel({
             <span>{t("payment.servicePrice")}</span>
             <span className="font-medium text-gray-900">{fmt(price)} $</span>
           </div>
+          <hr className="border-gray-100 my-1" />
           <PaymentDepositRows
             price={price}
             depositConfig={depositConfig}

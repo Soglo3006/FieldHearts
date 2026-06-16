@@ -20,10 +20,10 @@ export function PaymentDepositRows({ price, depositConfig, depositAmountCents }:
 
   return (
     <>
-      <div className="flex justify-between text-amber-800 bg-amber-50 -mx-1 px-1 py-1 rounded-lg">
+      <div className="flex justify-between text-green-800 bg-green-50 -mx-1 px-1 py-1 rounded-lg">
         <div>
           <div className="font-medium">{t("deposit.paymentLine")}</div>
-          <div className="text-xs text-amber-700">{t("deposit.nonRefundableNotice")}</div>
+          <div className="text-xs text-green-700">{t("deposit.nonRefundableNotice")}</div>
         </div>
         <span className="font-medium">{deposit.toFixed(2)} $</span>
       </div>

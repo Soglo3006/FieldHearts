@@ -24,7 +24,19 @@ async function syncCalendarEventToGoogle(event, clientId, workerId) {
     await deleteGoogleEvent(workerId, event.id, event.google_event_id).catch(() => {});
     return;
   }
+  if (!event.confirmed_by_client || !event.confirmed_by_worker) return;
   await syncEventToGoogleParticipants(event, clientId, workerId);
+}
+
+const PUBLIC_CALENDAR_BOOKING_STATUSES = ["active", "completed"];
+
+function publicCalendarEventFilter(alias = "ce", bookingAlias = "b") {
+  return `
+    AND ${bookingAlias}.status = ANY('{active,completed}')
+    AND ${alias}.confirmed_by_client = true
+    AND ${alias}.confirmed_by_worker = true
+    AND ${alias}.status != 'cancelled'
+  `;
 }
 
 function formatIcsDate(d) {
@@ -115,12 +127,18 @@ export const listCalendarEvents = async (req, res) => {
       where += ` AND ce.starts_at <= $${params.length}`;
     }
 
+    if (!bookingId) {
+      where += publicCalendarEventFilter("ce", "b");
+    }
+
     const result = await pool.query(
       `SELECT ce.*, s.title AS service_title, b.status AS booking_status,
-              CASE WHEN b.worker_id = $1 THEN 'worker' ELSE 'client' END AS my_role
+              CASE WHEN b.worker_id = $1 THEN 'worker' ELSE 'client' END AS my_role,
+              CASE WHEN pu.account_type = 'company' THEN pu.company_name ELSE pu.full_name END AS proposer_name
        FROM calendar_events ce
        JOIN bookings b ON b.id = ce.booking_id
        JOIN services s ON s.id = ce.service_id
+       LEFT JOIN users pu ON pu.id = ce.created_by
        WHERE ${where}
        ORDER BY ce.starts_at ASC`,
       params
@@ -159,11 +177,14 @@ export const createCalendarEvent = async (req, res) => {
     }
 
     const title = sanitizeText(data.title || booking.title || "Service").slice(0, 300);
+    const isClient = req.user.id === booking.client_id;
+    const isWorker = req.user.id === booking.worker_id;
 
     const result = await pool.query(
       `INSERT INTO calendar_events
-         (booking_id, service_id, title, starts_at, ends_at, location, notes, created_by)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+         (booking_id, service_id, title, starts_at, ends_at, location, notes, created_by,
+          confirmed_by_client, confirmed_by_worker)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
        RETURNING *`,
       [
         booking.id,
@@ -174,11 +195,19 @@ export const createCalendarEvent = async (req, res) => {
         sanitizeText(data.location || "") || null,
         sanitizeText(data.notes || "") || null,
         req.user.id,
+        isClient,
+        isWorker,
       ]
     );
 
     const created = result.rows[0];
-    await syncCalendarEventToGoogle(created, booking.client_id, booking.worker_id);
+    if (
+      created.confirmed_by_client &&
+      created.confirmed_by_worker &&
+      PUBLIC_CALENDAR_BOOKING_STATUSES.includes(booking.status)
+    ) {
+      await syncCalendarEventToGoogle(created, booking.client_id, booking.worker_id);
+    }
 
     res.status(201).json(created);
   } catch (err) {
@@ -211,6 +240,10 @@ export const updateCalendarEvent = async (req, res) => {
       return res.status(400).json({ message: "Invalid start or end time" });
     }
 
+    const timesChanged =
+      startsAt.toISOString() !== new Date(event.starts_at).toISOString() ||
+      endsAt.toISOString() !== new Date(event.ends_at).toISOString();
+
     const title = req.body.title !== undefined ? sanitizeText(String(req.body.title)).slice(0, 300) : event.title;
     const location =
       req.body.location !== undefined ? sanitizeText(String(req.body.location)) || null : event.location;
@@ -222,14 +255,34 @@ export const updateCalendarEvent = async (req, res) => {
 
     const result = await pool.query(
       `UPDATE calendar_events
-       SET title = $1, starts_at = $2, ends_at = $3, location = $4, notes = $5, status = $6, updated_at = NOW()
+       SET title = $1, starts_at = $2, ends_at = $3, location = $4, notes = $5, status = $6,
+           confirmed_by_client = CASE WHEN $8 THEN $9 ELSE confirmed_by_client END,
+           confirmed_by_worker = CASE WHEN $8 THEN $10 ELSE confirmed_by_worker END,
+           updated_at = NOW()
        WHERE id = $7
        RETURNING *`,
-      [title, startsAt.toISOString(), endsAt.toISOString(), location, notes, status, id]
+      [
+        title,
+        startsAt.toISOString(),
+        endsAt.toISOString(),
+        location,
+        notes,
+        status,
+        id,
+        timesChanged,
+        req.user.id === event.client_id,
+        req.user.id === event.worker_id,
+      ]
     );
 
     const updated = result.rows[0];
-    await syncCalendarEventToGoogle(updated, event.client_id, event.worker_id);
+    if (
+      updated.confirmed_by_client &&
+      updated.confirmed_by_worker &&
+      PUBLIC_CALENDAR_BOOKING_STATUSES.includes(event.booking_status)
+    ) {
+      await syncCalendarEventToGoogle(updated, event.client_id, event.worker_id);
+    }
 
     res.json(updated);
   } catch (err) {
@@ -269,6 +322,7 @@ export const getCalendarFeed = async (req, res) => {
        JOIN bookings b ON b.id = ce.booking_id
        WHERE (b.client_id = $1 OR b.worker_id = $1)
          AND ce.status != 'cancelled'
+         ${publicCalendarEventFilter("ce", "b")}
          AND ce.starts_at >= NOW() - INTERVAL '90 days'
        ORDER BY ce.starts_at ASC`,
       [userId],
@@ -281,6 +335,59 @@ export const getCalendarFeed = async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).send("Server error");
+  }
+};
+
+export const confirmCalendarEvent = async (req, res) => {
+  try {
+    await ensureDepositsAndCalendarSchema(pool);
+    const { id } = req.params;
+    const userId = req.user.id;
+
+    const existing = await pool.query(
+      `SELECT ce.*, b.client_id, b.worker_id, b.status AS booking_status
+       FROM calendar_events ce
+       JOIN bookings b ON b.id = ce.booking_id
+       WHERE ce.id = $1`,
+      [id],
+    );
+    if (existing.rows.length === 0) return res.status(404).json({ message: "Event not found" });
+
+    const event = existing.rows[0];
+    if (event.client_id !== userId && event.worker_id !== userId) {
+      return res.status(403).json({ message: "Not authorized" });
+    }
+    if (event.status === "cancelled") {
+      return res.status(400).json({ message: "Cannot confirm a cancelled event" });
+    }
+
+    const isClient = userId === event.client_id;
+    const field = isClient ? "confirmed_by_client" : "confirmed_by_worker";
+    if (event[field]) {
+      return res.json(event);
+    }
+
+    const result = await pool.query(
+      `UPDATE calendar_events
+       SET ${field} = true, updated_at = NOW()
+       WHERE id = $1
+       RETURNING *`,
+      [id],
+    );
+
+    const updated = { ...result.rows[0], client_id: event.client_id, worker_id: event.worker_id };
+    if (
+      updated.confirmed_by_client &&
+      updated.confirmed_by_worker &&
+      PUBLIC_CALENDAR_BOOKING_STATUSES.includes(event.booking_status)
+    ) {
+      await syncCalendarEventToGoogle(updated, event.client_id, event.worker_id);
+    }
+
+    res.json(updated);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error while confirming calendar event" });
   }
 };
 
@@ -379,6 +486,7 @@ export const syncGoogleCalendar = async (req, res) => {
        JOIN bookings b ON b.id = ce.booking_id
        WHERE (b.client_id = $1 OR b.worker_id = $1)
          AND ce.status = 'scheduled'
+         ${publicCalendarEventFilter("ce", "b")}
          AND ce.starts_at >= NOW() - INTERVAL '90 days'`,
       [req.user.id],
     );

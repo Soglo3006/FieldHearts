@@ -1,7 +1,6 @@
 "use client";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Pencil } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { normalizePricingMode } from "@/lib/listingPrice";
 
@@ -13,6 +12,9 @@ interface Booking {
   price: string | number;
   pricing_mode?: string | null;
   estimated_hours?: number | string | null;
+  deposit_enabled?: boolean;
+  deposit_type?: string | null;
+  deposit_value?: number | string | null;
 }
 
 interface Props {
@@ -31,6 +33,8 @@ export default function WorkerCustomizeSection({ booking, accessToken, onSaved }
   const [editNote, setEditNote] = useState(booking.worker_note ?? "");
   const [editPrice, setEditPrice] = useState(String(booking.custom_price ?? booking.price ?? ""));
   const [editHours, setEditHours] = useState(String(booking.estimated_hours ?? ""));
+  const [editDepositType, setEditDepositType] = useState(booking.deposit_type ?? "percent");
+  const [editDepositValue, setEditDepositValue] = useState(String(booking.deposit_value ?? ""));
   const [saving, setSaving] = useState(false);
 
   const save = async () => {
@@ -42,6 +46,10 @@ export default function WorkerCustomizeSection({ booking, accessToken, onSaved }
         if (Number.isFinite(hours) && hours > 0) body.estimated_hours = hours;
       } else if (editPrice.trim() !== "") {
         body.custom_price = Number(editPrice);
+      }
+      if (editDepositValue.trim() !== "") {
+        body.deposit_type = editDepositType;
+        body.deposit_value = Number(editDepositValue);
       }
 
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/bookings/${booking.id}/customize`, {
@@ -63,8 +71,8 @@ export default function WorkerCustomizeSection({ booking, accessToken, onSaved }
       <div className="flex items-center justify-between">
         <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">{t("customizeBooking.title")}</p>
         {!editing && (
-          <button onClick={() => setEditing(true)} className="text-xs text-green-700 hover:underline flex items-center gap-1">
-            <Pencil className="h-3 w-3" /> {t("common.edit")}
+          <button onClick={() => setEditing(true)} className="text-xs text-green-700 hover:underline">
+            {t("common.edit")}
           </button>
         )}
       </div>
@@ -102,6 +110,31 @@ export default function WorkerCustomizeSection({ booking, accessToken, onSaved }
               />
             </div>
           )}
+          <div>
+            <label className="text-xs text-gray-500 mb-1 block">{t("deposit.enable")}</label>
+            <div className="flex gap-2">
+              <select
+                value={editDepositType}
+                onChange={(e) => setEditDepositType(e.target.value)}
+                aria-label={t("deposit.typeFixed")}
+                className="border rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-600 w-32"
+              >
+                <option value="percent">{t("deposit.typePercent")}</option>
+                <option value="fixed">{t("deposit.typeFixed")}</option>
+              </select>
+              <input
+                type="number"
+                min="0"
+                step={editDepositType === "percent" ? "1" : "0.01"}
+                max={editDepositType === "percent" ? "100" : undefined}
+                value={editDepositValue}
+                onChange={(e) => setEditDepositValue(e.target.value)}
+                placeholder={editDepositType === "percent" ? "%" : "$"}
+                className="flex-1 border rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-600"
+              />
+            </div>
+          </div>
+
           <div>
             <label htmlFor="customizeBookingNote" className="text-xs text-gray-500 mb-1 block">{t("customizeBooking.noteLabel")}</label>
             <textarea

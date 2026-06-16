@@ -12,6 +12,7 @@ import {
   googleCalendarCallback,
   disconnectGoogle,
   syncGoogleCalendar,
+  confirmCalendarEvent,
 } from "../controllers/calendarController.js";
 
 const router = express.Router();
@@ -25,6 +26,7 @@ router.delete("/google/disconnect", protect, disconnectGoogle);
 router.post("/google/sync", protect, syncGoogleCalendar);
 router.get("/events", protect, listCalendarEvents);
 router.post("/events", protect, createCalendarEvent);
+router.post("/events/:id/confirm", protect, confirmCalendarEvent);
 router.patch("/events/:id", protect, updateCalendarEvent);
 router.delete("/events/:id", protect, deleteCalendarEvent);
 

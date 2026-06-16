@@ -21,6 +21,8 @@ export async function ensureDepositsAndCalendarSchema(pool) {
     ALTER TABLE users ADD COLUMN IF NOT EXISTS google_calendar_access_token text;
     ALTER TABLE users ADD COLUMN IF NOT EXISTS google_calendar_token_expiry timestamptz;
     ALTER TABLE calendar_events ADD COLUMN IF NOT EXISTS google_event_id varchar(256);
+    ALTER TABLE calendar_events ADD COLUMN IF NOT EXISTS confirmed_by_client boolean NOT NULL DEFAULT false;
+    ALTER TABLE calendar_events ADD COLUMN IF NOT EXISTS confirmed_by_worker boolean NOT NULL DEFAULT false;
     CREATE TABLE IF NOT EXISTS calendar_event_google_sync (
       calendar_event_id uuid NOT NULL REFERENCES calendar_events(id) ON DELETE CASCADE,
       user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,

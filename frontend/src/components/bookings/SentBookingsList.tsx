@@ -3,7 +3,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import AppImage from "@/components/ui/AppImage";
-import { MapPin, Grid3x3, Star, AlertTriangle, CheckCircle, CreditCard } from "lucide-react";
+import { MapPin, Grid3x3, Star, CheckCircle } from "lucide-react";
 import { SentBooking, BookingStatus, STATUS_CONFIG, BOOKING_GROUPS, formatDate } from "./bookingTypes";
 import { type BookingDetail } from "./BookingDetailModal";
 import PayNowButton from "./PayNowButton";
@@ -35,8 +35,7 @@ function PaymentBadge({ status }: { status: string | null }) {
     refunded: t("bookings.refunded"),
   };
   return (
-    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold border ${cfg[status] ?? "bg-gray-100 text-gray-500 border-gray-200"}`}>
-      <CreditCard className="h-3 w-3" />
+    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold border ${cfg[status] ?? "bg-gray-100 text-gray-500 border-gray-200"}`}>
       {labels[status] ?? status}
     </span>
   );
@@ -196,7 +195,7 @@ export default function SentBookingsList({
                               {!b.has_dispute && (
                                 <Button type="button" size="sm" variant="outline" className="w-full justify-center w-full justify-center text-red-600 border-red-200 hover:bg-red-50 gap-1.5"
                                   onClick={() => onDispute(b.id, b.title)}>
-                                  <AlertTriangle className="h-3.5 w-3.5" /> {t("bookings.dispute")}
+                                  {t("bookings.dispute")}
                                 </Button>
                               )}
                             </>
@@ -217,12 +216,12 @@ export default function SentBookingsList({
                               {!b.has_dispute && disputeWindow.isOpen && (
                                 <Button type="button" size="sm" variant="outline" className="w-full justify-center text-red-600 border-red-200 hover:bg-red-50 gap-1.5"
                                   onClick={() => onDispute(b.id, b.title)}>
-                                  <AlertTriangle className="h-3.5 w-3.5" /> {t("bookings.dispute")}
+                                  {t("bookings.dispute")}
                                 </Button>
                               )}
                               {!b.has_dispute && disputeWindow.isExpired && (
                                 <Button type="button" size="sm" variant="outline" className="w-full justify-center text-gray-400 border-gray-200 bg-gray-50 gap-1.5" disabled>
-                                  <AlertTriangle className="h-3.5 w-3.5" /> {t("bookings.disputeExpiredButton")}
+                                  {t("bookings.disputeExpiredButton")}
                                 </Button>
                               )}
                             </>
@@ -244,12 +243,12 @@ export default function SentBookingsList({
                             {!b.has_dispute && disputeWindow.isOpen && (
                               <Button type="button" size="sm" variant="outline" className="w-full justify-center text-red-600 border-red-200 hover:bg-red-50 gap-1.5"
                                 onClick={() => onDispute(b.id, b.title)}>
-                                <AlertTriangle className="h-3.5 w-3.5" /> {t("bookings.dispute")}
+                                {t("bookings.dispute")}
                               </Button>
                             )}
                             {!b.has_dispute && disputeWindow.isExpired && (
                               <Button type="button" size="sm" variant="outline" className="w-full justify-center text-gray-400 border-gray-200 bg-gray-50 gap-1.5" disabled>
-                                <AlertTriangle className="h-3.5 w-3.5" /> {t("bookings.disputeExpiredButton")}
+                                {t("bookings.disputeExpiredButton")}
                               </Button>
                             )}
                           </>
@@ -263,8 +262,7 @@ export default function SentBookingsList({
                                 ? "border-gray-200 bg-gray-50 text-gray-700"
                                 : "border-red-200 bg-red-50 text-red-700"
                           }`}>
-                            <div className="flex items-center gap-1 font-medium">
-                              <AlertTriangle className="h-3.5 w-3.5" />
+                            <div className="font-medium">
                               {b.dispute_status === "resolved"
                                 ? t("bookings.disputeResolvedNotice")
                                 : b.dispute_status === "rejected"

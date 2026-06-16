@@ -155,3 +155,33 @@ body[data-scroll-locked] {
 .scroll-lock-aware {
   padding-right: var(--scroll-lock-padding, 0px);
 }
+
+@keyframes calendar-month-enter-from-right {
+  from {
+    opacity: 0;
+    transform: translateX(1.25rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes calendar-month-enter-from-left {
+  from {
+    opacity: 0;
+    transform: translateX(-1.25rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.calendar-month-enter-next {
+  animation: calendar-month-enter-from-right 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.calendar-month-enter-prev {
+  animation: calendar-month-enter-from-left 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+}

@@ -518,6 +518,8 @@ export const customizeBooking = async (req, res) => {
     const { custom_price } = req.body;
     const worker_note = sanitizeText(req.body.worker_note);
     const estimatedHoursRaw = req.body.estimated_hours ?? req.body.estimatedHours;
+    const depositType = req.body.deposit_type ?? undefined;
+    const depositValue = req.body.deposit_value ?? undefined;
 
     const booking = await pool.query(
       `SELECT b.*, s.title,
@@ -555,17 +557,36 @@ export const customizeBooking = async (req, res) => {
       modifiedFields.push("estimated_hours");
     }
     if (worker_note !== undefined && worker_note !== b.worker_note) modifiedFields.push("description");
+    if (depositType !== undefined || depositValue !== undefined) modifiedFields.push("deposit");
+
+    // Validate deposit fields if provided
+    if (depositType !== undefined && !["fixed", "percent"].includes(depositType)) {
+      return res.status(400).json({ message: "Invalid deposit type" });
+    }
+    if (depositValue !== undefined) {
+      const dv = Number(depositValue);
+      if (!Number.isFinite(dv) || dv < 0) return res.status(400).json({ message: "Invalid deposit value" });
+      if (depositType === "percent" && dv > 100) return res.status(400).json({ message: "Deposit percent cannot exceed 100" });
+    }
+
+    const finalDepositType = depositType !== undefined ? depositType : b.deposit_type;
+    const finalDepositValue = depositValue !== undefined ? Number(depositValue) : b.deposit_value;
+    const finalDepositEnabled = (finalDepositType && finalDepositValue > 0) ? true : b.deposit_enabled;
 
     const result = await pool.query(
       `UPDATE bookings
        SET worker_note = $1, custom_price = $2, estimated_hours = $3,
-           last_modified_at = NOW(), modified_fields = $4
-       WHERE id = $5 RETURNING *`,
+           last_modified_at = NOW(), modified_fields = $4,
+           deposit_type = $5, deposit_value = $6, deposit_enabled = $7
+       WHERE id = $8 RETURNING *`,
       [
         worker_note ?? b.worker_note,
         custom_price !== undefined ? Number(custom_price) : b.custom_price,
         estimatedHours,
         modifiedFields.length > 0 ? modifiedFields : b.modified_fields,
+        finalDepositType,
+        finalDepositValue,
+        finalDepositEnabled,
         id,
       ],
     );

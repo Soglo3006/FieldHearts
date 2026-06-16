@@ -1,7 +1,7 @@
 // frontend/src/components/home/Header.tsx
 "use client";
 import { useTranslation } from "react-i18next";
-import { Search, User, Settings, LogOut, Building2, List, Wallet, X, CalendarDays, Menu, Heart, MessageCircle, MessageSquareText, Bell, ChevronLeft, ChevronDown, Check, Trash2, Loader2, ShieldCheck } from "lucide-react";
+import { Search, User, Settings, LogOut, Building2, List, Wallet, X, CalendarDays, ClipboardList, Menu, Heart, MessageCircle, MessageSquareText, Bell, ChevronLeft, ChevronDown, Check, Trash2, Loader2, ShieldCheck } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
 import {
@@ -137,7 +137,7 @@ function UserDropdown({ avatarUrl, displayName, fallbackInitial, unseenCount, pr
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
               <Link href="/bookings" className="cursor-pointer flex items-center">
-                <CalendarDays className="mr-2 h-4 w-4" />
+                <ClipboardList className="mr-2 h-4 w-4" />
                 <span>{t("header.bookings")}</span>
                 {unseenCount > 0 && (
                   <span className="ml-auto h-5 min-w-5 px-1 bg-red-500 rounded-full flex items-center justify-center text-[10px] font-bold text-white">
@@ -852,13 +852,17 @@ export default function Header() {
                             <List className="h-5 w-5 text-gray-400" /> {t("header.listings")}
                           </Link>
                           <Link href="/bookings" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
-                            <CalendarDays className="h-5 w-5 text-gray-400" />
+                            <ClipboardList className="h-5 w-5 text-gray-400" />
                             {t("header.bookings")}
                             {unseenCount > 0 && (
                               <span className="ml-auto h-5 min-w-5 px-1 bg-red-500 rounded-full flex items-center justify-center text-[10px] font-bold text-white">
                                 {unseenCount > 9 ? "9+" : unseenCount}
                               </span>
                             )}
+                          </Link>
+                          <Link href="/calendar" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                            <CalendarDays className="h-5 w-5 text-gray-400" />
+                            {t("header.calendar")}
                           </Link>
                           <Link href={`/profile/${user?.id}`} onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
                             {isPerson ? <User className="h-5 w-5 text-gray-400" /> : <Building2 className="h-5 w-5 text-gray-400" />}

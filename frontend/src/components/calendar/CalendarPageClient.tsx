@@ -5,7 +5,6 @@ import { useSearchParams } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ChevronLeft, ChevronRight, Loader2, Plus, Trash2 } from "lucide-react";
@@ -14,6 +13,9 @@ import { cn } from "@/lib/utils";
 import { getIntlLocale } from "@/lib/locale";
 import { googleCalendarUrl } from "@/lib/calendarSync";
 import { toast } from "sonner";
+import DateTimeField from "@/components/ui/DateTimeField";
+import CalendarEventSchedule from "@/components/calendar/CalendarEventSchedule";
+import ScheduleConfirmStatus, { ScheduleOutcomeBanner } from "@/components/calendar/ScheduleConfirmStatus";
 
 export type CalendarEvent = {
   id: string;
@@ -25,6 +27,10 @@ export type CalendarEvent = {
   location: string | null;
   notes: string | null;
   status: "scheduled" | "completed" | "cancelled";
+  confirmed_by_client?: boolean;
+  confirmed_by_worker?: boolean;
+  created_by?: string;
+  proposer_name?: string | null;
   service_title?: string;
   booking_status?: string;
   my_role?: "worker" | "client";
@@ -36,6 +42,10 @@ function startOfMonth(d: Date) {
 
 function addMonths(d: Date, n: number) {
   return new Date(d.getFullYear(), d.getMonth() + n, 1);
+}
+
+function endOfMonth(d: Date) {
+  return new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59, 999);
 }
 
 function sameDay(a: Date, b: Date) {
@@ -55,14 +65,18 @@ export default function CalendarPageClient() {
   const locale = getIntlLocale(i18n.language, { fr: "fr-CA", en: "en-CA" });
 
   const [cursor, setCursor] = useState(() => startOfMonth(new Date()));
+  const [slideDirection, setSlideDirection] = useState<"prev" | "next">("next");
   const [events, setEvents] = useState<CalendarEvent[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [eventsLoading, setEventsLoading] = useState(true);
   const [selectedDay, setSelectedDay] = useState<Date | null>(new Date());
   const [feedUrl, setFeedUrl] = useState<string | null>(null);
   const [feedLoading, setFeedLoading] = useState(false);
   const [googleConnected, setGoogleConnected] = useState(false);
   const [googleConfigured, setGoogleConfigured] = useState(false);
   const [googleBusy, setGoogleBusy] = useState(false);
+  const [dayPage, setDayPage] = useState(0);
+
+  const EVENTS_PER_PAGE = 3;
 
   useEffect(() => {
     const g = searchParams.get("google");
@@ -153,12 +167,22 @@ export default function CalendarPageClient() {
     loadFeedToken();
   }, [loadFeedToken]);
 
+  const goToMonth = (delta: -1 | 1) => {
+    setSlideDirection(delta === -1 ? "prev" : "next");
+    setCursor((c) => addMonths(c, delta));
+  };
+
   const loadEvents = useCallback(async () => {
     if (!session?.access_token) return;
-    setLoading(true);
-    const from = startOfMonth(cursor);
-    const to = addMonths(cursor, 1);
-    to.setMilliseconds(to.getMilliseconds() - 1);
+    setEventsLoading(true);
+    let from = startOfMonth(addMonths(cursor, -1));
+    let to = endOfMonth(addMonths(cursor, 1));
+    if (selectedDay) {
+      const selFrom = startOfMonth(selectedDay);
+      const selTo = endOfMonth(selectedDay);
+      if (selFrom < from) from = selFrom;
+      if (selTo > to) to = selTo;
+    }
     try {
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/calendar/events?from=${from.toISOString()}&to=${to.toISOString()}`,
@@ -167,9 +191,9 @@ export default function CalendarPageClient() {
       const data = await res.json();
       setEvents(Array.isArray(data) ? data : []);
     } finally {
-      setLoading(false);
+      setEventsLoading(false);
     }
-  }, [cursor, session?.access_token]);
+  }, [cursor, selectedDay, session?.access_token]);
 
   useEffect(() => {
     loadEvents();
@@ -191,8 +215,32 @@ export default function CalendarPageClient() {
     events.filter((e) => e.status === "scheduled" && sameDay(new Date(e.starts_at), day));
 
   const selectedEvents = selectedDay ? eventsForDay(selectedDay) : [];
+  const totalDayPages = Math.max(1, Math.ceil(selectedEvents.length / EVENTS_PER_PAGE));
+
+  useEffect(() => {
+    setDayPage(0);
+  }, [selectedDay?.getTime()]);
+
+  useEffect(() => {
+    if (dayPage > totalDayPages - 1) {
+      setDayPage(Math.max(0, totalDayPages - 1));
+    }
+  }, [dayPage, totalDayPages]);
+
+  const pagedSelectedEvents = selectedEvents.slice(
+    dayPage * EVENTS_PER_PAGE,
+    dayPage * EVENTS_PER_PAGE + EVENTS_PER_PAGE,
+  );
+
+  const selectedInCurrentMonth =
+    selectedDay &&
+    selectedDay.getMonth() === cursor.getMonth() &&
+    selectedDay.getFullYear() === cursor.getFullYear();
 
   const monthLabel = cursor.toLocaleDateString(locale, { month: "long", year: "numeric" });
+  const monthKey = `${cursor.getFullYear()}-${cursor.getMonth()}`;
+  const monthSlideClass =
+    slideDirection === "prev" ? "calendar-month-enter-prev" : "calendar-month-enter-next";
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
@@ -253,17 +301,22 @@ export default function CalendarPageClient() {
           <div className="mb-4 flex items-center justify-between">
             <button
               type="button"
-              onClick={() => setCursor((c) => addMonths(c, -1))}
-              className="rounded-full p-2 hover:bg-gray-100"
+              onClick={() => goToMonth(-1)}
+              className="rounded-full p-2 transition-colors hover:bg-gray-100"
               aria-label={t("common.previous")}
             >
               <ChevronLeft className="h-5 w-5" />
             </button>
-            <h2 className="text-lg font-semibold capitalize text-gray-900">{monthLabel}</h2>
+            <h2
+              key={monthKey}
+              className={cn("text-lg font-semibold capitalize text-gray-900", monthSlideClass)}
+            >
+              {monthLabel}
+            </h2>
             <button
               type="button"
-              onClick={() => setCursor((c) => addMonths(c, 1))}
-              className="rounded-full p-2 hover:bg-gray-100"
+              onClick={() => goToMonth(1)}
+              className="rounded-full p-2 transition-colors hover:bg-gray-100"
               aria-label={t("common.next")}
             >
               <ChevronRight className="h-5 w-5" />
@@ -278,75 +331,121 @@ export default function CalendarPageClient() {
             ))}
           </div>
 
-          {loading ? (
+          {eventsLoading && events.length === 0 ? (
             <div className="flex h-64 items-center justify-center text-gray-400">
               <Loader2 className="h-6 w-6 animate-spin" />
             </div>
           ) : (
-            <div className="grid grid-cols-7 gap-1">
-              {days.map((day) => {
-                const inMonth = day.getMonth() === cursor.getMonth();
-                const count = eventsForDay(day).length;
-                const isSelected = selectedDay && sameDay(day, selectedDay);
-                return (
-                  <button
-                    key={day.toISOString()}
-                    type="button"
-                    onClick={() => setSelectedDay(day)}
-                    className={cn(
-                      "relative flex min-h-[3.25rem] flex-col items-center justify-start rounded-lg border px-1 py-1.5 text-sm transition-colors",
-                      inMonth ? "border-gray-100 bg-white text-gray-900" : "border-transparent bg-gray-50 text-gray-400",
-                      isSelected && "border-green-600 bg-green-50 ring-1 ring-green-200",
-                    )}
-                  >
-                    <span>{day.getDate()}</span>
-                    {count > 0 && (
-                      <span className="mt-1 h-1.5 w-1.5 rounded-full bg-green-600" aria-hidden />
-                    )}
-                  </button>
-                );
-              })}
+            <div className="relative overflow-hidden">
+              <div key={monthKey} className={cn("grid grid-cols-7 gap-1", monthSlideClass)}>
+                {days.map((day) => {
+                  const inMonth = day.getMonth() === cursor.getMonth();
+                  const count = eventsForDay(day).length;
+                  const isSelected = selectedDay && sameDay(day, selectedDay);
+                  return (
+                    <button
+                      key={day.toISOString()}
+                      type="button"
+                      onClick={() => setSelectedDay(day)}
+                      className={cn(
+                        "relative flex min-h-[3.25rem] flex-col items-center justify-start rounded-lg border px-1 py-1.5 text-sm transition-colors",
+                        inMonth ? "border-gray-100 bg-white text-gray-900" : "border-transparent bg-gray-50 text-gray-400",
+                        isSelected && "border-green-600 bg-green-50 ring-1 ring-green-200",
+                      )}
+                    >
+                      <span>{day.getDate()}</span>
+                      {count > 0 && (
+                        <span className="mt-1 h-1.5 w-1.5 rounded-full bg-green-600" aria-hidden />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+              {eventsLoading && (
+                <div className="absolute inset-0 flex items-center justify-center bg-white/60 backdrop-blur-[1px]">
+                  <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
+                </div>
+              )}
             </div>
           )}
         </div>
 
         <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5">
-          <h3 className="text-base font-semibold text-gray-900">
-            {selectedDay
-              ? selectedDay.toLocaleDateString(locale, { weekday: "long", day: "numeric", month: "long" })
-              : t("calendar.pickDay")}
-          </h3>
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <h3 className="text-base font-semibold text-gray-900">
+              {selectedDay
+                ? selectedDay.toLocaleDateString(locale, {
+                    weekday: "long",
+                    day: "numeric",
+                    month: "long",
+                    year: "numeric",
+                  })
+                : t("calendar.pickDay")}
+            </h3>
+            {selectedDay && !selectedInCurrentMonth && (
+              <span className="rounded-full bg-green-50 px-2.5 py-0.5 text-xs font-medium text-green-800">
+                {t("calendar.selectedDayKept")}
+              </span>
+            )}
+          </div>
 
           {selectedEvents.length === 0 ? (
             <p className="mt-4 text-sm text-gray-500">{t("calendar.noEvents")}</p>
           ) : (
-            <ul className="mt-4 space-y-3">
-              {selectedEvents.map((event) => (
-                <li key={event.id} className="rounded-xl border border-gray-100 bg-gray-50 p-3">
-                  <p className="font-medium text-gray-900">{event.title}</p>
-                  <p className="mt-1 text-xs text-gray-500">
-                    {new Date(event.starts_at).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" })}
-                    {" – "}
-                    {new Date(event.ends_at).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" })}
-                  </p>
-                  {event.location && <p className="mt-1 text-xs text-gray-600">{event.location}</p>}
-                  {event.notes && <p className="mt-1 text-xs text-gray-500">{event.notes}</p>}
-                  <div className="mt-2 flex flex-wrap gap-3">
-                    <Link href="/bookings" className="text-xs font-medium text-green-700 hover:underline">
-                      {t("calendar.openBooking")}
-                    </Link>
-                    <a
-                      href={googleCalendarUrl(event)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-xs font-medium text-green-700 hover:underline"
+            <>
+              <ul className="mt-4 space-y-3">
+                {pagedSelectedEvents.map((event) => (
+                  <li key={event.id} className="rounded-xl border border-gray-100 bg-gray-50 p-3">
+                    <Link
+                      href={`/bookings?booking=${event.booking_id}`}
+                      className="font-medium text-gray-900 hover:text-green-700 hover:underline line-clamp-2"
                     >
-                      {t("calendar.addGoogle")}
-                    </a>
-                  </div>
-                </li>
-              ))}
-            </ul>
+                      {event.title}
+                    </Link>
+                    <CalendarEventSchedule startsAt={event.starts_at} endsAt={event.ends_at} />
+                    {event.location && <p className="mt-1 text-xs text-gray-600">{event.location}</p>}
+                    {event.notes && <p className="mt-1 text-xs text-gray-500">{event.notes}</p>}
+                    <div className="mt-2 flex flex-wrap gap-3">
+                      <Link
+                        href={`/bookings?booking=${event.booking_id}`}
+                        className="text-xs font-medium text-green-700 hover:underline"
+                      >
+                        {t("calendar.openBooking")}
+                      </Link>
+                      <a
+                        href={googleCalendarUrl(event)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs font-medium text-green-700 hover:underline"
+                      >
+                        {t("calendar.addGoogle")}
+                      </a>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+              {totalDayPages > 1 && (
+                <div className="mt-4 flex flex-wrap items-center justify-center gap-1.5">
+                  {Array.from({ length: totalDayPages }, (_, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => setDayPage(i)}
+                      className={cn(
+                        "min-w-[2rem] rounded-lg border px-2.5 py-1 text-xs font-semibold transition-colors",
+                        dayPage === i
+                          ? "border-green-600 bg-green-700 text-white"
+                          : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50",
+                      )}
+                      aria-label={t("calendar.dayPage", { page: i + 1 })}
+                      aria-current={dayPage === i ? "page" : undefined}
+                    >
+                      {i + 1}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>
@@ -358,13 +457,21 @@ type BookingCalendarPanelProps = {
   bookingId: string;
   bookingTitle: string;
   serviceLocation?: string | null;
+  bookingStatus: string;
+  userRole: "client" | "worker";
   canEdit: boolean;
 };
+
+function isScheduleAgreed(event: CalendarEvent) {
+  return !!event.confirmed_by_client && !!event.confirmed_by_worker;
+}
 
 export function BookingCalendarPanel({
   bookingId,
   bookingTitle,
   serviceLocation,
+  bookingStatus,
+  userRole,
   canEdit,
 }: BookingCalendarPanelProps) {
   const { t, i18n } = useTranslation();
@@ -377,6 +484,12 @@ export function BookingCalendarPanel({
   const [startsAt, setStartsAt] = useState("");
   const [endsAt, setEndsAt] = useState("");
   const [notes, setNotes] = useState("");
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
+
+  const myConfirmed = (event: CalendarEvent) =>
+    userRole === "client" ? !!event.confirmed_by_client : !!event.confirmed_by_worker;
+  const otherConfirmed = (event: CalendarEvent) =>
+    userRole === "client" ? !!event.confirmed_by_worker : !!event.confirmed_by_client;
 
   const load = useCallback(async () => {
     if (!session?.access_token) return;
@@ -399,6 +512,10 @@ export function BookingCalendarPanel({
 
   const handleCreate = async () => {
     if (!session?.access_token || !startsAt || !endsAt) return;
+    if (new Date(endsAt) <= new Date(startsAt)) {
+      toast.error(t("calendar.endBeforeStart"));
+      return;
+    }
     setSaving(true);
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/calendar/events`, {
@@ -420,10 +537,34 @@ export function BookingCalendarPanel({
         setStartsAt("");
         setEndsAt("");
         setNotes("");
+        toast.success(t("calendar.scheduleProposed"));
         await load();
+      } else {
+        const err = await res.json().catch(() => ({}));
+        toast.error(err.message || t("common.error"));
       }
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleConfirm = async (id: string) => {
+    if (!session?.access_token) return;
+    setConfirmingId(id);
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/calendar/events/${id}/confirm`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      if (res.ok) {
+        toast.success(t("calendar.scheduleConfirmed"));
+        await load();
+      } else {
+        const err = await res.json().catch(() => ({}));
+        toast.error(err.message || t("common.error"));
+      }
+    } finally {
+      setConfirmingId(null);
     }
   };
 
@@ -438,46 +579,43 @@ export function BookingCalendarPanel({
 
   return (
     <div className="space-y-4">
+      <p className="text-xs text-gray-600 leading-relaxed">{t("calendar.scheduleAgreementHint")}</p>
+
       {canEdit && (
-        <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 space-y-3">
+        <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 sm:p-4 space-y-4">
           <h4 className="text-sm font-semibold text-gray-900">{t("calendar.addSession")}</h4>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="space-y-1">
-              <Label htmlFor={`start-${bookingId}`}>{t("calendar.startsAt")}</Label>
-              <Input
-                id={`start-${bookingId}`}
-                type="datetime-local"
-                value={startsAt}
-                onChange={(e) => setStartsAt(e.target.value)}
-              />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor={`end-${bookingId}`}>{t("calendar.endsAt")}</Label>
-              <Input
-                id={`end-${bookingId}`}
-                type="datetime-local"
-                value={endsAt}
-                onChange={(e) => setEndsAt(e.target.value)}
-              />
-            </div>
+          <div className="grid gap-3 md:grid-cols-2">
+            <DateTimeField
+              id={`start-${bookingId}`}
+              label={t("calendar.startsAt")}
+              value={startsAt}
+              onChange={setStartsAt}
+            />
+            <DateTimeField
+              id={`end-${bookingId}`}
+              label={t("calendar.endsAt")}
+              value={endsAt}
+              onChange={setEndsAt}
+            />
           </div>
-          <div className="space-y-1">
+          <div className="space-y-1.5">
             <Label htmlFor={`notes-${bookingId}`}>{t("calendar.notes")}</Label>
             <Textarea
               id={`notes-${bookingId}`}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              rows={2}
+              rows={3}
+              className="resize-none min-h-[4.5rem] max-h-[4.5rem] field-sizing-fixed overflow-y-auto"
             />
           </div>
           <Button
             type="button"
             onClick={handleCreate}
             disabled={saving || !startsAt || !endsAt}
-            className="bg-green-700 hover:bg-green-800"
+            className="w-full sm:w-auto bg-green-700 hover:bg-green-800"
           >
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-            <span className="ml-2">{t("calendar.addEvent")}</span>
+            <span className="ml-2">{t("calendar.proposeSchedule")}</span>
           </Button>
         </div>
       )}
@@ -490,37 +628,82 @@ export function BookingCalendarPanel({
         <p className="text-sm text-gray-500">{t("calendar.noBookingEvents")}</p>
       ) : (
         <ul className="space-y-2">
-          {events.map((event) => (
+          {events.map((event) => {
+            const agreed = isScheduleAgreed(event);
+            const needsMyConfirm = !myConfirmed(event);
+            const waitingOther = myConfirmed(event) && !otherConfirmed(event);
+            const onCalendar = agreed && ["active", "completed"].includes(bookingStatus);
+
+            return (
             <li key={event.id} className="flex items-start justify-between gap-3 rounded-xl border border-gray-100 p-3">
-              <div>
+              <div className="min-w-0 flex-1">
                 <p className="font-medium text-gray-900">{event.title}</p>
-                <p className="text-xs text-gray-500">
-                  {new Date(event.starts_at).toLocaleString(locale)}
-                  {" → "}
-                  {new Date(event.ends_at).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" })}
-                </p>
+                {event.proposer_name && (
+                  <p className="mt-0.5 text-xs text-gray-500">
+                    {t("calendar.proposedBy", { name: event.proposer_name })}
+                  </p>
+                )}
+                <CalendarEventSchedule startsAt={event.starts_at} endsAt={event.ends_at} />
+                <ScheduleConfirmStatus
+                  className="mt-2"
+                  confirmedByClient={!!event.confirmed_by_client}
+                  confirmedByWorker={!!event.confirmed_by_worker}
+                  userRole={userRole}
+                />
+                {event.notes && <p className="mt-1 text-xs text-gray-500 whitespace-pre-line">{event.notes}</p>}
                 {event.location && <p className="text-xs text-gray-600 mt-1">{event.location}</p>}
-                <a
-                  href={googleCalendarUrl(event)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-xs font-medium text-green-700 hover:underline mt-1 inline-block"
-                >
-                  {t("calendar.addGoogle")}
-                </a>
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  {needsMyConfirm && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      className="bg-green-700 hover:bg-green-800 h-8"
+                      disabled={confirmingId === event.id}
+                      onClick={() => handleConfirm(event.id)}
+                    >
+                      {confirmingId === event.id ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        t("calendar.confirmSchedule")
+                      )}
+                    </Button>
+                  )}
+                  {waitingOther && (
+                    <span className="rounded-full border border-gray-200 bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-700">
+                      {t("calendar.waitingOtherSchedule")}
+                    </span>
+                  )}
+                  {agreed && !onCalendar && (
+                    <ScheduleOutcomeBanner variant="afterPayment" className="w-full" />
+                  )}
+                  {onCalendar && (
+                    <ScheduleOutcomeBanner variant="onCalendar" className="w-full" />
+                  )}
+                </div>
+                {onCalendar && (
+                  <a
+                    href={googleCalendarUrl(event)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs font-medium text-green-700 hover:underline mt-2 inline-block"
+                  >
+                    {t("calendar.addGoogle")}
+                  </a>
+                )}
               </div>
               {canEdit && event.status === "scheduled" && (
                 <button
                   type="button"
                   onClick={() => handleDelete(event.id)}
-                  className="rounded-lg p-2 text-gray-400 hover:bg-red-50 hover:text-red-600"
+                  className="shrink-0 rounded-lg p-2 text-gray-400 hover:bg-red-50 hover:text-red-600"
                   aria-label={t("common.delete")}
                 >
                   <Trash2 className="h-4 w-4" />
                 </button>
               )}
             </li>
-          ))}
+            );
+          })}
         </ul>
       )}
     </div>

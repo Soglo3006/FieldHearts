@@ -53,13 +53,13 @@ export interface SentBooking extends BookingBase {
   worker_name: string;
 }
 
-export const STATUS_CONFIG: Record<BookingStatus, { label: string; bar: string; badge: string }> = {
-  pending:   { label: "En attente", bar: "bg-yellow-400",  badge: "bg-yellow-100 text-yellow-800 border-yellow-200" },
-  accepted:  { label: "Acceptée",   bar: "bg-green-500",  badge: "bg-green-100 text-green-800 border-green-200" },
-  active:    { label: "Active",     bar: "bg-green-500",  badge: "bg-green-100 text-green-800 border-green-200" },
-  completed: { label: "Terminée",   bar: "bg-green-500",  badge: "bg-green-100 text-green-800 border-green-200" },
-  cancelled: { label: "Annulée",    bar: "bg-red-400",    badge: "bg-red-100 text-red-700 border-red-200" },
-  rejected:  { label: "Refusée",    bar: "bg-red-400",    badge: "bg-red-100 text-red-700 border-red-200" },
+export const STATUS_CONFIG: Record<BookingStatus, { labelKey: string; bar: string; badge: string }> = {
+  pending:   { labelKey: "bookings.pending",   bar: "bg-yellow-400", badge: "bg-yellow-100 text-yellow-800 border-yellow-200" },
+  accepted:  { labelKey: "bookings.accepted",  bar: "bg-green-500",  badge: "bg-green-100 text-green-800 border-green-200" },
+  active:    { labelKey: "bookings.active",    bar: "bg-green-500",  badge: "bg-green-100 text-green-800 border-green-200" },
+  completed: { labelKey: "bookings.completed", bar: "bg-green-500",  badge: "bg-green-100 text-green-800 border-green-200" },
+  cancelled: { labelKey: "bookings.cancelled", bar: "bg-red-400",    badge: "bg-red-100 text-red-700 border-red-200" },
+  rejected:  { labelKey: "bookings.rejected",  bar: "bg-red-400",    badge: "bg-red-100 text-red-700 border-red-200" },
 };
 
 export function formatDate(dateStr: string) {
@@ -69,7 +69,7 @@ export function formatDate(dateStr: string) {
 }
 
 export const BOOKING_GROUPS = [
-  { label: "Demandes", statuses: ["pending"] as BookingStatus[] },
-  { label: "Active",   statuses: ["accepted", "active"] as BookingStatus[] },
-  { label: "Fermées",  statuses: ["cancelled", "rejected"] as BookingStatus[] },
+  { labelKey: "bookings.groupRequests", statuses: ["pending"] as BookingStatus[] },
+  { labelKey: "bookings.groupActive",   statuses: ["accepted", "active"] as BookingStatus[] },
+  { labelKey: "bookings.groupClosed",   statuses: ["cancelled", "rejected"] as BookingStatus[] },
 ] as const;

@@ -74,8 +74,9 @@ export async function processDepositCancellationRefund({ bookingId, cancelledByU
   const servicePriceCents = roundCents((baseAmount ?? Number(row.custom_price ?? row.price)) * 100);
   const taxRate = Number(row.tax_rate) || 0;
   const refundBaseCents = Math.max(0, servicePriceCents - depositCents);
-  const refundTaxesCents = roundCents(refundBaseCents * taxRate);
-  const totalClientRefundCents = refundBaseCents + refundTaxesCents;
+  // Taxes are always fully refunded on the refundable portion (tax law: taxes follow the refunded item)
+  const totalTaxesCents = roundCents(servicePriceCents * taxRate);
+  const totalClientRefundCents = refundBaseCents + totalTaxesCents;
 
   const workerDepositCents = roundCents(depositCents * 0.8);
 
@@ -89,6 +90,27 @@ export async function processDepositCancellationRefund({ bookingId, cancelledByU
   await pool.query(
     `UPDATE payments SET status = 'refunded', updated_at = NOW() WHERE id = $1`,
     [row.payment_id]
+  );
+
+  const totalClientRefundDollars = roundDollars(totalClientRefundCents / 100);
+  const commissionCents = roundCents(row.platform_fee);
+  const netCostDollars = roundDollars((depositCents + commissionCents) / 100);
+
+  // Update the original debit transaction to the net cost (deposit + commission)
+  // so the wallet shows a single entry instead of debit + credit
+  await pool.query(
+    `UPDATE transactions
+     SET amount = $1, description = 'Annulé — dépôt retenu'
+     WHERE booking_id = $2 AND user_id = $3 AND type = 'debit'`,
+    [netCostDollars, bookingId, row.client_id]
+  );
+
+  // Adjust total_spent to reflect only the net cost
+  await pool.query(
+    `UPDATE wallets
+     SET total_spent = GREATEST(0, total_spent - $1), updated_at = NOW()
+     WHERE user_id = $2`,
+    [totalClientRefundDollars, row.client_id]
   );
 
   await pool.query(

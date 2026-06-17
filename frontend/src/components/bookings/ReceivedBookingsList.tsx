@@ -12,10 +12,11 @@ import { getDisputeWindowState } from "@/lib/disputes";
 import { resolveBookingCheckoutBase } from "@/lib/listingPrice";
 
 function StatusBadge({ status }: { status: BookingStatus }) {
+  const { t } = useTranslation();
   const c = STATUS_CONFIG[status] ?? STATUS_CONFIG.pending;
   return (
     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${c.badge}`}>
-      {c.label}
+      {t(c.labelKey)}
     </span>
   );
 }
@@ -62,10 +63,10 @@ export default function ReceivedBookingsList({
     <div className="space-y-8">
       {BOOKING_GROUPS
         .filter(({ statuses }) => bookings.some((b) => statuses.includes(b.status)))
-        .map(({ label, statuses }) => (
-          <div key={label}>
+        .map(({ labelKey, statuses }) => (
+          <div key={labelKey}>
             <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-3 flex items-center gap-2">
-              {label}
+              {t(labelKey)}
               <span className="text-gray-300 font-normal normal-case tracking-normal text-xs">
                 ({bookings.filter((b) => statuses.includes(b.status)).length})
               </span>
@@ -104,8 +105,8 @@ export default function ReceivedBookingsList({
                           {b.title}
                         </h3>
                         <div className="flex items-center gap-1.5 shrink-0">
-                          <PaymentBadge status={b.payment_status} />
                           <StatusBadge status={b.status} />
+                          <PaymentBadge status={b.payment_status} />
                         </div>
                       </div>
 

@@ -134,9 +134,9 @@ export default function ServiceTitleCard({
             {formatListingPriceLine(t, service, "detail")}
           </p>
           {depositLabel && (
-            <div className="mt-2 w-fit rounded-lg border border-green-200 bg-green-50 px-3 py-2">
-              <p className="text-sm font-medium text-green-800">{depositLabel}</p>
-              <p className="mt-0.5 text-xs text-green-700">{t("deposit.nonRefundableNotice")}</p>
+            <div className="mt-2 w-fit px-1 py-1">
+              <p className="text-sm font-medium text-gray-800">{depositLabel}</p>
+              <p className="mt-0.5 text-xs text-red-500">{t("deposit.nonRefundableNotice")}</p>
             </div>
           )}
         </div>

@@ -743,14 +743,17 @@ export default function BookingDetailModal({
                     booking.deposit_enabled &&
                     depositDollars > 0;
                   const refundBase = Math.max(0, base - depositDollars);
-                  const refundTaxes = Math.round(refundBase * taxRate * 100) / 100;
+                  const totalTaxes = Math.round(base * taxRate * 100) / 100;
                   const refundedToClient = hasDepositCancellation
-                    ? Math.round((refundBase + refundTaxes) * 100) / 100
+                    ? Math.round((refundBase + totalTaxes) * 100) / 100
                     : booking.payment_status === "refunded"
                       ? totalPaid
                       : null;
                   const workerDepositPayout = hasDepositCancellation
                     ? Math.round(depositDollars * 0.8 * 100) / 100
+                    : null;
+                  const platformDepositCommission = hasDepositCancellation
+                    ? Math.round(depositDollars * 0.2 * 100) / 100
                     : null;
 
                   if (userRole === "worker") {
@@ -783,7 +786,7 @@ export default function BookingDetailModal({
                             </div>
                           </CardContent>
                         </Card>
-                        {workerDepositPayout !== null && (
+                        {workerDepositPayout !== null && platformDepositCommission !== null && (
                           <Card className="overflow-hidden border-green-100 shadow-none">
                             <div className="flex items-center gap-2 bg-green-50 px-4 py-2.5 border-b border-green-100">
                               <TrendingUp className="h-3.5 w-3.5 text-green-600" />
@@ -791,7 +794,16 @@ export default function BookingDetailModal({
                                 {t("bookings.workerDepositPayoutLabel")}
                               </span>
                             </div>
-                            <CardContent className="px-4 pt-0 pb-4">
+                            <CardContent className="px-4 pt-0 pb-4 space-y-2 text-sm">
+                              <div className="flex justify-between text-gray-600">
+                                <span>{t("bookings.depositRetainedGrossLabel")}</span>
+                                <span className="font-medium">{fmt(depositDollars)} $</span>
+                              </div>
+                              <div className="flex justify-between text-red-500">
+                                <span>{t("bookings.platformCommission20")}</span>
+                                <span>−{fmt(platformDepositCommission)} $</span>
+                              </div>
+                              <Separator />
                               <div className="flex justify-between font-bold text-base">
                                 <span className="text-gray-900">{t("bookings.youWillReceive")}</span>
                                 <span className="text-green-600">{fmt(workerDepositPayout)} $</span>
@@ -805,6 +817,38 @@ export default function BookingDetailModal({
 
                   return (
                     <div className="space-y-3">
+                      {hasDepositCancellation && (
+                        <Card className="overflow-hidden border-red-200 shadow-none">
+                          <div className="flex items-center gap-2 bg-red-50 px-4 py-2.5 border-b border-red-100">
+                            <span className="text-xs font-semibold text-red-800 uppercase tracking-wide">
+                              {t("bookings.cancellationReceiptTitle")}
+                            </span>
+                          </div>
+                          <CardContent className="px-4 pt-0 pb-4 space-y-2 text-sm">
+                            <div className="flex justify-between text-gray-600">
+                              <span>{t("bookings.totalPaid")}</span>
+                              <span className="font-medium text-gray-900">{fmt(totalPaid)} $</span>
+                            </div>
+                            <div className="flex justify-between text-red-700">
+                              <span>{t("bookings.depositRetainedLabel")}</span>
+                              <span>-{fmt(depositDollars)} $</span>
+                            </div>
+                            <div className="flex justify-between text-red-700">
+                              <span>{t("payment.buyerCommission")}</span>
+                              <span>-{fmt(buyerCommission)} $</span>
+                            </div>
+                            {refundedToClient !== null && (
+                              <>
+                                <Separator className="my-1" />
+                                <div className="flex justify-between text-green-700 font-semibold">
+                                  <span>{t("bookings.amountRefundedLabel")}</span>
+                                  <span>{fmt(refundedToClient)} $</span>
+                                </div>
+                              </>
+                            )}
+                          </CardContent>
+                        </Card>
+                      )}
                       <Card className="overflow-hidden shadow-none">
                         <div className="flex items-center gap-2 bg-white px-4 py-2.5 border-b border-gray-100">
                           <TrendingDown className="h-3.5 w-3.5 text-gray-500" />
@@ -843,27 +887,6 @@ export default function BookingDetailModal({
                           </div>
                         </CardContent>
                       </Card>
-                      {hasDepositCancellation && (
-                        <Card className="overflow-hidden border-red-200 shadow-none">
-                          <div className="flex items-center gap-2 bg-red-50 px-4 py-2.5 border-b border-red-100">
-                            <span className="text-xs font-semibold text-red-800 uppercase tracking-wide">
-                              {t("bookings.cancellationReceiptTitle")}
-                            </span>
-                          </div>
-                          <CardContent className="px-4 pt-0 pb-4 space-y-2 text-sm">
-                            <div className="flex justify-between text-red-700">
-                              <span>{t("bookings.depositRetainedLabel")}</span>
-                              <span>-{fmt(depositDollars)} $</span>
-                            </div>
-                            {refundedToClient !== null && (
-                              <div className="flex justify-between text-green-700">
-                                <span>{t("bookings.amountRefundedLabel")}</span>
-                                <span>{fmt(refundedToClient)} $</span>
-                              </div>
-                            )}
-                          </CardContent>
-                        </Card>
-                      )}
                       {booking.payment_status === "refunded" && !hasDepositCancellation && refundedToClient !== null && (
                         <Card className="overflow-hidden border-gray-200 shadow-none">
                           <CardContent className="px-4 py-3">
@@ -1162,28 +1185,28 @@ export default function BookingDetailModal({
             </div>
 
             {booking.deposit_enabled && (
-              <div className="rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-900">
+              <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-800">
                 <div className="flex items-center justify-between gap-2">
                   <p className="font-medium">{t("deposit.listingNoticeTitle")}</p>
                   {(() => {
                     const cents = booking.deposit_amount_cents;
                     if (cents && cents > 0) {
                       return (
-                        <span className="font-semibold text-green-800 whitespace-nowrap">
+                        <span className="font-semibold text-gray-900 whitespace-nowrap">
                           {(cents / 100).toFixed(2)} $
                         </span>
                       );
                     }
                     if (booking.deposit_type === "percent" && booking.deposit_value) {
                       return (
-                        <span className="font-semibold text-green-800 whitespace-nowrap">
+                        <span className="font-semibold text-gray-900 whitespace-nowrap">
                           {booking.deposit_value} %
                         </span>
                       );
                     }
                     if (booking.deposit_type === "fixed" && booking.deposit_value) {
                       return (
-                        <span className="font-semibold text-green-800 whitespace-nowrap">
+                        <span className="font-semibold text-gray-900 whitespace-nowrap">
                           {Number(booking.deposit_value).toFixed(2)} $
                         </span>
                       );
@@ -1191,7 +1214,7 @@ export default function BookingDetailModal({
                     return null;
                   })()}
                 </div>
-                <p className="text-xs mt-1 text-green-700">{t("deposit.nonRefundableNotice")}</p>
+                <p className="text-xs mt-1 text-red-500">{t("deposit.nonRefundableNotice")}</p>
               </div>
             )}
 

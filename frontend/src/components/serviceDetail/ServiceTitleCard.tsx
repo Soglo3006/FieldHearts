@@ -6,7 +6,7 @@ import SaveShareActions from "@/components/serviceDetail/SaveShareActions";
 import { useTranslation } from "react-i18next";
 import { getPublicServiceLocation } from "@/lib/serviceLocation";
 import { resolveListingDescription, resolveListingTitle, type ServiceLikeWithI18n } from "@/lib/serviceListingI18n";
-import { formatListingPriceLine, normalizePricingMode } from "@/lib/listingPrice";
+import { formatListingPriceLine, normalizePricingMode, parseListingPriceNum } from "@/lib/listingPrice";
 import { formatDepositLabel, resolveDepositBaseAmount } from "@/lib/deposit";
 import { cn } from "@/lib/utils";
 import { formatListingCategoryLine } from "@/lib/listingTags";
@@ -65,6 +65,8 @@ export default function ServiceTitleCard({
   const displayTitle = resolveListingTitle(service, i18n.language);
   const displayDescription = resolveListingDescription(service, i18n.language);
   const isQuotePricing = normalizePricingMode(service.pricing_mode) === "quote";
+  const isHourly = normalizePricingMode(service.pricing_mode) === "hourly";
+  const hourlyEstimatedHours = isHourly ? parseListingPriceNum(service.estimated_hours) : null;
   const depositBase = resolveDepositBaseAmount(service, null);
   const depositLabel =
     service.deposit_enabled && depositBase != null
@@ -123,21 +125,31 @@ export default function ServiceTitleCard({
             </div>
           )}
 
-          <p
-            className={cn(
-              "mt-4 text-green-700 font-bold leading-snug",
+          <div className="mt-4">
+            <p className={cn(
+              "text-green-700 font-bold leading-snug",
               isQuotePricing
                 ? "text-lg sm:text-xl max-w-2xl text-green-800"
                 : "text-2xl sm:text-3xl font-bold text-green-700"
+            )}>
+              {isHourly
+                ? formatListingPriceLine(t, service)
+                : formatListingPriceLine(t, service, "detail")}
+            </p>
+            {isHourly && hourlyEstimatedHours != null && hourlyEstimatedHours > 0 && (
+              <>
+                <hr className="border-gray-200 my-2 w-16" />
+                <p className="text-sm text-gray-500">~{hourlyEstimatedHours} h {t("post.estimatedHoursLabel").toLowerCase()}</p>
+              </>
             )}
-          >
-            {formatListingPriceLine(t, service, "detail")}
-          </p>
+          </div>
           {depositLabel && (
-            <div className="mt-2 w-fit px-1 py-1">
-              <p className="text-sm font-medium text-gray-800">{depositLabel}</p>
-              <p className="mt-0.5 text-xs text-red-500">{t("deposit.nonRefundableNotice")}</p>
-            </div>
+            <>
+              <div className="mt-2 w-fit border border-gray-200 rounded-lg px-3 py-2">
+                <p className="text-sm font-medium text-gray-800">{depositLabel}</p>
+                <p className="mt-0.5 text-xs text-red-500">{t("deposit.nonRefundableNotice")}</p>
+              </div>
+            </>
           )}
         </div>
 

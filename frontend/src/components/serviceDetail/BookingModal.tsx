@@ -20,6 +20,7 @@ interface Props {
   providerFirstName: string;
   workerProvince?: string | null;
   pricingMode?: string | null;
+  hourlyRate?: number | null;
   estimatedHours?: string;
   onEstimatedHoursChange?: (v: string) => void;
   onNoteChange: (v: string) => void;
@@ -39,6 +40,7 @@ export default function BookingModal({
   serviceTitle,
   providerFirstName,
   pricingMode,
+  hourlyRate,
   estimatedHours = "",
   onEstimatedHoursChange,
   onNoteChange,
@@ -52,20 +54,21 @@ export default function BookingModal({
   const showBuyerFees = serviceType === "offer";
   const isHourly = String(pricingMode ?? "").toLowerCase() === "hourly";
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
       <div
         className="absolute inset-0 bg-black/50"
         onClick={() => { if (state !== "loading") onClose(); }}
       />
-      <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md z-10 p-6">
-        <div className="flex items-center justify-between mb-4">
+      <div className="relative bg-white rounded-3xl shadow-xl w-full max-w-md z-10 max-h-[85vh] flex flex-col overflow-hidden">
+        <div className="flex items-center justify-between px-6 pt-6 pb-4 shrink-0">
           <h3 className="text-lg font-semibold text-gray-900">{t("serviceDetail.requestBooking")}</h3>
           {state !== "loading" && (
-            <button onClick={onClose} className="cursor-pointer text-gray-500 hover:text-gray-700">
+            <button type="button" title={t("serviceDetail.close")} onClick={onClose} className="cursor-pointer text-gray-500 hover:text-gray-700">
               <X className="h-5 w-5" />
             </button>
           )}
         </div>
+        <div className="overflow-y-auto flex-1 px-6 pb-6">
 
         {state === "success" ? (
           <div className="text-center py-4">
@@ -92,7 +95,72 @@ export default function BookingModal({
           <>
             <div className="bg-white rounded-lg p-4 mb-4 border border-gray-100">
               <p className="font-medium text-gray-900 text-sm mb-3 line-clamp-2">{serviceTitle}</p>
-              {estimatedTotalBase === null ? (
+              {isHourly ? (() => {
+                const fmt = (n: number) => n.toFixed(2);
+                const hours = Number(estimatedHours);
+                const hasHours = hourlyRate != null && hours > 0;
+                const base = hasHours ? hourlyRate! * hours : null;
+                const commission = base != null ? base * 0.05 : null;
+                const taxes = base != null ? base * taxRate : null;
+                const total = base != null ? base + commission! + taxes! : null;
+                return (
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between gap-2 items-center">
+                      <span className="text-gray-600">{t("serviceDetail.servicePrice")}</span>
+                      <span className="font-semibold">{displayPriceLabel}</span>
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-500 block mb-1">
+                        {t("post.estimatedHoursLabel")}{" "}
+                        <span className="text-gray-400">{t("serviceDetail.optional")}</span>
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        step="1"
+                        value={estimatedHours}
+                        onChange={(e) => onEstimatedHoursChange?.(e.target.value)}
+                        placeholder="2"
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-green-600 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                        disabled={state === "loading"}
+                      />
+                      <p className="text-xs text-gray-400 mt-1">{t("post.estimatedHoursHint")}</p>
+                    </div>
+                    {hasHours && base != null && (
+                      <>
+                        <div className="border-t border-gray-100 pt-2 space-y-1.5">
+                          <div className="flex justify-between gap-2">
+                            <span className="text-gray-500">{fmt(hourlyRate!)} $/h × {hours} h</span>
+                            <span className="text-gray-700 tabular-nums">{fmt(base)} $</span>
+                          </div>
+                          {showBuyerFees && (
+                            <>
+                              <div className="flex justify-between gap-2">
+                                <div>
+                                  <div className="text-gray-500">{t("serviceDetail.buyerCommission")}</div>
+                                  <div className="text-xs text-red-500">{t("payment.nonRefundable")}</div>
+                                </div>
+                                <span className="text-gray-700 tabular-nums shrink-0">{fmt(commission!)} $</span>
+                              </div>
+                              <div className="flex justify-between gap-2">
+                                <div>
+                                  <div className="text-gray-500">{t("serviceDetail.taxes")} ({formatTaxRate(taxRate)}%)</div>
+                                  <div className="text-xs text-gray-400">{taxLabel}</div>
+                                </div>
+                                <span className="text-gray-700 tabular-nums shrink-0">{fmt(taxes!)} $</span>
+                              </div>
+                              <div className="flex justify-between gap-2 font-bold border-t border-gray-200 pt-2">
+                                <span>{t("serviceDetail.total")}</span>
+                                <span className="text-green-700 tabular-nums shrink-0">{fmt(total!)} $</span>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                );
+              })() : estimatedTotalBase === null ? (
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between gap-2">
                     <span className="text-gray-600">
@@ -160,26 +228,6 @@ export default function BookingModal({
               )}
             </div>
 
-            {isHourly && (
-              <div className="mb-4">
-                <label className="text-sm font-medium text-gray-700 mb-1.5 block">
-                  {t("post.estimatedHoursLabel")}{" "}
-                  <span className="text-gray-400 font-normal">{t("serviceDetail.optional")}</span>
-                </label>
-                <input
-                  type="number"
-                  min="1"
-                  step="1"
-                  value={estimatedHours}
-                  onChange={(e) => onEstimatedHoursChange?.(e.target.value)}
-                  placeholder="2"
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-green-600 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                  disabled={state === "loading"}
-                />
-                <p className="text-xs text-gray-500 mt-1">{t("post.estimatedHoursHint")}</p>
-              </div>
-            )}
-
             <div className="mb-4">
               <label className="text-sm font-medium text-gray-700 mb-1.5 block">
                 {t("serviceDetail.describeRequest")} <span className="text-gray-400 font-normal">{t("serviceDetail.optional")}</span>
@@ -228,6 +276,7 @@ export default function BookingModal({
             </p>
           </>
         )}
+        </div>
       </div>
     </div>
   );

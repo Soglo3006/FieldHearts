@@ -32,7 +32,11 @@ export default function WorkerCustomizeSection({ booking, accessToken, onSaved }
   const [editing, setEditing] = useState(false);
   const [editNote, setEditNote] = useState(booking.worker_note ?? "");
   const [editPrice, setEditPrice] = useState(String(booking.custom_price ?? booking.price ?? ""));
-  const [editHours, setEditHours] = useState(String(booking.estimated_hours ?? ""));
+  const [editHours, setEditHours] = useState(
+    booking.estimated_hours != null && booking.estimated_hours !== ""
+      ? String(Math.round(Number(booking.estimated_hours)))
+      : ""
+  );
   const [editDepositType, setEditDepositType] = useState(booking.deposit_type ?? "percent");
   const [editDepositValue, setEditDepositValue] = useState(String(booking.deposit_value ?? ""));
   const [saving, setSaving] = useState(false);
@@ -102,8 +106,8 @@ export default function WorkerCustomizeSection({ booking, accessToken, onSaved }
               <input
                 id="customizeBookingHours"
                 type="number"
-                min="0.25"
-                step="0.25"
+                min="1"
+                step="1"
                 value={editHours}
                 onChange={(e) => setEditHours(e.target.value)}
                 className="w-full border rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-600"

@@ -11,6 +11,7 @@ import { useTranslation } from "react-i18next";
 import { getTaxRate } from "@/lib/taxes";
 import { getDisputeWindowState } from "@/lib/disputes";
 import { resolveBookingCheckoutBase } from "@/lib/listingPrice";
+import { needsBookingPayment, resolveCheckoutPrice } from "@/lib/hourlyPayment";
 
 function StatusBadge({ status }: { status: BookingStatus }) {
   const { t } = useTranslation();
@@ -32,6 +33,7 @@ function PaymentBadge({ status }: { status: string | null }) {
   };
   const labels: Record<string, string> = {
     paid: t("bookings.paid"),
+    deposit_paid: t("bookings.depositPaid"),
     transferred: t("bookings.paidOut"),
     refunded: t("bookings.refunded"),
   };
@@ -80,7 +82,8 @@ export default function SentBookingsList({
                 // For offer: other person is the worker (b.worker_id)
                 // For looking: other person is the client/poster (b.client_id)
                 const otherId = isLooking ? b.client_id : b.worker_id;
-                const needsPayment = !isLooking && b.status === "accepted" && (!b.payment_status || b.payment_status === "unpaid");
+                const needsPayment = !isLooking && needsBookingPayment(b).needed;
+                const checkoutKind = needsBookingPayment(b).kind;
 
                 return (
                   <div key={b.id}
@@ -161,9 +164,19 @@ export default function SentBookingsList({
                             bookingId={b.id}
                             accessToken={accessToken}
                             bookingTitle={b.title}
-                            price={resolveBookingCheckoutBase(b)}
+                            price={resolveCheckoutPrice(
+                              b,
+                              b.deposit_enabled
+                                ? {
+                                    deposit_enabled: true,
+                                    deposit_type: b.deposit_type,
+                                    deposit_value: b.deposit_value,
+                                  }
+                                : null,
+                            )}
                             clientProvince={b.client_province ?? null}
                             taxRateStored={b.tax_rate ? Number(b.tax_rate) : null}
+                            checkoutKind={checkoutKind}
                           />
                         )}
 

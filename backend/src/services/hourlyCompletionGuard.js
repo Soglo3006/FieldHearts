@@ -1,6 +1,7 @@
 import pool from "../config/db.js";
 import { normalizePricingMode } from "../utils/servicePricing.js";
 import { ensureDepositsAndCalendarSchema } from "../utils/depositSchema.js";
+import { computeHourlyBalanceDueCents } from "../utils/hourlyPayment.js";
 
 const AUTO_APPROVE_MS = 72 * 60 * 60 * 1000;
 
@@ -29,8 +30,9 @@ async function autoApproveStaleSessions(bookingId) {
 }
 
 /**
- * Blocks completion for hourly bookings when work sessions are pending or disputed.
- * @throws {{ statusCode: number, message: string }}
+ * Blocks completion for hourly bookings when work sessions are pending, disputed,
+ * or when an approved-hours balance remains unpaid.
+ * @throws {{ statusCode: number, message: string, code?: string }}
  */
 export async function assertHourlyReadyForCompletion(bookingId, pricingMode) {
   const mode = normalizePricingMode(pricingMode);
@@ -38,6 +40,27 @@ export async function assertHourlyReadyForCompletion(bookingId, pricingMode) {
 
   await ensureDepositsAndCalendarSchema(pool);
   await autoApproveStaleSessions(bookingId);
+
+  const bookingResult = await pool.query(
+    `SELECT approved_hours_total, paid_service_base_cents, balance_due_cents,
+            payment_status, price, pricing_mode
+     FROM bookings WHERE id = $1`,
+    [bookingId],
+  );
+  const booking = bookingResult.rows[0];
+  if (!booking) return;
+
+  const balanceDue =
+    Number(booking.balance_due_cents) || computeHourlyBalanceDueCents(booking);
+  if (balanceDue > 0) {
+    const err = new Error(
+      "Hourly bookings require the approved-hours balance to be paid before completion",
+    );
+    err.statusCode = 400;
+    err.code = "HOURLY_BALANCE_DUE";
+    err.balance_due_cents = balanceDue;
+    throw err;
+  }
 
   const sessions = await pool.query(
     `SELECT id, status FROM work_sessions WHERE booking_id = $1`,

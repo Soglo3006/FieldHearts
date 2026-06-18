@@ -15,7 +15,9 @@ export async function ensureDepositsAndCalendarSchema(pool) {
     ALTER TABLE bookings ADD COLUMN IF NOT EXISTS pricing_mode varchar(16);
     ALTER TABLE bookings ADD COLUMN IF NOT EXISTS approved_hours_total numeric(10, 2) NOT NULL DEFAULT 0;
     ALTER TABLE bookings ADD COLUMN IF NOT EXISTS paid_service_base_cents integer NOT NULL DEFAULT 0;
+    ALTER TABLE bookings ADD COLUMN IF NOT EXISTS balance_due_cents integer NOT NULL DEFAULT 0;
     ALTER TABLE payments ADD COLUMN IF NOT EXISTS deposit_amount_cents integer NOT NULL DEFAULT 0;
+    ALTER TABLE payments ADD COLUMN IF NOT EXISTS payment_kind varchar(16) NOT NULL DEFAULT 'full';
     ALTER TABLE users ADD COLUMN IF NOT EXISTS calendar_ics_token varchar(64) UNIQUE;
     ALTER TABLE users ADD COLUMN IF NOT EXISTS google_calendar_refresh_token text;
     ALTER TABLE users ADD COLUMN IF NOT EXISTS google_calendar_access_token text;

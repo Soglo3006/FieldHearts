@@ -28,6 +28,7 @@ import {
   estimateMaxBaseAmountForTotals,
   formatListingPriceLine,
   normalizePricingMode,
+  parseListingPriceNum,
 } from "@/lib/listingPrice";
 
 interface Service {
@@ -167,11 +168,7 @@ export default function ServiceDetailClient() {
         if (!res.ok) { setError(true); return; }
         const data: Service = await res.json();
         setService(data);
-        setBookingEstimatedHours(
-          data.estimated_hours != null && data.estimated_hours !== ""
-            ? String(data.estimated_hours)
-            : "",
-        );
+        setBookingEstimatedHours("");
         setFavoritesCount(typeof data.favorites_count === "number" ? data.favorites_count : 0);
 
         const rawFaq = data.faq;
@@ -269,7 +266,7 @@ export default function ServiceDetailClient() {
     );
   }
 
-  const displayPriceLabel = formatListingPriceLine(t, service, "detail");
+  const displayPriceLabel = formatListingPriceLine(t, service);
   const estimatedTotalBase = estimateBaseAmountForTotals(service);
   const estimatedTotalBaseMax = estimateMaxBaseAmountForTotals(service);
   const displayTitle = resolveListingTitle(service, i18n.language);
@@ -372,6 +369,8 @@ export default function ServiceDetailClient() {
                 availability={service.availability}
                 language={service.language}
                 mobility={service.mobility}
+                pricingMode={service.pricing_mode}
+                serviceEstimatedHours={parseListingPriceNum(service.estimated_hours)}
                 existingBookingStatus={existingBookingStatus}
                 contactLoading={contactLoading}
                 onBookingRequest={handleBookingRequest}
@@ -415,6 +414,7 @@ export default function ServiceDetailClient() {
           workerProvince={service.owner_province}
           onNoteChange={setBookingNote}
           pricingMode={service.pricing_mode}
+          hourlyRate={normalizePricingMode(service.pricing_mode) === "hourly" ? Number(service.price) : null}
           estimatedHours={bookingEstimatedHours}
           onEstimatedHoursChange={setBookingEstimatedHours}
           onSubmit={submitBooking}

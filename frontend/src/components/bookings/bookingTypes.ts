@@ -42,6 +42,8 @@ interface BookingBase {
   pricing_mode?: string | null;
   estimated_hours?: number | string | null;
   approved_hours_total?: number | string | null;
+  paid_service_base_cents?: number | null;
+  balance_due_cents?: number | null;
   price_max?: number | string | null;
 }
 

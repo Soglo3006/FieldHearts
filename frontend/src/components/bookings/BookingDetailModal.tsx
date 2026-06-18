@@ -32,6 +32,12 @@ import { BookingCalendarPanel } from "@/components/calendar/CalendarPageClient";
 import WorkSessionsPanel from "@/components/bookings/WorkSessionsPanel";
 import { normalizePricingMode, resolveBookingCheckoutBase, getEffectiveBookingPrice } from "@/lib/listingPrice";
 import {
+  computeHourlyBalanceDueCents,
+  needsBookingPayment,
+  resolveCheckoutKind,
+  resolveCheckoutPrice,
+} from "@/lib/hourlyPayment";
+import {
   Carousel,
   CarouselContent,
   CarouselItem,
@@ -90,6 +96,8 @@ export interface BookingDetail {
   pricing_mode?: string | null;
   estimated_hours?: number | string | null;
   approved_hours_total?: number | string | null;
+  paid_service_base_cents?: number | null;
+  balance_due_cents?: number | null;
 }
 
 interface Props {
@@ -342,7 +350,10 @@ export default function BookingDetailModal({
   const currentUserId = userRole === "worker" ? booking.worker_id : booking.client_id;
   const otherUserName = userRole === "worker" ? (booking.client_name ?? t("bookings.clientLabel")) : (booking.worker_name ?? t("bookings.providerLabel"));
   const otherUserId = userRole === "worker" ? booking.client_id : booking.worker_id;
-  const needsPayment = booking.status === "accepted" && (!booking.payment_status || booking.payment_status === "unpaid");
+  const paymentNeed = needsBookingPayment(booking);
+  const needsPayment = paymentNeed.needed;
+  const checkoutKind = paymentNeed.kind;
+  const balanceDueCents = computeHourlyBalanceDueCents(booking);
   const hasMarkedDone = userRole === "worker" ? booking.completed_by_worker : booking.completed_by_client;
   const otherHasMarkedDone = userRole === "worker" ? booking.completed_by_client : booking.completed_by_worker;
   const panelOrders = layoutMode === "dispute"
@@ -390,6 +401,18 @@ export default function BookingDetailModal({
     }
     if (booking.payment_status === "refunded") {
       return { label: t("bookings.refunded"), className: "bg-gray-100 text-gray-600 border-gray-200" };
+    }
+    if (booking.payment_status === "deposit_paid") {
+      if (balanceDueCents > 0) {
+        return {
+          label: t("bookings.balanceDue"),
+          className: "bg-amber-100 text-amber-800 border-amber-200",
+        };
+      }
+      return {
+        label: t("bookings.depositPaid"),
+        className: "bg-green-100 text-green-700 border-green-200",
+      };
     }
     if (booking.payment_status && booking.payment_status !== "unpaid") {
       return {
@@ -727,6 +750,9 @@ export default function BookingDetailModal({
                 const totalPaid       = base + buyerCommission + taxes;
                 const commission20    = base * 0.20;
                 const workerReceives  = base * 0.80;
+                const isHourlyMode    = normalizePricingMode(booking.pricing_mode) === "hourly";
+                const hourlyRate      = isHourlyMode ? Number(booking.price) : null;
+                const estimatedH      = isHourlyMode && booking.estimated_hours ? Number(booking.estimated_hours) : null;
 
                 if (booking.status === "rejected") return null;
 
@@ -768,7 +794,12 @@ export default function BookingDetailModal({
                           </div>
                           <CardContent className="px-4 pt-0 pb-4 space-y-2 text-sm">
                             <div className="flex justify-between text-gray-600">
-                              <span>{t("serviceDetail.servicePrice")}</span>
+                              <div>
+                                <div>{t("serviceDetail.servicePrice")}</div>
+                                {isHourlyMode && hourlyRate != null && estimatedH != null && (
+                                  <div className="text-xs text-gray-400">{fmt(hourlyRate)} $/h × {estimatedH} h</div>
+                                )}
+                              </div>
                               <span className="font-medium">{fmt(base)} $</span>
                             </div>
                             <div className="flex justify-between text-gray-500">
@@ -858,7 +889,12 @@ export default function BookingDetailModal({
                         </div>
                         <CardContent className="px-4 pt-0 pb-4 space-y-2 text-sm">
                           <div className="flex justify-between text-gray-600">
-                            <span>{t("serviceDetail.servicePrice")}</span>
+                            <div>
+                              <div>{t("serviceDetail.servicePrice")}</div>
+                              {isHourlyMode && hourlyRate != null && estimatedH != null && (
+                                <div className="text-xs text-gray-400">{fmt(hourlyRate)} $/h × {estimatedH} h</div>
+                              )}
+                            </div>
                             <span className="font-medium">
                               {fmt(base)} $
                               {booking.custom_price && Number(booking.custom_price) !== origBase && (
@@ -914,7 +950,12 @@ export default function BookingDetailModal({
                           </div>
                           <CardContent className="px-4 pt-0 pb-4 space-y-2 text-sm">
                             <div className="flex justify-between text-gray-600">
-                              <span>{t("serviceDetail.servicePrice")}</span>
+                              <div>
+                                <div>{t("serviceDetail.servicePrice")}</div>
+                                {isHourlyMode && hourlyRate != null && estimatedH != null && (
+                                  <div className="text-xs text-gray-400">{fmt(hourlyRate)} $/h × {estimatedH} h</div>
+                                )}
+                              </div>
                               <span className="font-medium">{fmt(base)} $</span>
                             </div>
                             <div className="flex justify-between text-gray-500">
@@ -984,7 +1025,12 @@ export default function BookingDetailModal({
                         </div>
                         <CardContent className="px-4 pt-0 pb-4 space-y-2 text-sm">
                           <div className="flex justify-between text-gray-600">
-                            <span>{t("serviceDetail.servicePrice")}</span>
+                            <div>
+                              <div>{t("serviceDetail.servicePrice")}</div>
+                              {isHourlyMode && hourlyRate != null && estimatedH != null && (
+                                <div className="text-xs text-gray-400">{fmt(hourlyRate)} $/h × {estimatedH} h</div>
+                              )}
+                            </div>
                             <span className="font-medium">
                               {fmt(base)} $
                               {booking.custom_price && Number(booking.custom_price) !== origBase && (
@@ -1051,7 +1097,12 @@ export default function BookingDetailModal({
                         </div>
                         <CardContent className="px-4 pt-0 pb-4 space-y-2 text-sm">
                           <div className="flex justify-between text-gray-600">
-                            <span>{t("serviceDetail.servicePrice")}</span>
+                            <div>
+                              <div>{t("serviceDetail.servicePrice")}</div>
+                              {isHourlyMode && hourlyRate != null && estimatedH != null && (
+                                <div className="text-xs text-gray-400">{fmt(hourlyRate)} $/h × {estimatedH} h</div>
+                              )}
+                            </div>
                             <span className="font-medium">
                               {fmt(base)} $
                               {booking.custom_price && Number(booking.custom_price) !== origBase && (
@@ -1088,7 +1139,12 @@ export default function BookingDetailModal({
                         </div>
                         <CardContent className="px-4 pt-0 pb-4 space-y-2 text-sm">
                           <div className="flex justify-between text-gray-600">
-                            <span>{t("serviceDetail.servicePrice")}</span>
+                            <div>
+                              <div>{t("serviceDetail.servicePrice")}</div>
+                              {isHourlyMode && hourlyRate != null && estimatedH != null && (
+                                <div className="text-xs text-gray-400">{fmt(hourlyRate)} $/h × {estimatedH} h</div>
+                              )}
+                            </div>
                             <span className="font-medium">{fmt(base)} $</span>
                           </div>
                           <div className="flex justify-between text-red-500">
@@ -1116,7 +1172,12 @@ export default function BookingDetailModal({
                     </div>
                     <CardContent className="px-4 pt-0 pb-4 space-y-2 text-sm">
                       <div className="flex justify-between text-gray-600">
-                        <span>{t("serviceDetail.servicePrice")}</span>
+                        <div>
+                          <div>{t("serviceDetail.servicePrice")}</div>
+                          {isHourlyMode && hourlyRate != null && estimatedH != null && (
+                            <div className="text-xs text-gray-400">{fmt(hourlyRate)} $/h × {estimatedH} h</div>
+                          )}
+                        </div>
                         <span className="font-medium">
                           {fmt(base)} $
                           {booking.custom_price && Number(booking.custom_price) !== origBase && (
@@ -1503,9 +1564,19 @@ export default function BookingDetailModal({
             <PaymentInlinePanel
               bookingId={booking.id}
               bookingTitle={booking.title}
-              price={resolveBookingCheckoutBase(booking)}
+              price={resolveCheckoutPrice(
+                booking,
+                booking.deposit_enabled
+                  ? {
+                      deposit_enabled: true,
+                      deposit_type: booking.deposit_type,
+                      deposit_value: booking.deposit_value,
+                    }
+                  : null,
+              )}
               accessToken={accessToken}
               clientProvince={booking.client_province ?? null}
+              checkoutKind={checkoutKind}
               depositConfig={
                 booking.deposit_enabled
                   ? {

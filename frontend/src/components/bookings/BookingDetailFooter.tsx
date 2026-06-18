@@ -12,7 +12,7 @@ import { type BookingDetail } from "./BookingDetailModal";
 
 import { getDisputeWindowState } from "@/lib/disputes";
 
-import { resolveBookingCheckoutBase } from "@/lib/listingPrice";
+import { resolveCheckoutPrice, needsBookingPayment } from "@/lib/hourlyPayment";
 
 
 
@@ -79,6 +79,7 @@ export default function BookingDetailFooter({
   const { t } = useTranslation();
 
   const disputeWindow = getDisputeWindowState(booking.completed_at);
+  const { kind: checkoutKind } = needsBookingPayment(booking);
 
 
 
@@ -174,11 +175,22 @@ export default function BookingDetailFooter({
 
           bookingTitle={booking.title}
 
-          price={resolveBookingCheckoutBase(booking)}
+          price={resolveCheckoutPrice(
+            booking,
+            booking.deposit_enabled
+              ? {
+                  deposit_enabled: true,
+                  deposit_type: booking.deposit_type,
+                  deposit_value: booking.deposit_value,
+                }
+              : null,
+          )}
 
           clientProvince={booking.client_province ?? null}
 
           taxRateStored={booking.tax_rate ? Number(booking.tax_rate) : null}
+
+          checkoutKind={checkoutKind}
 
           onPayNow={onPayNow}
 
@@ -258,7 +270,7 @@ export default function BookingDetailFooter({
 
       {booking.status === "active" && !booking.has_dispute && userRole === "client" &&
 
-        booking.payment_status === "paid" &&
+        (booking.payment_status === "paid" || booking.payment_status === "deposit_paid") &&
 
         booking.deposit_enabled &&
 

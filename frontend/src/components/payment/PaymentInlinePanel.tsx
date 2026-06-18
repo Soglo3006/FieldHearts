@@ -9,6 +9,7 @@ import { getTaxRate, getTaxLabel, formatTaxRate } from "@/lib/taxes";
 import { getIntlLocale } from "@/lib/locale";
 import { PaymentDepositRows } from "@/components/payment/PaymentDepositRows";
 import type { DepositConfig } from "@/lib/deposit";
+import type { CheckoutKind } from "@/lib/hourlyPayment";
 
 interface Props {
   bookingId: string;
@@ -18,6 +19,7 @@ interface Props {
   clientProvince: string | null;
   depositConfig?: DepositConfig | null;
   depositAmountCents?: number | null;
+  checkoutKind?: CheckoutKind | null;
 }
 
 export default function PaymentInlinePanel({
@@ -28,6 +30,7 @@ export default function PaymentInlinePanel({
   clientProvince,
   depositConfig,
   depositAmountCents,
+  checkoutKind = "full",
 }: Props) {
   const { t, i18n } = useTranslation();
   const checkoutLocale = getIntlLocale(i18n.language, { fr: "fr-CA", en: "en" });
@@ -136,22 +139,40 @@ export default function PaymentInlinePanel({
   const total = price + commission + taxes;
   const fmt = (n: number) => n.toFixed(2);
 
+  const isDepositCheckout = checkoutKind === "deposit";
+  const isBalanceCheckout = checkoutKind === "balance";
+  const servicePriceLabel = isDepositCheckout
+    ? t("payment.depositAmount")
+    : isBalanceCheckout
+      ? t("payment.balanceAmount")
+      : t("payment.servicePrice");
+
   return (
     <div className="flex flex-col flex-1 overflow-hidden">
       <div className="overflow-y-auto flex-1 px-5 py-4 space-y-4">
         {/* Price summary */}
         <div className="bg-white rounded-xl border border-gray-100 px-4 py-3 space-y-1.5 text-sm">
           <p className="text-base font-bold text-gray-900 mb-2">{bookingTitle}</p>
+          {isBalanceCheckout && (
+            <p className="text-xs text-amber-700 bg-amber-50 rounded-lg px-2 py-1.5 mb-1">
+              {t("payment.balanceDueNotice")}
+            </p>
+          )}
           <div className="flex justify-between text-gray-600">
-            <span>{t("payment.servicePrice")}</span>
+            <span>{servicePriceLabel}</span>
             <span className="font-medium text-gray-900">{fmt(price)} $</span>
           </div>
           <hr className="border-gray-100 my-1" />
-          <PaymentDepositRows
-            price={price}
-            depositConfig={depositConfig}
-            depositAmountCents={depositAmountCents}
-          />
+          {!isDepositCheckout && !isBalanceCheckout && (
+            <PaymentDepositRows
+              price={price}
+              depositConfig={depositConfig}
+              depositAmountCents={depositAmountCents}
+            />
+          )}
+          {isDepositCheckout && (
+            <p className="text-xs text-gray-500">{t("payment.hourlyDepositNotice")}</p>
+          )}
           <div className="flex justify-between text-gray-500">
             <div>
               <div>{t("payment.buyerCommission")}</div>
@@ -226,7 +247,13 @@ export default function PaymentInlinePanel({
               {t("payment.redirectingToStripe")}
             </span>
           ) : (
-            <span>{t("payment.payNowLabel")}</span>
+            <span>
+              {isDepositCheckout
+                ? t("payment.payDepositLabel")
+                : isBalanceCheckout
+                  ? t("payment.payBalanceLabel")
+                  : t("payment.payNowLabel")}
+            </span>
           )}
         </Button>
         <p className="text-xs text-center text-gray-400 mt-2">{t("payment.securedByStripe")}</p>

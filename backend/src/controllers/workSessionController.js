@@ -2,6 +2,7 @@ import pool from "../config/db.js";
 import { validateInput, sanitizeText } from "../utils/validate.js";
 import { ensureDepositsAndCalendarSchema } from "../utils/depositSchema.js";
 import { createLocalizedNotification } from "../services/notificationService.js";
+import { refreshHourlyBalanceDue } from "../services/hourlyBalanceService.js";
 
 const AUTO_APPROVE_MS = 72 * 60 * 60 * 1000;
 
@@ -25,7 +26,7 @@ function roleFor(booking, userId) {
   return null;
 }
 
-async function refreshApprovedHoursTotal(bookingId) {
+async function refreshApprovedHoursTotal(bookingId, { notifyBalance = false } = {}) {
   await pool.query(
     `UPDATE bookings
      SET approved_hours_total = COALESCE(
@@ -36,6 +37,7 @@ async function refreshApprovedHoursTotal(bookingId) {
      WHERE id = $1`,
     [bookingId],
   );
+  await refreshHourlyBalanceDue(bookingId, { notifyClient: notifyBalance });
 }
 
 async function autoApproveStaleSessions(bookingId) {
@@ -226,7 +228,7 @@ export const respondWorkSessionAsClient = async (req, res) => {
          WHERE id = $4 RETURNING *`,
         [finalHours, clientNote, req.user.id, id],
       );
-      await refreshApprovedHoursTotal(session.booking_id);
+      await refreshApprovedHoursTotal(session.booking_id, { notifyBalance: true });
       return res.json(result.rows[0]);
     }
 
@@ -323,7 +325,7 @@ export const respondWorkSessionAsWorker = async (req, res) => {
        WHERE id = $3 RETURNING *`,
       [finalHours, req.user.id, id],
     );
-    await refreshApprovedHoursTotal(session.booking_id);
+    await refreshApprovedHoursTotal(session.booking_id, { notifyBalance: true });
     res.json(result.rows[0]);
   } catch (err) {
     console.error(err);

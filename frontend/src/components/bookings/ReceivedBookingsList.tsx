@@ -10,6 +10,7 @@ import PayNowButton from "./PayNowButton";
 import { useTranslation } from "react-i18next";
 import { getDisputeWindowState } from "@/lib/disputes";
 import { resolveBookingCheckoutBase } from "@/lib/listingPrice";
+import { needsBookingPayment, resolveCheckoutPrice } from "@/lib/hourlyPayment";
 
 function StatusBadge({ status }: { status: BookingStatus }) {
   const { t } = useTranslation();
@@ -31,6 +32,7 @@ function PaymentBadge({ status }: { status: string | null }) {
   };
   const labels: Record<string, string> = {
     paid: t("bookings.paid"),
+    deposit_paid: t("bookings.depositPaid"),
     transferred: t("bookings.paidOut"),
     refunded: t("bookings.refunded"),
   };
@@ -79,7 +81,8 @@ export default function ReceivedBookingsList({
                 // For offer: other person is the client (b.client_id)
                 // For looking: other person is the worker/applicant (b.worker_id)
                 const otherId = isLooking ? b.worker_id : b.client_id;
-                const needsPayment = isLooking && b.status === "accepted" && (!b.payment_status || b.payment_status === "unpaid");
+                const needsPayment = isLooking && needsBookingPayment(b).needed;
+                const checkoutKind = needsBookingPayment(b).kind;
 
                 return (
                   <div key={b.id}
@@ -152,25 +155,38 @@ export default function ReceivedBookingsList({
                           </>
                         )}
 
-                        {b.status === "accepted" && (
-                          isLooking ? (
-                            // Looking: you accepted the applicant → you must pay them
+                        {needsPayment && isLooking && (
                             <div className="flex flex-col gap-2 w-full">
                               <PayNowButton
-                              bookingId={b.id}
-                              accessToken={accessToken}
-                              bookingTitle={b.title}
-                              price={resolveBookingCheckoutBase(b)}
-                              clientProvince={b.client_province ?? null}
-                              taxRateStored={b.tax_rate ? Number(b.tax_rate) : null}
-                            />
-                              <Button type="button" size="sm" variant="outline"
-                                className="text-red-600 border-red-200 hover:bg-red-50 w-full"
-                                onClick={() => onUpdateStatus(b.id, "cancelled", "received")} disabled={updating === b.id}>
-                                {updating === b.id ? "…" : t("bookings.cancelBooking")}
-                              </Button>
+                                bookingId={b.id}
+                                accessToken={accessToken}
+                                bookingTitle={b.title}
+                                price={resolveCheckoutPrice(
+                                  b,
+                                  b.deposit_enabled
+                                    ? {
+                                        deposit_enabled: true,
+                                        deposit_type: b.deposit_type,
+                                        deposit_value: b.deposit_value,
+                                      }
+                                    : null,
+                                )}
+                                clientProvince={b.client_province ?? null}
+                                taxRateStored={b.tax_rate ? Number(b.tax_rate) : null}
+                                checkoutKind={checkoutKind}
+                              />
+                              {b.status === "accepted" && (
+                                <Button type="button" size="sm" variant="outline"
+                                  className="text-red-600 border-red-200 hover:bg-red-50 w-full"
+                                  onClick={() => onUpdateStatus(b.id, "cancelled", "received")} disabled={updating === b.id}>
+                                  {updating === b.id ? "…" : t("bookings.cancelBooking")}
+                                </Button>
+                              )}
                             </div>
-                          ) : (
+                          )}
+
+                        {b.status === "accepted" && (
+                          isLooking ? null : (
                             // Offer: you accepted the client → waiting for them to pay
                             <div className="flex flex-col gap-2 w-full">
                               <div className="text-xs text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">

@@ -49,13 +49,16 @@ export async function processDepositCancellationRefund({ bookingId, cancelledByU
     throw err;
   }
 
-  if (row.status !== "active" || row.payment_status !== "paid") {
+  if (row.status !== "active" || !["paid", "deposit_paid"].includes(row.payment_status)) {
     const err = new Error("Only active paid bookings can be cancelled this way");
     err.statusCode = 400;
     throw err;
   }
 
   const depositCents = roundCents(row.deposit_amount_cents);
+  const paidBaseCents = roundCents(row.paid_service_base_cents);
+  const isDepositOnly = row.payment_status === "deposit_paid";
+
   if (!row.deposit_enabled || depositCents <= 0) {
     const err = new Error("This booking has no deposit policy");
     err.statusCode = 400;
@@ -73,12 +76,22 @@ export async function processDepositCancellationRefund({ bookingId, cancelledByU
   );
   const servicePriceCents = roundCents((baseAmount ?? Number(row.custom_price ?? row.price)) * 100);
   const taxRate = Number(row.tax_rate) || 0;
-  const refundBaseCents = Math.max(0, servicePriceCents - depositCents);
-  // Taxes are always fully refunded on the refundable portion (tax law: taxes follow the refunded item)
-  const totalTaxesCents = roundCents(servicePriceCents * taxRate);
-  const totalClientRefundCents = refundBaseCents + totalTaxesCents;
 
-  const workerDepositCents = roundCents(depositCents * 0.8);
+  let refundBaseCents;
+  let workerDepositCents;
+
+  if (isDepositOnly) {
+    refundBaseCents = 0;
+    workerDepositCents = roundCents(paidBaseCents * 0.8);
+  } else {
+    refundBaseCents = Math.max(0, servicePriceCents - depositCents);
+    workerDepositCents = roundCents(depositCents * 0.8);
+  }
+
+  const totalTaxesCents = isDepositOnly
+    ? 0
+    : roundCents(servicePriceCents * taxRate);
+  const totalClientRefundCents = refundBaseCents + totalTaxesCents;
 
   if (totalClientRefundCents > 0) {
     await stripe.refunds.create({
@@ -94,7 +107,11 @@ export async function processDepositCancellationRefund({ bookingId, cancelledByU
 
   const totalClientRefundDollars = roundDollars(totalClientRefundCents / 100);
   const commissionCents = roundCents(row.platform_fee);
-  const netCostDollars = roundDollars((depositCents + commissionCents) / 100);
+  const netCostDollars = roundDollars(
+    isDepositOnly
+      ? (paidBaseCents + commissionCents) / 100
+      : (depositCents + commissionCents) / 100,
+  );
 
   // Update the original debit transaction to the net cost (deposit + commission)
   // so the wallet shows a single entry instead of debit + credit

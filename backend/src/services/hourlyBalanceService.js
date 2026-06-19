@@ -11,7 +11,8 @@ export async function refreshHourlyBalanceDue(bookingId, { notifyClient = false 
   await ensureDepositsAndCalendarSchema(pool);
 
   const result = await pool.query(
-    `SELECT b.*, s.title AS service_title, s.pricing_mode AS service_pricing_mode
+    `SELECT b.*, s.title AS service_title, s.price AS service_price,
+            s.pricing_mode AS service_pricing_mode
      FROM bookings b
      JOIN services s ON s.id = b.service_id
      WHERE b.id = $1`,
@@ -19,9 +20,12 @@ export async function refreshHourlyBalanceDue(bookingId, { notifyClient = false 
   );
   if (result.rows.length === 0) return { balance_due_cents: 0 };
 
-  const booking = result.rows[0];
-  const pricingMode = booking.pricing_mode ?? booking.service_pricing_mode;
-  if (!isHourlyBooking({ pricing_mode: pricingMode })) {
+  const booking = {
+    ...result.rows[0],
+    price: result.rows[0].custom_price ?? result.rows[0].service_price,
+    pricing_mode: result.rows[0].pricing_mode ?? result.rows[0].service_pricing_mode,
+  };
+  if (!isHourlyBooking(booking)) {
     return { balance_due_cents: 0 };
   }
 

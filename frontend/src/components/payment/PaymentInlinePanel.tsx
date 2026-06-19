@@ -20,6 +20,7 @@ interface Props {
   depositConfig?: DepositConfig | null;
   depositAmountCents?: number | null;
   checkoutKind?: CheckoutKind | null;
+  fullServiceBase?: number | null;
 }
 
 export default function PaymentInlinePanel({
@@ -31,6 +32,7 @@ export default function PaymentInlinePanel({
   depositConfig,
   depositAmountCents,
   checkoutKind = "full",
+  fullServiceBase = null,
 }: Props) {
   const { t, i18n } = useTranslation();
   const checkoutLocale = getIntlLocale(i18n.language, { fr: "fr-CA", en: "en" });
@@ -134,13 +136,14 @@ export default function PaymentInlinePanel({
   const billingProvince = selectedAddress?.province ?? clientProvince ?? "QC";
   const taxRate = getTaxRate(billingProvince);
   const taxLabel = getTaxLabel(billingProvince, i18n.language ?? "fr");
-  const commission = price * 0.05;
-  const taxes = price * taxRate;
-  const total = price + commission + taxes;
-  const fmt = (n: number) => n.toFixed(2);
-
   const isDepositCheckout = checkoutKind === "deposit";
   const isBalanceCheckout = checkoutKind === "balance";
+  const feeBase = isBalanceCheckout && fullServiceBase != null ? fullServiceBase : price;
+  const commission = isDepositCheckout ? 0 : feeBase * 0.05;
+  const taxes = isDepositCheckout ? 0 : feeBase * taxRate;
+  const total = isDepositCheckout ? price : price + commission + taxes;
+  const fmt = (n: number) => n.toFixed(2);
+
   const servicePriceLabel = isDepositCheckout
     ? t("payment.depositAmount")
     : isBalanceCheckout
@@ -173,6 +176,11 @@ export default function PaymentInlinePanel({
           {isDepositCheckout && (
             <p className="text-xs text-gray-500">{t("payment.hourlyDepositNotice")}</p>
           )}
+          {isDepositCheckout && (
+            <p className="text-xs text-gray-500">{t("payment.depositFeesDeferredNotice")}</p>
+          )}
+          {!isDepositCheckout && (
+            <>
           <div className="flex justify-between text-gray-500">
             <div>
               <div>{t("payment.buyerCommission")}</div>
@@ -187,6 +195,8 @@ export default function PaymentInlinePanel({
             </div>
             <span>{fmt(taxes)} $</span>
           </div>
+            </>
+          )}
           <div className="flex justify-between font-bold text-base border-t border-gray-200 pt-2 mt-1">
             <span>{t("payment.total")}</span>
             <span className="text-green-700">{fmt(total)} $</span>

@@ -83,6 +83,13 @@ export default function ReceivedBookingsList({
                 const otherId = isLooking ? b.worker_id : b.client_id;
                 const needsPayment = isLooking && needsBookingPayment(b).needed;
                 const checkoutKind = needsBookingPayment(b).kind;
+                const depositConfig = b.deposit_enabled
+                  ? {
+                      deposit_enabled: true,
+                      deposit_type: b.deposit_type,
+                      deposit_value: b.deposit_value,
+                    }
+                  : null;
 
                 return (
                   <div key={b.id}
@@ -161,19 +168,23 @@ export default function ReceivedBookingsList({
                                 bookingId={b.id}
                                 accessToken={accessToken}
                                 bookingTitle={b.title}
-                                price={resolveCheckoutPrice(
-                                  b,
-                                  b.deposit_enabled
-                                    ? {
-                                        deposit_enabled: true,
-                                        deposit_type: b.deposit_type,
-                                        deposit_value: b.deposit_value,
-                                      }
-                                    : null,
-                                )}
+                                price={resolveCheckoutPrice(b, depositConfig)}
                                 clientProvince={b.client_province ?? null}
                                 taxRateStored={b.tax_rate ? Number(b.tax_rate) : null}
                                 checkoutKind={checkoutKind}
+                                depositConfig={depositConfig}
+                                depositAmountCents={b.deposit_amount_cents}
+                                fullServiceBase={
+                                  checkoutKind === "balance"
+                                    ? (() => {
+                                        const approved = Number(b.approved_hours_total) || 0;
+                                        const rate = Number(b.price);
+                                        return approved > 0
+                                          ? Math.round(rate * approved * 100) / 100
+                                          : resolveBookingCheckoutBase(b);
+                                      })()
+                                    : null
+                                }
                               />
                               {b.status === "accepted" && (
                                 <Button type="button" size="sm" variant="outline"

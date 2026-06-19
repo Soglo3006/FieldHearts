@@ -6,6 +6,8 @@ import { calculateDepositAmount, ensureDepositsAndCalendarSchema, resolveCheckou
 import {
   computeHourlyBalanceDueCents,
   getHourlyInitialChargeBaseDollars,
+  getApprovedHoursBaseCents,
+  computeHourlyBalanceCheckoutAmounts,
   resolveCheckoutKind,
 } from "../utils/hourlyPayment.js";
 
@@ -349,13 +351,81 @@ const CHECKOUT_TX_DESCRIPTION = {
   balance: "Solde — heures approuvées",
 };
 
+function needsBookingPaymentReconciliation(booking, payment) {
+  if (!booking || !payment || payment.status !== "paid") return false;
+  const kind = payment.payment_kind || "full";
+  const unpaid = !booking.payment_status || booking.payment_status === "unpaid";
+
+  if (kind === "deposit" || kind === "full") {
+    return booking.status === "accepted" && unpaid;
+  }
+  if (kind === "balance") {
+    return (
+      booking.payment_status === "deposit_paid" &&
+      Number(booking.balance_due_cents) > 0
+    );
+  }
+  return false;
+}
+
+async function loadVerifyBookingSnapshot(bookingId) {
+  const booking = await pool.query(
+    `SELECT payment_status, status, paid_service_base_cents, balance_due_cents,
+            pricing_mode, deposit_amount_cents, approved_hours_total, tax_rate
+     FROM bookings WHERE id = $1`,
+    [bookingId],
+  );
+  const paidPayment = await pool.query(
+    `SELECT amount, platform_fee, payment_kind, stripe_checkout_session_id, status
+     FROM payments
+     WHERE booking_id = $1 AND status = 'paid'
+     ORDER BY created_at DESC LIMIT 1`,
+    [bookingId],
+  );
+  return {
+    booking: booking.rows[0] ?? null,
+    paid: paidPayment.rows[0] ?? null,
+  };
+}
+
+async function loadBookingForHourlyPayment(bookingId) {
+  const result = await pool.query(
+    `SELECT b.*, s.price AS service_price, s.pricing_mode AS service_pricing_mode
+     FROM bookings b
+     JOIN services s ON s.id = b.service_id
+     WHERE b.id = $1`,
+    [bookingId],
+  );
+  const row = result.rows[0];
+  if (!row) return null;
+  return {
+    ...row,
+    price: row.custom_price ?? row.service_price,
+    pricing_mode: row.pricing_mode ?? row.service_pricing_mode,
+  };
+}
+
 async function completeCheckoutPayment(session) {
+  await ensureDepositsAndCalendarSchema(pool);
+
   const bookingId = session.metadata?.booking_id;
   if (!bookingId) return;
 
   const paymentIntentId = session.payment_intent;
-  const paymentKind = session.metadata?.payment_kind || "full";
-  const paidServiceCents = Number(session.metadata?.service_price_cents) || 0;
+  const paymentRow = await pool.query(
+    `SELECT payment_kind, deposit_amount_cents, amount
+     FROM payments WHERE stripe_checkout_session_id = $1`,
+    [session.id],
+  );
+  const paymentKind =
+    session.metadata?.payment_kind || paymentRow.rows[0]?.payment_kind || "full";
+  let paidServiceCents = Number(session.metadata?.service_price_cents) || 0;
+  if (paidServiceCents <= 0 && paymentRow.rows[0]) {
+    paidServiceCents =
+      Number(paymentRow.rows[0].deposit_amount_cents) ||
+      Number(paymentRow.rows[0].amount) ||
+      0;
+  }
 
   await pool.query(
     `UPDATE payments
@@ -364,36 +434,32 @@ async function completeCheckoutPayment(session) {
     [paymentIntentId, session.id],
   );
 
+  const bookingRow = await loadBookingForHourlyPayment(bookingId);
+  const prevPaidBase = Number(bookingRow?.paid_service_base_cents || 0);
+  const newPaidBase = prevPaidBase + paidServiceCents;
+  const balanceDueCents = bookingRow
+    ? computeHourlyBalanceDueCents({ ...bookingRow, paid_service_base_cents: newPaidBase })
+    : 0;
+
   if (paymentKind === "deposit") {
     await pool.query(
       `UPDATE bookings
        SET payment_status = 'deposit_paid',
            status = 'active',
-           paid_service_base_cents = paid_service_base_cents + $2,
-           balance_due_cents = GREATEST(0,
-             ROUND(COALESCE(price, 0) * COALESCE(approved_hours_total, 0) * 100)::integer
-             - (paid_service_base_cents + $2)
-           )
+           paid_service_base_cents = $2,
+           balance_due_cents = $3
        WHERE id = $1 AND status IN ('accepted', 'active')`,
-      [bookingId, paidServiceCents],
+      [bookingId, newPaidBase, balanceDueCents],
     );
   } else if (paymentKind === "balance") {
+    const nextPaymentStatus = balanceDueCents <= 0 ? "paid" : "deposit_paid";
     await pool.query(
       `UPDATE bookings
-       SET paid_service_base_cents = paid_service_base_cents + $2,
-           balance_due_cents = GREATEST(0,
-             ROUND(COALESCE(price, 0) * COALESCE(approved_hours_total, 0) * 100)::integer
-             - (paid_service_base_cents + $2)
-           ),
-           payment_status = CASE
-             WHEN GREATEST(0,
-               ROUND(COALESCE(price, 0) * COALESCE(approved_hours_total, 0) * 100)::integer
-               - (paid_service_base_cents + $2)
-             ) <= 0 THEN 'paid'
-             ELSE 'deposit_paid'
-           END
+       SET paid_service_base_cents = $2,
+           balance_due_cents = $3,
+           payment_status = $4
        WHERE id = $1`,
-      [bookingId, paidServiceCents],
+      [bookingId, newPaidBase, balanceDueCents, nextPaymentStatus],
     );
   } else {
     await pool.query(
@@ -462,7 +528,7 @@ async function completeCheckoutPayment(session) {
   }
 
   const servicePriceCents = Number(session.metadata?.service_price_cents ?? 0);
-  if (servicePriceCents > 0) {
+  if (servicePriceCents > 0 && paymentKind !== "deposit") {
     const buyerCommission = (Math.round(servicePriceCents * BUYER_COMMISSION_RATE) / 100).toFixed(2);
     await pool.query(
       `INSERT INTO platform_earnings (booking_id, type, amount, description)
@@ -541,6 +607,7 @@ export const createCheckoutSession = async (req, res) => {
     };
 
     let effectivePrice;
+    let balanceCheckoutAmounts = null;
     if (checkoutKind === "deposit") {
       effectivePrice = getHourlyInitialChargeBaseDollars(b, serviceMeta);
     } else if (checkoutKind === "balance") {
@@ -548,7 +615,20 @@ export const createCheckoutSession = async (req, res) => {
       if (balanceCents < 1) {
         return res.status(400).json({ message: "No balance due for this booking" });
       }
-      effectivePrice = balanceCents / 100;
+      const approvedCents = getApprovedHoursBaseCents(b);
+      const fullServiceDollars =
+        approvedCents > 0
+          ? approvedCents / 100
+          : resolveCheckoutBaseAmount(serviceMeta, b) ?? balanceCents / 100;
+      const taxRatePreview = getTaxRate(
+        normalizeProvince(billing_province ?? b.client_province ?? "QC"),
+      );
+      balanceCheckoutAmounts = computeHourlyBalanceCheckoutAmounts(
+        fullServiceDollars,
+        balanceCents / 100,
+        taxRatePreview,
+      );
+      effectivePrice = balanceCheckoutAmounts.balanceBase;
     } else {
       effectivePrice = resolveCheckoutBaseAmount(serviceMeta, b);
     }
@@ -587,10 +667,22 @@ export const createCheckoutSession = async (req, res) => {
           b,
         );
     const depositAmountCents   = Math.round(depositAmount * 100);
-    const buyerCommissionCents = Math.round(servicePriceCents * BUYER_COMMISSION_RATE);
+    const isDepositOnly        = checkoutKind === "deposit";
+    const isBalanceCheckout    = checkoutKind === "balance" && balanceCheckoutAmounts != null;
+    const buyerCommissionCents = isDepositOnly
+      ? 0
+      : isBalanceCheckout
+        ? balanceCheckoutAmounts.commissionCents
+        : Math.round(servicePriceCents * BUYER_COMMISSION_RATE);
     const taxRate              = getTaxRate(effectiveProvince);
-    const taxesCents           = Math.round(servicePriceCents * taxRate);
-    const totalCents           = servicePriceCents + buyerCommissionCents + taxesCents;
+    const taxesCents           = isDepositOnly
+      ? 0
+      : isBalanceCheckout
+        ? balanceCheckoutAmounts.taxesCents
+        : Math.round(servicePriceCents * taxRate);
+    const totalCents           = isBalanceCheckout
+      ? balanceCheckoutAmounts.totalCents
+      : servicePriceCents + buyerCommissionCents + taxesCents;
     const province             = effectiveProvince;
 
     let stripeCustomerId;
@@ -641,23 +733,22 @@ export const createCheckoutSession = async (req, res) => {
           : "Service";
 
     // Create Checkout Session — funds go directly to platform account
-    const session = await stripe.checkout.sessions.create({
-      payment_method_types: ["card"],
-      ...(stripeCustomerId ? { customer: stripeCustomerId } : {}),
-      billing_address_collection: "required",
-      line_items: [
-        {
-          price_data: {
-            currency: "cad",
-            product_data: {
-              name: lineItemName,
-              description: lineItemDescription,
-              ...(b.image_url && b.image_url.length <= 2048 && { images: [b.image_url] }),
-            },
-            unit_amount: servicePriceCents,
+    const lineItems = [
+      {
+        price_data: {
+          currency: "cad",
+          product_data: {
+            name: lineItemName,
+            description: lineItemDescription,
+            ...(b.image_url && b.image_url.length <= 2048 && { images: [b.image_url] }),
           },
-          quantity: 1,
+          unit_amount: servicePriceCents,
         },
+        quantity: 1,
+      },
+    ];
+    if (!isDepositOnly) {
+      lineItems.push(
         {
           price_data: {
             currency: "cad",
@@ -674,7 +765,14 @@ export const createCheckoutSession = async (req, res) => {
           },
           quantity: 1,
         },
-      ],
+      );
+    }
+
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ["card"],
+      ...(stripeCustomerId ? { customer: stripeCustomerId } : {}),
+      billing_address_collection: "required",
+      line_items: lineItems,
       mode: "payment",
       locale: req.body.locale || "fr-CA",
       success_url: `${FRONTEND_URL}/payment/success?booking_id=${booking_id}`,
@@ -878,7 +976,8 @@ export const getPaymentStatus = async (req, res) => {
     }
 
     const payment = await pool.query(
-      "SELECT status, amount, platform_fee, currency, created_at FROM payments WHERE booking_id = $1 ORDER BY created_at DESC LIMIT 1",
+      `SELECT status, amount, platform_fee, currency, payment_kind, created_at
+       FROM payments WHERE booking_id = $1 ORDER BY created_at DESC LIMIT 1`,
       [bookingId]
     );
 
@@ -898,6 +997,7 @@ export const getPaymentStatus = async (req, res) => {
 // ─── Verify and confirm payment after Stripe redirect ─────────────────────────
 export const verifyPayment = async (req, res) => {
   try {
+    await ensureDepositsAndCalendarSchema(pool);
     const { booking_id } = req.body;
     const userId = req.user.id;
 
@@ -913,6 +1013,17 @@ export const verifyPayment = async (req, res) => {
       return res.status(403).json({ message: "Not authorized" });
     }
 
+    const respondWithSnapshot = async (extra = {}) => {
+      const { booking, paid } = await loadVerifyBookingSnapshot(booking_id);
+      return res.json({
+        payment_kind: paid?.payment_kind ?? null,
+        amount_cents: paid?.amount ?? null,
+        platform_fee_cents: paid?.platform_fee ?? 0,
+        booking,
+        ...extra,
+      });
+    };
+
     // Get the pending payment for this booking
     const payment = await pool.query(
       "SELECT * FROM payments WHERE booking_id = $1 AND status = 'pending' ORDER BY created_at DESC LIMIT 1",
@@ -920,9 +1031,20 @@ export const verifyPayment = async (req, res) => {
     );
 
     if (payment.rows.length === 0) {
-      // Already paid or no payment found — return current status
-      const booking = await pool.query("SELECT payment_status, status FROM bookings WHERE id = $1", [booking_id]);
-      return res.json({ already_confirmed: true, booking: booking.rows[0] });
+      const { booking, paid } = await loadVerifyBookingSnapshot(booking_id);
+
+      if (paid && needsBookingPaymentReconciliation(booking, paid) && paid.stripe_checkout_session_id) {
+        const session = await stripe.checkout.sessions.retrieve(paid.stripe_checkout_session_id);
+        if (session.payment_status === "paid") {
+          await completeCheckoutPayment(session);
+          return respondWithSnapshot({ confirmed: true, already_confirmed: true, reconciled: true });
+        }
+      }
+
+      return respondWithSnapshot({
+        confirmed: booking?.status === "active" || booking?.payment_status === "paid" || booking?.payment_status === "deposit_paid",
+        already_confirmed: true,
+      });
     }
 
     const p = payment.rows[0];
@@ -937,7 +1059,7 @@ export const verifyPayment = async (req, res) => {
     // Update payment record and booking via shared handler
     await completeCheckoutPayment(session);
 
-    res.json({ confirmed: true });
+    return respondWithSnapshot({ confirmed: true });
   } catch (err) {
     console.error("Verify payment error:", err);
     res.status(500).json({ message: "Failed to verify payment" });

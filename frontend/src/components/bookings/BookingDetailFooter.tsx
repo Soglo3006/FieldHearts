@@ -12,7 +12,7 @@ import { type BookingDetail } from "./BookingDetailModal";
 
 import { getDisputeWindowState } from "@/lib/disputes";
 
-import { resolveCheckoutPrice, needsBookingPayment } from "@/lib/hourlyPayment";
+import { resolveCheckoutPrice, needsBookingPayment, hourlyAwaitingApprovedHours, resolveBalanceFullServiceBase } from "@/lib/hourlyPayment";
 
 
 
@@ -80,6 +80,14 @@ export default function BookingDetailFooter({
 
   const disputeWindow = getDisputeWindowState(booking.completed_at);
   const { kind: checkoutKind } = needsBookingPayment(booking);
+  const depositConfig = booking.deposit_enabled
+    ? {
+        deposit_enabled: true,
+        deposit_type: booking.deposit_type,
+        deposit_value: booking.deposit_value,
+      }
+    : null;
+  const awaitingHours = hourlyAwaitingApprovedHours(booking);
 
 
 
@@ -161,8 +169,14 @@ export default function BookingDetailFooter({
 
 
 
-      {/* Client: accepted — pay now */}
+      {/* Client: deposit paid — waiting for approved hours */}
+      {userRole === "client" && awaitingHours && (
+        <div className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+          {t("bookings.hourlyApproveHoursForBalance")}
+        </div>
+      )}
 
+      {/* Client: pay deposit or balance */}
       {userRole === "client" && needsPayment && (
 
         <PayNowButton
@@ -175,22 +189,21 @@ export default function BookingDetailFooter({
 
           bookingTitle={booking.title}
 
-          price={resolveCheckoutPrice(
-            booking,
-            booking.deposit_enabled
-              ? {
-                  deposit_enabled: true,
-                  deposit_type: booking.deposit_type,
-                  deposit_value: booking.deposit_value,
-                }
-              : null,
-          )}
+          price={resolveCheckoutPrice(booking, depositConfig)}
 
           clientProvince={booking.client_province ?? null}
 
           taxRateStored={booking.tax_rate ? Number(booking.tax_rate) : null}
 
           checkoutKind={checkoutKind}
+
+          depositConfig={depositConfig}
+
+          depositAmountCents={booking.deposit_amount_cents}
+
+          fullServiceBase={
+            checkoutKind === "balance" ? resolveBalanceFullServiceBase(booking) : null
+          }
 
           onPayNow={onPayNow}
 

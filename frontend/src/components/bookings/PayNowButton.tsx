@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import PaymentModal from "@/components/payment/PaymentModal";
 import type { CheckoutKind } from "@/lib/hourlyPayment";
+import type { DepositConfig } from "@/lib/deposit";
 
 interface Props {
   bookingId: string;
@@ -16,6 +17,9 @@ interface Props {
   clientProvince?: string | null;
   taxRateStored?: number | null;
   checkoutKind?: CheckoutKind | null;
+  depositConfig?: DepositConfig | null;
+  depositAmountCents?: number | null;
+  fullServiceBase?: number | null;
   onPayNow?: () => void;
 }
 
@@ -23,6 +27,9 @@ export default function PayNowButton({
   bookingId, accessToken, fullWidth,
   bookingTitle = "", price = 0, clientProvince = null,
   checkoutKind = "full",
+  depositConfig = null,
+  depositAmountCents = null,
+  fullServiceBase = null,
   onPayNow,
 }: Props) {
   const { t } = useTranslation();
@@ -67,6 +74,10 @@ export default function PayNowButton({
           price={price}
           accessToken={accessToken}
           clientProvince={clientProvince}
+          checkoutKind={checkoutKind}
+          depositConfig={depositConfig}
+          depositAmountCents={depositAmountCents}
+          fullServiceBase={fullServiceBase}
         />
       )}
     </>

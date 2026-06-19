@@ -9,6 +9,7 @@ import { assertHourlyReadyForCompletion } from "../services/hourlyCompletionGuar
 import { processHourlyReconciliation } from "../services/hourlyReconciliationService.js";
 import { ensureDepositsAndCalendarSchema, resolveDepositBaseAmount } from "../utils/depositSchema.js";
 import { normalizePricingMode } from "../utils/servicePricing.js";
+import { resolveBookingHourlyRate } from "../utils/hourlyPayment.js";
 
 const PROVINCE_TAX_RATES = {
   AB: 0.05, BC: 0.12, MB: 0.12, NB: 0.15, NL: 0.15, NS: 0.15,
@@ -32,7 +33,7 @@ function getWorkerTaxRate(province) {
 function getEffectiveBookingPrice(booking) {
   const mode = normalizePricingMode(booking.pricing_mode ?? booking.service_pricing_mode);
   if (mode === "hourly") {
-    const rate = Number(booking.price);
+    const rate = resolveBookingHourlyRate(booking);
     const approved = Number(booking.approved_hours_total);
     const hours =
       Number.isFinite(approved) && approved > 0
@@ -40,7 +41,7 @@ function getEffectiveBookingPrice(booking) {
         : Number(booking.estimated_hours ?? booking.service_estimated_hours ?? 1);
     return Math.round(rate * hours * 100) / 100;
   }
-  return Number(booking.custom_price ?? booking.price);
+  return Number(booking.custom_price ?? booking.price ?? booking.service_price);
 }
 
 export const createBooking = async (req, res) => {
@@ -183,6 +184,8 @@ export const getMyBookings = async (req, res) => {
               b.worker_note, b.custom_price, b.last_modified_at, b.modified_fields,
               b.cancel_requested_by, b.cancel_reason, b.completed_at,
               b.deposit_amount_cents,
+              b.paid_service_base_cents,
+              b.balance_due_cents,
               COALESCE(b.pricing_mode, s.pricing_mode) AS pricing_mode,
               COALESCE(b.estimated_hours, s.estimated_hours) AS estimated_hours,
               b.approved_hours_total,
@@ -240,6 +243,8 @@ export const getReceivedBookings = async (req, res) => {
               b.worker_note, b.custom_price, b.last_modified_at, b.modified_fields,
               b.cancel_requested_by, b.cancel_reason, b.completed_at,
               b.deposit_amount_cents,
+              b.paid_service_base_cents,
+              b.balance_due_cents,
               COALESCE(b.pricing_mode, s.pricing_mode) AS pricing_mode,
               COALESCE(b.estimated_hours, s.estimated_hours) AS estimated_hours,
               b.approved_hours_total,
@@ -426,11 +431,13 @@ export const markCompleted = async (req, res) => {
       try {
         await assertHourlyReadyForCompletion(id, b.pricing_mode ?? b.service_pricing_mode);
       } catch (guardErr) {
-        const status = guardErr.statusCode || 400;
-        return res.status(status).json({
-          message: guardErr.message,
-          code: guardErr.code || "COMPLETION_BLOCKED",
-        });
+        if (guardErr.statusCode) {
+          return res.status(guardErr.statusCode).json({
+            message: guardErr.message,
+            code: guardErr.code || "COMPLETION_BLOCKED",
+          });
+        }
+        throw guardErr;
       }
     }
 
@@ -479,7 +486,8 @@ export const markCompleted = async (req, res) => {
       // Reload booking with approved hours for payout
       const freshBooking = await pool.query(
         `SELECT b.*, s.pricing_mode AS service_pricing_mode, s.estimated_hours AS service_estimated_hours,
-                CASE WHEN cc.account_type = 'company' THEN cc.company_name ELSE cc.full_name END AS client_name
+            s.price AS service_price,
+            CASE WHEN cc.account_type = 'company' THEN cc.company_name ELSE cc.full_name END AS client_name
          FROM bookings b
          JOIN services s ON s.id = b.service_id
          JOIN users cc ON cc.id = b.client_id
@@ -702,6 +710,8 @@ export const getBookingById = async (req, res) => {
               b.worker_note, b.custom_price, b.last_modified_at, b.modified_fields,
               b.cancel_requested_by, b.cancel_reason, b.completed_at,
               b.deposit_amount_cents,
+              b.paid_service_base_cents,
+              b.balance_due_cents,
               COALESCE(b.pricing_mode, s.pricing_mode) AS pricing_mode,
               COALESCE(b.estimated_hours, s.estimated_hours) AS estimated_hours,
               b.approved_hours_total,
@@ -775,6 +785,8 @@ export const getAdminBookingById = async (req, res) => {
               b.worker_note, b.custom_price, b.last_modified_at, b.modified_fields,
               b.cancel_requested_by, b.cancel_reason, b.completed_at,
               b.deposit_amount_cents,
+              b.paid_service_base_cents,
+              b.balance_due_cents,
               COALESCE(b.pricing_mode, s.pricing_mode) AS pricing_mode,
               COALESCE(b.estimated_hours, s.estimated_hours) AS estimated_hours,
               b.approved_hours_total,

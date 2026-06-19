@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useScrollLock } from "@/hooks/useScrollLock";
 import Link from "next/link";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -27,6 +27,7 @@ import { sanitizePlainText } from "@/lib/sanitize";
 import AppImage from "@/components/ui/AppImage";
 import { toast } from "sonner";
 import PaymentInlinePanel from "@/components/payment/PaymentInlinePanel";
+import { HourlyDepositReceiptBreakdown } from "@/components/payment/HourlyDepositReceiptBreakdown";
 import CancelConfirmPanel from "@/components/bookings/CancelConfirmPanel";
 import { BookingCalendarPanel } from "@/components/calendar/CalendarPageClient";
 import WorkSessionsPanel from "@/components/bookings/WorkSessionsPanel";
@@ -37,6 +38,7 @@ import {
   resolveCheckoutKind,
   resolveCheckoutPrice,
 } from "@/lib/hourlyPayment";
+import { buildClientPaymentSummary } from "@/lib/paymentSuccessSummary";
 import {
   Carousel,
   CarouselContent,
@@ -226,6 +228,18 @@ export default function BookingDetailModal({
   const disputeFileInputRef = useRef<HTMLInputElement>(null);
   bookingRef.current = booking;
 
+  const refreshBookingFromApi = useCallback(async () => {
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/bookings/${booking.id}`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      setBooking((prev) => ({ ...prev, ...data }));
+      onUpdated(booking.id, data);
+    } catch { /* silent */ }
+  }, [booking.id, accessToken, onUpdated]);
+
   useEffect(() => {
     fetch(`${process.env.NEXT_PUBLIC_API_URL}/services/${initialBooking.service_id}`)
       .then((r) => r.json())
@@ -320,6 +334,10 @@ export default function BookingDetailModal({
         const err = await res.json().catch(() => ({}));
         if (err.code === "HOURLY_SESSIONS_PENDING") {
           toast.error(t("bookings.hourlySessionsRequired"));
+        } else if (err.code === "HOURLY_NO_APPROVED_HOURS") {
+          toast.error(t("bookings.hourlyNoApprovedHours"));
+        } else if (err.code === "HOURLY_BALANCE_DUE") {
+          toast.error(t("bookings.hourlyBalanceDueBeforeComplete"));
         } else if (err.message) {
           toast.error(err.message);
         }
@@ -1164,6 +1182,8 @@ export default function BookingDetailModal({
                 }
 
                 // Client view (pending/accepted/active): payment summary
+                const clientSummary = userRole === "client" ? buildClientPaymentSummary(booking) : null;
+
                 return (
                   <Card className="overflow-hidden shadow-none">
                     <div className="flex items-center gap-2 bg-white px-4 py-2.5 border-b border-gray-100">
@@ -1171,6 +1191,30 @@ export default function BookingDetailModal({
                       <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{t("bookings.paymentSummary")}</span>
                     </div>
                     <CardContent className="px-4 pt-0 pb-4 space-y-2 text-sm">
+                      {clientSummary?.variant === "hourly_deposit_paid" ? (
+                        <>
+                          <div className="flex justify-between text-green-700 bg-green-50 -mx-1 px-2 py-1.5 rounded-lg">
+                            <span className="font-medium">{t("payment.depositPaidLine")}</span>
+                            <span className="font-semibold">{fmt(clientSummary.depositPaid)} $</span>
+                          </div>
+                          <HourlyDepositReceiptBreakdown
+                            depositPaid={clientSummary.depositPaid}
+                            serviceBase={clientSummary.serviceBase}
+                            hourlyRate={clientSummary.hourlyRate}
+                            hoursLabel={clientSummary.hoursLabel}
+                            hoursIsApproved={clientSummary.hoursIsApproved}
+                            estimatedTotalWithFees={clientSummary.estimatedTotalWithFees}
+                            remainingBase={clientSummary.remainingBase}
+                            remainingCommission={clientSummary.remainingCommission}
+                            remainingTaxes={clientSummary.remainingTaxes}
+                            remainingTotal={clientSummary.remainingTotal}
+                            taxRate={taxRate}
+                            taxLabel={taxLabel}
+                            fmt={fmt}
+                          />
+                        </>
+                      ) : (
+                        <>
                       <div className="flex justify-between text-gray-600">
                         <div>
                           <div>{t("serviceDetail.servicePrice")}</div>
@@ -1179,7 +1223,7 @@ export default function BookingDetailModal({
                           )}
                         </div>
                         <span className="font-medium">
-                          {fmt(base)} $
+                          {fmt(clientSummary?.serviceBase ?? base)} $
                           {booking.custom_price && Number(booking.custom_price) !== origBase && (
                             <span className="text-xs text-gray-400 line-through ml-2">{fmt(origBase)} $</span>
                           )}
@@ -1190,20 +1234,22 @@ export default function BookingDetailModal({
                           <div>{t("serviceDetail.buyerCommission")}</div>
                           <div className="text-[11px] text-red-500">{t("payment.nonRefundable")}</div>
                         </div>
-                        <span>{fmt(buyerCommission)} $</span>
+                        <span>{fmt(clientSummary?.buyerCommission ?? buyerCommission)} $</span>
                       </div>
                       <div className="flex justify-between text-gray-500">
                         <div>
                           <div>{t("serviceDetail.taxes")} ({formatTaxRate(taxRate)}%)</div>
                           <div className="text-[11px] text-gray-400">{taxLabel}</div>
                         </div>
-                        <span>{fmt(taxes)} $</span>
+                        <span>{fmt(clientSummary?.taxes ?? taxes)} $</span>
                       </div>
                       <Separator />
                       <div className="flex justify-between font-bold text-base">
                         <span>{t("serviceDetail.total")}</span>
-                        <span className="text-green-600">{fmt(totalPaid)} $</span>
+                        <span className="text-green-600">{fmt(clientSummary?.total ?? totalPaid)} $</span>
                       </div>
+                        </>
+                      )}
                     </CardContent>
                   </Card>
                 );
@@ -1342,6 +1388,7 @@ export default function BookingDetailModal({
                   bookingId={booking.id}
                   isHourly
                   canEdit={booking.status === "active"}
+                  onUpdated={refreshBookingFromApi}
                 />
               </div>
             )}
@@ -1577,6 +1624,17 @@ export default function BookingDetailModal({
               accessToken={accessToken}
               clientProvince={booking.client_province ?? null}
               checkoutKind={checkoutKind}
+              fullServiceBase={
+                checkoutKind === "balance"
+                  ? (() => {
+                      const approved = Number(booking.approved_hours_total) || 0;
+                      const rate = Number(booking.price);
+                      return approved > 0
+                        ? Math.round(rate * approved * 100) / 100
+                        : resolveBookingCheckoutBase(booking);
+                    })()
+                  : null
+              }
               depositConfig={
                 booking.deposit_enabled
                   ? {

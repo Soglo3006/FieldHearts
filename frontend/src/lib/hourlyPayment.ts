@@ -36,6 +36,25 @@ export function computeHourlyBalanceDueCents(booking: BookingPaymentFields): num
   return Math.max(0, owed);
 }
 
+export function resolveBalanceFullServiceBase(booking: BookingPaymentFields): number | null {
+  const approved = Number(booking.approved_hours_total) || 0;
+  const rate = Number(booking.price);
+  if (approved > 0 && Number.isFinite(rate)) {
+    return Math.round(rate * approved * 100) / 100;
+  }
+  return null;
+}
+
+export function hourlyAwaitingApprovedHours(booking: BookingPaymentFields): boolean {
+  return (
+    isHourlyBooking(booking) &&
+    booking.status === "active" &&
+    booking.payment_status === "deposit_paid" &&
+    (Number(booking.approved_hours_total) || 0) <= 0 &&
+    computeHourlyBalanceDueCents(booking) <= 0
+  );
+}
+
 export function resolveCheckoutKind(booking: BookingPaymentFields): CheckoutKind | null {
   if (!isHourlyBooking(booking)) {
     if (booking.status === "accepted" && (!booking.payment_status || booking.payment_status === "unpaid")) {

@@ -21,10 +21,17 @@ export function getHourlyInitialChargeBaseDollars(booking, service) {
   return Math.round(rate * 100) / 100;
 }
 
+export function resolveBookingHourlyRate(booking) {
+  const custom = booking.custom_price != null ? Number(booking.custom_price) : null;
+  if (custom != null && Number.isFinite(custom) && custom >= 0.01) return custom;
+  const rate = Number(booking.price ?? booking.service_price);
+  return Number.isFinite(rate) ? rate : 0;
+}
+
 export function getApprovedHoursBaseCents(booking) {
-  const rate = Number(booking.price);
+  const rate = resolveBookingHourlyRate(booking);
   const hours = Number(booking.approved_hours_total) || 0;
-  if (!Number.isFinite(rate) || rate < 0.01 || hours <= 0) return 0;
+  if (rate < 0.01 || hours <= 0) return 0;
   return Math.round(rate * hours * 100);
 }
 
@@ -33,6 +40,34 @@ export function computeHourlyBalanceDueCents(booking) {
   const owed =
     getApprovedHoursBaseCents(booking) - Number(booking.paid_service_base_cents || 0);
   return Math.max(0, owed);
+}
+
+/**
+ * Balance checkout after deposit: commission + taxes on full service base,
+ * service line item = remaining base after deposit credit.
+ */
+export function computeHourlyBalanceCheckoutAmounts(
+  fullServiceBaseDollars,
+  balanceServiceBaseDollars,
+  taxRate,
+) {
+  const full = Math.round(Number(fullServiceBaseDollars) * 100) / 100;
+  const balance = Math.max(0, Math.round(Number(balanceServiceBaseDollars) * 100) / 100);
+  const rate = Number(taxRate) || 0;
+  const commission = Math.round(full * 0.05 * 100) / 100;
+  const taxes = Math.round(full * rate * 100) / 100;
+  const total = Math.round((balance + commission + taxes) * 100) / 100;
+  return {
+    fullServiceBase: full,
+    balanceBase: balance,
+    commission,
+    taxes,
+    total,
+    balanceBaseCents: Math.round(balance * 100),
+    commissionCents: Math.round(commission * 100),
+    taxesCents: Math.round(taxes * 100),
+    totalCents: Math.round(total * 100),
+  };
 }
 
 /**

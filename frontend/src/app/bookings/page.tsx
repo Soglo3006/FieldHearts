@@ -143,6 +143,26 @@ function BookingsContent() {
 
     setLoadingReceived(false);
     setLoadingSent(false);
+
+    if (sentOk) {
+      const stale = sentRes.value.filter(
+        (b: SentBooking) =>
+          b.status === "accepted" && (!b.payment_status || b.payment_status === "unpaid"),
+      );
+      if (stale.length > 0) {
+        await Promise.allSettled(
+          stale.slice(0, 5).map((b: SentBooking) =>
+            fetch(`${process.env.NEXT_PUBLIC_API_URL}/payments/verify`, {
+              method: "POST",
+              headers: { ...headers, "Content-Type": "application/json" },
+              body: JSON.stringify({ booking_id: b.id }),
+            }),
+          ),
+        );
+        const refreshed = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/bookings/my-bookings`, { headers }).then((r) => r.json());
+        if (Array.isArray(refreshed)) setSent(refreshed);
+      }
+    }
   }, []);
 
   useEffect(() => {
@@ -151,6 +171,21 @@ function BookingsContent() {
     if (!session?.access_token) return;
     fetchBookings();
   }, [user, session, router, authLoading, fetchBookings]);
+
+  // Refresh when returning to the tab — avoids stale cards after Stripe redirect
+  useEffect(() => {
+    const refresh = () => {
+      if (document.visibilityState === "visible" && sessionRef.current?.access_token) {
+        fetchBookings();
+      }
+    };
+    document.addEventListener("visibilitychange", refresh);
+    window.addEventListener("focus", refresh);
+    return () => {
+      document.removeEventListener("visibilitychange", refresh);
+      window.removeEventListener("focus", refresh);
+    };
+  }, [fetchBookings]);
 
   // Realtime: re-fetch when a booking is created/updated for this user.
   // Two channels to cover both roles:
@@ -183,10 +218,13 @@ function BookingsContent() {
       setTab("sent");
       const timer = setTimeout(() => setPaymentBanner(null), 5000);
       if (paymentResult === "success") {
-        // Refetch immediately + after a delay in case the Stripe webhook takes a moment to update the DB
+        // Refetch immediately + retries while Stripe webhook / verify may still be updating the DB
         fetchBookings();
-        const refetchTimer = setTimeout(() => fetchBookings(), 6000);
-        return () => { clearTimeout(timer); clearTimeout(refetchTimer); };
+        const refetchTimers = [3000, 8000, 15000].map((ms) => setTimeout(() => fetchBookings(), ms));
+        return () => {
+          clearTimeout(timer);
+          refetchTimers.forEach(clearTimeout);
+        };
       }
       return () => clearTimeout(timer);
     }
@@ -258,6 +296,10 @@ function BookingsContent() {
         const err = await res.json().catch(() => ({}));
         if (err.code === "HOURLY_SESSIONS_PENDING") {
           toast.error(t("bookings.hourlySessionsRequired"));
+        } else if (err.code === "HOURLY_NO_APPROVED_HOURS") {
+          toast.error(t("bookings.hourlyNoApprovedHours"));
+        } else if (err.code === "HOURLY_BALANCE_DUE") {
+          toast.error(t("bookings.hourlyBalanceDueBeforeComplete"));
         } else if (err.message) {
           toast.error(err.message);
         }

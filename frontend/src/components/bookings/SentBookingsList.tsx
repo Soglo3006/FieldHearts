@@ -11,7 +11,7 @@ import { useTranslation } from "react-i18next";
 import { getTaxRate } from "@/lib/taxes";
 import { getDisputeWindowState } from "@/lib/disputes";
 import { resolveBookingCheckoutBase } from "@/lib/listingPrice";
-import { needsBookingPayment, resolveCheckoutPrice } from "@/lib/hourlyPayment";
+import { needsBookingPayment, resolveCheckoutPrice, hourlyAwaitingApprovedHours, resolveBalanceFullServiceBase } from "@/lib/hourlyPayment";
 
 function StatusBadge({ status }: { status: BookingStatus }) {
   const { t } = useTranslation();
@@ -28,6 +28,7 @@ function PaymentBadge({ status }: { status: string | null }) {
   if (!status || status === "unpaid") return null;
   const cfg: Record<string, string> = {
     paid: "bg-green-100 text-green-700 border-green-200",
+    deposit_paid: "bg-green-100 text-green-700 border-green-200",
     transferred: "bg-blue-100 text-blue-700 border-blue-200",
     refunded: "bg-gray-100 text-gray-600 border-gray-200",
   };
@@ -84,6 +85,14 @@ export default function SentBookingsList({
                 const otherId = isLooking ? b.client_id : b.worker_id;
                 const needsPayment = !isLooking && needsBookingPayment(b).needed;
                 const checkoutKind = needsBookingPayment(b).kind;
+                const awaitingHours = !isLooking && hourlyAwaitingApprovedHours(b);
+                const depositConfig = b.deposit_enabled
+                  ? {
+                      deposit_enabled: true,
+                      deposit_type: b.deposit_type,
+                      deposit_value: b.deposit_value,
+                    }
+                  : null;
 
                 return (
                   <div key={b.id}
@@ -136,9 +145,21 @@ export default function SentBookingsList({
                       {b.category && <p className="text-xs text-gray-400 mb-3">{b.category}</p>}
                       <p className="text-xs text-gray-400 mb-3">{formatDate(b.created_at)}</p>
 
-                      {needsPayment && (
+                      {needsPayment && checkoutKind === "deposit" && (
                         <div className="bg-green-50 border border-green-200 rounded-lg px-3 py-2 mb-3 text-xs text-green-700">
                           {t("bookings.bookingAcceptedPayment")}
+                        </div>
+                      )}
+
+                      {needsPayment && checkoutKind === "balance" && (
+                        <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-3 text-xs text-amber-800">
+                          {t("bookings.hourlyBalancePaymentDue")}
+                        </div>
+                      )}
+
+                      {awaitingHours && (
+                        <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-3 text-xs text-amber-800">
+                          {t("bookings.hourlyApproveHoursForBalance")}
                         </div>
                       )}
 
@@ -164,19 +185,17 @@ export default function SentBookingsList({
                             bookingId={b.id}
                             accessToken={accessToken}
                             bookingTitle={b.title}
-                            price={resolveCheckoutPrice(
-                              b,
-                              b.deposit_enabled
-                                ? {
-                                    deposit_enabled: true,
-                                    deposit_type: b.deposit_type,
-                                    deposit_value: b.deposit_value,
-                                  }
-                                : null,
-                            )}
+                            price={resolveCheckoutPrice(b, depositConfig)}
                             clientProvince={b.client_province ?? null}
                             taxRateStored={b.tax_rate ? Number(b.tax_rate) : null}
                             checkoutKind={checkoutKind}
+                            depositConfig={depositConfig}
+                            depositAmountCents={b.deposit_amount_cents}
+                            fullServiceBase={
+                              checkoutKind === "balance"
+                                ? resolveBalanceFullServiceBase(b) ?? resolveBookingCheckoutBase(b)
+                                : null
+                            }
                           />
                         )}
 

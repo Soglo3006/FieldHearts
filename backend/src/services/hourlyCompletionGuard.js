@@ -42,16 +42,38 @@ export async function assertHourlyReadyForCompletion(bookingId, pricingMode) {
   await autoApproveStaleSessions(bookingId);
 
   const bookingResult = await pool.query(
-    `SELECT approved_hours_total, paid_service_base_cents, balance_due_cents,
-            payment_status, price, pricing_mode
-     FROM bookings WHERE id = $1`,
+    `SELECT b.approved_hours_total, b.paid_service_base_cents, b.balance_due_cents,
+            b.payment_status, b.custom_price,
+            COALESCE(b.pricing_mode, s.pricing_mode) AS pricing_mode,
+            s.price AS service_price
+     FROM bookings b
+     JOIN services s ON s.id = b.service_id
+     WHERE b.id = $1`,
     [bookingId],
   );
-  const booking = bookingResult.rows[0];
-  if (!booking) return;
+  const row = bookingResult.rows[0];
+  if (!row) return;
+
+  const booking = {
+    ...row,
+    price: row.custom_price ?? row.service_price,
+  };
 
   const balanceDue =
     Number(booking.balance_due_cents) || computeHourlyBalanceDueCents(booking);
+
+  if (booking.payment_status === "deposit_paid") {
+    const approvedHours = Number(booking.approved_hours_total) || 0;
+    if (approvedHours <= 0) {
+      const err = new Error(
+        "Hourly bookings require approved work hours before completion",
+      );
+      err.statusCode = 400;
+      err.code = "HOURLY_NO_APPROVED_HOURS";
+      throw err;
+    }
+  }
+
   if (balanceDue > 0) {
     const err = new Error(
       "Hourly bookings require the approved-hours balance to be paid before completion",

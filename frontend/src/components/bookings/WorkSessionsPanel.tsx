@@ -37,9 +37,10 @@ type Props = {
   bookingId: string;
   isHourly: boolean;
   canEdit: boolean;
+  onUpdated?: () => void;
 };
 
-export default function WorkSessionsPanel({ bookingId, isHourly, canEdit }: Props) {
+export default function WorkSessionsPanel({ bookingId, isHourly, canEdit, onUpdated }: Props) {
   const { t } = useTranslation();
   const { session } = useAuth();
   const [sessions, setSessions] = useState<WorkSession[]>([]);
@@ -90,6 +91,7 @@ export default function WorkSessionsPanel({ bookingId, isHourly, canEdit }: Prop
         return;
       }
       await load();
+      onUpdated?.();
       setHoursInput("");
       setModifyHours("");
       setActiveSession(null);

@@ -17,28 +17,35 @@ import {
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import DisputeThread from "@/components/bookings/DisputeThread";
 import WorkerCustomizeSection from "./WorkerCustomizeSection";
+import PriceNegotiationSection from "./PriceNegotiationSection";
 import BookingDetailFooter from "./BookingDetailFooter";
 import { useTranslation } from "react-i18next";
 import { getTaxRate, getTaxLabel, formatTaxRate } from "@/lib/taxes";
 import { uploadDisputeAttachments, type DisputeAttachment } from "@/lib/disputeAttachments";
 import { getBookingDisputeFinancialOutcome } from "@/lib/disputeFinancials";
+import { bookingLiveFingerprint, getModifiedFieldLabels } from "@/lib/bookingModifiedFields";
+import { supabase } from "@/lib/supabaseClient";
+import { negotiationCardClass } from "./negotiationCardStyles";
 import { getIntlLocale } from "@/lib/locale";
 import { sanitizePlainText } from "@/lib/sanitize";
 import AppImage from "@/components/ui/AppImage";
 import { toast } from "sonner";
 import PaymentInlinePanel from "@/components/payment/PaymentInlinePanel";
 import { HourlyDepositReceiptBreakdown } from "@/components/payment/HourlyDepositReceiptBreakdown";
+import { SplitDepositFullReceiptBreakdown } from "@/components/payment/SplitDepositFullReceiptBreakdown";
 import CancelConfirmPanel from "@/components/bookings/CancelConfirmPanel";
 import { BookingCalendarPanel } from "@/components/calendar/CalendarPageClient";
 import WorkSessionsPanel from "@/components/bookings/WorkSessionsPanel";
-import { normalizePricingMode, resolveBookingCheckoutBase, getEffectiveBookingPrice } from "@/lib/listingPrice";
 import {
   computeHourlyBalanceDueCents,
   needsBookingPayment,
   resolveCheckoutKind,
   resolveCheckoutPrice,
+  resolveBalanceFullServiceBase,
+  isWorkBasedPricingMode,
 } from "@/lib/hourlyPayment";
-import { buildClientPaymentSummary } from "@/lib/paymentSuccessSummary";
+import { normalizePricingMode, resolveBookingCheckoutBase, getEffectiveBookingPrice, getBookingPriceRangeBounds, formatBookingServiceBaseDisplay, formatBookingCheckoutTotalDisplay, formatBookingFeeComponentRange } from "@/lib/listingPrice";
+import { buildClientPaymentSummary, buildSplitDepositFullReceipt } from "@/lib/paymentSuccessSummary";
 import {
   Carousel,
   CarouselContent,
@@ -48,7 +55,7 @@ import {
   type CarouselApi,
 } from "@/components/ui/carousel";
 
-type BookingStatus = "pending" | "accepted" | "active" | "completed" | "cancelled" | "rejected";
+type BookingStatus = "pending" | "negotiating" | "accepted" | "active" | "completed" | "cancelled" | "rejected";
 type BookingStep = "detail" | "payment" | "review" | "dispute" | "cancel";
 type CancelMode = "deposit" | "dispute";
 
@@ -74,6 +81,8 @@ export interface BookingDetail {
   is_one_time?: boolean;
   worker_note?: string | null;
   custom_price?: number | null;
+  custom_price_min?: number | null;
+  custom_price_max?: number | null;
   last_modified_at?: string | null;
   modified_fields?: string[] | null;
   cancel_requested_by?: string | null;
@@ -100,6 +109,8 @@ export interface BookingDetail {
   approved_hours_total?: number | string | null;
   paid_service_base_cents?: number | null;
   balance_due_cents?: number | null;
+  price_confirmed_by_client_at?: string | null;
+  price_confirmed_by_worker_at?: string | null;
 }
 
 interface Props {
@@ -112,8 +123,9 @@ interface Props {
 }
 
 const STATUS_BADGE: Record<BookingStatus, string> = {
-  pending:   "bg-yellow-100 text-yellow-800 border-yellow-200",
-  accepted:  "bg-green-100 text-green-800 border-green-200",
+  pending:     "bg-yellow-100 text-yellow-800 border-yellow-200",
+  negotiating: "bg-amber-100 text-amber-800 border-amber-200",
+  accepted:    "bg-green-100 text-green-800 border-green-200",
   active:    "bg-green-100 text-green-800 border-green-200",
   completed: "bg-green-100 text-green-800 border-green-200",
   cancelled: "bg-red-100 text-red-700 border-red-200",
@@ -206,6 +218,10 @@ export default function BookingDetailModal({
   const { t, i18n } = useTranslation();
   useScrollLock(true);
   const [booking, setBooking] = useState(initialBooking);
+
+  useEffect(() => {
+    setBooking(initialBooking);
+  }, [initialBooking]);
   const [serviceDescription, setServiceDescription] = useState<string | null>(null);
   const [updating, setUpdating] = useState(false);
   const [step, setStep] = useState<BookingStep>("detail");
@@ -230,15 +246,20 @@ export default function BookingDetailModal({
 
   const refreshBookingFromApi = useCallback(async () => {
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/bookings/${booking.id}`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/bookings/${bookingRef.current.id}`, {
         headers: { Authorization: `Bearer ${accessToken}` },
       });
-      if (!res.ok) return;
+      if (!res.ok) return null;
       const data = await res.json();
-      setBooking((prev) => ({ ...prev, ...data }));
-      onUpdated(booking.id, data);
-    } catch { /* silent */ }
-  }, [booking.id, accessToken, onUpdated]);
+      const current = bookingRef.current;
+      if (bookingLiveFingerprint(current) === bookingLiveFingerprint(data)) return data;
+      setBooking({ ...current, ...data });
+      onUpdated(current.id, data);
+      return data;
+    } catch {
+      return null;
+    }
+  }, [accessToken, onUpdated]);
 
   useEffect(() => {
     fetch(`${process.env.NEXT_PUBLIC_API_URL}/services/${initialBooking.service_id}`)
@@ -248,31 +269,30 @@ export default function BookingDetailModal({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Poll every 4s while active so both parties see live completion state
+  // Live sync while negotiating (price proposals / confirmations) or active (completion marks)
   useEffect(() => {
-    const interval = setInterval(async () => {
-      if (bookingRef.current.status !== "active") return;
-      try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/bookings/${bookingRef.current.id}`, {
-          headers: { Authorization: `Bearer ${accessToken}` },
-        });
-        if (!res.ok) return;
-        const data = await res.json();
-        setBooking((prev) => {
-          if (
-            prev.completed_by_worker !== data.completed_by_worker ||
-            prev.completed_by_client !== data.completed_by_client ||
-            prev.status !== data.status
-          ) {
-            return { ...prev, ...data };
-          }
-          return prev;
-        });
-      } catch { /* silent */ }
-    }, 4000);
+    const poll = () => {
+      const status = bookingRef.current.status;
+      if (status === "active" || status === "negotiating") {
+        refreshBookingFromApi();
+      }
+    };
+    poll();
+    const interval = setInterval(poll, 3500);
     return () => clearInterval(interval);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [refreshBookingFromApi]);
+
+  useEffect(() => {
+    const channel = supabase
+      .channel(`booking-detail-${initialBooking.id}`)
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "bookings", filter: `id=eq.${initialBooking.id}` },
+        () => { refreshBookingFromApi(); },
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [initialBooking.id, refreshBookingFromApi]);
 
   const callStatus = async (status: BookingStatus) => {
     setUpdating(true);
@@ -283,8 +303,9 @@ export default function BookingDetailModal({
         body: JSON.stringify({ status }),
       });
       if (!res.ok) return;
-      setBooking((prev) => ({ ...prev, status }));
-      onUpdated(booking.id, { status });
+      const updated = await res.json();
+      setBooking((prev) => ({ ...prev, ...updated }));
+      onUpdated(booking.id, updated);
     } finally { setUpdating(false); }
   };
 
@@ -337,7 +358,13 @@ export default function BookingDetailModal({
         } else if (err.code === "HOURLY_NO_APPROVED_HOURS") {
           toast.error(t("bookings.hourlyNoApprovedHours"));
         } else if (err.code === "HOURLY_BALANCE_DUE") {
-          toast.error(t("bookings.hourlyBalanceDueBeforeComplete"));
+          toast.error(
+            t(
+              isWorkBasedPricingMode(booking.pricing_mode)
+                ? "bookings.fixedBalanceDueBeforeComplete"
+                : "bookings.hourlyBalanceDueBeforeComplete",
+            ),
+          );
         } else if (err.message) {
           toast.error(err.message);
         }
@@ -368,7 +395,14 @@ export default function BookingDetailModal({
   const currentUserId = userRole === "worker" ? booking.worker_id : booking.client_id;
   const otherUserName = userRole === "worker" ? (booking.client_name ?? t("bookings.clientLabel")) : (booking.worker_name ?? t("bookings.providerLabel"));
   const otherUserId = userRole === "worker" ? booking.client_id : booking.worker_id;
-  const paymentNeed = needsBookingPayment(booking);
+  const depositConfig = booking.deposit_enabled
+    ? {
+        deposit_enabled: true,
+        deposit_type: booking.deposit_type,
+        deposit_value: booking.deposit_value,
+      }
+    : null;
+  const paymentNeed = needsBookingPayment(booking, depositConfig);
   const needsPayment = paymentNeed.needed;
   const checkoutKind = paymentNeed.kind;
   const balanceDueCents = computeHourlyBalanceDueCents(booking);
@@ -742,12 +776,28 @@ export default function BookingDetailModal({
 
           <div className="px-5 py-4 space-y-4">
             {/* Modification banner */}
-            {userRole === "client" && booking.last_modified_at && (booking.modified_fields?.length ?? 0) > 0 && (
-              <div className="bg-red-50 border border-red-300 rounded-lg px-4 py-3 text-sm text-red-800">
-                <p className="font-semibold mb-0.5">{t("bookings.recentlyModified")}</p>
-                <p className="text-xs">{t("bookings.providerUpdated")} <span className="font-medium">{booking.modified_fields!.join(", ")}</span>. {t("bookings.reviewBeforePaying")}</p>
-              </div>
-            )}
+            {userRole === "client" && booking.last_modified_at && (() => {
+              const modifiedLabels = getModifiedFieldLabels(booking.modified_fields, t);
+              if (modifiedLabels.length === 0) return null;
+              return (
+                <div className={`${negotiationCardClass} space-y-2`}>
+                  <p className="text-sm font-medium text-gray-800 leading-relaxed">
+                    {t("bookings.recentlyModifiedLead")}{" "}
+                    <span className="text-red-500">{t("bookings.recentlyModifiedEmphasis")}</span>
+                  </p>
+                  <p className="text-xs leading-relaxed">
+                    <span className="text-gray-600">{t("bookings.providerUpdated")} </span>
+                    {modifiedLabels.map((label, index) => (
+                      <span key={label}>
+                        {index > 0 && <span className="text-gray-600">, </span>}
+                        <span className="font-medium text-red-500">{label}</span>
+                      </span>
+                    ))}
+                  </p>
+                  <p className="text-xs text-red-500 leading-relaxed">{t("bookings.reviewBeforePaying")}</p>
+                </div>
+              );
+            })()}
 
             {/* Payment breakdown — top */}
             {(() => {
@@ -761,8 +811,12 @@ export default function BookingDetailModal({
                 });
                 const fmt = (n: number) => n.toFixed(2);
 
-                const taxRate         = booking.tax_rate ? Number(booking.tax_rate) : getTaxRate(booking.client_province ?? "QC");
-                const taxLabel        = getTaxLabel(booking.client_province ?? "QC", i18n.language ?? "fr");
+                const billingProvince = booking.client_province ?? "QC";
+                const taxRate =
+                  booking.tax_rate != null && Number.isFinite(Number(booking.tax_rate)) && Number(booking.tax_rate) > 0
+                    ? Number(booking.tax_rate)
+                    : getTaxRate(billingProvince);
+                const taxLabel        = getTaxLabel(billingProvince, i18n.language ?? "fr");
                 const buyerCommission = base * 0.05;
                 const taxes           = base * taxRate;
                 const totalPaid       = base + buyerCommission + taxes;
@@ -771,6 +825,23 @@ export default function BookingDetailModal({
                 const isHourlyMode    = normalizePricingMode(booking.pricing_mode) === "hourly";
                 const hourlyRate      = isHourlyMode ? Number(booking.price) : null;
                 const estimatedH      = isHourlyMode && booking.estimated_hours ? Number(booking.estimated_hours) : null;
+                const priceRangeBounds = getBookingPriceRangeBounds(booking);
+                const commissionRange = formatBookingFeeComponentRange(booking, taxRate, "commission");
+                const taxesRange = formatBookingFeeComponentRange(booking, taxRate, "taxes");
+                const servicePriceLine = formatBookingServiceBaseDisplay(t, booking);
+                const totalLine = formatBookingCheckoutTotalDisplay(t, booking, taxRate);
+                const fmtMoneyLine = (single: number, range?: { min: number; max: number } | null) =>
+                  range
+                    ? t("listingPrice.rangeCurrency", { min: fmt(range.min), max: fmt(range.max) })
+                    : `${fmt(single)} $`;
+                const workerReceivesRange = priceRangeBounds
+                  ? { min: Math.round(priceRangeBounds.min * 0.8 * 100) / 100, max: Math.round(priceRangeBounds.max * 0.8 * 100) / 100 }
+                  : null;
+                const platformCommissionRange = priceRangeBounds
+                  ? { min: Math.round(priceRangeBounds.min * 0.2 * 100) / 100, max: Math.round(priceRangeBounds.max * 0.2 * 100) / 100 }
+                  : null;
+                const splitPaymentSummary = buildClientPaymentSummary(booking);
+                const splitFullReceipt = buildSplitDepositFullReceipt(booking);
 
                 if (booking.status === "rejected") return null;
 
@@ -967,6 +1038,18 @@ export default function BookingDetailModal({
                             <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{t("bookings.clientPaid")}</span>
                           </div>
                           <CardContent className="px-4 pt-0 pb-4 space-y-2 text-sm">
+                            {splitFullReceipt ? (
+                              <SplitDepositFullReceiptBreakdown
+                                {...splitFullReceipt}
+                                taxRate={taxRate}
+                                taxLabel={taxLabel}
+                                pricingMode={booking.pricing_mode}
+                                hourlyRate={splitPaymentSummary.hourlyRate}
+                                hoursLabel={splitPaymentSummary.hoursLabel}
+                                fmt={fmt}
+                              />
+                            ) : (
+                              <>
                             <div className="flex justify-between text-gray-600">
                               <div>
                                 <div>{t("serviceDetail.servicePrice")}</div>
@@ -995,6 +1078,8 @@ export default function BookingDetailModal({
                               <span>{t("serviceDetail.total")}</span>
                               <span className="text-gray-900">{fmt(totalPaid)} $</span>
                             </div>
+                              </>
+                            )}
                           </CardContent>
                         </Card>
                         {/* Worker payout */}
@@ -1042,6 +1127,18 @@ export default function BookingDetailModal({
                           <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{t("bookings.totalPaid")}</span>
                         </div>
                         <CardContent className="px-4 pt-0 pb-4 space-y-2 text-sm">
+                          {splitFullReceipt ? (
+                            <SplitDepositFullReceiptBreakdown
+                              {...splitFullReceipt}
+                              taxRate={taxRate}
+                              taxLabel={taxLabel}
+                              pricingMode={booking.pricing_mode}
+                              hourlyRate={splitPaymentSummary.hourlyRate}
+                              hoursLabel={splitPaymentSummary.hoursLabel}
+                              fmt={fmt}
+                            />
+                          ) : (
+                            <>
                           <div className="flex justify-between text-gray-600">
                             <div>
                               <div>{t("serviceDetail.servicePrice")}</div>
@@ -1075,6 +1172,8 @@ export default function BookingDetailModal({
                             <span>{t("serviceDetail.total")}</span>
                             <span className="text-gray-900">{fmt(totalPaid)} $</span>
                           </div>
+                            </>
+                          )}
                         </CardContent>
                       </Card>
                       {disputeFinancialOutcome.hasFinancialAdjustment && disputeFinancialOutcome.finalClientPaid !== null && disputeFinancialOutcome.refundedAmount !== null && (
@@ -1114,6 +1213,41 @@ export default function BookingDetailModal({
                           <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{t("bookings.clientPaid")}</span>
                         </div>
                         <CardContent className="px-4 pt-0 pb-4 space-y-2 text-sm">
+                          {splitFullReceipt ? (
+                            <SplitDepositFullReceiptBreakdown
+                              {...splitFullReceipt}
+                              taxRate={taxRate}
+                              taxLabel={taxLabel}
+                              pricingMode={booking.pricing_mode}
+                              hourlyRate={splitPaymentSummary.hourlyRate}
+                              hoursLabel={splitPaymentSummary.hoursLabel}
+                              fmt={fmt}
+                            />
+                          ) : splitPaymentSummary.variant === "split_deposit_paid" ? (
+                            <>
+                              <div className="flex justify-between text-green-700 bg-green-50 -mx-1 px-2 py-1.5 rounded-lg">
+                                <span className="font-medium">{t("payment.depositPaidLine")}</span>
+                                <span className="font-semibold">{fmt(splitPaymentSummary.depositPaid)} $</span>
+                              </div>
+                              <HourlyDepositReceiptBreakdown
+                                depositPaid={splitPaymentSummary.depositPaid}
+                                serviceBase={splitPaymentSummary.serviceBase}
+                                hourlyRate={splitPaymentSummary.hourlyRate}
+                                hoursLabel={splitPaymentSummary.hoursLabel}
+                                hoursIsApproved={splitPaymentSummary.hoursIsApproved}
+                                estimatedTotalWithFees={splitPaymentSummary.estimatedTotalWithFees}
+                                remainingBase={splitPaymentSummary.remainingBase}
+                                remainingCommission={splitPaymentSummary.remainingCommission}
+                                remainingTaxes={splitPaymentSummary.remainingTaxes}
+                                remainingTotal={splitPaymentSummary.remainingTotal}
+                                taxRate={taxRate}
+                                taxLabel={taxLabel}
+                                pricingMode={booking.pricing_mode}
+                                fmt={fmt}
+                              />
+                            </>
+                          ) : (
+                            <>
                           <div className="flex justify-between text-gray-600">
                             <div>
                               <div>{t("serviceDetail.servicePrice")}</div>
@@ -1122,8 +1256,8 @@ export default function BookingDetailModal({
                               )}
                             </div>
                             <span className="font-medium">
-                              {fmt(base)} $
-                              {booking.custom_price && Number(booking.custom_price) !== origBase && (
+                              {servicePriceLine}
+                              {booking.custom_price && Number(booking.custom_price) !== origBase && !priceRangeBounds && (
                                 <span className="text-xs text-gray-400 line-through ml-2">{fmt(origBase)} $</span>
                               )}
                             </span>
@@ -1133,20 +1267,25 @@ export default function BookingDetailModal({
                               <div>{t("serviceDetail.buyerCommission")}</div>
                               <div className="text-[11px] text-red-500">{t("payment.nonRefundable")}</div>
                             </div>
-                            <span>{fmt(buyerCommission)} $</span>
+                            <span>{fmtMoneyLine(buyerCommission, commissionRange)}</span>
                           </div>
                           <div className="flex justify-between text-gray-500">
                             <div>
                               <div>{t("serviceDetail.taxes")} ({formatTaxRate(taxRate)}%)</div>
                               <div className="text-[11px] text-gray-400">{taxLabel}</div>
                             </div>
-                            <span>{fmt(taxes)} $</span>
+                            <span>{fmtMoneyLine(taxes, taxesRange)}</span>
                           </div>
                           <Separator />
                           <div className="flex justify-between font-bold text-base">
                             <span>{t("serviceDetail.total")}</span>
-                            <span className="text-gray-900">{fmt(totalPaid)} $</span>
+                            <span className="text-gray-900">{totalLine}</span>
                           </div>
+                          {priceRangeBounds && (
+                            <p className="text-xs text-gray-500 pt-1">{t("serviceDetail.rangeTotalsHint")}</p>
+                          )}
+                            </>
+                          )}
                         </CardContent>
                       </Card>
                       {/* Worker earnings */}
@@ -1163,16 +1302,16 @@ export default function BookingDetailModal({
                                 <div className="text-xs text-gray-400">{fmt(hourlyRate)} $/h × {estimatedH} h</div>
                               )}
                             </div>
-                            <span className="font-medium">{fmt(base)} $</span>
+                            <span className="font-medium">{servicePriceLine}</span>
                           </div>
                           <div className="flex justify-between text-red-500">
                             <span>{t("bookings.platformCommission20")}</span>
-                            <span>−{fmt(commission20)} $</span>
+                            <span>−{fmtMoneyLine(commission20, platformCommissionRange)}</span>
                           </div>
                           <Separator />
                           <div className="flex justify-between font-bold text-base">
                             <span className="text-gray-900">{t("bookings.youWillReceive")}</span>
-                            <span className="text-green-600">{fmt(workerReceives)} $</span>
+                            <span className="text-green-600">{fmtMoneyLine(workerReceives, workerReceivesRange)}</span>
                           </div>
                           <p className="text-[11px] text-gray-400">{t("bookings.payoutDelay")}</p>
                         </CardContent>
@@ -1182,8 +1321,6 @@ export default function BookingDetailModal({
                 }
 
                 // Client view (pending/accepted/active): payment summary
-                const clientSummary = userRole === "client" ? buildClientPaymentSummary(booking) : null;
-
                 return (
                   <Card className="overflow-hidden shadow-none">
                     <div className="flex items-center gap-2 bg-white px-4 py-2.5 border-b border-gray-100">
@@ -1191,25 +1328,36 @@ export default function BookingDetailModal({
                       <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{t("bookings.paymentSummary")}</span>
                     </div>
                     <CardContent className="px-4 pt-0 pb-4 space-y-2 text-sm">
-                      {clientSummary?.variant === "hourly_deposit_paid" ? (
+                      {splitFullReceipt ? (
+                        <SplitDepositFullReceiptBreakdown
+                          {...splitFullReceipt}
+                          taxRate={taxRate}
+                          taxLabel={taxLabel}
+                          pricingMode={booking.pricing_mode}
+                          hourlyRate={splitPaymentSummary.hourlyRate}
+                          hoursLabel={splitPaymentSummary.hoursLabel}
+                          fmt={fmt}
+                        />
+                      ) : splitPaymentSummary.variant === "split_deposit_paid" ? (
                         <>
                           <div className="flex justify-between text-green-700 bg-green-50 -mx-1 px-2 py-1.5 rounded-lg">
                             <span className="font-medium">{t("payment.depositPaidLine")}</span>
-                            <span className="font-semibold">{fmt(clientSummary.depositPaid)} $</span>
+                            <span className="font-semibold">{fmt(splitPaymentSummary.depositPaid)} $</span>
                           </div>
                           <HourlyDepositReceiptBreakdown
-                            depositPaid={clientSummary.depositPaid}
-                            serviceBase={clientSummary.serviceBase}
-                            hourlyRate={clientSummary.hourlyRate}
-                            hoursLabel={clientSummary.hoursLabel}
-                            hoursIsApproved={clientSummary.hoursIsApproved}
-                            estimatedTotalWithFees={clientSummary.estimatedTotalWithFees}
-                            remainingBase={clientSummary.remainingBase}
-                            remainingCommission={clientSummary.remainingCommission}
-                            remainingTaxes={clientSummary.remainingTaxes}
-                            remainingTotal={clientSummary.remainingTotal}
+                            depositPaid={splitPaymentSummary.depositPaid}
+                            serviceBase={splitPaymentSummary.serviceBase}
+                            hourlyRate={splitPaymentSummary.hourlyRate}
+                            hoursLabel={splitPaymentSummary.hoursLabel}
+                            hoursIsApproved={splitPaymentSummary.hoursIsApproved}
+                            estimatedTotalWithFees={splitPaymentSummary.estimatedTotalWithFees}
+                            remainingBase={splitPaymentSummary.remainingBase}
+                            remainingCommission={splitPaymentSummary.remainingCommission}
+                            remainingTaxes={splitPaymentSummary.remainingTaxes}
+                            remainingTotal={splitPaymentSummary.remainingTotal}
                             taxRate={taxRate}
                             taxLabel={taxLabel}
+                            pricingMode={booking.pricing_mode}
                             fmt={fmt}
                           />
                         </>
@@ -1223,8 +1371,8 @@ export default function BookingDetailModal({
                           )}
                         </div>
                         <span className="font-medium">
-                          {fmt(clientSummary?.serviceBase ?? base)} $
-                          {booking.custom_price && Number(booking.custom_price) !== origBase && (
+                          {servicePriceLine}
+                          {booking.custom_price && Number(booking.custom_price) !== origBase && !priceRangeBounds && (
                             <span className="text-xs text-gray-400 line-through ml-2">{fmt(origBase)} $</span>
                           )}
                         </span>
@@ -1234,20 +1382,23 @@ export default function BookingDetailModal({
                           <div>{t("serviceDetail.buyerCommission")}</div>
                           <div className="text-[11px] text-red-500">{t("payment.nonRefundable")}</div>
                         </div>
-                        <span>{fmt(clientSummary?.buyerCommission ?? buyerCommission)} $</span>
+                        <span>{fmtMoneyLine(splitPaymentSummary.buyerCommission, commissionRange)}</span>
                       </div>
                       <div className="flex justify-between text-gray-500">
                         <div>
                           <div>{t("serviceDetail.taxes")} ({formatTaxRate(taxRate)}%)</div>
                           <div className="text-[11px] text-gray-400">{taxLabel}</div>
                         </div>
-                        <span>{fmt(clientSummary?.taxes ?? taxes)} $</span>
+                        <span>{fmtMoneyLine(splitPaymentSummary.taxes, taxesRange)}</span>
                       </div>
                       <Separator />
                       <div className="flex justify-between font-bold text-base">
                         <span>{t("serviceDetail.total")}</span>
-                        <span className="text-green-600">{fmt(clientSummary?.total ?? totalPaid)} $</span>
+                        <span className="text-green-600">{totalLine}</span>
                       </div>
+                      {priceRangeBounds && (
+                        <p className="text-xs text-gray-500 pt-1">{t("serviceDetail.rangeTotalsHint")}</p>
+                      )}
                         </>
                       )}
                     </CardContent>
@@ -1281,7 +1432,13 @@ export default function BookingDetailModal({
                 </AvatarFallback>
               </Avatar>
               <div>
-                <p className="text-xs text-gray-500">{userRole === "worker" ? t("bookings.requestFrom") : t("bookings.serviceBy")}</p>
+                <p className="text-xs text-gray-500">
+                  {userRole === "worker"
+                    ? t("bookings.requestFrom")
+                    : booking.service_type === "looking"
+                      ? t("bookings.from")
+                      : t("bookings.serviceBy")}
+                </p>
                 <Link
                   href={`/profile/${otherUserId}`}
                   className="text-sm font-semibold text-gray-900 hover:text-green-700 hover:underline"
@@ -1338,8 +1495,21 @@ export default function BookingDetailModal({
               <p className="text-xs text-gray-400 italic">{t("bookings.noRequestDescription")}</p>
             )}
 
+            {/* Price negotiation (range / quote) */}
+            {booking.status === "negotiating" && (
+              <PriceNegotiationSection
+                booking={booking}
+                userRole={userRole}
+                accessToken={accessToken}
+                onUpdated={(data) => {
+                  setBooking((prev) => ({ ...prev, ...data }));
+                  onUpdated(booking.id, data as Partial<BookingDetail>);
+                }}
+              />
+            )}
+
             {/* Worker customize */}
-            {userRole === "worker" && ["pending", "accepted"].includes(booking.status) && (
+            {userRole === "worker" && ["pending", "negotiating", "accepted"].includes(booking.status) && (
               <WorkerCustomizeSection
                 booking={booking}
                 accessToken={accessToken}
@@ -1351,7 +1521,7 @@ export default function BookingDetailModal({
             )}
 
             {/* Worker note → client */}
-            {userRole === "client" && (booking.worker_note || booking.custom_price || booking.estimated_hours) && (
+            {userRole === "client" && (booking.worker_note || booking.custom_price || booking.estimated_hours) && booking.status !== "negotiating" && (
               <div className="bg-green-50 border border-green-100 rounded-xl px-4 py-3 space-y-1">
                 <p className="text-xs font-semibold text-green-700 uppercase tracking-wide">{t("bookings.providerNote")}</p>
                 {normalizePricingMode(booking.pricing_mode) === "hourly" && booking.estimated_hours != null && (
@@ -1626,13 +1796,7 @@ export default function BookingDetailModal({
               checkoutKind={checkoutKind}
               fullServiceBase={
                 checkoutKind === "balance"
-                  ? (() => {
-                      const approved = Number(booking.approved_hours_total) || 0;
-                      const rate = Number(booking.price);
-                      return approved > 0
-                        ? Math.round(rate * approved * 100) / 100
-                        : resolveBookingCheckoutBase(booking);
-                    })()
+                  ? resolveBalanceFullServiceBase(booking)
                   : null
               }
               depositConfig={
@@ -1645,6 +1809,7 @@ export default function BookingDetailModal({
                   : null
               }
               depositAmountCents={booking.deposit_amount_cents}
+              pricingMode={booking.pricing_mode}
             />
           </div>{/* end panel 5 */}
 

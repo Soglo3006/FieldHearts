@@ -2,13 +2,16 @@ import pool from "../config/db.js";
 import stripe from "../config/stripe.js";
 import { notifyPaymentReceipt } from "../services/emailService.js";
 import { processBookingRefund } from "../services/refundService.js";
-import { calculateDepositAmount, ensureDepositsAndCalendarSchema, resolveCheckoutBaseAmount } from "../utils/depositSchema.js";
+import { calculateDepositAmount, ensureDepositsAndCalendarSchema, resolveBookingDepositMeta, resolveCheckoutBaseAmount } from "../utils/depositSchema.js";
 import {
+  computeBalanceDueCents,
   computeHourlyBalanceDueCents,
-  getHourlyInitialChargeBaseDollars,
   getApprovedHoursBaseCents,
+  getFullServiceBaseCents,
+  getHourlyInitialChargeBaseDollars,
   computeHourlyBalanceCheckoutAmounts,
   resolveCheckoutKind,
+  usesSplitDepositPayment,
 } from "../utils/hourlyPayment.js";
 
 // ─── Ensure platform_earnings table exists ────────────────────────────────────
@@ -348,7 +351,7 @@ export const getConnectStatus = async (req, res) => {
 const CHECKOUT_TX_DESCRIPTION = {
   full: "Payment for service",
   deposit: "Dépôt — réservation",
-  balance: "Solde — heures approuvées",
+  balance: "Solde — prestation",
 };
 
 function needsBookingPaymentReconciliation(booking, payment) {
@@ -390,7 +393,11 @@ async function loadVerifyBookingSnapshot(bookingId) {
 
 async function loadBookingForHourlyPayment(bookingId) {
   const result = await pool.query(
-    `SELECT b.*, s.price AS service_price, s.pricing_mode AS service_pricing_mode
+    `SELECT b.*, s.price AS service_price, s.pricing_mode AS service_pricing_mode,
+            s.price_max, s.estimated_hours AS service_estimated_hours,
+            s.deposit_enabled AS service_deposit_enabled,
+            s.deposit_type AS service_deposit_type,
+            s.deposit_value AS service_deposit_value
      FROM bookings b
      JOIN services s ON s.id = b.service_id
      WHERE b.id = $1`,
@@ -403,6 +410,24 @@ async function loadBookingForHourlyPayment(bookingId) {
     price: row.custom_price ?? row.service_price,
     pricing_mode: row.pricing_mode ?? row.service_pricing_mode,
   };
+}
+
+function serviceMetaFromBookingRow(row) {
+  return {
+    pricing_mode: row.pricing_mode ?? row.service_pricing_mode,
+    price: row.price ?? row.service_price,
+    price_max: row.price_max,
+    estimated_hours: row.estimated_hours ?? row.service_estimated_hours,
+    ...resolveBookingDepositMeta(row),
+  };
+}
+
+function computeBalanceDueAfterDeposit(bookingRow, newPaidBase) {
+  const meta = serviceMetaFromBookingRow(bookingRow);
+  return computeBalanceDueCents(
+    { ...bookingRow, paid_service_base_cents: newPaidBase, balance_due_cents: 0 },
+    meta,
+  );
 }
 
 async function completeCheckoutPayment(session) {
@@ -438,7 +463,7 @@ async function completeCheckoutPayment(session) {
   const prevPaidBase = Number(bookingRow?.paid_service_base_cents || 0);
   const newPaidBase = prevPaidBase + paidServiceCents;
   const balanceDueCents = bookingRow
-    ? computeHourlyBalanceDueCents({ ...bookingRow, paid_service_base_cents: newPaidBase })
+    ? computeBalanceDueAfterDeposit(bookingRow, newPaidBase)
     : 0;
 
   if (paymentKind === "deposit") {
@@ -553,7 +578,9 @@ export const createCheckoutSession = async (req, res) => {
               COALESCE(b.pricing_mode, s.pricing_mode) AS pricing_mode,
               COALESCE(b.estimated_hours, s.estimated_hours) AS estimated_hours,
               s.estimated_hours AS service_estimated_hours,
-              s.deposit_enabled, s.deposit_type, s.deposit_value,
+              s.deposit_enabled AS service_deposit_enabled,
+              s.deposit_type AS service_deposit_type,
+              s.deposit_value AS service_deposit_value,
               u.email AS worker_email, u.province AS worker_province,
               uc.email AS client_email,
               uc.full_name AS client_full_name,
@@ -578,14 +605,29 @@ export const createCheckoutSession = async (req, res) => {
       return res.status(403).json({ message: "You are not the client for this booking" });
     }
 
-    const checkoutKind = resolveCheckoutKind(b);
+    const depositFields = resolveBookingDepositMeta(b);
+    const serviceMeta = {
+      pricing_mode: b.pricing_mode,
+      price: b.price,
+      price_max: b.price_max,
+      estimated_hours: b.estimated_hours ?? b.service_estimated_hours,
+      ...depositFields,
+    };
+
+    const checkoutKind = resolveCheckoutKind(b, serviceMeta);
     if (!checkoutKind) {
       return res.status(400).json({ message: "This booking has already been paid" });
     }
 
     if (checkoutKind === "full" || checkoutKind === "deposit") {
       if (b.status !== "accepted") {
-        return res.status(400).json({ message: "Booking must be accepted before payment" });
+        return res.status(400).json({
+          message: b.status === "negotiating"
+            ? (req.lang === "en"
+              ? "Agree on a price with the other party before payment."
+              : "Convenez d'un prix avec l'autre partie avant le paiement.")
+            : "Booking must be accepted before payment",
+        });
       }
     } else if (checkoutKind === "balance") {
       if (b.status !== "active") {
@@ -596,30 +638,16 @@ export const createCheckoutSession = async (req, res) => {
       }
     }
 
-    const serviceMeta = {
-      pricing_mode: b.pricing_mode,
-      price: b.price,
-      price_max: b.price_max,
-      estimated_hours: b.estimated_hours ?? b.service_estimated_hours,
-      deposit_enabled: b.deposit_enabled,
-      deposit_type: b.deposit_type,
-      deposit_value: b.deposit_value,
-    };
-
     let effectivePrice;
     let balanceCheckoutAmounts = null;
     if (checkoutKind === "deposit") {
       effectivePrice = getHourlyInitialChargeBaseDollars(b, serviceMeta);
     } else if (checkoutKind === "balance") {
-      const balanceCents = computeHourlyBalanceDueCents(b);
+      const balanceCents = computeBalanceDueCents(b, serviceMeta);
       if (balanceCents < 1) {
         return res.status(400).json({ message: "No balance due for this booking" });
       }
-      const approvedCents = getApprovedHoursBaseCents(b);
-      const fullServiceDollars =
-        approvedCents > 0
-          ? approvedCents / 100
-          : resolveCheckoutBaseAmount(serviceMeta, b) ?? balanceCents / 100;
+      const fullServiceDollars = getFullServiceBaseCents(b, serviceMeta) / 100;
       const taxRatePreview = getTaxRate(
         normalizeProvince(billing_province ?? b.client_province ?? "QC"),
       );
@@ -961,7 +989,15 @@ export const getPaymentStatus = async (req, res) => {
     const userId = req.user.id;
 
     const booking = await pool.query(
-      "SELECT * FROM bookings WHERE id = $1",
+      `SELECT b.*, s.price, s.price_max, s.pricing_mode AS service_pricing_mode,
+              s.estimated_hours AS service_estimated_hours,
+              s.deposit_enabled AS service_deposit_enabled,
+              s.deposit_type AS service_deposit_type,
+              s.deposit_value AS service_deposit_value,
+              COALESCE(b.pricing_mode, s.pricing_mode) AS pricing_mode
+       FROM bookings b
+       JOIN services s ON s.id = b.service_id
+       WHERE b.id = $1`,
       [bookingId]
     );
 
@@ -970,6 +1006,13 @@ export const getPaymentStatus = async (req, res) => {
     }
 
     const b = booking.rows[0];
+    const serviceMeta = {
+      pricing_mode: b.pricing_mode,
+      price: b.price,
+      price_max: b.price_max,
+      estimated_hours: b.estimated_hours ?? b.service_estimated_hours,
+      ...resolveBookingDepositMeta(b),
+    };
 
     if (b.client_id !== userId && b.worker_id !== userId) {
       return res.status(403).json({ message: "Not authorized" });
@@ -985,7 +1028,7 @@ export const getPaymentStatus = async (req, res) => {
       payment_status: b.payment_status,
       balance_due_cents: Number(b.balance_due_cents) || 0,
       paid_service_base_cents: Number(b.paid_service_base_cents) || 0,
-      checkout_kind: resolveCheckoutKind(b),
+      checkout_kind: resolveCheckoutKind(b, serviceMeta),
       payment: payment.rows[0] || null,
     });
   } catch (err) {

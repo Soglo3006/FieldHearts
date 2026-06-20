@@ -12,11 +12,11 @@ import { type BookingDetail } from "./BookingDetailModal";
 
 import { getDisputeWindowState } from "@/lib/disputes";
 
-import { resolveCheckoutPrice, needsBookingPayment, hourlyAwaitingApprovedHours, resolveBalanceFullServiceBase } from "@/lib/hourlyPayment";
+import { resolveCheckoutPrice, needsBookingPayment, hourlyAwaitingApprovedHours, fixedAwaitingWorkForBalance, resolveBalanceFullServiceBase } from "@/lib/hourlyPayment";
 
 
 
-type BookingStatus = "pending" | "accepted" | "active" | "completed" | "cancelled" | "rejected";
+type BookingStatus = "pending" | "negotiating" | "accepted" | "active" | "completed" | "cancelled" | "rejected";
 
 
 
@@ -79,7 +79,6 @@ export default function BookingDetailFooter({
   const { t } = useTranslation();
 
   const disputeWindow = getDisputeWindowState(booking.completed_at);
-  const { kind: checkoutKind } = needsBookingPayment(booking);
   const depositConfig = booking.deposit_enabled
     ? {
         deposit_enabled: true,
@@ -87,7 +86,9 @@ export default function BookingDetailFooter({
         deposit_value: booking.deposit_value,
       }
     : null;
+  const { kind: checkoutKind } = needsBookingPayment(booking, depositConfig);
   const awaitingHours = hourlyAwaitingApprovedHours(booking);
+  const awaitingWork = fixedAwaitingWorkForBalance(booking, depositConfig);
 
 
 
@@ -155,8 +156,14 @@ export default function BookingDetailFooter({
 
 
 
-      {/* Worker: accepted */}
+      {/* Negotiating: both parties can cancel */}
+      {booking.status === "negotiating" && (
+        <Button variant="outline" className="w-full text-red-600 border-red-200 hover:bg-red-50 h-11" onClick={() => onCallStatus("cancelled")} disabled={updating}>
+          {updating ? "…" : t("bookings.cancelBooking")}
+        </Button>
+      )}
 
+      {/* Worker: accepted */}
       {userRole === "worker" && booking.status === "accepted" && (
 
         <Button variant="outline" className="w-full text-red-600 border-red-200 hover:bg-red-50 h-11" onClick={() => onCallStatus("cancelled")} disabled={updating}>
@@ -170,8 +177,14 @@ export default function BookingDetailFooter({
 
 
       {/* Client: deposit paid — waiting for approved hours */}
+      {userRole === "client" && awaitingWork && (
+        <div className="text-xs text-gray-600 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 leading-relaxed">
+          {t("bookings.fixedPayBalanceAfterWork")}
+        </div>
+      )}
+
       {userRole === "client" && awaitingHours && (
-        <div className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+        <div className="text-xs text-gray-600 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 leading-relaxed">
           {t("bookings.hourlyApproveHoursForBalance")}
         </div>
       )}
@@ -204,6 +217,8 @@ export default function BookingDetailFooter({
           fullServiceBase={
             checkoutKind === "balance" ? resolveBalanceFullServiceBase(booking) : null
           }
+
+          pricingMode={booking.pricing_mode}
 
           onPayNow={onPayNow}
 
@@ -281,53 +296,41 @@ export default function BookingDetailFooter({
 
 
 
-      {booking.status === "active" && !booking.has_dispute && userRole === "client" &&
+      {booking.status === "active" && !booking.has_dispute && (() => {
+        const showCancelDeposit =
+          userRole === "client" &&
+          (booking.payment_status === "paid" || booking.payment_status === "deposit_paid") &&
+          booking.deposit_enabled &&
+          onOpenCancelDeposit;
+        const showCancelBooking = !!onOpenCancelDispute;
 
-        (booking.payment_status === "paid" || booking.payment_status === "deposit_paid") &&
+        if (!showCancelDeposit && !showCancelBooking) return null;
 
-        booking.deposit_enabled &&
-
-        onOpenCancelDeposit && (
-
-        <Button
-
-          variant="outline"
-
-          className="w-full text-red-600 border-red-200 hover:bg-red-50 h-10"
-
-          onClick={onOpenCancelDeposit}
-
-          disabled={updating}
-
-        >
-
-          {t("deposit.cancelWithDeposit")}
-
-        </Button>
-
-      )}
-
-
-
-      {booking.status === "active" && !booking.has_dispute && onOpenCancelDispute && (
-
-        <Button
-
-          variant="outline"
-
-          className="w-full text-red-600 border-red-200 hover:bg-red-50 h-10"
-
-          onClick={onOpenCancelDispute}
-
-          disabled={updating}
-
-        >
-
-          {t("bookings.cancelBooking")}
-
-        </Button>
-
-      )}
+        return (
+          <div className="flex gap-2">
+            {showCancelDeposit && (
+              <Button
+                variant="outline"
+                className="flex-1 min-w-0 text-red-600 border-red-200 hover:bg-red-50 h-10 text-xs sm:text-sm px-2"
+                onClick={onOpenCancelDeposit}
+                disabled={updating}
+              >
+                {t("deposit.cancelWithDeposit")}
+              </Button>
+            )}
+            {showCancelBooking && (
+              <Button
+                variant="outline"
+                className="flex-1 min-w-0 text-red-600 border-red-200 hover:bg-red-50 h-10 text-xs sm:text-sm px-2"
+                onClick={onOpenCancelDispute}
+                disabled={updating}
+              >
+                {t("bookings.cancelBooking")}
+              </Button>
+            )}
+          </div>
+        );
+      })()}
 
 
 

@@ -20,6 +20,7 @@ interface Props {
   depositConfig?: DepositConfig | null;
   depositAmountCents?: number | null;
   fullServiceBase?: number | null;
+  pricingMode?: string | null;
   onPayNow?: () => void;
 }
 
@@ -30,6 +31,7 @@ export default function PayNowButton({
   depositConfig = null,
   depositAmountCents = null,
   fullServiceBase = null,
+  pricingMode = null,
   onPayNow,
 }: Props) {
   const { t } = useTranslation();
@@ -54,7 +56,7 @@ export default function PayNowButton({
     <>
       <Button
         size={fullWidth ? "default" : "sm"}
-        className={`bg-green-700 hover:bg-green-800 text-white gap-1.5 ${fullWidth ? "w-full h-11" : "flex-1"}`}
+        className={`bg-green-700 hover:bg-green-800 text-white gap-1.5 ${fullWidth ? "w-full h-11" : "w-full justify-center"}`}
         onClick={handleClick}
       >
         {buttonLabel}
@@ -78,6 +80,7 @@ export default function PayNowButton({
           depositConfig={depositConfig}
           depositAmountCents={depositAmountCents}
           fullServiceBase={fullServiceBase}
+          pricingMode={pricingMode}
         />
       )}
     </>

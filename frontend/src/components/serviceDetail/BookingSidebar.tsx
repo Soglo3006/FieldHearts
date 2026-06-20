@@ -92,6 +92,8 @@ export default function BookingSidebar({
             {existingBookingStatus
               ? existingBookingStatus === "pending"
                 ? t("serviceDetail.requestAlreadySent")
+                : existingBookingStatus === "negotiating"
+                  ? t("bookings.negotiating")
                 : t("serviceDetail.bookingStatus", { status: existingBookingStatus })
               : serviceType === "looking"
               ? t("serviceDetail.applyToJob")

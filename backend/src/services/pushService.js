@@ -76,18 +76,65 @@ export const pushNewBooking = (workerId, clientName, serviceTitle) =>
 
 export const pushBookingStatus = (clientId, status, serviceTitle) =>
   sendPushToUser(clientId, {
-    title: status === "accepted" ? "Booking accepted! " : "Booking update",
+    title:
+      status === "accepted"
+        ? "Booking accepted!"
+        : status === "negotiating"
+          ? "Agree on price"
+          : "Booking update",
     body:
       status === "accepted"
         ? `Your request for "${serviceTitle}" was accepted.`
-        : status === "refused"
-        ? `Your request for "${serviceTitle}" was declined.`
-        : `Your booking for "${serviceTitle}" is now ${status}.`,
+        : status === "negotiating"
+          ? `Your request for "${serviceTitle}" was accepted. Agree on a price before payment.`
+          : status === "refused"
+            ? `Your request for "${serviceTitle}" was declined.`
+            : `Your booking for "${serviceTitle}" is now ${status}.`,
     icon: PUSH_ICON_URL,
     badge: PUSH_BADGE_URL,
     url: "/bookings",
     tag: "booking-status",
   });
+
+function formatPushAmount(amount) {
+  if (typeof amount === "string") return amount.replace(/\$/g, "").trim();
+  if (typeof amount === "number" && Number.isFinite(amount)) return amount.toFixed(2);
+  return String(amount ?? "");
+}
+
+export const pushPriceProposed = (recipientId, { proposerName, amount, serviceTitle }) =>
+  sendPushToUser(recipientId, {
+    title: "New price proposed",
+    body: `${proposerName} proposed ${formatPushAmount(amount)} for "${serviceTitle}"`,
+    icon: PUSH_ICON_URL,
+    badge: PUSH_BADGE_URL,
+    url: "/bookings",
+    tag: "price-proposed",
+  });
+
+export const pushPriceConfirmRequest = (recipientId, { confirmerName, amount, serviceTitle }) =>
+  sendPushToUser(recipientId, {
+    title: "Confirm the agreed price",
+    body: `${confirmerName} confirmed ${formatPushAmount(amount)} for "${serviceTitle}". Confirm on your side to finalize.`,
+    icon: PUSH_ICON_URL,
+    badge: PUSH_BADGE_URL,
+    url: "/bookings",
+    tag: "price-confirm",
+  });
+
+export const pushPriceAgreed = (userId, { amount, serviceTitle, awaitingPayment }) => {
+  const label = formatPushAmount(amount);
+  return sendPushToUser(userId, {
+    title: "Price agreed",
+    body: awaitingPayment
+      ? `Price set at ${label} for "${serviceTitle}". Complete payment to start.`
+      : `Price set at ${label} for "${serviceTitle}". Waiting for client payment.`,
+    icon: PUSH_ICON_URL,
+    badge: PUSH_BADGE_URL,
+    url: "/bookings",
+    tag: "price-agreed",
+  });
+};
 
 export const pushNewMessage = (recipientId, senderName) =>
   sendPushToUser(recipientId, {

@@ -1,15 +1,29 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useTranslation } from "react-i18next";
 import { normalizePricingMode } from "@/lib/listingPrice";
+import RangePriceFields, {
+  clampToRange,
+  formatAgreedRangeLabel,
+  formatPriceInput,
+  getInitialRangeMax,
+  getInitialRangeMin,
+  getListingRangeBounds,
+  isRangeInputValid,
+  parsePriceInput,
+} from "./RangePriceFields";
+import { NegotiationCard, NegotiationRow } from "./NegotiationCard";
 
 interface Booking {
   id: string;
   status: string;
   worker_note?: string | null;
   custom_price?: number | null;
+  custom_price_min?: number | null;
+  custom_price_max?: number | null;
   price: string | number;
+  price_max?: number | string | null;
   pricing_mode?: string | null;
   estimated_hours?: number | string | null;
   deposit_enabled?: boolean;
@@ -28,18 +42,49 @@ export default function WorkerCustomizeSection({ booking, accessToken, onSaved }
   const pricingMode = normalizePricingMode(booking.pricing_mode);
   const isHourly = pricingMode === "hourly";
   const isQuote = pricingMode === "quote";
+  const isRange = pricingMode === "range";
+  const rangeBounds = useMemo(() => getListingRangeBounds(booking), [booking]);
 
   const [editing, setEditing] = useState(false);
   const [editNote, setEditNote] = useState(booking.worker_note ?? "");
   const [editPrice, setEditPrice] = useState(String(booking.custom_price ?? booking.price ?? ""));
+  const [editPriceMin, setEditPriceMin] = useState(() => getInitialRangeMin(booking, rangeBounds));
+  const [editPriceMax, setEditPriceMax] = useState(() => getInitialRangeMax(booking, rangeBounds));
   const [editHours, setEditHours] = useState(
     booking.estimated_hours != null && booking.estimated_hours !== ""
       ? String(Math.round(Number(booking.estimated_hours)))
       : ""
   );
   const [editDepositType, setEditDepositType] = useState(booking.deposit_type ?? "percent");
-  const [editDepositValue, setEditDepositValue] = useState(String(booking.deposit_value ?? ""));
+  const [editDepositValue, setEditDepositValue] = useState(
+    booking.deposit_value != null && booking.deposit_value !== ""
+      ? String(Math.round(Number(booking.deposit_value)))
+      : ""
+  );
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setEditPriceMin(getInitialRangeMin(booking, rangeBounds));
+    setEditPriceMax(getInitialRangeMax(booking, rangeBounds));
+  }, [booking.custom_price_min, booking.custom_price_max, booking.custom_price, booking.id, rangeBounds?.min, rangeBounds?.max]);
+
+  const handleRangeBlurMin = () => {
+    const parsed = parsePriceInput(editPriceMin);
+    if (parsed == null) {
+      setEditPriceMin(getInitialRangeMin(booking, rangeBounds));
+      return;
+    }
+    setEditPriceMin(formatPriceInput(clampToRange(parsed, rangeBounds)));
+  };
+
+  const handleRangeBlurMax = () => {
+    const parsed = parsePriceInput(editPriceMax);
+    if (parsed == null) {
+      setEditPriceMax(getInitialRangeMax(booking, rangeBounds));
+      return;
+    }
+    setEditPriceMax(formatPriceInput(clampToRange(parsed, rangeBounds)));
+  };
 
   const save = async () => {
     setSaving(true);
@@ -48,6 +93,11 @@ export default function WorkerCustomizeSection({ booking, accessToken, onSaved }
       if (isHourly) {
         const hours = Number(editHours);
         if (Number.isFinite(hours) && hours > 0) body.estimated_hours = hours;
+      } else if (isRange) {
+        if (isRangeInputValid(editPriceMin, editPriceMax, rangeBounds)) {
+          body.custom_price_min = parsePriceInput(editPriceMin);
+          body.custom_price_max = parsePriceInput(editPriceMax);
+        }
       } else if (editPrice.trim() !== "") {
         body.custom_price = Number(editPrice);
       }
@@ -70,6 +120,12 @@ export default function WorkerCustomizeSection({ booking, accessToken, onSaved }
     }
   };
 
+  const agreedRangeLabel = formatAgreedRangeLabel(
+    booking.custom_price_min,
+    booking.custom_price_max,
+    t,
+  );
+
   return (
     <div className="border border-dashed border-gray-300 rounded-xl px-4 py-3 space-y-2">
       <div className="flex items-center justify-between">
@@ -82,7 +138,22 @@ export default function WorkerCustomizeSection({ booking, accessToken, onSaved }
       </div>
       {editing ? (
         <>
-          {!isHourly && (
+          {!isHourly && isRange && (
+            <NegotiationCard>
+              <RangePriceFields
+                idPrefix="customizeRange"
+                compact
+                listingBounds={rangeBounds}
+                valueMin={editPriceMin}
+                valueMax={editPriceMax}
+                onChangeMin={setEditPriceMin}
+                onChangeMax={setEditPriceMax}
+                onBlurMin={handleRangeBlurMin}
+                onBlurMax={handleRangeBlurMax}
+              />
+            </NegotiationCard>
+          )}
+          {!isHourly && !isRange && (
             <div>
               <label htmlFor="customizeBookingPrice" className="text-xs text-gray-500 mb-1 block">
                 {isQuote ? t("customizeBooking.customPriceLabel") : t("customizeBooking.customPriceLabel")}
@@ -151,7 +222,12 @@ export default function WorkerCustomizeSection({ booking, accessToken, onSaved }
             />
           </div>
           <div className="flex gap-2">
-            <Button size="sm" className="bg-green-700 hover:bg-green-800 text-white" onClick={save} disabled={saving}>
+            <Button
+              size="sm"
+              className="bg-green-700 hover:bg-green-800 text-white"
+              onClick={save}
+              disabled={saving || (isRange && !isRangeInputValid(editPriceMin, editPriceMax, rangeBounds))}
+            >
               {saving ? t("customizeBooking.saving") : t("common.save")}
             </Button>
             <Button size="sm" variant="outline" onClick={() => setEditing(false)} disabled={saving}>{t("common.cancel")}</Button>
@@ -165,14 +241,19 @@ export default function WorkerCustomizeSection({ booking, accessToken, onSaved }
               <span className="font-semibold text-green-700">{Number(booking.estimated_hours)} h</span>
             </p>
           )}
-          {!isHourly && booking.custom_price != null && (
+          {isRange && agreedRangeLabel && (
+            <NegotiationCard>
+              <NegotiationRow label={t("customizeBooking.customRangeValue")} value={agreedRangeLabel} />
+            </NegotiationCard>
+          )}
+          {!isHourly && !isRange && booking.custom_price != null && (
             <p className="text-sm text-gray-700">
               {t("customizeBooking.customPriceValue")}{" "}
               <span className="font-semibold text-green-700">${Number(booking.custom_price)}</span>
             </p>
           )}
           {booking.worker_note && <p className="text-sm text-gray-600 whitespace-pre-line">{booking.worker_note}</p>}
-          {!booking.custom_price && !booking.worker_note && !booking.estimated_hours && (
+          {!booking.custom_price && !booking.custom_price_min && !booking.worker_note && !booking.estimated_hours && (
             <p className="text-xs text-gray-400 italic">{t("customizeBooking.empty")}</p>
           )}
         </>

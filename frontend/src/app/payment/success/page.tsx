@@ -19,6 +19,8 @@ import {
   type PaidCheckoutKind,
 } from "@/lib/paymentSuccessSummary";
 import { HourlyDepositReceiptBreakdown } from "@/components/payment/HourlyDepositReceiptBreakdown";
+import { SplitDepositFullReceiptBreakdown } from "@/components/payment/SplitDepositFullReceiptBreakdown";
+import { isWorkBasedPricingMode } from "@/lib/hourlyPayment";
 import { normalizePricingMode } from "@/lib/listingPrice";
 
 interface Booking {
@@ -34,6 +36,9 @@ interface Booking {
   paid_service_base_cents?: number | null;
   balance_due_cents?: number | null;
   deposit_amount_cents?: number | null;
+  deposit_enabled?: boolean;
+  deposit_type?: string | null;
+  deposit_value?: number | string | null;
   tax_rate: number | null;
   worker_province: string | null;
   client_province: string | null;
@@ -143,6 +148,8 @@ export default function PaymentSuccessPage() {
   const taxLabel = getTaxLabel(booking?.client_province ?? "QC", i18n.language ?? "fr");
   const taxRate = booking?.tax_rate ? Number(booking.tax_rate) : undefined;
   const fmt = (n: number) => n.toFixed(2);
+  const isWorkBasedPrice = isWorkBasedPricingMode(booking?.pricing_mode);
+  const balancePaidLineKey = isWorkBasedPrice ? "payment.balancePaidLineFixed" : "payment.balancePaidLine";
 
   return (
     <div className="min-h-screen bg-white flex items-start justify-center px-4 py-10">
@@ -221,10 +228,12 @@ export default function PaymentSuccessPage() {
                           remainingTotal={breakdown.estimatedRemainingTotal}
                           taxRate={taxRate}
                           taxLabel={taxLabel}
+                          pricingMode={booking.pricing_mode}
                           fmt={fmt}
                         />
                       )}
-                    {breakdown.balanceDueNow > 0 && (
+                    {breakdown.balanceDueNow > 0 &&
+                      (Number(booking.approved_hours_total) || 0) > 0 && (
                       <>
                         <Separator className="my-3" />
                         <div className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 space-y-1">
@@ -241,9 +250,29 @@ export default function PaymentSuccessPage() {
                     )}
                   </>
                 ) : breakdown.kind === "balance" ? (
+                  breakdown.splitDepositFullReceipt ? (
+                    <SplitDepositFullReceiptBreakdown
+                      {...breakdown.splitDepositFullReceipt}
+                      taxRate={taxRate}
+                      taxLabel={taxLabel}
+                      pricingMode={booking.pricing_mode}
+                      hourlyRate={
+                        normalizePricingMode(booking.pricing_mode) === "hourly"
+                          ? Number(booking.price)
+                          : null
+                      }
+                      hoursLabel={(() => {
+                        const approved = Number(booking.approved_hours_total) || 0;
+                        if (approved > 0) return approved;
+                        const est = Number(booking.estimated_hours);
+                        return Number.isFinite(est) && est > 0 ? est : null;
+                      })()}
+                      fmt={fmt}
+                    />
+                  ) : (
                   <>
                     <div className="flex justify-between text-gray-500">
-                      <span>{t("payment.balancePaidLine")}</span>
+                      <span>{t(balancePaidLineKey)}</span>
                       <span className="text-gray-700">{fmt(breakdown.serviceBase)} $</span>
                     </div>
                     <div className="flex justify-between text-gray-400">
@@ -263,13 +292,8 @@ export default function PaymentSuccessPage() {
                       </div>
                       <span>{fmt(breakdown.taxes)} $</span>
                     </div>
-                    {breakdown.isFullyPaid && (
-                      <div className="flex justify-between text-gray-400 pt-1 border-t border-gray-100">
-                        <span>{t("payment.totalPaidOnBooking")}</span>
-                        <span>{fmt((booking.paid_service_base_cents ?? 0) / 100)} $</span>
-                      </div>
-                    )}
                   </>
+                  )
                 ) : (
                   <>
                     <div className="flex justify-between text-gray-500">
@@ -296,7 +320,7 @@ export default function PaymentSuccessPage() {
                   </>
                 )}
 
-                {breakdown.kind !== "deposit" && (
+                {breakdown.kind !== "deposit" && !breakdown.splitDepositFullReceipt && (
                   <div className="flex justify-between font-bold text-base border-t border-gray-200 pt-2.5 mt-1">
                     <span>{t("payment.amountPaid")}</span>
                     <span className="text-green-700">{fmt(breakdown.totalPaid)} $</span>

@@ -11,11 +11,19 @@ export async function ensureDepositsAndCalendarSchema(pool) {
     ALTER TABLE services ADD COLUMN IF NOT EXISTS deposit_value numeric(10, 2);
     ALTER TABLE services ADD COLUMN IF NOT EXISTS estimated_hours numeric(8, 2);
     ALTER TABLE bookings ADD COLUMN IF NOT EXISTS deposit_amount_cents integer NOT NULL DEFAULT 0;
+    ALTER TABLE bookings ADD COLUMN IF NOT EXISTS deposit_enabled boolean;
+    ALTER TABLE bookings ADD COLUMN IF NOT EXISTS deposit_type varchar(16);
+    ALTER TABLE bookings ADD COLUMN IF NOT EXISTS deposit_value numeric(10, 2);
     ALTER TABLE bookings ADD COLUMN IF NOT EXISTS estimated_hours numeric(8, 2);
     ALTER TABLE bookings ADD COLUMN IF NOT EXISTS pricing_mode varchar(16);
     ALTER TABLE bookings ADD COLUMN IF NOT EXISTS approved_hours_total numeric(10, 2) NOT NULL DEFAULT 0;
     ALTER TABLE bookings ADD COLUMN IF NOT EXISTS paid_service_base_cents integer NOT NULL DEFAULT 0;
     ALTER TABLE bookings ADD COLUMN IF NOT EXISTS balance_due_cents integer NOT NULL DEFAULT 0;
+    ALTER TABLE bookings ADD COLUMN IF NOT EXISTS price_confirmed_by_client_at timestamptz;
+    ALTER TABLE bookings ADD COLUMN IF NOT EXISTS price_confirmed_by_worker_at timestamptz;
+    ALTER TABLE bookings ADD COLUMN IF NOT EXISTS custom_price_min numeric(10, 2);
+    ALTER TABLE bookings ADD COLUMN IF NOT EXISTS custom_price_max numeric(10, 2);
+    ALTER TABLE bookings ADD COLUMN IF NOT EXISTS client_province varchar(16);
     ALTER TABLE payments ADD COLUMN IF NOT EXISTS deposit_amount_cents integer NOT NULL DEFAULT 0;
     ALTER TABLE payments ADD COLUMN IF NOT EXISTS payment_kind varchar(16) NOT NULL DEFAULT 'full';
     ALTER TABLE users ADD COLUMN IF NOT EXISTS calendar_ics_token varchar(64) UNIQUE;
@@ -75,6 +83,40 @@ export async function ensureDepositsAndCalendarSchema(pool) {
 }
 
 /**
+ * Merge nullable booking deposit overrides with listing defaults.
+ * @param {Record<string, unknown>} row
+ */
+export function resolveBookingDepositMeta(row) {
+  const serviceEnabled = row.service_deposit_enabled ?? row.s_deposit_enabled;
+  const serviceType = row.service_deposit_type ?? null;
+  const serviceValue =
+    row.service_deposit_value != null ? Number(row.service_deposit_value) : null;
+
+  const bookingType = row.deposit_type ?? null;
+  const bookingValue = row.deposit_value != null ? Number(row.deposit_value) : null;
+  const hasBookingOverride =
+    bookingType != null &&
+    bookingValue != null &&
+    Number.isFinite(bookingValue) &&
+    bookingValue > 0;
+
+  if (hasBookingOverride) {
+    return {
+      deposit_enabled: row.deposit_enabled !== false,
+      deposit_type: bookingType,
+      deposit_value: bookingValue,
+    };
+  }
+
+  return {
+    deposit_enabled: !!serviceEnabled,
+    deposit_type: serviceType,
+    deposit_value:
+      serviceValue != null && Number.isFinite(serviceValue) ? serviceValue : null,
+  };
+}
+
+/**
  * Base amount (CAD) used for deposit calculation and payment totals.
  * @param {Record<string, unknown>} service
  * @param {Record<string, unknown> | null} [booking]
@@ -91,6 +133,9 @@ export function resolveDepositBaseAmount(service, booking = null) {
   }
 
   if (mode === "range") {
+    if (custom != null && Number.isFinite(custom) && custom >= 0.01) return custom;
+    const customMax = booking?.custom_price_max != null ? Number(booking.custom_price_max) : null;
+    if (customMax != null && Number.isFinite(customMax) && customMax >= 0.01) return customMax;
     const hi = Number(service.price_max ?? service.price);
     if (Number.isFinite(hi) && hi >= 0.01) return hi;
     return null;

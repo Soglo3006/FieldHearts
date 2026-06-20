@@ -19,6 +19,7 @@ interface Props {
   depositAmountCents?: number | null;
   checkoutKind?: CheckoutKind | null;
   fullServiceBase?: number | null;
+  pricingMode?: string | null;
 }
 
 function PaymentModalInner({
@@ -32,6 +33,7 @@ function PaymentModalInner({
   depositAmountCents,
   checkoutKind = "full",
   fullServiceBase = null,
+  pricingMode = null,
 }: Omit<Props, "open">) {
   const { t } = useTranslation();
   useScrollLock(true);
@@ -66,6 +68,7 @@ function PaymentModalInner({
           depositAmountCents={depositAmountCents}
           checkoutKind={checkoutKind}
           fullServiceBase={fullServiceBase}
+          pricingMode={pricingMode}
         />
       </div>
     </div>

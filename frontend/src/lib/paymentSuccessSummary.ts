@@ -1,7 +1,9 @@
 import { getTaxRate } from "@/lib/taxes";
 import {
   computeHourlyBalanceDueCents,
+  computeBalanceDueCents,
   isHourlyBooking,
+  usesSplitDepositPayment,
   type CheckoutKind,
 } from "@/lib/hourlyPayment";
 import { resolveBookingCheckoutBase, getEffectiveBookingPrice } from "@/lib/listingPrice";
@@ -12,6 +14,19 @@ export interface LatestPaymentInfo {
   amount: number;
   platform_fee: number;
   payment_kind?: string | null;
+}
+
+export interface SplitDepositFullReceipt {
+  fullServiceBase: number;
+  fullCommission: number;
+  fullTaxes: number;
+  fullTotalWithFees: number;
+  depositPaid: number;
+  balanceBase: number;
+  balanceCommission: number;
+  balanceTaxes: number;
+  balanceTotal: number;
+  grandTotalPaid: number;
 }
 
 export interface PaymentSuccessBreakdown {
@@ -29,6 +44,7 @@ export interface PaymentSuccessBreakdown {
   balanceDueNow: number;
   balanceDueTotal: number | null;
   isFullyPaid: boolean;
+  splitDepositFullReceipt: SplitDepositFullReceipt | null;
   titleKey: string;
   descKey: string;
 }
@@ -44,6 +60,9 @@ type BookingFields = {
   paid_service_base_cents?: number | null;
   balance_due_cents?: number | null;
   deposit_amount_cents?: number | null;
+  deposit_enabled?: boolean;
+  deposit_type?: string | null;
+  deposit_value?: number | string | null;
   tax_rate?: number | null;
   client_province?: string | null;
 };
@@ -95,6 +114,19 @@ export function computeHourlyBalanceCheckoutTotal(
   };
 }
 
+function resolveFullServiceBaseForReceipt(booking: BookingFields): number {
+  if (isHourlyBooking(booking) && Number(booking.approved_hours_total) > 0) {
+    return roundMoney(Number(booking.price) * Number(booking.approved_hours_total));
+  }
+  return resolveBookingCheckoutBase(booking);
+}
+
+function resolveDepositPaidBase(booking: BookingFields, fullServiceBase: number, balanceBase: number): number {
+  const stored = Number(booking.deposit_amount_cents || 0) / 100;
+  if (stored > 0) return stored;
+  return Math.max(0, roundMoney(fullServiceBase - balanceBase));
+}
+
 function breakdownFromTotals(
   totalCents: number,
   platformFeeCents: number,
@@ -130,9 +162,8 @@ export function buildPaymentSuccessBreakdown(
     taxRate,
   );
 
-  const estimatedTotalBase = isHourlyBooking(booking)
-    ? resolveBookingCheckoutBase(booking)
-    : null;
+  const estimatedTotalBase =
+    kind === "deposit" ? resolveBookingCheckoutBase(booking) : null;
   const paidBaseFromBooking = Number(booking.paid_service_base_cents || 0) / 100;
   const depositPaidNow = kind === "deposit" && totalCents > 0 ? totalCents / 100 : 0;
   const effectivePaidBase = Math.max(paidBaseFromBooking, depositPaidNow);
@@ -161,6 +192,9 @@ export function buildPaymentSuccessBreakdown(
 
   if (kind === "deposit") {
     const depositPaid = totalCents > 0 ? totalCents / 100 : paidBaseFromBooking;
+    const descKey = isHourlyBooking(booking)
+      ? "payment.confirmedDepositDesc"
+      : "payment.confirmedDepositDescFixed";
     return {
       kind: "deposit",
       serviceBase: depositPaid,
@@ -176,27 +210,58 @@ export function buildPaymentSuccessBreakdown(
       balanceDueNow,
       balanceDueTotal: balanceDueFees?.total ?? null,
       isFullyPaid: false,
+      splitDepositFullReceipt: null,
       titleKey: "payment.confirmedDeposit",
-      descKey: "payment.confirmedDepositDesc",
+      descKey,
     };
   }
 
   if (kind === "balance") {
+    const fullServiceBase = resolveFullServiceBaseForReceipt(booking);
+    const inferredBalanceBase = Math.max(0, roundMoney(totalPaid - commission - taxes));
+    const depositPaidBase = resolveDepositPaidBase(booking, fullServiceBase, inferredBalanceBase);
+    const splitFees = computeHourlyBalanceCheckoutTotal(fullServiceBase, depositPaidBase, taxRate);
+    const balanceBase = splitFees.balanceBase;
+    const balanceCommission = splitFees.commission;
+    const balanceTaxes = splitFees.taxes;
+    const balanceTotal = totalPaid > 0 ? totalPaid : splitFees.total;
+
+    let splitDepositFullReceipt: SplitDepositFullReceipt | null = null;
+    const hadSplitDeposit =
+      usesSplitDepositPayment(booking) ||
+      (Number(booking.deposit_amount_cents || 0) > 0 && depositPaidBase > 0);
+    if (hadSplitDeposit && isFullyPaid) {
+      const fullFees = computeServiceCheckoutTotal(fullServiceBase, taxRate);
+      splitDepositFullReceipt = {
+        fullServiceBase,
+        fullCommission: fullFees.commission,
+        fullTaxes: fullFees.taxes,
+        fullTotalWithFees: fullFees.total,
+        depositPaid: depositPaidBase,
+        balanceBase,
+        balanceCommission,
+        balanceTaxes,
+        balanceTotal,
+        grandTotalPaid: roundMoney(depositPaidBase + balanceTotal),
+      };
+    }
+
     return {
       kind: "balance",
-      serviceBase,
-      commission,
-      taxes,
-      totalPaid,
-      estimatedTotalBase: null,
+      serviceBase: balanceBase,
+      commission: balanceCommission,
+      taxes: balanceTaxes,
+      totalPaid: balanceTotal,
+      estimatedTotalBase: fullServiceBase,
       estimatedRemainingBase: balanceDueNow > 0 ? balanceDueNow : null,
-      estimatedTotalWithFees: null,
+      estimatedTotalWithFees: computeServiceCheckoutTotal(fullServiceBase, taxRate).total,
       estimatedRemainingCommission: balanceDueFees?.commission ?? null,
       estimatedRemainingTaxes: balanceDueFees?.taxes ?? null,
       estimatedRemainingTotal: balanceDueFees?.total ?? null,
       balanceDueNow,
       balanceDueTotal: balanceDueFees?.total ?? null,
       isFullyPaid,
+      splitDepositFullReceipt,
       titleKey: isFullyPaid ? "payment.confirmed" : "payment.confirmedBalance",
       descKey: isFullyPaid ? "payment.confirmedFullAfterBalanceDesc" : "payment.confirmedBalanceDesc",
     };
@@ -217,13 +282,14 @@ export function buildPaymentSuccessBreakdown(
     balanceDueNow: 0,
     balanceDueTotal: null,
     isFullyPaid: true,
+    splitDepositFullReceipt: null,
     titleKey: "payment.confirmed",
     descKey: "payment.confirmedDesc",
   };
 }
 
 export interface ClientPaymentSummary {
-  variant: "full" | "hourly_deposit_paid";
+  variant: "full" | "split_deposit_paid";
   serviceBase: number;
   hourlyRate: number | null;
   hoursLabel: number | null;
@@ -239,6 +305,33 @@ export interface ClientPaymentSummary {
   total: number;
 }
 
+/** After deposit + balance are both paid — full receipt for modals / success page. */
+export function buildSplitDepositFullReceipt(booking: BookingFields): SplitDepositFullReceipt | null {
+  if (!usesSplitDepositPayment(booking)) return null;
+  if (booking.payment_status !== "paid" && booking.payment_status !== "transferred") return null;
+
+  const depositPaid = Number(booking.deposit_amount_cents || 0) / 100;
+  if (depositPaid < 0.01) return null;
+
+  const taxRate = resolveTaxRate(booking);
+  const fullServiceBase = resolveFullServiceBaseForReceipt(booking);
+  const fullFees = computeServiceCheckoutTotal(fullServiceBase, taxRate);
+  const splitFees = computeHourlyBalanceCheckoutTotal(fullServiceBase, depositPaid, taxRate);
+
+  return {
+    fullServiceBase,
+    fullCommission: fullFees.commission,
+    fullTaxes: fullFees.taxes,
+    fullTotalWithFees: fullFees.total,
+    depositPaid,
+    balanceBase: splitFees.balanceBase,
+    balanceCommission: splitFees.commission,
+    balanceTaxes: splitFees.taxes,
+    balanceTotal: splitFees.total,
+    grandTotalPaid: roundMoney(depositPaid + splitFees.total),
+  };
+}
+
 /** Payment summary card in booking detail (client view). */
 export function buildClientPaymentSummary(booking: BookingFields): ClientPaymentSummary {
   const taxRate = resolveTaxRate(booking);
@@ -251,10 +344,13 @@ export function buildClientPaymentSummary(booking: BookingFields): ClientPayment
     Number(booking.paid_service_base_cents || 0) / 100 ||
     (booking.deposit_amount_cents ? booking.deposit_amount_cents / 100 : 0);
 
-  if (isHourly && booking.payment_status === "deposit_paid") {
-    const balanceDueNow = computeHourlyBalanceDueCents(booking) / 100;
+  if (
+    usesSplitDepositPayment(booking) &&
+    booking.payment_status === "deposit_paid"
+  ) {
+    const balanceDueNow = computeBalanceDueCents(booking) / 100;
     const fullServiceBase =
-      approvedH > 0 && hourlyRate != null
+      isHourly && approvedH > 0 && hourlyRate != null
         ? roundMoney(hourlyRate * approvedH)
         : estimatedBase;
     const remainingFees = computeHourlyBalanceCheckoutTotal(
@@ -265,7 +361,7 @@ export function buildClientPaymentSummary(booking: BookingFields): ClientPayment
     const estimateFees = computeServiceCheckoutTotal(estimatedBase, taxRate);
 
     return {
-      variant: "hourly_deposit_paid",
+      variant: "split_deposit_paid",
       serviceBase: estimatedBase,
       hourlyRate,
       hoursLabel: approvedH > 0 ? approvedH : estimatedH,

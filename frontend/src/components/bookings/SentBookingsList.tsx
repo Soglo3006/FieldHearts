@@ -7,11 +7,12 @@ import { MapPin, Grid3x3, Star, CheckCircle } from "lucide-react";
 import { SentBooking, BookingStatus, STATUS_CONFIG, BOOKING_GROUPS, formatDate } from "./bookingTypes";
 import { type BookingDetail } from "./BookingDetailModal";
 import PayNowButton from "./PayNowButton";
+import { negotiationHintPrimary, negotiationHintAction } from "./negotiationCardStyles";
 import { useTranslation } from "react-i18next";
 import { getTaxRate } from "@/lib/taxes";
 import { getDisputeWindowState } from "@/lib/disputes";
-import { resolveBookingCheckoutBase } from "@/lib/listingPrice";
-import { needsBookingPayment, resolveCheckoutPrice, hourlyAwaitingApprovedHours, resolveBalanceFullServiceBase } from "@/lib/hourlyPayment";
+import { formatBookingCheckoutTotalDisplay, resolveBookingCheckoutBase } from "@/lib/listingPrice";
+import { resolveCheckoutPrice, needsBookingPayment, hourlyAwaitingApprovedHours, fixedAwaitingWorkForBalance, resolveBalanceFullServiceBase } from "@/lib/hourlyPayment";
 
 function StatusBadge({ status }: { status: BookingStatus }) {
   const { t } = useTranslation();
@@ -83,9 +84,9 @@ export default function SentBookingsList({
                 // For offer: other person is the worker (b.worker_id)
                 // For looking: other person is the client/poster (b.client_id)
                 const otherId = isLooking ? b.client_id : b.worker_id;
-                const needsPayment = !isLooking && needsBookingPayment(b).needed;
-                const checkoutKind = needsBookingPayment(b).kind;
-                const awaitingHours = !isLooking && hourlyAwaitingApprovedHours(b);
+                const otherName = isLooking ? b.client_name : b.worker_name;
+                const otherLabelKey = isLooking ? "bookings.clientLabel" : "bookings.provider";
+                const cardTaxRate = b.tax_rate ? Number(b.tax_rate) : getTaxRate(b.client_province ?? "QC");
                 const depositConfig = b.deposit_enabled
                   ? {
                       deposit_enabled: true,
@@ -93,6 +94,10 @@ export default function SentBookingsList({
                       deposit_value: b.deposit_value,
                     }
                   : null;
+                const needsPayment = !isLooking && needsBookingPayment(b, depositConfig).needed;
+                const checkoutKind = needsBookingPayment(b, depositConfig).kind;
+                const awaitingHours = !isLooking && hourlyAwaitingApprovedHours(b);
+                const awaitingWork = !isLooking && fixedAwaitingWorkForBalance(b, depositConfig);
 
                 return (
                   <div key={b.id}
@@ -124,15 +129,15 @@ export default function SentBookingsList({
                       </div>
 
                       <p className="text-xs text-gray-500 mb-2">
-                        {t("bookings.provider")}{" "}
+                        {t(otherLabelKey)}{" "}
                         <Link href={`/profile/${otherId}`} onClick={(e) => e.stopPropagation()}
                           className="font-medium text-gray-700 hover:text-green-700 hover:underline">
-                          {b.worker_name}
+                          {otherName}
                         </Link>
                       </p>
 
                       <p className="text-green-700 font-bold text-lg mb-1">
-                        {(resolveBookingCheckoutBase(b) * (1 + 0.05 + (b.tax_rate ? Number(b.tax_rate) : getTaxRate(b.client_province ?? "QC")))).toFixed(2)} $
+                        {formatBookingCheckoutTotalDisplay(t, b, cardTaxRate)}
                       </p>
 
                       {b.service_location && (
@@ -152,14 +157,26 @@ export default function SentBookingsList({
                       )}
 
                       {needsPayment && checkoutKind === "balance" && (
-                        <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-3 text-xs text-amber-800">
+                        <div className="bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 mb-3 text-xs text-gray-600">
                           {t("bookings.hourlyBalancePaymentDue")}
                         </div>
                       )}
 
+                      {awaitingWork && (
+                        <div className="bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 mb-3 text-xs text-gray-600">
+                          {t("bookings.fixedPayBalanceAfterWork")}
+                        </div>
+                      )}
+
                       {awaitingHours && (
-                        <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-3 text-xs text-amber-800">
+                        <div className="bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 mb-3 text-xs text-gray-600">
                           {t("bookings.hourlyApproveHoursForBalance")}
+                        </div>
+                      )}
+
+                      {b.status === "negotiating" && (
+                        <div className={negotiationHintPrimary}>
+                          {t("priceNegotiation.cardHint")}
                         </div>
                       )}
 
@@ -180,6 +197,19 @@ export default function SentBookingsList({
                           )
                         )}
 
+                        {b.status === "negotiating" && (
+                          <>
+                            <span className={negotiationHintAction}>
+                              {t("priceNegotiation.openDetailHint")}
+                            </span>
+                            <Button type="button" size="sm" variant="outline"
+                              className="text-red-600 border-red-200 hover:bg-red-50 w-full"
+                              onClick={() => onUpdateStatus(b.id, "cancelled", "sent")} disabled={updating === b.id}>
+                              {updating === b.id ? "…" : isLooking ? t("bookings.cancelRequest") : t("bookings.cancelBooking")}
+                            </Button>
+                          </>
+                        )}
+
                         {needsPayment && (
                           <PayNowButton
                             bookingId={b.id}
@@ -196,6 +226,7 @@ export default function SentBookingsList({
                                 ? resolveBalanceFullServiceBase(b) ?? resolveBookingCheckoutBase(b)
                                 : null
                             }
+                            pricingMode={b.pricing_mode}
                           />
                         )}
 

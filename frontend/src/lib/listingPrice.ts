@@ -166,3 +166,81 @@ export function getEffectiveBookingPrice(booking: {
   }
   return Number(booking.custom_price ?? booking.price);
 }
+
+function roundMoney(n: number) {
+  return Math.round(n * 100) / 100;
+}
+
+/** Range listing without agreed custom_price yet. */
+export function getBookingPriceRangeBounds(booking: {
+  pricing_mode?: string | null;
+  price?: number | string | null;
+  price_min?: number | string | null;
+  price_max?: number | string | null;
+  custom_price?: number | string | null;
+}): { min: number; max: number } | null {
+  if (normalizePricingMode(booking.pricing_mode) !== "range") return null;
+  if (booking.custom_price != null && Number(booking.custom_price) >= 0.01) return null;
+  const lo = parseListingPriceNum(booking.price_min ?? booking.price);
+  const hi = parseListingPriceNum(booking.price_max);
+  if (lo == null || hi == null || hi <= lo + 1e-9) return null;
+  return { min: lo, max: hi };
+}
+
+export function computeCheckoutTotalOnBase(base: number, taxRate: number) {
+  return roundMoney(base * (1 + 0.05 + taxRate));
+}
+
+export function getBookingCheckoutTotalRange(
+  booking: Parameters<typeof getBookingPriceRangeBounds>[0],
+  taxRate: number,
+): { min: number; max: number } | null {
+  const bounds = getBookingPriceRangeBounds(booking);
+  if (!bounds) return null;
+  return {
+    min: computeCheckoutTotalOnBase(bounds.min, taxRate),
+    max: computeCheckoutTotalOnBase(bounds.max, taxRate),
+  };
+}
+
+export function formatBookingServiceBaseDisplay(
+  t: (key: string, opts?: Record<string, unknown>) => string,
+  booking: Parameters<typeof getBookingPriceRangeBounds>[0],
+): string {
+  const bounds = getBookingPriceRangeBounds(booking);
+  if (bounds) {
+    return t("listingPrice.rangeCurrency", {
+      min: bounds.min.toFixed(2),
+      max: bounds.max.toFixed(2),
+    });
+  }
+  return `${resolveBookingCheckoutBase(booking).toFixed(2)} $`;
+}
+
+export function formatBookingCheckoutTotalDisplay(
+  t: (key: string, opts?: Record<string, unknown>) => string,
+  booking: Parameters<typeof getBookingPriceRangeBounds>[0],
+  taxRate: number,
+): string {
+  const totalRange = getBookingCheckoutTotalRange(booking, taxRate);
+  if (totalRange) {
+    return t("listingPrice.rangeCurrency", {
+      min: totalRange.min.toFixed(2),
+      max: totalRange.max.toFixed(2),
+    });
+  }
+  return `${computeCheckoutTotalOnBase(resolveBookingCheckoutBase(booking), taxRate).toFixed(2)} $`;
+}
+
+export function formatBookingFeeComponentRange(
+  booking: Parameters<typeof getBookingPriceRangeBounds>[0],
+  taxRate: number,
+  kind: "commission" | "taxes",
+): { min: number; max: number } | null {
+  const bounds = getBookingPriceRangeBounds(booking);
+  if (!bounds) return null;
+  if (kind === "commission") {
+    return { min: roundMoney(bounds.min * 0.05), max: roundMoney(bounds.max * 0.05) };
+  }
+  return { min: roundMoney(bounds.min * taxRate), max: roundMoney(bounds.max * taxRate) };
+}

@@ -10,6 +10,8 @@ import { getIntlLocale } from "@/lib/locale";
 import { PaymentDepositRows } from "@/components/payment/PaymentDepositRows";
 import type { DepositConfig } from "@/lib/deposit";
 import type { CheckoutKind } from "@/lib/hourlyPayment";
+import { isWorkBasedPricingMode } from "@/lib/hourlyPayment";
+import { normalizePricingMode } from "@/lib/listingPrice";
 
 interface Props {
   bookingId: string;
@@ -21,6 +23,7 @@ interface Props {
   depositAmountCents?: number | null;
   checkoutKind?: CheckoutKind | null;
   fullServiceBase?: number | null;
+  pricingMode?: string | null;
 }
 
 export default function PaymentInlinePanel({
@@ -33,6 +36,7 @@ export default function PaymentInlinePanel({
   depositAmountCents,
   checkoutKind = "full",
   fullServiceBase = null,
+  pricingMode = null,
 }: Props) {
   const { t, i18n } = useTranslation();
   const checkoutLocale = getIntlLocale(i18n.language, { fr: "fr-CA", en: "en" });
@@ -143,6 +147,25 @@ export default function PaymentInlinePanel({
   const taxes = isDepositCheckout ? 0 : feeBase * taxRate;
   const total = isDepositCheckout ? price : price + commission + taxes;
   const fmt = (n: number) => n.toFixed(2);
+  const mode = normalizePricingMode(pricingMode);
+  const depositNoticeKey =
+    mode === "hourly"
+      ? "payment.hourlyDepositNotice"
+      : isWorkBasedPricingMode(mode)
+        ? "payment.fixedDepositNotice"
+        : "payment.splitDepositNotice";
+  const balanceNoticeKey =
+    mode === "hourly"
+      ? "payment.balanceDueNoticeHourly"
+      : isWorkBasedPricingMode(mode)
+        ? "payment.balanceDueNoticeFixed"
+        : "payment.balanceDueNotice";
+  const balanceLabelKey =
+    mode === "hourly"
+      ? "payment.balanceAmountHourly"
+      : isWorkBasedPricingMode(mode)
+        ? "payment.balanceAmountFixed"
+        : "payment.balanceAmount";
 
   const servicePriceLabel = isDepositCheckout
     ? t("payment.depositAmount")
@@ -157,12 +180,12 @@ export default function PaymentInlinePanel({
         <div className="bg-white rounded-xl border border-gray-100 px-4 py-3 space-y-1.5 text-sm">
           <p className="text-base font-bold text-gray-900 mb-2">{bookingTitle}</p>
           {isBalanceCheckout && (
-            <p className="text-xs text-amber-700 bg-amber-50 rounded-lg px-2 py-1.5 mb-1">
-              {t("payment.balanceDueNotice")}
+            <p className="text-xs text-gray-600 bg-gray-50 border border-gray-200 rounded-lg px-2 py-1.5 mb-1">
+              {t(balanceNoticeKey)}
             </p>
           )}
           <div className="flex justify-between text-gray-600">
-            <span>{servicePriceLabel}</span>
+            <span>{isBalanceCheckout ? t(balanceLabelKey) : servicePriceLabel}</span>
             <span className="font-medium text-gray-900">{fmt(price)} $</span>
           </div>
           <hr className="border-gray-100 my-1" />
@@ -174,7 +197,7 @@ export default function PaymentInlinePanel({
             />
           )}
           {isDepositCheckout && (
-            <p className="text-xs text-gray-500">{t("payment.hourlyDepositNotice")}</p>
+            <p className="text-xs text-gray-500">{t(depositNoticeKey)}</p>
           )}
           {isDepositCheckout && (
             <p className="text-xs text-gray-500">{t("payment.depositFeesDeferredNotice")}</p>

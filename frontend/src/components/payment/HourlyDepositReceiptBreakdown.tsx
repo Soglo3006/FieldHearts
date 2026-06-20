@@ -3,6 +3,7 @@
 import { Separator } from "@/components/ui/separator";
 import { useTranslation } from "react-i18next";
 import { formatTaxRate } from "@/lib/taxes";
+import { isWorkBasedPricingMode } from "@/lib/hourlyPayment";
 
 export type HourlyDepositReceiptProps = {
   depositPaid: number;
@@ -17,6 +18,7 @@ export type HourlyDepositReceiptProps = {
   remainingTotal: number;
   taxRate?: number;
   taxLabel?: string;
+  pricingMode?: string | null;
   fmt?: (n: number) => string;
 };
 
@@ -32,9 +34,17 @@ export function HourlyDepositReceiptBreakdown({
   remainingTotal,
   taxRate,
   taxLabel,
+  pricingMode = null,
   fmt = (n) => n.toFixed(2),
 }: HourlyDepositReceiptProps) {
   const { t } = useTranslation();
+  const isWorkBased = isWorkBasedPricingMode(pricingMode);
+
+  const serviceTotalKey = isWorkBased ? "payment.servicePrice" : "payment.estimatedServiceTotal";
+  const totalWithFeesKey = isWorkBased ? "payment.totalWithFees" : "payment.estimatedTotalWithFees";
+  const remainingHeaderKey = isWorkBased ? "payment.remainingTotalDue" : "payment.estimatedRemaining";
+  const remainingFooterKey = isWorkBased ? "payment.remainingAfterWork" : "payment.remainingAfterHours";
+  const balanceLabelKey = isWorkBased ? "payment.balanceAmountFixed" : "payment.balanceAmount";
 
   const hourlySubtext =
     hourlyRate != null && hoursLabel != null
@@ -50,7 +60,7 @@ export function HourlyDepositReceiptBreakdown({
       <div className="space-y-2">
         <div className="flex justify-between text-gray-700">
           <div>
-            <div className="font-medium">{t("payment.estimatedServiceTotal")}</div>
+            <div className="font-medium">{t(serviceTotalKey)}</div>
             {hourlySubtext && (
               <div className="text-xs text-gray-600 mt-0.5">{hourlySubtext}</div>
             )}
@@ -58,7 +68,7 @@ export function HourlyDepositReceiptBreakdown({
           <span className="font-medium text-gray-900">{fmt(serviceBase)} $</span>
         </div>
         <div className="flex justify-between text-gray-700">
-          <span>{t("payment.estimatedTotalWithFees")}</span>
+          <span>{t(totalWithFeesKey)}</span>
           <span className="font-medium text-gray-900">{fmt(estimatedTotalWithFees)} $</span>
         </div>
         <div className="flex justify-between text-gray-600 text-sm">
@@ -71,11 +81,11 @@ export function HourlyDepositReceiptBreakdown({
 
       <div className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-3 space-y-2">
         <div className="flex justify-between text-gray-900 font-semibold">
-          <span>{t("payment.estimatedRemaining")}</span>
+          <span>{t(remainingHeaderKey)}</span>
           <span>{fmt(remainingTotal)} $</span>
         </div>
         <div className="flex justify-between text-sm text-gray-700">
-          <span>{t("payment.balanceAmount")}</span>
+          <span>{t(balanceLabelKey)}</span>
           <span className="font-medium">{fmt(remainingBase)} $</span>
         </div>
         <div className="flex justify-between text-sm text-gray-700">
@@ -97,7 +107,7 @@ export function HourlyDepositReceiptBreakdown({
         </div>
       </div>
 
-      <p className="text-xs text-gray-600 mt-2">{t("payment.remainingAfterHours")}</p>
+      <p className="text-xs text-gray-600 mt-2">{t(remainingFooterKey)}</p>
     </>
   );
 }

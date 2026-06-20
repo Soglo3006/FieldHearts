@@ -20,6 +20,18 @@ const LISTINGS = [
   },
   {
     type: "offer",
+    title: "[TEST] Consultation rénovation — prix à discuter",
+    description: "Annonce de test locale. Prix à convenir avec le client après échange. Dépôt activé une fois le prix fixé.",
+    pricing_mode: "quote",
+    city: "Montréal",
+    location: "Montréal, QC",
+    category: "Rénovation",
+    deposit_enabled: true,
+    deposit_type: "percent",
+    deposit_value: 20,
+  },
+  {
+    type: "offer",
     title: "[TEST] Entretien ménager — tarif horaire",
     description: "Annonce de test locale. Tarif à l'heure avec sessions de travail et validation des heures.",
     pricing_mode: "hourly",

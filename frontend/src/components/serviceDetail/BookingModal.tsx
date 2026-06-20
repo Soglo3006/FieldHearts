@@ -1,7 +1,7 @@
 "use client";
 import { useTranslation } from "react-i18next";
 import { useScrollLock } from "@/hooks/useScrollLock";
-import { formatTaxRate } from "@/lib/taxes";
+import { formatTaxRate, getTaxRate, getTaxLabel } from "@/lib/taxes";
 import { useClientTax } from "@/hooks/useClientTax";
 import { Button } from "@/components/ui/button";
 import { CheckCircle, X } from "lucide-react";
@@ -39,6 +39,7 @@ export default function BookingModal({
   estimatedTotalBaseMax,
   serviceTitle,
   providerFirstName,
+  workerProvince,
   pricingMode,
   hourlyRate,
   estimatedHours = "",
@@ -50,8 +51,20 @@ export default function BookingModal({
 }: Props) {
   const { t, i18n } = useTranslation();
   useScrollLock(true);
-  const { taxRate, taxLabel } = useClientTax(getLanguageCode(i18n.language));
-  const showBuyerFees = serviceType === "offer";
+  const lang = getLanguageCode(i18n.language);
+  const profileTax = useClientTax(lang);
+  // Buyer province: client on offers (logged-in user), listing owner on "looking" searches
+  const buyerProvince =
+    serviceType === "looking" ? workerProvince : profileTax.province;
+  const taxRate =
+    buyerProvince != null && buyerProvince !== ""
+      ? getTaxRate(buyerProvince)
+      : profileTax.taxRate;
+  const taxLabel =
+    buyerProvince != null && buyerProvince !== ""
+      ? getTaxLabel(buyerProvince, lang)
+      : profileTax.taxLabel;
+  const showBuyerFees = true;
   const isHourly = String(pricingMode ?? "").toLowerCase() === "hourly";
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-6">

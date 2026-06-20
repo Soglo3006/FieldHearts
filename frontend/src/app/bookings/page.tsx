@@ -20,6 +20,8 @@ import AppImage from "@/components/ui/AppImage";
 import { getBookingDisputeFinancialOutcome } from "@/lib/disputeFinancials";
 import { getIntlLocale } from "@/lib/locale";
 import { toast } from "sonner";
+import { isWorkBasedPricingMode } from "@/lib/hourlyPayment";
+import { normalizePricingMode } from "@/lib/listingPrice";
 
 function LoadingSkeleton() {
   return (
@@ -128,6 +130,17 @@ function BookingsContent() {
 
     if (receivedOk) setReceived(receivedRes.value);
     if (sentOk) setSent(sentRes.value);
+
+    setDetailBooking((prev) => {
+      if (!prev) return null;
+      const all = [
+        ...(receivedOk ? receivedRes.value : []),
+        ...(sentOk ? sentRes.value : []),
+      ];
+      const fresh = all.find((b: { id: string }) => b.id === prev.booking.id);
+      if (!fresh) return prev;
+      return { ...prev, booking: { ...prev.booking, ...fresh } };
+    });
 
     if (!receivedOk || !sentOk) {
       if (attempt < 2) {
@@ -299,7 +312,16 @@ function BookingsContent() {
         } else if (err.code === "HOURLY_NO_APPROVED_HOURS") {
           toast.error(t("bookings.hourlyNoApprovedHours"));
         } else if (err.code === "HOURLY_BALANCE_DUE") {
-          toast.error(t("bookings.hourlyBalanceDueBeforeComplete"));
+          const b =
+            received.find((x) => x.id === bookingId) ??
+            sent.find((x) => x.id === bookingId);
+          toast.error(
+            t(
+              isWorkBasedPricingMode(b?.pricing_mode)
+                ? "bookings.fixedBalanceDueBeforeComplete"
+                : "bookings.hourlyBalanceDueBeforeComplete",
+            ),
+          );
         } else if (err.message) {
           toast.error(err.message);
         }

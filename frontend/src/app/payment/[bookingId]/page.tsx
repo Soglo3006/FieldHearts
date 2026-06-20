@@ -2,7 +2,7 @@
 
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Spinner } from "@/components/ui/Spinner";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
@@ -12,10 +12,19 @@ import Link from "next/link";
 import { useTranslation } from "react-i18next";
 import { getTaxLabel, formatTaxRate, getTaxRate } from "@/lib/taxes";
 import { getIntlLocale } from "@/lib/locale";
-import { resolveBookingCheckoutBase } from "@/lib/listingPrice";
+import { normalizePricingMode } from "@/lib/listingPrice";
 import BillingAddressSelector, { type BillingAddress } from "@/components/payment/BillingAddressSelector";
-
 import { PaymentDepositRows } from "@/components/payment/PaymentDepositRows";
+import type { DepositConfig } from "@/lib/deposit";
+import {
+  fixedAwaitingWorkForBalance,
+  hourlyAwaitingApprovedHours,
+  isWorkBasedPricingMode,
+  resolveBalanceFullServiceBase,
+  resolveCheckoutKind,
+  resolveCheckoutPrice,
+} from "@/lib/hourlyPayment";
+import { isNegotiablePricingMode, isPriceAgreementComplete } from "@/lib/priceNegotiation";
 
 interface Booking {
   id: string;
@@ -23,9 +32,12 @@ interface Booking {
   payment_status: string;
   price: number;
   custom_price: number | null;
+  custom_price_min?: number | null;
+  custom_price_max?: number | null;
   pricing_mode?: string | null;
   price_max?: number | null;
   estimated_hours?: number | string | null;
+  approved_hours_total?: number | string | null;
   tax_rate: number | null;
   worker_province: string | null;
   client_province: string | null;
@@ -33,6 +45,12 @@ interface Booking {
   deposit_type?: string | null;
   deposit_value?: number | string | null;
   deposit_amount_cents?: number | null;
+  paid_service_base_cents?: number | null;
+  balance_due_cents?: number | null;
+  completed_by_worker?: boolean;
+  completed_by_client?: boolean;
+  price_confirmed_by_client_at?: string | null;
+  price_confirmed_by_worker_at?: string | null;
   service_id: string;
   worker_id: string;
   created_at: string;
@@ -42,14 +60,24 @@ interface Booking {
   worker_name: string;
 }
 
+function getDepositConfig(booking: Booking): DepositConfig | null {
+  if (!booking.deposit_enabled) return null;
+  return {
+    deposit_enabled: true,
+    deposit_type: booking.deposit_type,
+    deposit_value: booking.deposit_value,
+    pricing_mode: booking.pricing_mode,
+  };
+}
+
 export default function PaymentPage() {
   const { bookingId } = useParams<{ bookingId: string }>();
   const { session } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const { t, i18n } = useTranslation();
-  const bookingLocale = getIntlLocale(i18n.language, { fr: 'fr-CA', en: 'en-CA' });
-  const checkoutLocale = getIntlLocale(i18n.language, { fr: 'fr-CA', en: 'en' });
+  const bookingLocale = getIntlLocale(i18n.language, { fr: "fr-CA", en: "en-CA" });
+  const checkoutLocale = getIntlLocale(i18n.language, { fr: "fr-CA", en: "en" });
   const wasCancelled = searchParams.get("cancelled") === "true";
 
   const [booking, setBooking] = useState<Booking | null>(null);
@@ -57,7 +85,6 @@ export default function PaymentPage() {
   const [paying, setPaying] = useState(false);
   const [error, setError] = useState("");
 
-  // Billing addresses
   const [billingAddresses, setBillingAddresses] = useState<BillingAddress[]>([]);
   const [selectedAddress, setSelectedAddress] = useState<BillingAddress | null>(null);
   const [billingConfirmed, setBillingConfirmed] = useState(false);
@@ -67,13 +94,19 @@ export default function PaymentPage() {
     Promise.all([
       fetch(`${process.env.NEXT_PUBLIC_API_URL}/bookings/${bookingId}`, {
         headers: { Authorization: `Bearer ${session.access_token}` },
-      }).then((r) => r.json()),
+      }),
       fetch(`${process.env.NEXT_PUBLIC_API_URL}/billing-addresses`, {
         headers: { Authorization: `Bearer ${session.access_token}` },
-      }).then((r) => r.json()),
+      }),
     ])
-      .then(([bookingData, addressData]) => {
-        setBooking(bookingData);
+      .then(async ([bookingRes, addressRes]) => {
+        const bookingData = bookingRes.ok ? await bookingRes.json() : null;
+        const addressData = addressRes.ok ? await addressRes.json() : [];
+        if (!bookingData?.id) {
+          setBooking(null);
+        } else {
+          setBooking(bookingData);
+        }
         const addresses: BillingAddress[] = Array.isArray(addressData) ? addressData : [];
         setBillingAddresses(addresses);
         const defaultAddr = addresses.find((a) => a.is_default) ?? addresses[0] ?? null;
@@ -82,6 +115,69 @@ export default function PaymentPage() {
       })
       .catch(() => setLoading(false));
   }, [bookingId, session?.access_token]);
+
+  const depositConfig = useMemo(
+    () => (booking ? getDepositConfig(booking) : null),
+    [booking],
+  );
+
+  const checkoutKind = useMemo(
+    () => (booking ? resolveCheckoutKind(booking, depositConfig) : null),
+    [booking, depositConfig],
+  );
+
+  const checkoutPrice = useMemo(
+    () => (booking ? resolveCheckoutPrice(booking, depositConfig) : 0),
+    [booking, depositConfig],
+  );
+
+  const fullServiceBase = useMemo(
+    () => (booking ? resolveBalanceFullServiceBase(booking) : null),
+    [booking],
+  );
+
+  const billingProvince = selectedAddress?.province ?? booking?.client_province ?? "QC";
+  const taxRate = getTaxRate(billingProvince);
+  const taxLabel = getTaxLabel(billingProvince, i18n.language ?? "fr");
+  const isDepositCheckout = checkoutKind === "deposit";
+  const isBalanceCheckout = checkoutKind === "balance";
+  const pricingMode = normalizePricingMode(booking?.pricing_mode);
+  const feeBase = isBalanceCheckout && fullServiceBase != null ? fullServiceBase : checkoutPrice;
+  const buyerCommission = isDepositCheckout ? 0 : feeBase * 0.05;
+  const taxes = isDepositCheckout ? 0 : feeBase * taxRate;
+  const total = isDepositCheckout ? checkoutPrice : checkoutPrice + buyerCommission + taxes;
+  const fmt = (n: number) => n.toFixed(2);
+
+  const depositNoticeKey =
+    pricingMode === "hourly"
+      ? "payment.hourlyDepositNotice"
+      : isWorkBasedPricingMode(pricingMode)
+        ? "payment.fixedDepositNotice"
+        : "payment.splitDepositNotice";
+  const balanceNoticeKey =
+    pricingMode === "hourly"
+      ? "payment.balanceDueNoticeHourly"
+      : isWorkBasedPricingMode(pricingMode)
+        ? "payment.balanceDueNoticeFixed"
+        : "payment.balanceDueNotice";
+  const balanceLabelKey =
+    pricingMode === "hourly"
+      ? "payment.balanceAmountHourly"
+      : isWorkBasedPricingMode(pricingMode)
+        ? "payment.balanceAmountFixed"
+        : "payment.balanceAmount";
+
+  const servicePriceLabel = isDepositCheckout
+    ? t("payment.depositAmount")
+    : isBalanceCheckout
+      ? t(balanceLabelKey)
+      : t("payment.servicePrice");
+
+  const payButtonLabel = isDepositCheckout
+    ? t("payment.payDepositLabel")
+    : isBalanceCheckout
+      ? t("payment.payBalanceLabel")
+      : t("payment.payAmount", { amount: fmt(total) });
 
   const handleAddAddress = async (data: Omit<BillingAddress, "id" | "is_default">) => {
     if (!session?.access_token) return;
@@ -147,7 +243,7 @@ export default function PaymentPage() {
   };
 
   const handlePay = async () => {
-    if (!session?.access_token) return;
+    if (!session?.access_token || !checkoutKind) return;
     if (!billingConfirmed) {
       setError(t("payment.mustConfirmBilling"));
       return;
@@ -218,20 +314,40 @@ export default function PaymentPage() {
     );
   }
 
-  // Use selected billing address province for live tax recalculation
-  const billingProvince = selectedAddress?.province ?? booking.client_province ?? "QC";
-  const price = resolveBookingCheckoutBase(booking);
-  const taxRate = getTaxRate(billingProvince);
-  const taxLabel = getTaxLabel(billingProvince, i18n.language ?? "fr");
-  const buyerCommission = price * 0.05;
-  const taxes = price * taxRate;
-  const total = price + buyerCommission + taxes;
-  const fmt = (n: number) => n.toFixed(2);
+  if (!checkoutKind) {
+    const awaitingPrice =
+      booking.status === "negotiating" ||
+      (booking.status === "accepted" &&
+        isNegotiablePricingMode(booking.pricing_mode) &&
+        !isPriceAgreementComplete(booking));
+
+    const unavailableMessage = awaitingPrice
+      ? t("payment.awaitingPriceAgreement")
+      : hourlyAwaitingApprovedHours(booking)
+          ? t("payment.awaitingApprovedHours")
+          : fixedAwaitingWorkForBalance(booking, depositConfig)
+            ? t("payment.awaitingWorkCompletion")
+            : booking.payment_status === "deposit_paid"
+              ? t("payment.depositAlreadyPaid")
+              : t("payment.checkoutUnavailable");
+
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center p-4">
+        <div className="text-center max-w-md">
+          <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-3" />
+          <h2 className="text-lg font-semibold text-gray-900 mb-1">{t("payment.checkoutUnavailableTitle")}</h2>
+          <p className="text-gray-500 text-sm leading-relaxed">{unavailableMessage}</p>
+          <Link href="/bookings">
+            <Button className="mt-4 bg-green-700 hover:bg-green-800 text-white">{t("payment.backToBookings")}</Button>
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-white">
       <div className="max-w-6xl mx-auto px-4 py-10 lg:py-12">
-        {/* Back */}
         <button
           onClick={() => router.push("/bookings")}
           className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-6 cursor-pointer"
@@ -290,37 +406,46 @@ export default function PaymentPage() {
                   </div>
 
                   <div className="mt-6 pt-5 border-t border-gray-100 space-y-2 text-sm">
+                    {isBalanceCheckout && (
+                      <p className="text-xs text-gray-600 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 mb-1 leading-relaxed">
+                        {t(balanceNoticeKey)}
+                      </p>
+                    )}
                     <div className="flex justify-between text-gray-600">
-                      <span>{t("payment.servicePrice")}</span>
-                      <span className="font-medium text-gray-900">{fmt(price)} $</span>
+                      <span>{servicePriceLabel}</span>
+                      <span className="font-medium text-gray-900">{fmt(checkoutPrice)} $</span>
                     </div>
-                    <PaymentDepositRows
-                      price={price}
-                      depositConfig={
-                        booking.deposit_enabled
-                          ? {
-                              deposit_enabled: true,
-                              deposit_type: booking.deposit_type,
-                              deposit_value: booking.deposit_value,
-                            }
-                          : null
-                      }
-                      depositAmountCents={booking.deposit_amount_cents}
-                    />
-                    <div className="flex justify-between text-gray-500">
-                      <div>
-                        <div>{t("payment.buyerCommission")}</div>
-                        <div className="text-xs text-red-500">{t("payment.nonRefundable")}</div>
-                      </div>
-                      <span>{fmt(buyerCommission)} $</span>
-                    </div>
-                    <div className="flex justify-between text-gray-500">
-                      <div>
-                        <div>{t("payment.taxes")} ({formatTaxRate(taxRate)}%)</div>
-                        <div className="text-xs text-gray-400">{taxLabel}</div>
-                      </div>
-                      <span>{fmt(taxes)} $</span>
-                    </div>
+                    {!isDepositCheckout && !isBalanceCheckout && (
+                      <PaymentDepositRows
+                        price={checkoutPrice}
+                        depositConfig={depositConfig}
+                        depositAmountCents={booking.deposit_amount_cents}
+                      />
+                    )}
+                    {isDepositCheckout && (
+                      <>
+                        <p className="text-xs text-gray-500 leading-relaxed">{t(depositNoticeKey)}</p>
+                        <p className="text-xs text-gray-500 leading-relaxed">{t("payment.depositFeesDeferredNotice")}</p>
+                      </>
+                    )}
+                    {!isDepositCheckout && (
+                      <>
+                        <div className="flex justify-between text-gray-500">
+                          <div>
+                            <div>{t("payment.buyerCommission")}</div>
+                            <div className="text-xs text-red-500">{t("payment.nonRefundable")}</div>
+                          </div>
+                          <span>{fmt(buyerCommission)} $</span>
+                        </div>
+                        <div className="flex justify-between text-gray-500">
+                          <div>
+                            <div>{t("payment.taxes")} ({formatTaxRate(taxRate)}%)</div>
+                            <div className="text-xs text-gray-400">{taxLabel}</div>
+                          </div>
+                          <span>{fmt(taxes)} $</span>
+                        </div>
+                      </>
+                    )}
                     <div className="flex justify-between font-bold text-2xl border-t border-gray-100 pt-3 mt-2">
                       <span>{t("payment.total")}</span>
                       <span className="text-green-700">{fmt(total)} $</span>
@@ -376,7 +501,7 @@ export default function PaymentPage() {
                   {t("payment.redirectingToStripe")}
                 </span>
               ) : (
-                <span>{t("payment.payAmount", { amount: fmt(total) })}</span>
+                <span>{payButtonLabel}</span>
               )}
             </Button>
 

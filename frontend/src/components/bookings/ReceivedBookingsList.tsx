@@ -7,10 +7,12 @@ import { MapPin, Grid3x3, Star, CheckCircle } from "lucide-react";
 import { ReceivedBooking, BookingStatus, STATUS_CONFIG, BOOKING_GROUPS, formatDate } from "./bookingTypes";
 import { type BookingDetail } from "./BookingDetailModal";
 import PayNowButton from "./PayNowButton";
+import { negotiationHintPrimary, negotiationHintAction } from "./negotiationCardStyles";
 import { useTranslation } from "react-i18next";
 import { getDisputeWindowState } from "@/lib/disputes";
-import { resolveBookingCheckoutBase } from "@/lib/listingPrice";
-import { needsBookingPayment, resolveCheckoutPrice } from "@/lib/hourlyPayment";
+import { formatBookingCheckoutTotalDisplay, resolveBookingCheckoutBase } from "@/lib/listingPrice";
+import { resolveCheckoutPrice, needsBookingPayment, resolveBalanceFullServiceBase } from "@/lib/hourlyPayment";
+import { getTaxRate } from "@/lib/taxes";
 
 function StatusBadge({ status }: { status: BookingStatus }) {
   const { t } = useTranslation();
@@ -81,8 +83,8 @@ export default function ReceivedBookingsList({
                 // For offer: other person is the client (b.client_id)
                 // For looking: other person is the worker/applicant (b.worker_id)
                 const otherId = isLooking ? b.worker_id : b.client_id;
-                const needsPayment = isLooking && needsBookingPayment(b).needed;
-                const checkoutKind = needsBookingPayment(b).kind;
+                const otherName = isLooking ? b.worker_name : b.client_name;
+                const cardTaxRate = b.tax_rate ? Number(b.tax_rate) : getTaxRate(b.client_province ?? "QC");
                 const depositConfig = b.deposit_enabled
                   ? {
                       deposit_enabled: true,
@@ -90,6 +92,8 @@ export default function ReceivedBookingsList({
                       deposit_value: b.deposit_value,
                     }
                   : null;
+                const needsPayment = isLooking && needsBookingPayment(b, depositConfig).needed;
+                const checkoutKind = needsBookingPayment(b, depositConfig).kind;
 
                 return (
                   <div key={b.id}
@@ -124,11 +128,13 @@ export default function ReceivedBookingsList({
                         {t("bookings.from")}{" "}
                         <Link href={`/profile/${otherId}`} onClick={(e) => e.stopPropagation()}
                           className="font-medium text-gray-700 hover:text-green-700 hover:underline">
-                          {b.client_name}
+                          {otherName}
                         </Link>
                       </p>
 
-                      <p className="text-green-700 font-bold text-lg mb-1">{resolveBookingCheckoutBase(b).toFixed(2)} $</p>
+                      <p className="text-green-700 font-bold text-lg mb-1">
+                        {formatBookingCheckoutTotalDisplay(t, b, cardTaxRate)}
+                      </p>
 
                       {b.service_location && (
                         <div className="flex items-center text-xs text-gray-500 mb-1">
@@ -143,6 +149,12 @@ export default function ReceivedBookingsList({
                       {needsPayment && (
                         <div className="bg-green-50 border border-green-200 rounded-lg px-3 py-2 mb-3 text-xs text-green-700">
                           {t("bookings.bookingAcceptedPayment")}
+                        </div>
+                      )}
+
+                      {b.status === "negotiating" && (
+                        <div className={negotiationHintPrimary}>
+                          {t("priceNegotiation.cardHint")}
                         </div>
                       )}
 
@@ -162,43 +174,51 @@ export default function ReceivedBookingsList({
                           </>
                         )}
 
+                        {b.status === "negotiating" && (
+                          <>
+                            <span className={negotiationHintAction}>
+                              {t("priceNegotiation.openDetailHint")}
+                            </span>
+                            <Button type="button" size="sm" variant="outline"
+                              className="text-red-600 border-red-200 hover:bg-red-50 w-full"
+                              onClick={() => onUpdateStatus(b.id, "cancelled", "received")} disabled={updating === b.id}>
+                              {updating === b.id ? "…" : t("bookings.cancelBooking")}
+                            </Button>
+                          </>
+                        )}
+
                         {needsPayment && isLooking && (
-                            <div className="flex flex-col gap-2 w-full">
-                              <PayNowButton
-                                bookingId={b.id}
-                                accessToken={accessToken}
-                                bookingTitle={b.title}
-                                price={resolveCheckoutPrice(b, depositConfig)}
-                                clientProvince={b.client_province ?? null}
-                                taxRateStored={b.tax_rate ? Number(b.tax_rate) : null}
-                                checkoutKind={checkoutKind}
-                                depositConfig={depositConfig}
-                                depositAmountCents={b.deposit_amount_cents}
-                                fullServiceBase={
-                                  checkoutKind === "balance"
-                                    ? (() => {
-                                        const approved = Number(b.approved_hours_total) || 0;
-                                        const rate = Number(b.price);
-                                        return approved > 0
-                                          ? Math.round(rate * approved * 100) / 100
-                                          : resolveBookingCheckoutBase(b);
-                                      })()
-                                    : null
-                                }
-                              />
-                              {b.status === "accepted" && (
-                                <Button type="button" size="sm" variant="outline"
-                                  className="text-red-600 border-red-200 hover:bg-red-50 w-full"
-                                  onClick={() => onUpdateStatus(b.id, "cancelled", "received")} disabled={updating === b.id}>
-                                  {updating === b.id ? "…" : t("bookings.cancelBooking")}
-                                </Button>
-                              )}
-                            </div>
-                          )}
+                          <>
+                            <PayNowButton
+                              bookingId={b.id}
+                              accessToken={accessToken}
+                              bookingTitle={b.title}
+                              price={resolveCheckoutPrice(b, depositConfig)}
+                              clientProvince={b.client_province ?? null}
+                              taxRateStored={b.tax_rate ? Number(b.tax_rate) : null}
+                              checkoutKind={checkoutKind}
+                              depositConfig={depositConfig}
+                              depositAmountCents={b.deposit_amount_cents}
+                              fullServiceBase={
+                                checkoutKind === "balance"
+                                  ? resolveBalanceFullServiceBase(b) ?? resolveBookingCheckoutBase(b)
+                                  : null
+                              }
+                              pricingMode={b.pricing_mode}
+                            />
+                            {b.status === "accepted" && (
+                              <Button type="button" size="sm" variant="outline"
+                                className="text-red-600 border-red-200 hover:bg-red-50 w-full"
+                                onClick={() => onUpdateStatus(b.id, "cancelled", "received")} disabled={updating === b.id}>
+                                {updating === b.id ? "…" : t("bookings.cancelBooking")}
+                              </Button>
+                            )}
+                          </>
+                        )}
 
                         {b.status === "accepted" && (
                           isLooking ? null : (
-                            // Offer: you accepted the client → waiting for them to pay
+                            // Offer: price agreed — waiting for client payment
                             <div className="flex flex-col gap-2 w-full">
                               <div className="text-xs text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
                                 {t("bookings.waitingForPayment")}

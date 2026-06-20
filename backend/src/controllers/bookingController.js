@@ -1,15 +1,42 @@
 import pool from "../config/db.js";
 import { notifyBookingCreated, notifyBookingStatusUpdated, sendEmail } from "../services/emailService.js";
-import { pushNewBooking, pushBookingStatus } from "../services/pushService.js";
+import { pushNewBooking, pushBookingStatus, pushPriceProposed, pushPriceConfirmRequest, pushPriceAgreed } from "../services/pushService.js";
 import stripe from "../config/stripe.js";
 import { createLocalizedNotification, shouldSendEmail } from "../services/notificationService.js";
 import { validateInput, sanitizeText } from "../utils/validate.js";
 import { processDepositCancellationRefund } from "../services/depositRefundService.js";
 import { assertHourlyReadyForCompletion } from "../services/hourlyCompletionGuard.js";
 import { processHourlyReconciliation } from "../services/hourlyReconciliationService.js";
-import { ensureDepositsAndCalendarSchema, resolveDepositBaseAmount } from "../utils/depositSchema.js";
+import { refreshHourlyBalanceDue } from "../services/hourlyBalanceService.js";
+import {
+  ensureDepositsAndCalendarSchema,
+  resolveBookingDepositMeta,
+  resolveDepositBaseAmount,
+} from "../utils/depositSchema.js";
 import { normalizePricingMode } from "../utils/servicePricing.js";
 import { resolveBookingHourlyRate } from "../utils/hourlyPayment.js";
+import {
+  isNegotiablePricingMode,
+  isPriceAgreementComplete,
+  statusAfterAccept,
+  validateNegotiatedPrice,
+  validateNegotiatedRange,
+} from "../utils/priceNegotiation.js";
+
+function formatAgreedPriceLabel(booking) {
+  return `${Number(booking.custom_price).toFixed(2)} $`;
+}
+
+function enrichBookingRow(row) {
+  const deposit = resolveBookingDepositMeta(row);
+  const {
+    service_deposit_enabled,
+    service_deposit_type,
+    service_deposit_value,
+    ...rest
+  } = row;
+  return { ...rest, ...deposit };
+}
 
 const PROVINCE_TAX_RATES = {
   AB: 0.05, BC: 0.12, MB: 0.12, NB: 0.15, NL: 0.15, NS: 0.15,
@@ -24,10 +51,15 @@ const PROVINCE_NAME_TO_CODE = {
 };
 function getWorkerTaxRate(province) {
   if (!province) return PROVINCE_TAX_RATES.QC;
-  const code = PROVINCE_TAX_RATES[province.toUpperCase()] !== undefined
-    ? province.toUpperCase()
-    : PROVINCE_NAME_TO_CODE[province.toLowerCase()];
-  return PROVINCE_TAX_RATES[code] ?? PROVINCE_TAX_RATES.QC;
+  const code = normalizeProvinceCode(province);
+  return PROVINCE_TAX_RATES[code ?? "QC"] ?? PROVINCE_TAX_RATES.QC;
+}
+
+function normalizeProvinceCode(province) {
+  if (!province) return null;
+  const upper = String(province).trim().toUpperCase();
+  if (PROVINCE_TAX_RATES[upper] !== undefined) return upper;
+  return PROVINCE_NAME_TO_CODE[String(province).trim().toLowerCase()] ?? null;
 }
 
 function getEffectiveBookingPrice(booking) {
@@ -46,6 +78,7 @@ function getEffectiveBookingPrice(booking) {
 
 export const createBooking = async (req, res) => {
   try {
+    await ensureDepositsAndCalendarSchema(pool);
     const { errors, data } = validateInput(req.body, {
       service_id:         { required: true, type: "uuid" },
       client_description: { type: "string", maxLen: 2000 },
@@ -102,7 +135,7 @@ export const createBooking = async (req, res) => {
 
     // Tax rate based on the client's (buyer's) province
     const clientResult = await pool.query("SELECT province FROM users WHERE id = $1", [client_id]);
-    const clientProvince = clientResult.rows[0]?.province ?? null;
+    const clientProvince = normalizeProvinceCode(clientResult.rows[0]?.province ?? null);
     const tax_rate = getWorkerTaxRate(clientProvince);
 
     const estimatedHours =
@@ -111,8 +144,8 @@ export const createBooking = async (req, res) => {
         : null;
 
     const result = await pool.query(
-      `INSERT INTO bookings (service_id, client_id, worker_id, status, client_description, tax_rate, estimated_hours, pricing_mode)
-       VALUES ($1, $2, $3, 'pending', $4, $5, $6, $7)
+      `INSERT INTO bookings (service_id, client_id, worker_id, status, client_description, tax_rate, client_province, estimated_hours, pricing_mode)
+       VALUES ($1, $2, $3, 'pending', $4, $5, $6, $7, $8)
        RETURNING *`,
       [
         service_id,
@@ -120,6 +153,7 @@ export const createBooking = async (req, res) => {
         worker_id,
         client_description || null,
         tax_rate,
+        clientProvince,
         Number.isFinite(estimatedHours) && estimatedHours > 0 ? estimatedHours : s.estimated_hours ?? null,
         s.pricing_mode ?? "fixed",
       ],
@@ -172,12 +206,13 @@ export const getMyBookings = async (req, res) => {
                 ELSE COALESCE(NULLIF(TRIM(s.address), ''), NULLIF(TRIM(s.location), ''), NULLIF(TRIM(s.city), ''))
               END AS service_location,
               s.is_one_time, s.type AS service_type,
-              s.deposit_enabled, s.deposit_type, s.deposit_value,
-              -- worker_name = the OTHER person you're dealing with
-              CASE
-                WHEN s.type = 'offer' THEN CASE WHEN u.account_type = 'company' THEN u.company_name ELSE u.full_name END
-                ELSE CASE WHEN w.account_type = 'company' THEN w.company_name ELSE w.full_name END
-              END AS worker_name,
+              s.deposit_enabled AS service_deposit_enabled,
+              s.deposit_type AS service_deposit_type,
+              s.deposit_value AS service_deposit_value,
+              CASE WHEN uw.account_type = 'company' THEN uw.company_name ELSE uw.full_name END AS worker_name,
+              CASE WHEN uc.account_type = 'company' THEN uc.company_name ELSE uc.full_name END AS client_name,
+              COALESCE(b.client_province, uc.province) AS client_province,
+              uw.province AS worker_province,
               EXISTS(SELECT 1 FROM reviews WHERE booking_id = b.id AND reviewer_id = $1) AS has_reviewed,
               (d.dispute_id IS NOT NULL) AS has_dispute,
               b.payment_status, b.completed_by_worker, b.completed_by_client,
@@ -192,8 +227,8 @@ export const getMyBookings = async (req, res) => {
               s.price_max
        FROM bookings b
        JOIN services s ON b.service_id = s.id
-       JOIN users u ON b.worker_id = u.id
-       JOIN users w ON b.client_id = w.id
+       JOIN users uw ON b.worker_id = uw.id
+       JOIN users uc ON b.client_id = uc.id
        LEFT JOIN LATERAL (
          SELECT d1.id AS dispute_id, d1.status AS dispute_status, d1.resolution AS dispute_resolution, d1.created_at AS dispute_created_at, d1.refund_percentage AS dispute_refund_percentage
          FROM disputes d1
@@ -206,7 +241,7 @@ export const getMyBookings = async (req, res) => {
        ORDER BY b.created_at DESC`,
       [req.user.id]
     );
-    res.json(result.rows);
+    res.json(result.rows.map(enrichBookingRow));
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Server error while fetching bookings" });
@@ -231,12 +266,13 @@ export const getReceivedBookings = async (req, res) => {
                 ELSE COALESCE(NULLIF(TRIM(s.address), ''), NULLIF(TRIM(s.location), ''), NULLIF(TRIM(s.city), ''))
               END AS service_location,
               s.is_one_time, s.type AS service_type,
-              s.deposit_enabled, s.deposit_type, s.deposit_value,
-              -- client_name = the OTHER person who initiated the booking
-              CASE
-                WHEN s.type = 'offer' THEN CASE WHEN uc.account_type = 'company' THEN uc.company_name ELSE uc.full_name END
-                ELSE CASE WHEN uw.account_type = 'company' THEN uw.company_name ELSE uw.full_name END
-              END AS client_name,
+              s.deposit_enabled AS service_deposit_enabled,
+              s.deposit_type AS service_deposit_type,
+              s.deposit_value AS service_deposit_value,
+              CASE WHEN uw.account_type = 'company' THEN uw.company_name ELSE uw.full_name END AS worker_name,
+              CASE WHEN uc.account_type = 'company' THEN uc.company_name ELSE uc.full_name END AS client_name,
+              COALESCE(b.client_province, uc.province) AS client_province,
+              uw.province AS worker_province,
               EXISTS(SELECT 1 FROM reviews WHERE booking_id = b.id AND reviewer_id = $1) AS has_reviewed,
               (d.dispute_id IS NOT NULL) AS has_dispute,
               b.payment_status, b.completed_by_worker, b.completed_by_client,
@@ -265,7 +301,7 @@ export const getReceivedBookings = async (req, res) => {
        ORDER BY b.created_at DESC`,
       [req.user.id]
     );
-    res.json(result.rows);
+    res.json(result.rows.map(enrichBookingRow));
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Server error" });
@@ -277,7 +313,7 @@ export const updateBookingStatus = async (req, res) => {
     const { id } = req.params;
     const { status } = req.body;
 
-    const validStatuses = ["pending", "accepted", "active", "completed", "cancelled", "rejected"];
+    const validStatuses = ["pending", "negotiating", "accepted", "active", "completed", "cancelled", "rejected"];
     if (!validStatuses.includes(status)) {
       return res.status(400).json({ message: "Invalid booking status" });
     }
@@ -319,7 +355,7 @@ export const updateBookingStatus = async (req, res) => {
     }
 
     if (status === "cancelled") {
-      if (!["pending", "accepted"].includes(b.status)) {
+      if (!["pending", "negotiating", "accepted"].includes(b.status)) {
         return res.status(400).json({
           message: "In-progress or completed bookings cannot be cancelled directly. Open a dispute instead.",
         });
@@ -330,17 +366,21 @@ export const updateBookingStatus = async (req, res) => {
       return res.status(403).json({ message: "This status transition is not allowed via this endpoint" });
     }
 
+    const nextStatus = status === "accepted"
+      ? statusAfterAccept(b.service_pricing_mode ?? b.pricing_mode)
+      : status;
+
     const result = await pool.query(
-      status === "accepted"
+      nextStatus === "accepted" || nextStatus === "negotiating"
         ? `UPDATE bookings
            SET status = $1,
                pricing_mode = COALESCE(pricing_mode, $3),
                estimated_hours = COALESCE(estimated_hours, $4)
            WHERE id = $2 RETURNING *`
         : `UPDATE bookings SET status = $1 WHERE id = $2 RETURNING *`,
-      status === "accepted"
-        ? [status, id, b.service_pricing_mode ?? "fixed", b.service_estimated_hours ?? null]
-        : [status, id],
+      nextStatus === "accepted" || nextStatus === "negotiating"
+        ? [nextStatus, id, b.service_pricing_mode ?? "fixed", b.service_estimated_hours ?? null]
+        : [nextStatus, id],
     );
 
     if (status === "accepted" || status === "rejected") {
@@ -352,21 +392,29 @@ export const updateBookingStatus = async (req, res) => {
         if (ok) notifyBookingStatusUpdated(notifyEmail, notifyName, b.title, status, b.id)
           .catch((err) => console.error("Status email notification failed:", err.message));
       }).catch((err) => console.error("shouldSendEmail error:", err.message));
-      pushBookingStatus(notifyId, status, b.title).catch(() => {});
+      pushBookingStatus(notifyId, nextStatus === "negotiating" ? "negotiating" : status, b.title).catch(() => {});
       createLocalizedNotification({
         userId: notifyId,
         type: status === "accepted" ? "booking_accepted" : "booking_rejected",
         link: "/bookings",
         en: {
-          title: status === "accepted" ? "Booking accepted" : "Booking rejected",
+          title: status === "accepted"
+            ? (nextStatus === "negotiating" ? "Match confirmed — agree on price" : "Booking accepted")
+            : "Booking rejected",
           body: status === "accepted"
-            ? `Your request for "${b.title}" was accepted!`
+            ? (nextStatus === "negotiating"
+              ? `Your request for "${b.title}" was accepted. Agree on a price before payment.`
+              : `Your request for "${b.title}" was accepted!`)
             : `Your request for "${b.title}" was declined.`,
         },
         fr: {
-          title: status === "accepted" ? "Demande acceptée" : "Demande refusée",
+          title: status === "accepted"
+            ? (nextStatus === "negotiating" ? "Accord trouvé — fixez le prix" : "Demande acceptée")
+            : "Demande refusée",
           body: status === "accepted"
-            ? `Votre demande pour « ${b.title} » a été acceptée !`
+            ? (nextStatus === "negotiating"
+              ? `Votre demande pour « ${b.title} » a été acceptée. Convenez d'un prix avant le paiement.`
+              : `Votre demande pour « ${b.title} » a été acceptée !`)
             : `Votre demande pour « ${b.title} » a été refusée.`,
         },
       });
@@ -447,6 +495,8 @@ export const markCompleted = async (req, res) => {
       [id]
     );
 
+    await refreshHourlyBalanceDue(id, { notifyClient: true }).catch(() => {});
+
     // Notify the other party that this person marked the job done
     if (isWorker) {
       // Notify client: worker says job is done, waiting for client confirmation
@@ -524,13 +574,16 @@ export const customizeBooking = async (req, res) => {
   try {
     const { id } = req.params;
     const { custom_price } = req.body;
+    const custom_price_min = req.body.custom_price_min ?? req.body.customPriceMin;
+    const custom_price_max = req.body.custom_price_max ?? req.body.customPriceMax;
     const worker_note = sanitizeText(req.body.worker_note);
     const estimatedHoursRaw = req.body.estimated_hours ?? req.body.estimatedHours;
     const depositType = req.body.deposit_type ?? undefined;
     const depositValue = req.body.deposit_value ?? undefined;
 
     const booking = await pool.query(
-      `SELECT b.*, s.title,
+      `SELECT b.*, s.title, s.price AS service_price, s.price_min, s.price_max,
+              COALESCE(b.pricing_mode, s.pricing_mode) AS pricing_mode,
               CASE WHEN cc.account_type = 'company' THEN cc.company_name ELSE cc.full_name END AS client_name
        FROM bookings b
        JOIN services s ON b.service_id = s.id
@@ -540,14 +593,43 @@ export const customizeBooking = async (req, res) => {
     );
     if (booking.rows.length === 0) return res.status(404).json({ message: "Booking not found" });
     const b = booking.rows[0];
+    const pricingMode = normalizePricingMode(b.pricing_mode);
+    const listingBounds = { price: b.service_price ?? b.price, price_max: b.price_max };
 
     if (b.worker_id !== req.user.id) return res.status(403).json({ message: "Only the provider can customize this request" });
-    if (!["pending", "accepted"].includes(b.status)) return res.status(400).json({ message: "Can only customize pending or accepted requests" });
-    if (custom_price !== undefined) {
+    if (!["pending", "accepted", "negotiating"].includes(b.status)) {
+      return res.status(400).json({ message: "Can only customize pending, negotiating, or accepted requests" });
+    }
+
+    let finalCustomPrice = b.custom_price;
+    let finalCustomMin = b.custom_price_min;
+    let finalCustomMax = b.custom_price_max;
+
+    if (pricingMode === "range" && (custom_price_min !== undefined || custom_price_max !== undefined)) {
+      const listing = { price: listingBounds.price, price_max: listingBounds.price_max };
+      const lo = Number(listingBounds.price);
+      const hi = Number(listingBounds.price_max);
+      const min = Number(custom_price_min ?? b.custom_price_min ?? lo);
+      const max = Number(custom_price_max ?? b.custom_price_max ?? hi);
+      const check = validateNegotiatedRange(min, max, listing);
+      if (check.error) return res.status(400).json({ message: check.error });
+      finalCustomMin = min;
+      finalCustomMax = max;
+      const rangeChanged =
+        min !== Number(b.custom_price_min ?? NaN) || max !== Number(b.custom_price_max ?? NaN);
+      if (rangeChanged) finalCustomPrice = null;
+    } else if (custom_price !== undefined && pricingMode !== "range") {
       const parsed = Number(custom_price);
       if (isNaN(parsed) || parsed <= 0 || parsed > 100000) {
         return res.status(400).json({ message: "Invalid price" });
       }
+      if (isNegotiablePricingMode(pricingMode)) {
+        const check = validateNegotiatedPrice(parsed, listingBounds, pricingMode);
+        if (check.error) return res.status(400).json({ message: check.error });
+      }
+      finalCustomPrice = parsed;
+      finalCustomMin = null;
+      finalCustomMax = null;
     }
     let estimatedHours = b.estimated_hours;
     if (estimatedHoursRaw !== undefined) {
@@ -560,12 +642,18 @@ export const customizeBooking = async (req, res) => {
 
     // Track which fields changed
     const modifiedFields = [];
-    if (custom_price !== undefined && Number(custom_price) !== Number(b.price)) modifiedFields.push("price");
+    if (pricingMode === "range" && (custom_price_min !== undefined || custom_price_max !== undefined)) {
+      modifiedFields.push("price_range");
+    } else if (custom_price !== undefined && Number(custom_price) !== Number(b.price)) {
+      modifiedFields.push("price");
+    }
     if (estimatedHoursRaw !== undefined && Number(estimatedHours) !== Number(b.estimated_hours)) {
       modifiedFields.push("estimated_hours");
     }
     if (worker_note !== undefined && worker_note !== b.worker_note) modifiedFields.push("description");
     if (depositType !== undefined || depositValue !== undefined) modifiedFields.push("deposit");
+
+    const uniqueModifiedFields = [...new Set(modifiedFields)];
 
     // Validate deposit fields if provided
     if (depositType !== undefined && !["fixed", "percent"].includes(depositType)) {
@@ -581,32 +669,48 @@ export const customizeBooking = async (req, res) => {
     const finalDepositValue = depositValue !== undefined ? Number(depositValue) : b.deposit_value;
     const finalDepositEnabled = (finalDepositType && finalDepositValue > 0) ? true : b.deposit_enabled;
 
+    const priceChanged =
+      (pricingMode === "range" && (custom_price_min !== undefined || custom_price_max !== undefined) && (
+        Number(finalCustomMin) !== Number(b.custom_price_min ?? "") ||
+        Number(finalCustomMax) !== Number(b.custom_price_max ?? "") ||
+        finalCustomPrice !== b.custom_price
+      )) ||
+      (custom_price !== undefined && Number(custom_price) !== Number(b.custom_price ?? b.price));
+
     const result = await pool.query(
       `UPDATE bookings
-       SET worker_note = $1, custom_price = $2, estimated_hours = $3,
-           last_modified_at = NOW(), modified_fields = $4,
-           deposit_type = $5, deposit_value = $6, deposit_enabled = $7
-       WHERE id = $8 RETURNING *`,
+       SET worker_note = $1, custom_price = $2, custom_price_min = $3, custom_price_max = $4,
+           estimated_hours = $5,
+           last_modified_at = NOW(), modified_fields = $6,
+           deposit_type = $7, deposit_value = $8, deposit_enabled = $9,
+           price_confirmed_by_client_at = CASE WHEN $11 THEN NULL ELSE price_confirmed_by_client_at END,
+           price_confirmed_by_worker_at = CASE WHEN $11 THEN NULL ELSE price_confirmed_by_worker_at END
+       WHERE id = $10 RETURNING *`,
       [
         worker_note ?? b.worker_note,
-        custom_price !== undefined ? Number(custom_price) : b.custom_price,
+        finalCustomPrice,
+        finalCustomMin,
+        finalCustomMax,
         estimatedHours,
-        modifiedFields.length > 0 ? modifiedFields : b.modified_fields,
+        uniqueModifiedFields.length > 0 ? uniqueModifiedFields : b.modified_fields,
         finalDepositType,
         finalDepositValue,
         finalDepositEnabled,
         id,
+        priceChanged,
       ],
     );
 
+    await refreshHourlyBalanceDue(id).catch(() => {});
+
     // Notify client if something actually changed
-    if (modifiedFields.length > 0) {
+    if (uniqueModifiedFields.length > 0) {
       createLocalizedNotification({
         userId: b.client_id,
         type: "booking_request",
         link: "/bookings",
-        en: { title: "Request details updated", body: `The request for "${b.title}" was modified in: ${modifiedFields.join(", ")}.` },
-        fr: { title: "Détails de la demande mis à jour", body: `La demande pour « ${b.title} » a été modifiée : ${modifiedFields.join(", ")}.` },
+        en: { title: "Request details updated", body: `The request for "${b.title}" was modified in: ${uniqueModifiedFields.join(", ")}.` },
+        fr: { title: "Détails de la demande mis à jour", body: `La demande pour « ${b.title} » a été modifiée : ${uniqueModifiedFields.join(", ")}.` },
       });
     }
 
@@ -614,6 +718,212 @@ export const customizeBooking = async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Server error while customizing booking" });
+  }
+};
+
+// ─── Price negotiation (range / quote) ───────────────────────────────────────
+export const negotiateBookingPrice = async (req, res) => {
+  try {
+    await ensureDepositsAndCalendarSchema(pool);
+    const { id } = req.params;
+
+    const booking = await pool.query(
+      `SELECT b.*, s.title, s.price, s.price_min, s.price_max,
+              COALESCE(b.pricing_mode, s.pricing_mode) AS pricing_mode,
+              CASE WHEN uc.account_type = 'company' THEN uc.company_name ELSE uc.full_name END AS client_name,
+              CASE WHEN uw.account_type = 'company' THEN uw.company_name ELSE uw.full_name END AS worker_name
+       FROM bookings b
+       JOIN services s ON b.service_id = s.id
+       JOIN users uc ON b.client_id = uc.id
+       JOIN users uw ON b.worker_id = uw.id
+       WHERE b.id = $1`,
+      [id],
+    );
+    if (booking.rows.length === 0) return res.status(404).json({ message: "Booking not found" });
+    const b = booking.rows[0];
+    const pricingMode = normalizePricingMode(b.pricing_mode);
+
+    if (b.client_id !== req.user.id && b.worker_id !== req.user.id) {
+      return res.status(403).json({ message: "You are not part of this booking" });
+    }
+    if (b.status !== "negotiating") {
+      return res.status(400).json({ message: "Price can only be proposed during negotiation" });
+    }
+    if (!isNegotiablePricingMode(pricingMode)) {
+      return res.status(400).json({ message: "This booking does not require price negotiation" });
+    }
+
+    let updateSql;
+    let updateParams;
+    let notifyAmountLabel;
+
+    const parsed = Number(req.body.custom_price ?? req.body.customPrice);
+    if (!Number.isFinite(parsed) || parsed < 0.01 || parsed > 1_000_000) {
+      return res.status(400).json({ message: "Invalid price" });
+    }
+    const check = validateNegotiatedPrice(parsed, b, pricingMode);
+    if (check.error) return res.status(400).json({ message: check.error });
+    updateSql = `UPDATE bookings
+       SET custom_price = $1,
+           last_modified_at = NOW(),
+           price_confirmed_by_client_at = NULL,
+           price_confirmed_by_worker_at = NULL
+       WHERE id = $2 RETURNING *`;
+    updateParams = [parsed, id];
+    notifyAmountLabel = `${parsed.toFixed(2)} $`;
+
+    const result = await pool.query(updateSql, updateParams);
+
+    const notifyId = b.client_id === req.user.id ? b.worker_id : b.client_id;
+    const proposerName = b.client_id === req.user.id ? b.client_name : b.worker_name;
+    createLocalizedNotification({
+      userId: notifyId,
+      type: "booking_request",
+      link: "/bookings",
+      en: {
+        title: "New price proposed",
+        body: `A price of ${notifyAmountLabel} was proposed for "${b.title}". Review and confirm if you agree.`,
+      },
+      fr: {
+        title: "Nouveau prix proposé",
+        body: `Un prix de ${notifyAmountLabel} a été proposé pour « ${b.title} ». Vérifiez et confirmez si vous êtes d'accord.`,
+      },
+    });
+
+    pushPriceProposed(notifyId, {
+      proposerName,
+      amount: notifyAmountLabel,
+      serviceTitle: b.title,
+    }).catch(() => {});
+
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error while proposing price" });
+  }
+};
+
+export const confirmBookingPrice = async (req, res) => {
+  try {
+    await ensureDepositsAndCalendarSchema(pool);
+    const { id } = req.params;
+    const userId = req.user.id;
+
+    const booking = await pool.query(
+      `SELECT b.*, s.title, s.price, s.price_min, s.price_max,
+              COALESCE(b.pricing_mode, s.pricing_mode) AS pricing_mode,
+              CASE WHEN uc.account_type = 'company' THEN uc.company_name ELSE uc.full_name END AS client_name,
+              CASE WHEN uw.account_type = 'company' THEN uw.company_name ELSE uw.full_name END AS worker_name
+       FROM bookings b
+       JOIN services s ON b.service_id = s.id
+       JOIN users uc ON b.client_id = uc.id
+       JOIN users uw ON b.worker_id = uw.id
+       WHERE b.id = $1`,
+      [id],
+    );
+    if (booking.rows.length === 0) return res.status(404).json({ message: "Booking not found" });
+    const b = booking.rows[0];
+
+    if (b.client_id !== userId && b.worker_id !== userId) {
+      return res.status(403).json({ message: "You are not part of this booking" });
+    }
+    if (b.status !== "negotiating") {
+      return res.status(400).json({ message: "Price confirmation is only available during negotiation" });
+    }
+
+    const pricingMode = normalizePricingMode(b.pricing_mode);
+    if (b.custom_price == null || Number(b.custom_price) < 0.01) {
+      return res.status(400).json({ message: "A price must be proposed before confirmation" });
+    }
+    const check = validateNegotiatedPrice(Number(b.custom_price), b, pricingMode);
+    if (check.error) return res.status(400).json({ message: check.error });
+
+    const agreedLabel = formatAgreedPriceLabel(b);
+
+    const isClient = b.client_id === userId;
+    const confirmCol = isClient ? "price_confirmed_by_client_at" : "price_confirmed_by_worker_at";
+
+    let result = await pool.query(
+      `UPDATE bookings SET ${confirmCol} = COALESCE(${confirmCol}, NOW()) WHERE id = $1 RETURNING *`,
+      [id],
+    );
+    const updated = result.rows[0];
+
+    if (isPriceAgreementComplete(updated)) {
+      result = await pool.query(
+        `UPDATE bookings SET status = 'accepted' WHERE id = $1 RETURNING *`,
+        [id],
+      );
+      const finalRow = result.rows[0];
+
+      createLocalizedNotification({
+        userId: b.client_id,
+        type: "booking_request",
+        link: "/bookings",
+        en: {
+          title: "Price agreed — proceed to payment",
+          body: `You agreed on ${agreedLabel} for "${b.title}". Complete payment to start the job.`,
+        },
+        fr: {
+          title: "Prix convenu — procédez au paiement",
+          body: `Vous avez convenu de ${agreedLabel} pour « ${b.title} ». Effectuez le paiement pour démarrer le mandat.`,
+        },
+      });
+      createLocalizedNotification({
+        userId: b.worker_id,
+        type: "booking_request",
+        link: "/bookings",
+        en: {
+          title: "Price agreed — awaiting payment",
+          body: `The client agreed on ${agreedLabel} for "${b.title}". Waiting for payment.`,
+        },
+        fr: {
+          title: "Prix convenu — en attente du paiement",
+          body: `Le client a convenu de ${agreedLabel} pour « ${b.title} ». En attente du paiement.`,
+        },
+      });
+
+      const agreedAmount = Number(finalRow.custom_price);
+      pushPriceAgreed(b.client_id, {
+        amount: agreedLabel,
+        serviceTitle: b.title,
+        awaitingPayment: true,
+      }).catch(() => {});
+      pushPriceAgreed(b.worker_id, {
+        amount: agreedLabel,
+        serviceTitle: b.title,
+        awaitingPayment: false,
+      }).catch(() => {});
+
+      return res.json(finalRow);
+    }
+
+    const notifyId = isClient ? b.worker_id : b.client_id;
+    const confirmerName = isClient ? b.client_name : b.worker_name;
+    createLocalizedNotification({
+      userId: notifyId,
+      type: "booking_request",
+      link: "/bookings",
+      en: {
+        title: "Price confirmation received",
+        body: `The other party confirmed the price for "${b.title}". Confirm on your side to finalize.`,
+      },
+      fr: {
+        title: "Confirmation de prix reçue",
+        body: `L'autre partie a confirmé le prix pour « ${b.title} ». Confirmez de votre côté pour finaliser.`,
+      },
+    });
+
+    pushPriceConfirmRequest(notifyId, {
+      confirmerName,
+      amount: agreedLabel,
+      serviceTitle: b.title,
+    }).catch(() => {});
+
+    res.json(updated);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error while confirming price" });
   }
 };
 
@@ -699,10 +1009,12 @@ export const getBookingById = async (req, res) => {
                 ELSE COALESCE(NULLIF(TRIM(s.address), ''), NULLIF(TRIM(s.location), ''), NULLIF(TRIM(s.city), ''))
               END AS service_location,
               s.is_one_time, s.type AS service_type,
-              s.deposit_enabled, s.deposit_type, s.deposit_value,
+              s.deposit_enabled AS service_deposit_enabled,
+              s.deposit_type AS service_deposit_type,
+              s.deposit_value AS service_deposit_value,
               CASE WHEN uw.account_type = 'company' THEN uw.company_name ELSE uw.full_name END AS worker_name,
               CASE WHEN uc.account_type = 'company' THEN uc.company_name ELSE uc.full_name END AS client_name,
-              uc.province AS client_province,
+              COALESCE(b.client_province, uc.province) AS client_province,
               uw.province AS worker_province,
               EXISTS(SELECT 1 FROM reviews WHERE booking_id = b.id AND reviewer_id = $2) AS has_reviewed,
               (d.dispute_id IS NOT NULL) AS has_dispute,
@@ -733,7 +1045,7 @@ export const getBookingById = async (req, res) => {
     if (result.rows.length === 0) {
       return res.status(404).json({ message: "Booking not found" });
     }
-    res.json(result.rows[0]);
+    res.json(enrichBookingRow(result.rows[0]));
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Server error" });
@@ -770,7 +1082,9 @@ export const getAdminBookingById = async (req, res) => {
               d.dispute_refund_percentage,
               COALESCE(NULLIF(TRIM(s.address), ''), NULLIF(TRIM(s.location), ''), NULLIF(TRIM(s.city), '')) AS service_location,
               s.is_one_time, s.type AS service_type,
-              s.deposit_enabled, s.deposit_type, s.deposit_value,
+              s.deposit_enabled AS service_deposit_enabled,
+              s.deposit_type AS service_deposit_type,
+              s.deposit_value AS service_deposit_value,
               CASE WHEN uw.account_type = 'company' THEN uw.company_name ELSE uw.full_name END AS worker_name,
               CASE WHEN uc.account_type = 'company' THEN uc.company_name ELSE uc.full_name END AS client_name,
               uc.email AS client_email,

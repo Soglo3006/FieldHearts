@@ -14,6 +14,8 @@ type DepositBaseInput = ListingPricingFields & {
 
 type BookingDepositInput = {
   custom_price?: number | string | null;
+  custom_price_min?: number | string | null;
+  custom_price_max?: number | string | null;
   estimated_hours?: number | string | null;
 };
 
@@ -33,6 +35,9 @@ export function resolveDepositBaseAmount(
   }
 
   if (mode === "range") {
+    if (custom != null && Number.isFinite(custom) && custom >= 0.01) return custom;
+    const customMax = booking?.custom_price_max != null ? Number(booking.custom_price_max) : null;
+    if (customMax != null && Number.isFinite(customMax) && customMax >= 0.01) return customMax;
     const hi = Number(service.price_max ?? service.price);
     if (Number.isFinite(hi) && hi >= 0.01) return hi;
     return null;

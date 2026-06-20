@@ -5,6 +5,7 @@ import {
   getReceivedBookings, markCompleted, undoMarkCompleted,
   customizeBooking, requestCancellation, declineCancellation,
   getBookingById, getAdminBookingById, cancelWithDeposit,
+  negotiateBookingPrice, confirmBookingPrice,
 } from "../controllers/bookingController.js";
 import pool from "../config/db.js";
 
@@ -60,6 +61,8 @@ router.put("/:id/status", protect, updateBookingStatus);
 router.post("/:id/complete", protect, markCompleted);
 router.post("/:id/uncomplete", protect, undoMarkCompleted);
 router.patch("/:id/customize", protect, customizeBooking);
+router.patch("/:id/negotiate-price", protect, negotiateBookingPrice);
+router.post("/:id/confirm-price", protect, confirmBookingPrice);
 router.post("/:id/cancel-deposit", protect, cancelWithDeposit);
 router.post("/:id/cancel-request", protect, requestCancellation);
 router.post("/:id/cancel-decline", protect, declineCancellation);

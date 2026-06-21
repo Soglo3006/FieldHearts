@@ -45,6 +45,7 @@ import {
   isWorkBasedPricingMode,
 } from "@/lib/hourlyPayment";
 import { normalizePricingMode, resolveBookingCheckoutBase, getEffectiveBookingPrice, getBookingPriceRangeBounds, formatBookingServiceBaseDisplay, formatBookingCheckoutTotalDisplay, formatBookingFeeComponentRange } from "@/lib/listingPrice";
+import { isAwaitingPriceAgreement } from "@/lib/priceNegotiation";
 import { buildClientPaymentSummary, buildSplitDepositFullReceipt } from "@/lib/paymentSuccessSummary";
 import {
   Carousel,
@@ -844,6 +845,23 @@ export default function BookingDetailModal({
                 const splitFullReceipt = buildSplitDepositFullReceipt(booking);
 
                 if (booking.status === "rejected") return null;
+
+                if (isAwaitingPriceAgreement(booking)) {
+                  return (
+                    <Card className="overflow-hidden shadow-none">
+                      <div className="flex items-center gap-2 bg-white px-4 py-2.5 border-b border-gray-100">
+                        <TrendingDown className="h-3.5 w-3.5 text-gray-500" />
+                        <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                          {userRole === "worker" ? t("bookings.clientPaid") : t("bookings.paymentSummary")}
+                        </span>
+                      </div>
+                      <CardContent className="px-4 py-4 text-sm">
+                        <p className="font-semibold text-green-700">{t("listingPrice.quote")}</p>
+                        <p className="text-xs text-gray-500 mt-2 leading-relaxed">{t("listingPrice.quoteTotalsHint")}</p>
+                      </CardContent>
+                    </Card>
+                  );
+                }
 
                 const wasPaid = Boolean(
                   booking.payment_status && booking.payment_status !== "unpaid",

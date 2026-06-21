@@ -55,6 +55,17 @@ export function needsPriceNegotiation(booking: {
   return booking.status === "negotiating" && isNegotiablePricingMode(booking.pricing_mode);
 }
 
+/** Negotiable booking still awaiting a confirmed price — hide $0 totals and fee breakdowns. */
+export function isAwaitingPriceAgreement(booking: {
+  status?: string | null;
+  pricing_mode?: string | null;
+  custom_price?: number | string | null;
+  price_confirmed_by_client_at?: string | null;
+  price_confirmed_by_worker_at?: string | null;
+}): boolean {
+  return needsPriceNegotiation(booking) && !isPriceAgreementComplete(booking);
+}
+
 export function hasProposedPrice(booking: {
   custom_price?: number | string | null;
 }): boolean {

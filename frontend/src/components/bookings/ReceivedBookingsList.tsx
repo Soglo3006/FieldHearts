@@ -95,6 +95,8 @@ export default function ReceivedBookingsList({
                 const needsPayment = isLooking && needsBookingPayment(b, depositConfig).needed;
                 const checkoutKind = needsBookingPayment(b, depositConfig).kind;
 
+                const cardPriceLabel = formatBookingCheckoutTotalDisplay(t, b, cardTaxRate);
+
                 return (
                   <div key={b.id}
                     className="border rounded-xl shadow-sm bg-white flex flex-col overflow-hidden hover:shadow-lg transition-all cursor-pointer"
@@ -133,7 +135,7 @@ export default function ReceivedBookingsList({
                       </p>
 
                       <p className="text-green-700 font-bold text-lg mb-1">
-                        {formatBookingCheckoutTotalDisplay(t, b, cardTaxRate)}
+                        {cardPriceLabel}
                       </p>
 
                       {b.service_location && (

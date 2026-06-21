@@ -12,6 +12,13 @@ const PERIOD_INTERVAL = {
 };
 
 const MIN_BUSINESS_DAYS = 5;
+const DISPUTE_WINDOW_DAYS = 3;
+/** Worker earnings can be credited while balance is still due (split deposit). */
+const WORKER_HOLD_PAYMENT_STATUSES = ["paid", "refunded", "deposit_paid"];
+
+function getDisputeCutoffDate() {
+  return new Date(Date.now() - DISPUTE_WINDOW_DAYS * 24 * 60 * 60 * 1000);
+}
 
 export const getWallet = async (req, res) => {
   try {
@@ -44,42 +51,49 @@ export const getWallet = async (req, res) => {
     // ── Payout breakdown ──────────────────────────────────────────────────────
     // Dispute window: 3 calendar days after completion
     // After 3 days with no open dispute → available for payout
-    const disputeWindowDays = 3;
-    const disputeCutoff = new Date(Date.now() - disputeWindowDays * 24 * 60 * 60 * 1000);
+    const disputeCutoff = getDisputeCutoffDate();
 
     // Available for payout: no open dispute AND (completed > 3 days ago OR dispute was closed)
     const availableResult = await pool.query(
       `SELECT COALESCE(SUM(t.amount), 0) AS total
        FROM transactions t
        JOIN bookings b ON b.id = t.booking_id
-       JOIN payments p ON p.booking_id = t.booking_id AND p.status IN ('paid', 'refunded')
        WHERE t.user_id = $1
          AND t.type = 'credit'
+         AND b.worker_id = $1
          AND b.status = 'completed'
-         AND b.payment_status IN ('paid', 'refunded')
+         AND b.payment_status = ANY($3::text[])
+         AND EXISTS (
+           SELECT 1 FROM payments p
+           WHERE p.booking_id = b.id AND p.status IN ('paid', 'refunded')
+         )
          AND NOT EXISTS (SELECT 1 FROM disputes d WHERE d.booking_id = b.id AND d.status = 'open')
          AND (
            b.completed_at <= $2
            OR EXISTS (SELECT 1 FROM disputes d WHERE d.booking_id = b.id AND d.status IN ('resolved', 'rejected'))
          )`,
-      [userId, disputeCutoff.toISOString()]
+      [userId, disputeCutoff.toISOString(), WORKER_HOLD_PAYMENT_STATUSES]
     );
 
-    // Pending: completed within last 3 days AND no closed dispute AND no open dispute resolved
+    // Pending: completed within last 3 days OR open dispute
     const pendingResult = await pool.query(
       `SELECT COALESCE(SUM(t.amount), 0) AS total
        FROM transactions t
        JOIN bookings b ON b.id = t.booking_id
-       JOIN payments p ON p.booking_id = t.booking_id AND p.status IN ('paid', 'refunded')
        WHERE t.user_id = $1
          AND t.type = 'credit'
+         AND b.worker_id = $1
          AND b.status = 'completed'
-         AND b.payment_status IN ('paid', 'refunded')
+         AND b.payment_status = ANY($3::text[])
+         AND EXISTS (
+           SELECT 1 FROM payments p
+           WHERE p.booking_id = b.id AND p.status IN ('paid', 'refunded')
+         )
          AND (
            (b.completed_at > $2 AND NOT EXISTS (SELECT 1 FROM disputes d WHERE d.booking_id = b.id))
            OR EXISTS (SELECT 1 FROM disputes d WHERE d.booking_id = b.id AND d.status = 'open')
          )`,
-      [userId, disputeCutoff.toISOString()]
+      [userId, disputeCutoff.toISOString(), WORKER_HOLD_PAYMENT_STATUSES]
     );
 
     const availableForPayout = Number(availableResult.rows[0]?.total ?? 0);
@@ -99,6 +113,82 @@ export const getWallet = async (req, res) => {
     });
   } catch (err) {
     console.error("getWallet error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+/** Bookings in dispute window: worker earnings on hold + client dispute/refund eligibility */
+export const getPendingDisputeDetails = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const disputeCutoff = getDisputeCutoffDate();
+
+    const workerHolds = await pool.query(
+      `SELECT b.id AS booking_id,
+              s.title AS listing_title,
+              t.amount,
+              b.completed_at,
+              CASE WHEN uc.account_type = 'company' THEN uc.company_name ELSE uc.full_name END AS other_user_name,
+              EXISTS (
+                SELECT 1 FROM disputes d
+                WHERE d.booking_id = b.id AND d.status = 'open'
+              ) AS has_open_dispute
+       FROM transactions t
+       JOIN bookings b ON b.id = t.booking_id
+       JOIN services s ON s.id = b.service_id
+       JOIN users uc ON uc.id = b.client_id
+       WHERE t.user_id = $1
+         AND t.type = 'credit'
+         AND b.worker_id = $1
+         AND b.status = 'completed'
+         AND b.payment_status = ANY($3::text[])
+         AND EXISTS (
+           SELECT 1 FROM payments p
+           WHERE p.booking_id = b.id AND p.status IN ('paid', 'refunded')
+         )
+         AND (
+           (b.completed_at > $2 AND NOT EXISTS (SELECT 1 FROM disputes d WHERE d.booking_id = b.id))
+           OR EXISTS (SELECT 1 FROM disputes d WHERE d.booking_id = b.id AND d.status = 'open')
+         )
+       ORDER BY b.completed_at DESC`,
+      [userId, disputeCutoff.toISOString(), WORKER_HOLD_PAYMENT_STATUSES],
+    );
+
+    const disputeEligible = await pool.query(
+      `SELECT b.id AS booking_id,
+              s.title AS listing_title,
+              b.completed_at,
+              CASE WHEN uw.account_type = 'company' THEN uw.company_name ELSE uw.full_name END AS other_user_name,
+              COALESCE((
+                SELECT SUM(t.amount::numeric)
+                FROM transactions t
+                WHERE t.booking_id = b.id AND t.user_id = b.client_id AND t.type = 'debit'
+              ), 0) AS amount_paid
+       FROM bookings b
+       JOIN services s ON s.id = b.service_id
+       JOIN users uw ON uw.id = b.worker_id
+       WHERE b.client_id = $1
+         AND b.status = 'completed'
+         AND b.completed_at IS NOT NULL
+         AND b.completed_at > $2
+         AND NOT EXISTS (SELECT 1 FROM disputes d WHERE d.booking_id = b.id)
+       ORDER BY b.completed_at DESC`,
+      [userId, disputeCutoff.toISOString()],
+    );
+
+    res.json({
+      worker_holds: workerHolds.rows.map((row) => ({
+        ...row,
+        amount: Number(row.amount),
+        has_open_dispute: Boolean(row.has_open_dispute),
+      })),
+      dispute_eligible: disputeEligible.rows.map((row) => ({
+        ...row,
+        amount_paid: Number(row.amount_paid),
+      })),
+    });
+  } catch (err) {
+    console.error("getPendingDisputeDetails error:", err);
     res.status(500).json({ message: "Server error" });
   }
 };

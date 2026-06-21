@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -30,6 +30,13 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/Spinner";
 import { createStripeConnectLink } from "@/lib/stripeConnect";
+import {
+  groupWalletTransactions,
+  isDepositOnlyDescription,
+  type DisplayWalletTransaction,
+  type WalletTransaction,
+} from "@/lib/groupWalletTransactions";
+import { getDisputeWindowState } from "@/lib/disputes";
 
 interface WalletData {
   balance: number;
@@ -42,15 +49,23 @@ interface WalletData {
   next_payout_date: string;
 }
 
-interface Transaction {
-  id: string;
-  booking_id: string | null;
-  type: "credit" | "debit";
+type Transaction = WalletTransaction;
+
+interface PendingHoldItem {
+  booking_id: string;
+  listing_title: string;
   amount: number;
-  description: string;
-  other_user_name: string | null;
-  listing_title: string | null;
-  created_at: string;
+  completed_at: string;
+  other_user_name: string;
+  has_open_dispute: boolean;
+}
+
+interface DisputeEligibleItem {
+  booking_id: string;
+  listing_title: string;
+  completed_at: string;
+  other_user_name: string;
+  amount_paid: number;
 }
 
 type Period = "2weeks" | "1month" | "3months" | "6months" | "1year" | "all";
@@ -194,6 +209,10 @@ export default function WalletPage() {
   const [payoutLoading, setPayoutLoading] = useState<string | null>(null);
   const [payoutItemLoading, setPayoutItemLoading] = useState<string | null>(null);
   const [payoutView, setPayoutView] = useState<"list" | "detail">("list");
+  const [pendingModalOpen, setPendingModalOpen] = useState(false);
+  const [pendingDetailsLoading, setPendingDetailsLoading] = useState(false);
+  const [workerHolds, setWorkerHolds] = useState<PendingHoldItem[]>([]);
+  const [disputeEligible, setDisputeEligible] = useState<DisputeEligibleItem[]>([]);
   const { startConversation } = useStartConversation();
 
   useEffect(() => {
@@ -235,7 +254,67 @@ export default function WalletPage() {
       .finally(() => setTxLoading(false));
   }, [period]);
 
-  const handleOpenBooking = async (tx: Transaction) => {
+  const fetchPendingDetails = useCallback(async () => {
+    if (!session?.access_token) return;
+    setPendingDetailsLoading(true);
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/wallet/pending-details`, {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      setWorkerHolds(Array.isArray(data.worker_holds) ? data.worker_holds : []);
+      setDisputeEligible(Array.isArray(data.dispute_eligible) ? data.dispute_eligible : []);
+    } catch {
+    } finally {
+      setPendingDetailsLoading(false);
+    }
+  }, [session?.access_token]);
+
+  useEffect(() => {
+    if (!session?.access_token || !user) return;
+    fetchPendingDetails();
+  }, [session?.access_token, user, fetchPendingDetails]);
+
+  const openPendingModal = () => {
+    setPendingModalOpen(true);
+    fetchPendingDetails();
+  };
+
+  const formatDisputeDeadline = (completedAt: string) => {
+    const window = getDisputeWindowState(completedAt);
+    if (!window.isOpen || window.remainingMs == null) return "";
+    const deadline = new Date(new Date(completedAt).getTime() + 3 * 24 * 60 * 60 * 1000);
+    return deadline.toLocaleDateString(lang === "fr" ? "fr-CA" : "en-CA", {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
+  const handleOpenPendingBooking = async (bookingId: string, role: "worker" | "client") => {
+    if (!session?.access_token) return;
+    setDetailLoading(bookingId);
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/bookings/${bookingId}`, {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      setPendingModalOpen(false);
+      setDetailBooking({ booking: data as BookingDetail, role });
+    } catch {
+    } finally {
+      setDetailLoading(null);
+    }
+  };
+
+  const hasPendingModalContent =
+    (wallet?.pending_amount ?? 0) > 0 || workerHolds.length > 0 || disputeEligible.length > 0;
+
+  const handleOpenBooking = async (tx: DisplayWalletTransaction) => {
     if (!tx.booking_id || !session?.access_token) return;
     setDetailLoading(tx.id);
     try {
@@ -322,6 +401,7 @@ export default function WalletPage() {
   }
 
   const currentPeriodLabel = t(PERIODS.find((p) => p.key === period)?.labelKey ?? "wallet.last2weeks");
+  const displayTransactions = groupWalletTransactions(transactions, t);
 
   return (
     <div className="min-h-screen bg-white">
@@ -421,6 +501,15 @@ export default function WalletPage() {
                 </div>
                 <p className="text-xl font-bold text-amber-600">{fmt(wallet?.pending_amount ?? 0)}&nbsp;$</p>
                 <p className="text-[11px] text-gray-400 mt-1">{t("wallet.pendingAmountDesc")}</p>
+                {hasPendingModalContent && (
+                  <button
+                    type="button"
+                    onClick={openPendingModal}
+                    className="text-xs text-amber-700 hover:text-amber-900 hover:underline mt-2 text-left cursor-pointer font-medium"
+                  >
+                    {t("wallet.viewPendingDetail")} →
+                  </button>
+                )}
               </div>
             </div>
           </CardContent>
@@ -478,9 +567,20 @@ export default function WalletPage() {
               {(wallet?.pending_amount ?? 0) > 0 && (
                 <div className="flex items-start gap-2 bg-red-50 border border-red-100 rounded-lg py-2 px-3">
                   <AlertCircle className="h-4 w-4 text-red-500 mt-0.5 shrink-0" />
-                  <p className="text-xs text-red-500 leading-relaxed">
-                    {t("wallet.pendingInfo", { amount: fmt(wallet?.pending_amount ?? 0) })}
-                  </p>
+                  <div className="min-w-0">
+                    <p className="text-xs text-red-500 leading-relaxed">
+                      {t("wallet.pendingInfo", { amount: fmt(wallet?.pending_amount ?? 0) })}
+                    </p>
+                    {hasPendingModalContent && (
+                      <button
+                        type="button"
+                        onClick={openPendingModal}
+                        className="text-xs text-red-700 hover:underline mt-1 font-medium cursor-pointer"
+                      >
+                        {t("wallet.viewPendingDetail")} →
+                      </button>
+                    )}
+                  </div>
                 </div>
               )}
               {wallet?.next_payout_date && (
@@ -572,9 +672,13 @@ export default function WalletPage() {
             </CardContent>
           ) : (
             <ul className="divide-y divide-gray-100">
-              {transactions.map((tx) => {
+              {displayTransactions.map((tx) => {
                 const isPayout = !tx.booking_id && tx.type === "debit" && tx.description?.toLowerCase().includes("versement");
                 const isClickable = !!tx.booking_id || isPayout;
+                const showPartBreakdown = tx.isGrouped || (tx.parts.length === 1 && isDepositOnlyDescription(tx.description));
+                const partLine = tx.parts
+                  .map((part) => `${part.label} ${fmt(part.amount)} $`)
+                  .join(t("wallet.txPartsJoin"));
                 return (
                 <li
                   key={tx.id}
@@ -603,13 +707,16 @@ export default function WalletPage() {
                     <p className="text-sm font-medium text-gray-900 truncate">
                       {tx.listing_title ?? tx.description}
                     </p>
+                    {showPartBreakdown && (
+                      <p className="text-xs text-gray-500 mt-0.5 truncate">{partLine}</p>
+                    )}
                     <div className="flex items-center gap-1 mt-0.5 flex-wrap">
                       {tx.other_user_name && (
                         <span className="text-xs text-gray-500 truncate max-w-[100px] sm:max-w-none">
                           {tx.type === "credit" ? t("wallet.from") : t("wallet.to")}&nbsp;{tx.other_user_name}
                         </span>
                       )}
-                      <span className="text-xs text-gray-300">·</span>
+                      {tx.other_user_name && <span className="text-xs text-gray-300">·</span>}
                       <span className="text-xs text-gray-400">{formatDate(tx.created_at, lang)}</span>
                     </div>
                   </div>
@@ -633,6 +740,113 @@ export default function WalletPage() {
         </Card>
 
       </main>
+
+      {/* Pending / dispute detail modal */}
+      {pendingModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-black/40 backdrop-blur-sm">
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-xl w-full sm:max-w-lg overflow-hidden flex flex-col max-h-[85vh]">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 shrink-0">
+              <h2 className="text-base font-semibold text-gray-900">{t("wallet.pendingModalTitle")}</h2>
+              <button
+                type="button"
+                title={t("serviceDetail.close")}
+                onClick={() => setPendingModalOpen(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="overflow-y-auto flex-1 divide-y divide-gray-100">
+              {pendingDetailsLoading ? (
+                <div className="px-5 py-10 flex justify-center">
+                  <Spinner size="sm" />
+                </div>
+              ) : workerHolds.length === 0 && disputeEligible.length === 0 ? (
+                <p className="px-5 py-10 text-center text-sm text-gray-400">{t("wallet.noPendingItems")}</p>
+              ) : (
+                <>
+                  {workerHolds.length > 0 && (
+                    <div className="px-5 py-4">
+                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">
+                        {t("wallet.workerHoldsSection")}
+                      </p>
+                      <p className="text-xs text-gray-400 mb-3 leading-relaxed">{t("wallet.workerHoldsHint")}</p>
+                      <ul className="space-y-2">
+                        {workerHolds.map((item) => (
+                          <li key={item.booking_id}>
+                            <button
+                              type="button"
+                              onClick={() => handleOpenPendingBooking(item.booking_id, "worker")}
+                              className="w-full flex items-center gap-3 rounded-lg border border-gray-100 px-3 py-3 text-left hover:bg-gray-50 transition-colors cursor-pointer"
+                            >
+                              <div className="min-w-0 flex-1">
+                                <p className="text-sm font-medium text-gray-900 truncate">{item.listing_title}</p>
+                                <p className="text-xs text-gray-500 mt-0.5">
+                                  {t("wallet.from")} {item.other_user_name}
+                                </p>
+                                <p className="text-xs text-amber-700 mt-0.5">
+                                  {t("wallet.disputeDeadline", { date: formatDisputeDeadline(item.completed_at) })}
+                                </p>
+                                {item.has_open_dispute && (
+                                  <span className="inline-block mt-1 text-[10px] font-medium text-red-600 bg-red-50 px-2 py-0.5 rounded-full">
+                                    {t("wallet.openDisputeBadge")}
+                                  </span>
+                                )}
+                              </div>
+                              <span className="text-sm font-bold text-amber-600 shrink-0">+{fmt(item.amount)} $</span>
+                              {detailLoading === item.booking_id
+                                ? <div className="h-4 w-4 rounded-full border-2 border-gray-300 border-t-gray-500 animate-spin shrink-0" />
+                                : <ChevronRight className="h-4 w-4 text-gray-400 shrink-0" />
+                              }
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {disputeEligible.length > 0 && (
+                    <div className="px-5 py-4">
+                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">
+                        {t("wallet.disputeEligibleSection")}
+                      </p>
+                      <p className="text-xs text-gray-400 mb-3 leading-relaxed">{t("wallet.disputeEligibleHint")}</p>
+                      <ul className="space-y-2">
+                        {disputeEligible.map((item) => (
+                          <li key={item.booking_id}>
+                            <button
+                              type="button"
+                              onClick={() => handleOpenPendingBooking(item.booking_id, "client")}
+                              className="w-full flex items-center gap-3 rounded-lg border border-gray-100 px-3 py-3 text-left hover:bg-gray-50 transition-colors cursor-pointer"
+                            >
+                              <div className="min-w-0 flex-1">
+                                <p className="text-sm font-medium text-gray-900 truncate">{item.listing_title}</p>
+                                <p className="text-xs text-gray-500 mt-0.5">
+                                  {t("wallet.to")} {item.other_user_name}
+                                </p>
+                                <p className="text-xs text-red-600 mt-0.5">
+                                  {t("wallet.disputeDeadline", { date: formatDisputeDeadline(item.completed_at) })}
+                                </p>
+                              </div>
+                              <div className="text-right shrink-0">
+                                <span className="text-sm font-bold text-gray-800 block">−{fmt(item.amount_paid)} $</span>
+                                <span className="text-[10px] text-gray-400">{t("wallet.amountPaid")}</span>
+                              </div>
+                              {detailLoading === item.booking_id
+                                ? <div className="h-4 w-4 rounded-full border-2 border-gray-300 border-t-gray-500 animate-spin shrink-0" />
+                                : <ChevronRight className="h-4 w-4 text-gray-400 shrink-0" />
+                              }
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Payout detail modal */}
       {payoutModal && (

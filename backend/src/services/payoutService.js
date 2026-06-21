@@ -88,17 +88,29 @@ export async function processUserPayout(userId) {
   // Find all unpaid worker credit transactions older than MIN_BUSINESS_DAYS business days
   const creditsResult = await pool.query(
     `SELECT t.id AS tx_id, t.amount, t.booking_id, t.created_at,
-            p.stripe_payment_intent_id
+            (
+              SELECT p.stripe_payment_intent_id
+              FROM payments p
+              WHERE p.booking_id = t.booking_id AND p.status IN ('paid', 'refunded')
+              ORDER BY CASE COALESCE(p.payment_kind, 'full')
+                WHEN 'balance' THEN 0 WHEN 'full' THEN 1 WHEN 'deposit' THEN 2 ELSE 3 END,
+                p.created_at DESC
+              LIMIT 1
+            ) AS stripe_payment_intent_id
      FROM transactions t
      JOIN bookings b ON b.id = t.booking_id
-     JOIN payments p ON p.booking_id = t.booking_id AND p.status IN ('paid', 'refunded')
      WHERE t.user_id = $1
        AND t.type = 'credit'
+       AND b.worker_id = $1
        AND b.status = 'completed'
-       AND b.payment_status IN ('paid', 'refunded')
+       AND b.payment_status = ANY($3::text[])
+       AND EXISTS (
+         SELECT 1 FROM payments p
+         WHERE p.booking_id = b.id AND p.status IN ('paid', 'refunded')
+       )
        AND t.created_at <= $2
      ORDER BY t.created_at ASC`,
-    [userId, eligibilityCutoff.toISOString()]
+    [userId, eligibilityCutoff.toISOString(), ["paid", "refunded", "deposit_paid"]]
   );
 
   if (creditsResult.rows.length === 0) return null;
@@ -258,12 +270,16 @@ export async function processAllPayouts() {
     `SELECT DISTINCT t.user_id
      FROM transactions t
      JOIN bookings b ON b.id = t.booking_id
-     JOIN payments p ON p.booking_id = t.booking_id AND p.status IN ('paid', 'refunded')
      WHERE t.type = 'credit'
+       AND b.worker_id = t.user_id
        AND b.status = 'completed'
-       AND b.payment_status IN ('paid', 'refunded')
+       AND b.payment_status = ANY($2::text[])
+       AND EXISTS (
+         SELECT 1 FROM payments p
+         WHERE p.booking_id = b.id AND p.status IN ('paid', 'refunded')
+       )
        AND t.created_at <= $1`,
-    [eligibilityCutoff.toISOString()]
+    [eligibilityCutoff.toISOString(), ["paid", "refunded", "deposit_paid"]]
   );
 
   let processed = 0;

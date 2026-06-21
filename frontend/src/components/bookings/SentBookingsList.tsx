@@ -99,6 +99,8 @@ export default function SentBookingsList({
                 const awaitingHours = !isLooking && hourlyAwaitingApprovedHours(b);
                 const awaitingWork = !isLooking && fixedAwaitingWorkForBalance(b, depositConfig);
 
+                const cardPriceLabel = formatBookingCheckoutTotalDisplay(t, b, cardTaxRate);
+
                 return (
                   <div key={b.id}
                     className="border rounded-xl shadow-sm bg-white flex flex-col overflow-hidden hover:shadow-lg transition-all cursor-pointer"
@@ -137,7 +139,7 @@ export default function SentBookingsList({
                       </p>
 
                       <p className="text-green-700 font-bold text-lg mb-1">
-                        {formatBookingCheckoutTotalDisplay(t, b, cardTaxRate)}
+                        {cardPriceLabel}
                       </p>
 
                       {b.service_location && (

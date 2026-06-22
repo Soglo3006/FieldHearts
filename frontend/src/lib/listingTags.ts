@@ -1,4 +1,3 @@
-import type { TFunction } from "i18next";
 import { formatListingTagsDisplay } from "./categories";
 
 export const MAX_LISTING_TAGS = 5;
@@ -33,7 +32,7 @@ export function parseListingTags(service: {
 export function formatListingCategoryLine(
   categoryName: string | null | undefined,
   service: { listing_tags?: unknown; subcategory?: string | null },
-  t: TFunction,
+  t: (key: string, options?: { defaultValue?: string }) => string,
   separator = " · ",
 ): string {
   const tags = parseListingTags(service);

@@ -30,6 +30,7 @@ interface Service {
   price: number | string | null;
   price_min?: number | string | null;
   price_max?: number | string | null;
+  estimated_hours?: number | string | null;
   location: string;
   address?: string | null;
   city?: string | null;

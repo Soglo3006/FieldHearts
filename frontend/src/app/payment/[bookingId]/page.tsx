@@ -66,7 +66,6 @@ function getDepositConfig(booking: Booking): DepositConfig | null {
     deposit_enabled: true,
     deposit_type: booking.deposit_type,
     deposit_value: booking.deposit_value,
-    pricing_mode: booking.pricing_mode,
   };
 }
 

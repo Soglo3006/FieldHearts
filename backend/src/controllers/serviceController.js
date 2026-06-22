@@ -538,10 +538,37 @@ export const deleteService = async (req, res) => {
       return res.status(403).json({ message: "You can't delete this service" });
     }
 
+    const bookings = await pool.query(
+      `SELECT id FROM bookings WHERE service_id = $1 LIMIT 1`,
+      [id],
+    );
+
+    if (bookings.rows.length > 0) {
+      await pool.query(`UPDATE services SET is_active = false WHERE id = $1`, [id]);
+      return res.json({
+        message: "Service removed from listings (bookings history preserved)",
+        deactivated: true,
+      });
+    }
+
+    await pool.query(`DELETE FROM service_favorites WHERE service_id = $1`, [id]);
     await pool.query(`DELETE FROM services WHERE id = $1`, [id]);
-    res.json({ message: "Service deleted successfully" });
+    res.json({ message: "Service deleted successfully", deactivated: false });
   } catch (err) {
     console.error(err);
+    if (err.code === "23503") {
+      const owned = await pool.query(
+        `SELECT id FROM services WHERE id = $1 AND user_id = $2`,
+        [id, req.user.id],
+      );
+      if (owned.rows.length > 0) {
+        await pool.query(`UPDATE services SET is_active = false WHERE id = $1`, [id]);
+        return res.json({
+          message: "Service removed from listings (linked records preserved)",
+          deactivated: true,
+        });
+      }
+    }
     res.status(500).json({ message: "Server error while deleting service" });
   }
 };

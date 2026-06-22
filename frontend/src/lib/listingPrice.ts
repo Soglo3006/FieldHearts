@@ -126,6 +126,7 @@ export function listingMetaPriceSegment(service: ListingPricingFields, lang: "en
 }
 
 import { resolveDepositBaseAmount } from "./deposit";
+import { isAwaitingAgreedPriceDisplay } from "./priceNegotiation";
 
 export function resolveBookingCheckoutBase(booking: {
   pricing_mode?: string | null;
@@ -211,7 +212,7 @@ export function formatBookingServiceBaseDisplay(
     price_confirmed_by_worker_at?: string | null;
   },
 ): string {
-  if (isNegotiatingWithoutAgreedPrice(booking)) {
+  if (isAwaitingAgreedPriceDisplay(booking)) {
     const bounds = getBookingPriceRangeBounds(booking);
     if (bounds) {
       return t("listingPrice.rangeCurrency", {
@@ -219,7 +220,9 @@ export function formatBookingServiceBaseDisplay(
         max: bounds.max.toFixed(2),
       });
     }
-    return t("listingPrice.quote");
+    if (normalizePricingMode(booking.pricing_mode) === "quote") {
+      return t("listingPrice.quote");
+    }
   }
   const bounds = getBookingPriceRangeBounds(booking);
   if (bounds) {
@@ -240,7 +243,7 @@ export function formatBookingCheckoutTotalDisplay(
   },
   taxRate: number,
 ): string {
-  if (isNegotiatingWithoutAgreedPrice(booking)) {
+  if (isAwaitingAgreedPriceDisplay(booking)) {
     const totalRange = getBookingCheckoutTotalRange(booking, taxRate);
     if (totalRange) {
       return t("listingPrice.rangeCurrency", {
@@ -248,7 +251,9 @@ export function formatBookingCheckoutTotalDisplay(
         max: totalRange.max.toFixed(2),
       });
     }
-    return t("listingPrice.quote");
+    if (normalizePricingMode(booking.pricing_mode) === "quote") {
+      return t("listingPrice.quote");
+    }
   }
   const totalRange = getBookingCheckoutTotalRange(booking, taxRate);
   if (totalRange) {
@@ -267,17 +272,7 @@ function isNegotiatingWithoutAgreedPrice(booking: {
   price_confirmed_by_client_at?: string | null;
   price_confirmed_by_worker_at?: string | null;
 }): boolean {
-  if (booking.status !== "negotiating") return false;
-  const mode = normalizePricingMode(booking.pricing_mode);
-  if (mode !== "range" && mode !== "quote") return false;
-  const price = booking.custom_price != null ? Number(booking.custom_price) : null;
-  const agreed =
-    Boolean(booking.price_confirmed_by_client_at) &&
-    Boolean(booking.price_confirmed_by_worker_at) &&
-    price != null &&
-    Number.isFinite(price) &&
-    price >= 0.01;
-  return !agreed;
+  return isAwaitingAgreedPriceDisplay(booking);
 }
 
 export function formatBookingFeeComponentRange(

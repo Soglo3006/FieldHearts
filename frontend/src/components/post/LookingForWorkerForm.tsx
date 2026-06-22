@@ -220,7 +220,7 @@ export default function LookingForWorkerForm({ onSuccess }: Props) {
         <Label className="text-base font-medium text-gray-900">
           {t("post.pricingModeLabel")} <span className="text-red-500">*</span>
         </Label>
-        <div className="flex flex-col sm:flex-row gap-2">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
           {(
             [
               ["fixed", t("post.pricingModeFixed")],
@@ -234,7 +234,7 @@ export default function LookingForWorkerForm({ onSuccess }: Props) {
               type="button"
               onClick={() => setPricingMode(value)}
               className={cn(
-                "flex-1 rounded-lg border px-3 py-2.5 text-sm font-medium transition-colors",
+                "w-full rounded-lg border px-2 py-2.5 text-sm font-medium transition-colors text-center",
                 pricingMode === value
                   ? "border-green-600 bg-green-50 text-green-900"
                   : "border-gray-200 bg-white text-gray-700 hover:border-gray-300"

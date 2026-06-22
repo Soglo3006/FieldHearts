@@ -83,11 +83,13 @@ export function PartyConfirmCard({
   confirmed,
   isMe,
   pendingLabel,
+  confirmedAmount,
 }: {
   label: string;
   confirmed: boolean;
   isMe: boolean;
   pendingLabel: string;
+  confirmedAmount?: number | null;
 }) {
   return (
     <div className={partyConfirmCardClass(confirmed, isMe)}>
@@ -110,7 +112,11 @@ export function PartyConfirmCard({
             confirmed ? "text-green-700" : "text-gray-500 text-xs font-medium",
           )}
         >
-          {confirmed ? "✓" : pendingLabel}
+          {confirmed && confirmedAmount != null
+            ? `${confirmedAmount.toFixed(2)} $`
+            : confirmed
+              ? "✓"
+              : pendingLabel}
         </span>
       </div>
     </div>

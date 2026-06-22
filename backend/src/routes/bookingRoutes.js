@@ -11,6 +11,21 @@ import pool from "../config/db.js";
 
 const router = express.Router();
 
+async function queryWithDeadlockRetry(queryText, params, maxAttempts = 3) {
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await pool.query(queryText, params);
+    } catch (err) {
+      if (err?.code === "40P01" && attempt < maxAttempts) {
+        await new Promise((r) => setTimeout(r, 40 * attempt));
+        continue;
+      }
+      throw err;
+    }
+  }
+  throw new Error("unreachable");
+}
+
 /**
  * GET /api/bookings/unread-summary
  * Replaces 4 Supabase REST calls in useUnreadBookings — single pool JOIN query.
@@ -20,7 +35,7 @@ router.get("/unread-summary", protect, async (req, res) => {
     const userId = req.user.id;
     const since  = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
 
-    const { rows } = await pool.query(
+    const { rows } = await queryWithDeadlockRetry(
       `SELECT
          b.id,
          b.status,
@@ -42,7 +57,7 @@ router.get("/unread-summary", protect, async (req, res) => {
        )
        ORDER BY b.created_at DESC
        LIMIT 20`,
-      [userId, since]
+      [userId, since],
     );
 
     res.json(rows);

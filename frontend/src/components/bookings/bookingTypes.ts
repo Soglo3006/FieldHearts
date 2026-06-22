@@ -47,6 +47,10 @@ interface BookingBase {
   price_max?: number | string | null;
   price_confirmed_by_client_at?: string | null;
   price_confirmed_by_worker_at?: string | null;
+  client_proposed_price?: number | string | null;
+  worker_proposed_price?: number | string | null;
+  price_selected_by_client?: number | string | null;
+  price_selected_by_worker?: number | string | null;
 }
 
 export interface ReceivedBooking extends BookingBase {

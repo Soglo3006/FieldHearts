@@ -21,6 +21,9 @@ import {
   statusAfterAccept,
   validateNegotiatedPrice,
   validateNegotiatedRange,
+  getPartyProposals,
+  pricesMatch,
+  canRenegotiatePrice,
 } from "../utils/priceNegotiation.js";
 
 function formatAgreedPriceLabel(booking) {
@@ -36,6 +39,60 @@ function enrichBookingRow(row) {
     ...rest
   } = row;
   return { ...rest, ...deposit };
+}
+
+/** Optional booking-level deposit override from request body (worker quote flow). */
+function parseBookingDepositOverride(body, existing) {
+  const depositType = body.deposit_type ?? body.depositType;
+  const depositValue = body.deposit_value ?? body.depositValue;
+  if (depositType === undefined && depositValue === undefined) return null;
+
+  if (
+    depositType !== undefined &&
+    depositType !== null &&
+    !["fixed", "percent"].includes(depositType)
+  ) {
+    return { error: "Invalid deposit type" };
+  }
+  if (depositValue !== undefined) {
+    const dv = Number(depositValue);
+    if (!Number.isFinite(dv) || dv < 0) return { error: "Invalid deposit value" };
+    const type = depositType ?? existing.deposit_type;
+    if (type === "percent" && dv > 100) {
+      return { error: "Deposit percent cannot exceed 100" };
+    }
+  }
+
+  const finalDepositType =
+    depositValue !== undefined && Number(depositValue) === 0
+      ? null
+      : depositType !== undefined
+        ? depositType
+        : existing.deposit_type;
+  const finalDepositValue =
+    depositValue !== undefined && Number(depositValue) === 0
+      ? null
+      : depositValue !== undefined
+        ? Number(depositValue)
+        : existing.deposit_value;
+  const finalDepositEnabled = Boolean(finalDepositType && finalDepositValue > 0);
+
+  return { finalDepositType, finalDepositValue, finalDepositEnabled };
+}
+
+function appendDepositSets(sets, params, depositOverride, startIndex) {
+  if (!depositOverride) return startIndex;
+  sets.push(
+    `deposit_type = $${startIndex}`,
+    `deposit_value = $${startIndex + 1}`,
+    `deposit_enabled = $${startIndex + 2}`,
+  );
+  params.push(
+    depositOverride.finalDepositType,
+    depositOverride.finalDepositValue,
+    depositOverride.finalDepositEnabled,
+  );
+  return startIndex + 3;
 }
 
 const PROVINCE_TAX_RATES = {
@@ -181,7 +238,15 @@ export const createBooking = async (req, res) => {
       fr: { title: "Nouvelle demande", body: `${clientName} a postulé pour votre annonce « ${s.title} »` },
     });
 
-    res.status(201).json(booking);
+    res.status(201).json(
+      enrichBookingRow({
+        ...booking,
+        pricing_mode: s.pricing_mode ?? booking.pricing_mode,
+        service_deposit_enabled: s.deposit_enabled,
+        service_deposit_type: s.deposit_type,
+        service_deposit_value: s.deposit_value,
+      }),
+    );
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Server error while creating booking" });
@@ -584,6 +649,9 @@ export const customizeBooking = async (req, res) => {
     const booking = await pool.query(
       `SELECT b.*, s.title, s.price AS service_price, s.price_min, s.price_max,
               COALESCE(b.pricing_mode, s.pricing_mode) AS pricing_mode,
+              s.deposit_enabled AS service_deposit_enabled,
+              s.deposit_type AS service_deposit_type,
+              s.deposit_value AS service_deposit_value,
               CASE WHEN cc.account_type = 'company' THEN cc.company_name ELSE cc.full_name END AS client_name
        FROM bookings b
        JOIN services s ON b.service_id = s.id
@@ -597,8 +665,19 @@ export const customizeBooking = async (req, res) => {
     const listingBounds = { price: b.service_price ?? b.price, price_max: b.price_max };
 
     if (b.worker_id !== req.user.id) return res.status(403).json({ message: "Only the provider can customize this request" });
-    if (!["pending", "accepted", "negotiating"].includes(b.status)) {
-      return res.status(400).json({ message: "Can only customize pending, negotiating, or accepted requests" });
+    const allowedStatuses =
+      pricingMode === "quote"
+        ? ["accepted"]
+        : ["pending", "negotiating", "accepted"];
+    if (!allowedStatuses.includes(b.status)) {
+      return res.status(400).json({ message: "Can only customize this request in the current booking stage" });
+    }
+    if (
+      pricingMode === "quote" &&
+      b.status === "accepted" &&
+      (b.custom_price == null || Number(b.custom_price) < 0.01)
+    ) {
+      return res.status(400).json({ message: "Agree on a price before setting deposit and note" });
     }
 
     let finalCustomPrice = b.custom_price;
@@ -618,7 +697,7 @@ export const customizeBooking = async (req, res) => {
       const rangeChanged =
         min !== Number(b.custom_price_min ?? NaN) || max !== Number(b.custom_price_max ?? NaN);
       if (rangeChanged) finalCustomPrice = null;
-    } else if (custom_price !== undefined && pricingMode !== "range") {
+    } else if (custom_price !== undefined && pricingMode !== "range" && pricingMode !== "quote") {
       const parsed = Number(custom_price);
       if (isNaN(parsed) || parsed <= 0 || parsed > 100000) {
         return res.status(400).json({ message: "Invalid price" });
@@ -665,9 +744,19 @@ export const customizeBooking = async (req, res) => {
       if (depositType === "percent" && dv > 100) return res.status(400).json({ message: "Deposit percent cannot exceed 100" });
     }
 
-    const finalDepositType = depositType !== undefined ? depositType : b.deposit_type;
-    const finalDepositValue = depositValue !== undefined ? Number(depositValue) : b.deposit_value;
-    const finalDepositEnabled = (finalDepositType && finalDepositValue > 0) ? true : b.deposit_enabled;
+    const finalDepositType =
+      depositValue !== undefined && Number(depositValue) === 0
+        ? null
+        : depositType !== undefined
+          ? depositType
+          : b.deposit_type;
+    const finalDepositValue =
+      depositValue !== undefined && Number(depositValue) === 0
+        ? null
+        : depositValue !== undefined
+          ? Number(depositValue)
+          : b.deposit_value;
+    const finalDepositEnabled = Boolean(finalDepositType && finalDepositValue > 0);
 
     const priceChanged =
       (pricingMode === "range" && (custom_price_min !== undefined || custom_price_max !== undefined) && (
@@ -714,7 +803,15 @@ export const customizeBooking = async (req, res) => {
       });
     }
 
-    res.json(result.rows[0]);
+    res.json(
+      enrichBookingRow({
+        ...result.rows[0],
+        pricing_mode: pricingMode,
+        service_deposit_enabled: b.service_deposit_enabled,
+        service_deposit_type: b.service_deposit_type,
+        service_deposit_value: b.service_deposit_value,
+      }),
+    );
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Server error while customizing booking" });
@@ -746,15 +843,13 @@ export const negotiateBookingPrice = async (req, res) => {
     if (b.client_id !== req.user.id && b.worker_id !== req.user.id) {
       return res.status(403).json({ message: "You are not part of this booking" });
     }
-    if (b.status !== "negotiating") {
-      return res.status(400).json({ message: "Price can only be proposed during negotiation" });
+    if (!canRenegotiatePrice(b)) {
+      return res.status(400).json({ message: "Price can only be proposed before payment" });
     }
     if (!isNegotiablePricingMode(pricingMode)) {
       return res.status(400).json({ message: "This booking does not require price negotiation" });
     }
 
-    let updateSql;
-    let updateParams;
     let notifyAmountLabel;
 
     const parsed = Number(req.body.custom_price ?? req.body.customPrice);
@@ -763,16 +858,34 @@ export const negotiateBookingPrice = async (req, res) => {
     }
     const check = validateNegotiatedPrice(parsed, b, pricingMode);
     if (check.error) return res.status(400).json({ message: check.error });
-    updateSql = `UPDATE bookings
-       SET custom_price = $1,
-           last_modified_at = NOW(),
-           price_confirmed_by_client_at = NULL,
-           price_confirmed_by_worker_at = NULL
-       WHERE id = $2 RETURNING *`;
-    updateParams = [parsed, id];
+    const isClient = b.client_id === req.user.id;
+    const isWorker = b.worker_id === req.user.id;
+    let depositOverride = null;
+    if (isWorker && pricingMode === "quote") {
+      const parsedDeposit = parseBookingDepositOverride(req.body, b);
+      if (parsedDeposit?.error) return res.status(400).json({ message: parsedDeposit.error });
+      depositOverride = parsedDeposit;
+    }
+
+    const sets = [
+      `client_proposed_price = CASE WHEN $3 THEN $1 ELSE client_proposed_price END`,
+      `worker_proposed_price = CASE WHEN NOT $3 THEN $1 ELSE worker_proposed_price END`,
+      `custom_price = NULL`,
+      `status = 'negotiating'`,
+      `last_modified_at = NOW()`,
+      `price_confirmed_by_client_at = NULL`,
+      `price_confirmed_by_worker_at = NULL`,
+      `price_selected_by_client = NULL`,
+      `price_selected_by_worker = NULL`,
+    ];
+    const updateParams = [parsed, id, isClient];
+    appendDepositSets(sets, updateParams, depositOverride, 4);
     notifyAmountLabel = `${parsed.toFixed(2)} $`;
 
-    const result = await pool.query(updateSql, updateParams);
+    const result = await pool.query(
+      `UPDATE bookings SET ${sets.join(", ")} WHERE id = $2 RETURNING *`,
+      updateParams,
+    );
 
     const notifyId = b.client_id === req.user.id ? b.worker_id : b.client_id;
     const proposerName = b.client_id === req.user.id ? b.client_name : b.worker_name;
@@ -796,7 +909,7 @@ export const negotiateBookingPrice = async (req, res) => {
       serviceTitle: b.title,
     }).catch(() => {});
 
-    res.json(result.rows[0]);
+    res.json(enrichBookingRow({ ...result.rows[0], pricing_mode: pricingMode }));
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Server error while proposing price" });
@@ -827,32 +940,61 @@ export const confirmBookingPrice = async (req, res) => {
     if (b.client_id !== userId && b.worker_id !== userId) {
       return res.status(403).json({ message: "You are not part of this booking" });
     }
-    if (b.status !== "negotiating") {
+    if (!canRenegotiatePrice(b) || b.status !== "negotiating") {
       return res.status(400).json({ message: "Price confirmation is only available during negotiation" });
     }
 
     const pricingMode = normalizePricingMode(b.pricing_mode);
-    if (b.custom_price == null || Number(b.custom_price) < 0.01) {
-      return res.status(400).json({ message: "A price must be proposed before confirmation" });
+    const proposals = getPartyProposals(b);
+    const allowed = [proposals.client, proposals.worker].filter((p) => p != null);
+    const selectedPrice = Number(req.body.selected_price ?? req.body.selectedPrice);
+
+    if (allowed.length === 0) {
+      if (b.custom_price != null && Number(b.custom_price) >= 0.01) {
+        allowed.push(Number(b.custom_price));
+      } else {
+        return res.status(400).json({ message: "A price must be proposed before confirmation" });
+      }
     }
-    const check = validateNegotiatedPrice(Number(b.custom_price), b, pricingMode);
+
+    if (!Number.isFinite(selectedPrice) || selectedPrice < 0.01) {
+      return res.status(400).json({ message: "Select a proposed price to confirm" });
+    }
+    if (!allowed.some((p) => pricesMatch(p, selectedPrice))) {
+      return res.status(400).json({ message: "You must select one of the active proposals" });
+    }
+
+    const check = validateNegotiatedPrice(selectedPrice, b, pricingMode);
     if (check.error) return res.status(400).json({ message: check.error });
 
-    const agreedLabel = formatAgreedPriceLabel(b);
+    const agreedLabel = `${selectedPrice.toFixed(2)} $`;
 
     const isClient = b.client_id === userId;
+    const isWorker = b.worker_id === userId;
+    let depositOverride = null;
+    if (isWorker && pricingMode === "quote") {
+      const parsedDeposit = parseBookingDepositOverride(req.body, b);
+      if (parsedDeposit?.error) return res.status(400).json({ message: parsedDeposit.error });
+      depositOverride = parsedDeposit;
+    }
     const confirmCol = isClient ? "price_confirmed_by_client_at" : "price_confirmed_by_worker_at";
+    const selectCol = isClient ? "price_selected_by_client" : "price_selected_by_worker";
+
+    const confirmSets = [`${confirmCol} = NOW()`, `${selectCol} = $2`];
+    const confirmParams = [id, selectedPrice];
+    appendDepositSets(confirmSets, confirmParams, depositOverride, 3);
 
     let result = await pool.query(
-      `UPDATE bookings SET ${confirmCol} = COALESCE(${confirmCol}, NOW()) WHERE id = $1 RETURNING *`,
-      [id],
+      `UPDATE bookings SET ${confirmSets.join(", ")} WHERE id = $1 RETURNING *`,
+      confirmParams,
     );
     const updated = result.rows[0];
 
     if (isPriceAgreementComplete(updated)) {
+      const agreedAmount = Number(updated.price_selected_by_client);
       result = await pool.query(
-        `UPDATE bookings SET status = 'accepted' WHERE id = $1 RETURNING *`,
-        [id],
+        `UPDATE bookings SET status = 'accepted', custom_price = $2 WHERE id = $1 RETURNING *`,
+        [id, agreedAmount],
       );
       const finalRow = result.rows[0];
 
@@ -883,7 +1025,6 @@ export const confirmBookingPrice = async (req, res) => {
         },
       });
 
-      const agreedAmount = Number(finalRow.custom_price);
       pushPriceAgreed(b.client_id, {
         amount: agreedLabel,
         serviceTitle: b.title,
@@ -895,7 +1036,7 @@ export const confirmBookingPrice = async (req, res) => {
         awaitingPayment: false,
       }).catch(() => {});
 
-      return res.json(finalRow);
+      return res.json(enrichBookingRow({ ...finalRow, pricing_mode: pricingMode }));
     }
 
     const notifyId = isClient ? b.worker_id : b.client_id;
@@ -920,7 +1061,7 @@ export const confirmBookingPrice = async (req, res) => {
       serviceTitle: b.title,
     }).catch(() => {});
 
-    res.json(updated);
+    res.json(enrichBookingRow({ ...updated, pricing_mode: pricingMode }));
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Server error while confirming price" });

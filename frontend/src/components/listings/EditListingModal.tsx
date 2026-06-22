@@ -268,9 +268,9 @@ export default function EditListingModal({ service, accessToken, onClose, onSave
             image_urls: images,
             is_one_time: isOneTime,
             hide_exact_location: hideExactLocation,
-            deposit_enabled: depositEnabled,
-            deposit_type: depositEnabled ? depositType : null,
-            deposit_value: depositEnabled ? Number(depositValue) : null,
+            deposit_enabled: pricingMode === "quote" ? false : depositEnabled,
+            deposit_type: pricingMode === "quote" || !depositEnabled ? null : depositType,
+            deposit_value: pricingMode === "quote" || !depositEnabled ? null : Number(depositValue),
           }),
         }
       );
@@ -333,7 +333,7 @@ export default function EditListingModal({ service, accessToken, onClose, onSave
             <Label className="text-base font-medium text-gray-900">
               {t("post.pricingModeLabel")} <span className="text-red-500">*</span>
             </Label>
-            <div className="flex flex-col sm:flex-row gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               {(
                 [
                   ["fixed", t("post.pricingModeFixed")],
@@ -347,7 +347,7 @@ export default function EditListingModal({ service, accessToken, onClose, onSave
                   type="button"
                   onClick={() => setPricingMode(value)}
                   className={cn(
-                    "flex-1 rounded-lg border px-3 py-2.5 text-sm font-medium transition-colors",
+                    "w-full rounded-lg border px-2 py-2.5 text-sm font-medium transition-colors text-center",
                     pricingMode === value
                       ? "border-green-600 bg-green-50 text-green-900"
                       : "border-gray-200 bg-white text-gray-700 hover:border-gray-300"
@@ -417,16 +417,18 @@ export default function EditListingModal({ service, accessToken, onClose, onSave
             </>
           )}
 
-          <DepositFields
-            enabled={depositEnabled}
-            onEnabledChange={setDepositEnabled}
-            type={depositType}
-            onTypeChange={setDepositType}
-            value={depositValue}
-            onValueChange={setDepositValue}
-            pricingMode={pricingMode}
-            servicePrice={depositBase}
-          />
+          {pricingMode !== "quote" && (
+            <DepositFields
+              enabled={depositEnabled}
+              onEnabledChange={setDepositEnabled}
+              type={depositType}
+              onTypeChange={setDepositType}
+              value={depositValue}
+              onValueChange={setDepositValue}
+              pricingMode={pricingMode}
+              servicePrice={depositBase}
+            />
+          )}
 
           {pricingMode === "range" && (
           <>

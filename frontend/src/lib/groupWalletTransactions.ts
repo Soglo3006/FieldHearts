@@ -13,12 +13,27 @@ export interface WalletTransactionPart {
   label: string;
   amount: number;
   sortOrder: number;
+  category: TransactionCategory;
 }
+
+export type TransactionCategory =
+  | "deposit"
+  | "balance"
+  | "full"
+  | "received"
+  | "cancellation"
+  | "deposit_retained"
+  | "refund"
+  | "payout"
+  | "other";
+
+export type TransactionCategoryFilter = TransactionCategory | "all";
 
 export interface DisplayWalletTransaction extends WalletTransaction {
   groupedIds: string[];
   isGrouped: boolean;
   parts: WalletTransactionPart[];
+  categories: TransactionCategory[];
 }
 
 type TranslateFn = (key: string) => string;
@@ -29,6 +44,31 @@ function partSortOrder(description: string): number {
   if (d.includes("dépôt") || d.includes("deposit")) return 1;
   if (d.includes("solde") || d.includes("balance")) return 2;
   return 3;
+}
+
+export function classifyTransactionCategory(description: string): TransactionCategory {
+  const d = description.toLowerCase();
+  if (d.includes("versement")) return "payout";
+  if (d.includes("annulé") || d.includes("cancelled")) return "cancellation";
+  if (d.includes("remboursement") || d.includes("refund")) return "refund";
+  if (d.includes("payment received") || d.includes("paiement reçu") || d.includes("ajusté après litige")) {
+    return "received";
+  }
+  if (d.includes("payment for service") || d.includes("paiement pour")) return "full";
+  if ((d.includes("retenu") || d.includes("retained")) && (d.includes("dépôt") || d.includes("deposit"))) {
+    return "deposit_retained";
+  }
+  if (d.includes("dépôt") || d.includes("deposit")) return "deposit";
+  if (d.includes("solde") || d.includes("balance")) return "balance";
+  return "other";
+}
+
+export function transactionMatchesCategory(
+  tx: DisplayWalletTransaction,
+  category: TransactionCategoryFilter,
+): boolean {
+  if (category === "all") return true;
+  return tx.categories.includes(category);
 }
 
 export function getTransactionPartLabel(description: string, t: TranslateFn): string {
@@ -79,6 +119,7 @@ export function groupWalletTransactions(
         label: getTransactionPartLabel(tx.description, t),
         amount: Number(tx.amount),
         sortOrder: partSortOrder(tx.description),
+        category: classifyTransactionCategory(tx.description),
       }))
       .sort((a, b) => a.sortOrder - b.sortOrder);
 
@@ -89,21 +130,27 @@ export function groupWalletTransactions(
       groupedIds: sorted.map((tx) => tx.id),
       isGrouped: sorted.length > 1,
       parts,
+      categories: [...new Set(parts.map((p) => p.category))],
     });
   }
 
-  const singles = standalone.map((tx) => ({
-    ...tx,
-    groupedIds: [tx.id],
-    isGrouped: false,
-    parts: [
-      {
-        label: getTransactionPartLabel(tx.description, t),
-        amount: Number(tx.amount),
-        sortOrder: partSortOrder(tx.description),
-      },
-    ],
-  }));
+  const singles = standalone.map((tx) => {
+    const category = classifyTransactionCategory(tx.description);
+    return {
+      ...tx,
+      groupedIds: [tx.id],
+      isGrouped: false,
+      parts: [
+        {
+          label: getTransactionPartLabel(tx.description, t),
+          amount: Number(tx.amount),
+          sortOrder: partSortOrder(tx.description),
+          category,
+        },
+      ],
+      categories: [category],
+    };
+  });
 
   return [...grouped, ...singles].sort(
     (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),

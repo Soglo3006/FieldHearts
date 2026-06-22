@@ -17,6 +17,7 @@ import { getPublicServiceLocation } from "@/lib/serviceLocation";
 import { resolveListingTitle, type ServiceLikeWithI18n } from "@/lib/serviceListingI18n";
 import ListingLangPills from "@/components/ui/ListingLangPills";
 import { formatListingPriceLine } from "@/lib/listingPrice";
+import { formatListingCategoryLine } from "@/lib/listingTags";
 
 const PAGE_SIZE = 9;
 
@@ -35,6 +36,7 @@ interface MyService extends ServiceLikeWithI18n {
   hide_exact_location?: boolean;
   category: string | null;
   subcategory: string | null;
+  listing_tags?: unknown;
   poster_type: string | null;
   availability: string | null;
   language: string | null;
@@ -164,7 +166,7 @@ function ListingCard({
 
         {s.category && (
           <p className="text-xs text-gray-500 line-clamp-1 mb-3">
-            {s.category}{s.subcategory && ` • ${s.subcategory}`}
+            {formatListingCategoryLine(s.category, s, t, " · ")}
           </p>
         )}
 
@@ -239,7 +241,16 @@ export default function MyListingsPage() {
         method: "DELETE",
         headers: { Authorization: `Bearer ${session?.access_token}` },
       });
-      if (res.ok) setListings((prev) => prev.filter((s) => s.id !== id));
+      if (res.ok) {
+        const data = await res.json().catch(() => ({}));
+        if (data.deactivated) {
+          setListings((prev) =>
+            prev.map((s) => (s.id === id ? { ...s, is_active: false } : s)),
+          );
+        } else {
+          setListings((prev) => prev.filter((s) => s.id !== id));
+        }
+      }
     } catch {
       // silent
     } finally {

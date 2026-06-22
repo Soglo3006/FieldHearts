@@ -2,10 +2,14 @@ import crypto from "crypto";
 import { normalizePricingMode } from "./servicePricing.js";
 
 let schemaReady = false;
+/** Single in-flight migration — avoids concurrent ALTER TABLE deadlocks with read queries. */
+let schemaInitPromise = null;
 
 export async function ensureDepositsAndCalendarSchema(pool) {
   if (schemaReady) return;
-  await pool.query(`
+  if (!schemaInitPromise) {
+    schemaInitPromise = pool
+      .query(`
     ALTER TABLE services ADD COLUMN IF NOT EXISTS deposit_enabled boolean NOT NULL DEFAULT false;
     ALTER TABLE services ADD COLUMN IF NOT EXISTS deposit_type varchar(16);
     ALTER TABLE services ADD COLUMN IF NOT EXISTS deposit_value numeric(10, 2);
@@ -21,6 +25,10 @@ export async function ensureDepositsAndCalendarSchema(pool) {
     ALTER TABLE bookings ADD COLUMN IF NOT EXISTS balance_due_cents integer NOT NULL DEFAULT 0;
     ALTER TABLE bookings ADD COLUMN IF NOT EXISTS price_confirmed_by_client_at timestamptz;
     ALTER TABLE bookings ADD COLUMN IF NOT EXISTS price_confirmed_by_worker_at timestamptz;
+    ALTER TABLE bookings ADD COLUMN IF NOT EXISTS client_proposed_price numeric(10, 2);
+    ALTER TABLE bookings ADD COLUMN IF NOT EXISTS worker_proposed_price numeric(10, 2);
+    ALTER TABLE bookings ADD COLUMN IF NOT EXISTS price_selected_by_client numeric(10, 2);
+    ALTER TABLE bookings ADD COLUMN IF NOT EXISTS price_selected_by_worker numeric(10, 2);
     ALTER TABLE bookings ADD COLUMN IF NOT EXISTS custom_price_min numeric(10, 2);
     ALTER TABLE bookings ADD COLUMN IF NOT EXISTS custom_price_max numeric(10, 2);
     ALTER TABLE bookings ADD COLUMN IF NOT EXISTS client_province varchar(16);
@@ -78,8 +86,16 @@ export async function ensureDepositsAndCalendarSchema(pool) {
     );
     CREATE INDEX IF NOT EXISTS idx_work_sessions_booking ON work_sessions (booking_id);
     CREATE INDEX IF NOT EXISTS idx_work_sessions_status ON work_sessions (status);
-  `);
-  schemaReady = true;
+  `)
+      .then(() => {
+        schemaReady = true;
+      })
+      .catch((err) => {
+        schemaInitPromise = null;
+        throw err;
+      });
+  }
+  await schemaInitPromise;
 }
 
 /**
@@ -105,6 +121,15 @@ export function resolveBookingDepositMeta(row) {
       deposit_enabled: row.deposit_enabled !== false,
       deposit_type: bookingType,
       deposit_value: bookingValue,
+    };
+  }
+
+  const mode = normalizePricingMode(row.pricing_mode ?? row.service_pricing_mode);
+  if (mode === "quote") {
+    return {
+      deposit_enabled: false,
+      deposit_type: null,
+      deposit_value: null,
     };
   }
 

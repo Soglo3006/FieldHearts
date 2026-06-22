@@ -45,9 +45,20 @@ export default function WorkerCustomizeSection({ booking, accessToken, onSaved }
   const isRange = pricingMode === "range";
   const rangeBounds = useMemo(() => getListingRangeBounds(booking), [booking]);
 
+  const hasBookingDepositOverride =
+    booking.deposit_type != null &&
+    booking.deposit_value != null &&
+    Number(booking.deposit_value) > 0;
+
   const [editing, setEditing] = useState(false);
   const [editNote, setEditNote] = useState(booking.worker_note ?? "");
-  const [editPrice, setEditPrice] = useState(String(booking.custom_price ?? booking.price ?? ""));
+  const [editPrice, setEditPrice] = useState(() => {
+    const custom = booking.custom_price != null ? Number(booking.custom_price) : null;
+    if (isQuote) {
+      return custom != null && Number.isFinite(custom) && custom >= 0.01 ? String(custom) : "";
+    }
+    return String(booking.custom_price ?? booking.price ?? "");
+  });
   const [editPriceMin, setEditPriceMin] = useState(() => getInitialRangeMin(booking, rangeBounds));
   const [editPriceMax, setEditPriceMax] = useState(() => getInitialRangeMax(booking, rangeBounds));
   const [editHours, setEditHours] = useState(
@@ -57,9 +68,13 @@ export default function WorkerCustomizeSection({ booking, accessToken, onSaved }
   );
   const [editDepositType, setEditDepositType] = useState(booking.deposit_type ?? "percent");
   const [editDepositValue, setEditDepositValue] = useState(
-    booking.deposit_value != null && booking.deposit_value !== ""
-      ? String(Math.round(Number(booking.deposit_value)))
-      : ""
+    hasBookingDepositOverride
+      ? String(
+          booking.deposit_type === "percent"
+            ? Math.round(Number(booking.deposit_value))
+            : Number(booking.deposit_value),
+        )
+      : "",
   );
   const [saving, setSaving] = useState(false);
 
@@ -98,12 +113,15 @@ export default function WorkerCustomizeSection({ booking, accessToken, onSaved }
           body.custom_price_min = parsePriceInput(editPriceMin);
           body.custom_price_max = parsePriceInput(editPriceMax);
         }
-      } else if (editPrice.trim() !== "") {
+      } else if (!isQuote && editPrice.trim() !== "") {
         body.custom_price = Number(editPrice);
       }
       if (editDepositValue.trim() !== "") {
         body.deposit_type = editDepositType;
         body.deposit_value = Number(editDepositValue);
+      } else if (hasBookingDepositOverride || isQuote) {
+        body.deposit_type = null;
+        body.deposit_value = 0;
       }
 
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/bookings/${booking.id}/customize`, {
@@ -153,10 +171,10 @@ export default function WorkerCustomizeSection({ booking, accessToken, onSaved }
               />
             </NegotiationCard>
           )}
-          {!isHourly && !isRange && (
+          {!isHourly && !isRange && !isQuote && (
             <div>
               <label htmlFor="customizeBookingPrice" className="text-xs text-gray-500 mb-1 block">
-                {isQuote ? t("customizeBooking.customPriceLabel") : t("customizeBooking.customPriceLabel")}
+                {t("customizeBooking.customPriceLabel")}
               </label>
               <input
                 id="customizeBookingPrice"
@@ -168,6 +186,15 @@ export default function WorkerCustomizeSection({ booking, accessToken, onSaved }
                 className="w-full border rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-600"
               />
             </div>
+          )}
+          {isQuote && booking.custom_price != null && Number(booking.custom_price) >= 0.01 && (
+            <NegotiationCard>
+              <NegotiationRow
+                label={t("customizeBooking.agreedPriceLabel")}
+                value={`${Number(booking.custom_price).toFixed(2)} $`}
+              />
+              <p className="text-xs text-gray-500 mt-1 leading-relaxed">{t("customizeBooking.quotePriceLockedHint")}</p>
+            </NegotiationCard>
           )}
           {isHourly && (
             <div>
@@ -204,10 +231,13 @@ export default function WorkerCustomizeSection({ booking, accessToken, onSaved }
                 max={editDepositType === "percent" ? "100" : undefined}
                 value={editDepositValue}
                 onChange={(e) => setEditDepositValue(e.target.value)}
-                placeholder={editDepositType === "percent" ? "%" : "$"}
+                placeholder={editDepositType === "percent" ? "0" : "0.00"}
                 className="flex-1 border rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-600"
               />
             </div>
+            {isQuote && (
+              <p className="text-xs text-gray-400 mt-1">{t("customizeBooking.quoteDepositHint")}</p>
+            )}
           </div>
 
           <div>
@@ -253,7 +283,20 @@ export default function WorkerCustomizeSection({ booking, accessToken, onSaved }
             </p>
           )}
           {booking.worker_note && <p className="text-sm text-gray-600 whitespace-pre-line">{booking.worker_note}</p>}
-          {!booking.custom_price && !booking.custom_price_min && !booking.worker_note && !booking.estimated_hours && (
+          {hasBookingDepositOverride && (
+            <p className="text-sm text-gray-700">
+              {t("deposit.enable")}:{" "}
+              <span className="font-semibold text-green-700">
+                {booking.deposit_type === "percent"
+                  ? `${Number(booking.deposit_value)} %`
+                  : `${Number(booking.deposit_value).toFixed(2)} $`}
+              </span>
+            </p>
+          )}
+          {isQuote && !hasBookingDepositOverride && !booking.worker_note && (
+            <p className="text-xs text-gray-400 italic leading-relaxed">{t("customizeBooking.quoteAfterAgreementEmpty")}</p>
+          )}
+          {!isQuote && !booking.custom_price && !booking.custom_price_min && !booking.worker_note && !booking.estimated_hours && (
             <p className="text-xs text-gray-400 italic">{t("customizeBooking.empty")}</p>
           )}
         </>

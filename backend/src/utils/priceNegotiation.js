@@ -36,9 +36,48 @@ export function isPriceAgreementComplete(booking) {
   const confirmed = Boolean(booking.price_confirmed_by_client_at && booking.price_confirmed_by_worker_at);
   if (!confirmed) return false;
 
+  const clientSel = booking.price_selected_by_client != null ? Number(booking.price_selected_by_client) : null;
+  const workerSel = booking.price_selected_by_worker != null ? Number(booking.price_selected_by_worker) : null;
+  if (
+    clientSel != null &&
+    Number.isFinite(clientSel) &&
+    workerSel != null &&
+    Number.isFinite(workerSel) &&
+    Math.abs(clientSel - workerSel) < 0.01
+  ) {
+    return clientSel >= 0.01;
+  }
+
   const price = booking?.custom_price != null ? Number(booking.custom_price) : null;
   if (price == null || !Number.isFinite(price) || price < 0.01) return false;
   return true;
+}
+
+export function getPartyProposals(booking) {
+  const client =
+    booking?.client_proposed_price != null ? Number(booking.client_proposed_price) : null;
+  const worker =
+    booking?.worker_proposed_price != null ? Number(booking.worker_proposed_price) : null;
+  return {
+    client: client != null && Number.isFinite(client) && client >= 0.01 ? client : null,
+    worker: worker != null && Number.isFinite(worker) && worker >= 0.01 ? worker : null,
+  };
+}
+
+export function hasAnyPartyProposal(booking) {
+  const { client, worker } = getPartyProposals(booking);
+  return client != null || worker != null;
+}
+
+export function pricesMatch(a, b) {
+  if (a == null || b == null) return false;
+  return Math.abs(Number(a) - Number(b)) < 0.01;
+}
+
+export function canRenegotiatePrice(booking) {
+  const unpaid = !booking.payment_status || booking.payment_status === "unpaid";
+  if (!unpaid) return false;
+  return booking.status === "negotiating" || booking.status === "accepted";
 }
 
 /**

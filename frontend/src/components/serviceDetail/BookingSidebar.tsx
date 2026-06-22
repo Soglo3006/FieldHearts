@@ -9,6 +9,7 @@ import {
   formatMobilityLabel,
   formatSpokenLanguageLabel,
 } from "@/lib/formatServiceDetailFields";
+import { STATUS_CONFIG, type BookingStatus } from "@/components/bookings/bookingTypes";
 
 interface Props {
   serviceType: "offer" | "looking";
@@ -54,6 +55,12 @@ export default function BookingSidebar({
   onContact,
 }: Props) {
   const { t } = useTranslation();
+
+  const existingBookingStatusLabel =
+    existingBookingStatus && existingBookingStatus in STATUS_CONFIG
+      ? t(STATUS_CONFIG[existingBookingStatus as BookingStatus].labelKey)
+      : existingBookingStatus;
+
   return (
     <>
       {/* Booking card */}
@@ -94,7 +101,7 @@ export default function BookingSidebar({
                 ? t("serviceDetail.requestAlreadySent")
                 : existingBookingStatus === "negotiating"
                   ? t("bookings.negotiating")
-                : t("serviceDetail.bookingStatus", { status: existingBookingStatus })
+                : t("serviceDetail.bookingStatus", { status: existingBookingStatusLabel })
               : serviceType === "looking"
               ? t("serviceDetail.applyToJob")
               : t("serviceDetail.requestBooking")}

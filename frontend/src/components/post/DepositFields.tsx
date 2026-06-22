@@ -1,9 +1,12 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { Info } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { DepositType } from "@/lib/deposit";
 
 type Props = {
@@ -16,7 +19,53 @@ type Props = {
   /** Hide when pricing is quote without a reference amount */
   pricingMode: string;
   servicePrice?: number | null;
+  /** When true, renders only the checkbox (expanded options rendered separately) */
+  compact?: boolean;
 };
+
+/** Price input + deposit on one row (mobile flex; desktop grid with aligned labels). */
+export function PriceDepositInputRow({
+  label,
+  children,
+  ...depositProps
+}: Omit<Props, "compact"> & { label: ReactNode; children: ReactNode }) {
+  const { t } = useTranslation();
+  return (
+    <div className="space-y-2">
+      <div className="sm:grid sm:grid-cols-2 sm:gap-4">
+        <div>{label}</div>
+        <Label
+          className="mb-0 hidden text-base font-medium text-gray-900 invisible select-none pointer-events-none sm:block"
+          aria-hidden="true"
+        >
+          {t("deposit.paymentLine")}
+        </Label>
+      </div>
+      <div className="flex items-stretch gap-3 sm:grid sm:grid-cols-2 sm:gap-4">
+        {children}
+        <div className="min-w-0 flex-1 sm:flex-none sm:min-w-[12rem]">
+          <DepositFields {...depositProps} compact />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Deposit checkbox aligned with price inputs (label spacer matches field labels on sm+). */
+export function DepositFieldAlignedColumn(props: Omit<Props, "compact">) {
+  const { t } = useTranslation();
+  return (
+    <div className="min-w-0 flex-1 sm:flex-none sm:min-w-[12rem]">
+      <Label
+        className="mb-2 hidden text-base font-medium text-gray-900 invisible select-none pointer-events-none sm:block"
+        aria-hidden="true"
+      >
+        {t("deposit.paymentLine")}
+      </Label>
+      <DepositFields {...props} compact />
+    </div>
+  );
+}
 
 export default function DepositFields({
   enabled,
@@ -27,6 +76,7 @@ export default function DepositFields({
   onValueChange,
   pricingMode,
   servicePrice,
+  compact = false,
 }: Props) {
   const { t } = useTranslation();
 
@@ -39,23 +89,34 @@ export default function DepositFields({
   }
 
   return (
-    <div className="space-y-3 rounded-xl border border-gray-200 bg-gray-50/60 p-4">
-      <label className="flex cursor-pointer items-start gap-3">
+    <div className={`rounded-xl border border-gray-200 bg-gray-50/60 ${compact ? "h-12 px-3 flex items-center" : "p-4 space-y-3"}`}>
+      <label className="flex cursor-pointer items-center gap-2">
         <input
           type="checkbox"
           checked={enabled}
           onChange={(e) => onEnabledChange(e.target.checked)}
-          className="mt-1 h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
+          className="h-4 w-4 shrink-0 rounded border-gray-300 text-green-600 focus:ring-green-500"
         />
-        <span>
-          <span className="block text-sm font-medium text-gray-900">{t("deposit.enable")}</span>
-          <span className="mt-0.5 block text-xs text-gray-500">{t("deposit.enableHint")}</span>
+        <span className="flex items-center gap-1">
+          <span className="text-xs font-medium text-gray-900 leading-tight">
+            {compact ? t("deposit.paymentLine") : t("deposit.enable")}
+          </span>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button type="button" className="text-gray-400 hover:text-gray-600 flex items-center shrink-0">
+                <Info className="h-3.5 w-3.5" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="max-w-[220px] text-center">
+              {t("deposit.enableHint")}
+            </TooltipContent>
+          </Tooltip>
         </span>
       </label>
 
-      {enabled && (
+      {!compact && enabled && (
         <div className="space-y-3 border-t border-gray-200 pt-3">
-          <div className="flex flex-col gap-2 sm:flex-row">
+          <div className="grid grid-cols-2 gap-2">
             {(
               [
                 ["fixed", t("deposit.typeFixed")],
@@ -94,7 +155,7 @@ export default function DepositFields({
             />
           </div>
 
-          <p className="text-xs text-amber-700">{t("deposit.nonRefundableNotice")}</p>
+          <p className="text-xs text-red-500">{t("deposit.nonRefundableNotice")}</p>
         </div>
       )}
     </div>

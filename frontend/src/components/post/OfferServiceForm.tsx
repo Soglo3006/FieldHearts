@@ -34,7 +34,7 @@ import {
   labelSpokenLanguage,
   labelMobility,
 } from "@/lib/postFormConfirmLabels";
-import DepositFields from "@/components/post/DepositFields";
+import DepositFields, { DepositFieldAlignedColumn, PriceDepositInputRow } from "@/components/post/DepositFields";
 import type { DepositType } from "@/lib/deposit";
 
 interface Props {
@@ -186,9 +186,9 @@ export default function OfferServiceForm({ onSuccess }: Props) {
           image_urls: images,
           is_one_time: isOneTime,
           hide_exact_location: hideExactLocation,
-          deposit_enabled: depositEnabled,
-          deposit_type: depositEnabled ? depositType : null,
-          deposit_value: depositEnabled ? Number(depositValue) : null,
+          deposit_enabled: pricingMode === "quote" ? false : depositEnabled,
+          deposit_type: pricingMode === "quote" || !depositEnabled ? null : depositType,
+          deposit_value: pricingMode === "quote" || !depositEnabled ? null : Number(depositValue),
         }),
       });
       if (!res.ok) {
@@ -205,6 +205,20 @@ export default function OfferServiceForm({ onSuccess }: Props) {
     }
   };
 
+  const depositFieldProps = {
+    enabled: depositEnabled,
+    onEnabledChange: setDepositEnabled,
+    type: depositType,
+    onTypeChange: setDepositType,
+    value: depositValue,
+    onValueChange: setDepositValue,
+    pricingMode,
+    servicePrice: depositBase,
+  };
+
+  const priceInputWidthClass =
+    "relative w-[42%] min-w-[6.5rem] max-w-[9.5rem] shrink-0 sm:w-full sm:max-w-none";
+
   return (
     <>
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -214,7 +228,7 @@ export default function OfferServiceForm({ onSuccess }: Props) {
         <Label className="text-base font-medium text-gray-900">
           {t("post.pricingModeLabel")} <span className="text-red-500">*</span>
         </Label>
-        <div className="flex flex-col sm:flex-row gap-2">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
           {(
             [
               ["fixed", t("post.pricingModeFixed")],
@@ -228,7 +242,7 @@ export default function OfferServiceForm({ onSuccess }: Props) {
               type="button"
               onClick={() => setPricingMode(value)}
               className={cn(
-                "flex-1 rounded-lg border px-3 py-2.5 text-sm font-medium transition-colors",
+                "w-full rounded-lg border px-2 py-2.5 text-sm font-medium transition-colors text-center",
                 pricingMode === value
                   ? "border-green-600 bg-green-50 text-green-900"
                   : "border-gray-200 bg-white text-gray-700 hover:border-gray-300"
@@ -244,125 +258,133 @@ export default function OfferServiceForm({ onSuccess }: Props) {
       </div>
 
       {pricingMode === "fixed" && (
-      <div className="space-y-2">
-        <Label className="text-base font-medium text-gray-900">
-          {t("post.price")} <span className="text-red-500">*</span>
-        </Label>
-        <div className="flex gap-4">
-          <div className="flex-1 relative">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-medium">$</span>
-            <Input
-              type="number"
-              placeholder={t("post.amount")}
-              value={price}
-              onChange={(e) => setPrice(e.target.value)}
-              required={pricingMode === "fixed"}
-              min="0"
-              step="0.01"
-              className="h-12 pl-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-            />
-          </div>
-        </div>
-        {price && Number(price) < 0.01 && (
-          <p className="text-red-600 text-sm">{t("post.priceMustBePositive")}</p>
-        )}
-      </div>
-      )}
-
-      {pricingMode === "range" && (
-      <>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label className="text-base font-medium text-gray-900">
-            {t("post.priceMinLabel")} <span className="text-red-500">*</span>
-          </Label>
-          <div className="relative">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-medium">$</span>
-            <Input
-              type="number"
-              value={priceMin}
-              onChange={(e) => setPriceMin(e.target.value)}
-              min="0"
-              step="0.01"
-              className="h-12 pl-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-            />
-          </div>
-        </div>
-        <div className="space-y-2">
-          <Label className="text-base font-medium text-gray-900">
-            {t("post.priceMaxLabel")} <span className="text-red-500">*</span>
-          </Label>
-          <div className="relative">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-medium">$</span>
-            <Input
-              type="number"
-              value={priceMax}
-              onChange={(e) => setPriceMax(e.target.value)}
-              min="0"
-              step="0.01"
-              className="h-12 pl-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-            />
-          </div>
-        </div>
-      </div>
-      <p className="text-xs text-gray-500">{t("post.pricingRangeHint")}</p>
-      {priceMin && priceMax && Number(priceMax) < Number(priceMin) && (
-        <p className="text-red-600 text-sm">{t("post.invalidPriceRange")}</p>
-      )}
-      </>
-      )}
-
-      {pricingMode === "hourly" && (
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
-          <div className="flex-1 space-y-2">
-            <Label className="text-base font-medium text-gray-900">
-              {t("post.hourlyRateLabel")} <span className="text-red-500">*</span>
-            </Label>
-            <div className="relative">
+          <PriceDepositInputRow
+            {...depositFieldProps}
+            label={
+              <Label className="text-base font-medium text-gray-900">
+                {t("post.price")} <span className="text-red-500">*</span>
+              </Label>
+            }
+          >
+            <div className={priceInputWidthClass}>
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-medium">$</span>
               <Input
                 type="number"
+                placeholder={t("post.amount")}
                 value={price}
                 onChange={(e) => setPrice(e.target.value)}
-                min="0.01"
+                required
+                min="0"
                 step="0.01"
-                placeholder="25.00"
-                className="h-10 pl-8"
+                className="h-12 pl-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
               />
             </div>
-          </div>
-          <div className="flex-1 space-y-2">
-            <Label className="text-base font-medium text-gray-900">{t("post.estimatedHoursLabel")}</Label>
-            <Input
-              type="number"
-              value={estimatedHours}
-              onChange={(e) => setEstimatedHours(e.target.value)}
-              min="0.25"
-              step="0.25"
-              placeholder="2"
-              className="h-10"
+          </PriceDepositInputRow>
+          {price && Number(price) < 0.01 && (
+            <p className="text-red-600 text-sm">{t("post.priceMustBePositive")}</p>
+          )}
+        </div>
+      )}
+
+      {pricingMode === "range" && (
+        <div className="space-y-2">
+          <div className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] gap-4">
+            <div className="space-y-2">
+              <Label className="text-base font-medium text-gray-900">
+                {t("post.priceMinLabel")} <span className="text-red-500">*</span>
+              </Label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-medium">$</span>
+                <Input type="number" value={priceMin} onChange={(e) => setPriceMin(e.target.value)} min="0" step="0.01" className="h-12 pl-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-base font-medium text-gray-900">
+                {t("post.priceMaxLabel")} <span className="text-red-500">*</span>
+              </Label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-medium">$</span>
+                <Input type="number" value={priceMax} onChange={(e) => setPriceMax(e.target.value)} min="0" step="0.01" className="h-12 pl-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" />
+              </div>
+            </div>
+            <DepositFieldAlignedColumn
+              {...depositFieldProps}
             />
+          </div>
+          <p className="text-xs text-gray-500">{t("post.pricingRangeHint")}</p>
+          {priceMin && priceMax && Number(priceMax) < Number(priceMin) && (
+            <p className="text-red-600 text-sm">{t("post.invalidPriceRange")}</p>
+          )}
+        </div>
+      )}
+
+      {pricingMode === "hourly" && (
+        <div className="space-y-4">
+          <PriceDepositInputRow
+            {...depositFieldProps}
+            label={
+              <Label className="text-base font-medium text-gray-900">
+                {t("post.hourlyRateLabel")} <span className="text-red-500">*</span>
+              </Label>
+            }
+          >
+            <div className={priceInputWidthClass}>
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-medium">$</span>
+              <Input type="number" value={price} onChange={(e) => setPrice(e.target.value)} min="0.01" step="0.01" placeholder="25.00" className="h-12 pl-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" />
+            </div>
+          </PriceDepositInputRow>
+          <div className="space-y-2">
+            <Label className="text-base font-medium text-gray-900">{t("post.estimatedHoursLabel")}</Label>
+            <Input type="number" value={estimatedHours} onChange={(e) => setEstimatedHours(e.target.value)} min="0.25" step="0.25" placeholder="2" className="h-12 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" />
             <p className="text-xs text-gray-500">{t("post.estimatedHoursHint")}</p>
           </div>
         </div>
       )}
 
-      <DepositFields
-        enabled={depositEnabled}
-        onEnabledChange={setDepositEnabled}
-        type={depositType}
-        onTypeChange={setDepositType}
-        value={depositValue}
-        onValueChange={setDepositValue}
-        pricingMode={pricingMode}
-        servicePrice={depositBase}
-      />
+      {depositEnabled && pricingMode !== "quote" && (
+        <div className="space-y-3 rounded-xl border border-gray-200 bg-gray-50/60 p-4">
+          <div className="grid grid-cols-2 gap-2">
+            {([["fixed", t("deposit.typeFixed")], ["percent", t("deposit.typePercent")]] as const).map(([opt, label]) => (
+              <button
+                key={opt}
+                type="button"
+                onClick={() => setDepositType(opt)}
+                className={`flex-1 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+                  depositType === opt
+                    ? "border-green-600 bg-green-50 text-green-900"
+                    : "border-gray-200 bg-white text-gray-700 hover:border-gray-300"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="deposit-value-main">
+              {depositType === "percent" ? t("deposit.percentValue") : t("deposit.fixedValue")}
+            </Label>
+            <input
+              id="deposit-value-main"
+              type="number"
+              min={depositType === "percent" ? 1 : 0.01}
+              max={depositType === "percent" ? 99 : depositBase ? depositBase - 0.01 : undefined}
+              step={depositType === "percent" ? 1 : 0.01}
+              value={depositValue}
+              onChange={(e) => setDepositValue(e.target.value)}
+              placeholder={depositType === "percent" ? "20" : "20.00"}
+              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            />
+          </div>
+          <p className="text-xs text-red-500">{t("deposit.nonRefundableNotice")}</p>
+        </div>
+      )}
 
       <div className="space-y-2">
         <Label htmlFor="serviceLocation" className="text-base font-medium text-gray-900">
           {t("post.location")} <span className="text-red-500">*</span>
         </Label>
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
+        <div className="flex gap-3 items-start">
           <div className="flex-1 space-y-1">
             <LocationAutocomplete
               id="serviceLocation"
@@ -376,7 +398,7 @@ export default function OfferServiceForm({ onSuccess }: Props) {
               <p className="text-sm font-medium text-red-600">{t("post.locationMustSelectSuggestion")}</p>
             )}
           </div>
-          <div className="flex items-center gap-3 px-4 h-10 bg-white border border-gray-200 rounded-lg sm:w-56 sm:shrink-0">
+          <div className="flex items-center gap-3 px-4 h-10 bg-white border border-gray-200 rounded-lg w-44 shrink-0">
             <input
               type="checkbox"
               id="offerHideLocation"

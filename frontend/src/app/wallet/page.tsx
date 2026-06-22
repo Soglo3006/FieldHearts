@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -10,6 +11,7 @@ import BookingDetailModal, { type BookingDetail } from "@/components/bookings/Bo
 import {
   ArrowDownCircle,
   ArrowUpCircle,
+  ChevronLeft,
   Clock,
   ChevronRight,
   Calendar,
@@ -22,9 +24,8 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
 import { getLanguageCode } from "@/lib/locale";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -33,10 +34,13 @@ import { createStripeConnectLink } from "@/lib/stripeConnect";
 import {
   groupWalletTransactions,
   isDepositOnlyDescription,
+  transactionMatchesCategory,
   type DisplayWalletTransaction,
+  type TransactionCategoryFilter,
   type WalletTransaction,
 } from "@/lib/groupWalletTransactions";
 import { getDisputeWindowState } from "@/lib/disputes";
+import { useScrollLock } from "@/hooks/useScrollLock";
 
 interface WalletData {
   balance: number;
@@ -78,6 +82,21 @@ const PERIODS: { key: Period; labelKey: string }[] = [
   { key: "1year",   labelKey: "wallet.last1year" },
   { key: "all",     labelKey: "wallet.allTransactions" },
 ];
+
+const TX_CATEGORY_FILTERS: { key: TransactionCategoryFilter; labelKey: string }[] = [
+  { key: "all",             labelKey: "wallet.txFilterAll" },
+  { key: "deposit",         labelKey: "wallet.txFilterDeposit" },
+  { key: "balance",         labelKey: "wallet.txFilterBalance" },
+  { key: "full",            labelKey: "wallet.txFilterFull" },
+  { key: "received",        labelKey: "wallet.txFilterReceived" },
+  { key: "cancellation",    labelKey: "wallet.txFilterCancellation" },
+  { key: "deposit_retained", labelKey: "wallet.txFilterDepositRetained" },
+  { key: "refund",          labelKey: "wallet.txFilterRefund" },
+  { key: "payout",          labelKey: "wallet.txFilterPayout" },
+  { key: "other",           labelKey: "wallet.txFilterOther" },
+];
+
+const TX_PAGE_SIZE = 6;
 
 function fmt(n: number) {
   return Number(n).toFixed(2);
@@ -179,6 +198,8 @@ export default function WalletPage() {
   const [loading, setLoading] = useState(true);
   const [txLoading, setTxLoading] = useState(false);
   const [period, setPeriod] = useState<Period>("2weeks");
+  const [txCategoryFilter, setTxCategoryFilter] = useState<TransactionCategoryFilter>("all");
+  const [txPage, setTxPage] = useState(1);
   const [connectStatus, setConnectStatus] = useState<{
     connected: boolean;
     charges_enabled: boolean;
@@ -210,6 +231,11 @@ export default function WalletPage() {
   const [payoutItemLoading, setPayoutItemLoading] = useState<string | null>(null);
   const [payoutView, setPayoutView] = useState<"list" | "detail">("list");
   const [pendingModalOpen, setPendingModalOpen] = useState(false);
+  const [pendingModalView, setPendingModalView] = useState<"list" | "detail">("list");
+  const [pendingDetailBooking, setPendingDetailBooking] = useState<{
+    booking: BookingDetail;
+    role: "worker" | "client";
+  } | null>(null);
   const [pendingDetailsLoading, setPendingDetailsLoading] = useState(false);
   const [workerHolds, setWorkerHolds] = useState<PendingHoldItem[]>([]);
   const [disputeEligible, setDisputeEligible] = useState<DisputeEligibleItem[]>([]);
@@ -276,9 +302,22 @@ export default function WalletPage() {
     fetchPendingDetails();
   }, [session?.access_token, user, fetchPendingDetails]);
 
+  const closePendingModal = () => {
+    setPendingModalOpen(false);
+    setPendingModalView("list");
+    setPendingDetailBooking(null);
+  };
+
   const openPendingModal = () => {
+    setPendingModalView("list");
+    setPendingDetailBooking(null);
     setPendingModalOpen(true);
     fetchPendingDetails();
+  };
+
+  const backToPendingList = () => {
+    setPendingModalView("list");
+    setPendingDetailBooking(null);
   };
 
   const formatDisputeDeadline = (completedAt: string) => {
@@ -303,8 +342,8 @@ export default function WalletPage() {
       });
       if (!res.ok) return;
       const data = await res.json();
-      setPendingModalOpen(false);
-      setDetailBooking({ booking: data as BookingDetail, role });
+      setPendingDetailBooking({ booking: data as BookingDetail, role });
+      setPendingModalView("detail");
     } catch {
     } finally {
       setDetailLoading(null);
@@ -390,6 +429,30 @@ export default function WalletPage() {
     }
   }, [searchParams, session]);
 
+  useScrollLock(pendingModalOpen);
+
+  const groupedTransactions = useMemo(
+    () => groupWalletTransactions(transactions, t),
+    [transactions, t],
+  );
+  const displayTransactions = useMemo(
+    () => groupedTransactions.filter((tx) => transactionMatchesCategory(tx, txCategoryFilter)),
+    [groupedTransactions, txCategoryFilter],
+  );
+  const txTotalPages = Math.max(1, Math.ceil(displayTransactions.length / TX_PAGE_SIZE));
+  const pagedTransactions = useMemo(() => {
+    const start = (txPage - 1) * TX_PAGE_SIZE;
+    return displayTransactions.slice(start, start + TX_PAGE_SIZE);
+  }, [displayTransactions, txPage]);
+
+  useEffect(() => {
+    setTxPage(1);
+  }, [period, txCategoryFilter]);
+
+  useEffect(() => {
+    if (txPage > txTotalPages) setTxPage(txTotalPages);
+  }, [txPage, txTotalPages]);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-white">
@@ -401,7 +464,9 @@ export default function WalletPage() {
   }
 
   const currentPeriodLabel = t(PERIODS.find((p) => p.key === period)?.labelKey ?? "wallet.last2weeks");
-  const displayTransactions = groupWalletTransactions(transactions, t);
+  const currentCategoryLabel = t(
+    TX_CATEGORY_FILTERS.find((c) => c.key === txCategoryFilter)?.labelKey ?? "wallet.txFilterAll",
+  );
 
   return (
     <div className="min-h-screen bg-white">
@@ -499,17 +564,19 @@ export default function WalletPage() {
                   <div className="h-2 w-2 rounded-full bg-amber-400" />
                   <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{t("wallet.pendingAmountLabel")}</p>
                 </div>
-                <p className="text-xl font-bold text-amber-600">{fmt(wallet?.pending_amount ?? 0)}&nbsp;$</p>
+                <div className="flex items-baseline flex-wrap gap-x-2 gap-y-0.5">
+                  <p className="text-xl font-bold text-amber-600">{fmt(wallet?.pending_amount ?? 0)}&nbsp;$</p>
+                  {hasPendingModalContent && (
+                    <button
+                      type="button"
+                      onClick={openPendingModal}
+                      className="text-xs text-amber-700 hover:text-amber-900 hover:underline cursor-pointer font-medium whitespace-nowrap"
+                    >
+                      {t("wallet.viewPendingDetail")} →
+                    </button>
+                  )}
+                </div>
                 <p className="text-[11px] text-gray-400 mt-1">{t("wallet.pendingAmountDesc")}</p>
-                {hasPendingModalContent && (
-                  <button
-                    type="button"
-                    onClick={openPendingModal}
-                    className="text-xs text-amber-700 hover:text-amber-900 hover:underline mt-2 text-left cursor-pointer font-medium"
-                  >
-                    {t("wallet.viewPendingDetail")} →
-                  </button>
-                )}
               </div>
             </div>
           </CardContent>
@@ -600,46 +667,53 @@ export default function WalletPage() {
 
         {/* Transaction history */}
         <Card className="shadow-sm overflow-hidden">
-          <CardHeader className="pb-3 pt-5 px-5">
+          <CardHeader className="pb-3 pt-4 px-5 space-y-2.5">
             <CardTitle className="text-base font-semibold text-gray-900">
               {t("wallet.transactionHistory")}
             </CardTitle>
+            <div className="grid grid-cols-2 gap-2 sm:gap-3">
+              <div className="min-w-0 space-y-1">
+                <Label htmlFor="wallet-period-filter" className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">
+                  {t("wallet.periodFilterLabel")}
+                </Label>
+                <Select value={period} onValueChange={(v) => setPeriod(v as Period)}>
+                  <SelectTrigger
+                    id="wallet-period-filter"
+                    className="h-9 w-full text-xs sm:text-sm bg-gray-50 border-gray-200 focus:ring-1 focus:ring-green-600"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PERIODS.map((p) => (
+                      <SelectItem key={p.key} value={p.key} className="text-sm">
+                        {t(p.labelKey)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="min-w-0 space-y-1">
+                <Label htmlFor="wallet-tx-type-filter" className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">
+                  {t("wallet.txFilterLabel")}
+                </Label>
+                <Select value={txCategoryFilter} onValueChange={(v) => setTxCategoryFilter(v as TransactionCategoryFilter)}>
+                  <SelectTrigger
+                    id="wallet-tx-type-filter"
+                    className="h-9 w-full text-xs sm:text-sm bg-gray-50 border-gray-200 focus:ring-1 focus:ring-green-600"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {TX_CATEGORY_FILTERS.map((c) => (
+                      <SelectItem key={c.key} value={c.key} className="text-sm">
+                        {t(c.labelKey)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
           </CardHeader>
-
-          {/* Period selector — dropdown on mobile, tabs on desktop */}
-          <div className="px-5 pb-4">
-            {/* Mobile: Select dropdown */}
-            <div className="sm:hidden">
-              <Select value={period} onValueChange={(v) => setPeriod(v as Period)}>
-                <SelectTrigger className="h-9 text-sm bg-gray-100 border-0 focus:ring-1 focus:ring-green-600">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {PERIODS.map((p) => (
-                    <SelectItem key={p.key} value={p.key} className="text-sm">
-                      {t(p.labelKey)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            {/* Desktop: Tabs */}
-            <div className="hidden sm:block">
-              <Tabs value={period} onValueChange={(v) => setPeriod(v as Period)}>
-                <TabsList className="h-8 gap-0.5 bg-gray-100">
-                  {PERIODS.map((p) => (
-                    <TabsTrigger
-                      key={p.key}
-                      value={p.key}
-                      className="text-xs px-2.5 h-6 data-[state=active]:bg-white data-[state=active]:text-green-700 data-[state=active]:font-semibold"
-                    >
-                      {t(p.labelKey)}
-                    </TabsTrigger>
-                  ))}
-                </TabsList>
-              </Tabs>
-            </div>
-          </div>
 
           <Separator />
 
@@ -670,9 +744,25 @@ export default function WalletPage() {
                 {t("wallet.browseListings")}
               </Link>
             </CardContent>
+          ) : displayTransactions.length === 0 ? (
+            <CardContent className="flex flex-col items-center justify-center py-16 text-center">
+              <div className="h-14 w-14 rounded-full bg-gray-100 flex items-center justify-center mb-3">
+                <Clock className="h-7 w-7 text-gray-300" />
+              </div>
+              <p className="font-semibold text-gray-700">
+                {t("wallet.noTransactionsInCategory", { category: currentCategoryLabel })}
+              </p>
+              <button
+                type="button"
+                onClick={() => setTxCategoryFilter("all")}
+                className="text-sm text-green-700 hover:underline mt-3"
+              >
+                {t("wallet.txFilterShowAll")}
+              </button>
+            </CardContent>
           ) : (
             <ul className="divide-y divide-gray-100">
-              {displayTransactions.map((tx) => {
+              {pagedTransactions.map((tx) => {
                 const isPayout = !tx.booking_id && tx.type === "debit" && tx.description?.toLowerCase().includes("versement");
                 const isClickable = !!tx.booking_id || isPayout;
                 const showPartBreakdown = tx.isGrouped || (tx.parts.length === 1 && isDepositOnlyDescription(tx.description));
@@ -737,115 +827,182 @@ export default function WalletPage() {
               })}
             </ul>
           )}
+
+          {!txLoading && displayTransactions.length > 0 && txTotalPages > 1 && (
+            <div className="flex items-center justify-between gap-3 px-4 sm:px-5 py-3 border-t border-gray-100">
+              <button
+                type="button"
+                disabled={txPage <= 1}
+                onClick={() => setTxPage((p) => Math.max(1, p - 1))}
+                aria-label={t("wallet.txPrevPage")}
+                className="flex items-center gap-1 text-sm text-gray-600 hover:text-gray-900 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <ChevronLeft className="h-4 w-4" />
+                {t("wallet.txPrevPage")}
+              </button>
+              <span className="text-xs text-gray-500 tabular-nums">
+                {t("wallet.txPageOf", { page: txPage, total: txTotalPages })}
+              </span>
+              <button
+                type="button"
+                disabled={txPage >= txTotalPages}
+                onClick={() => setTxPage((p) => Math.min(txTotalPages, p + 1))}
+                aria-label={t("wallet.txNextPage")}
+                className="flex items-center gap-1 text-sm text-gray-600 hover:text-gray-900 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                {t("wallet.txNextPage")}
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+          )}
         </Card>
 
       </main>
 
-      {/* Pending / dispute detail modal */}
-      {pendingModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-black/40 backdrop-blur-sm">
-          <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-xl w-full sm:max-w-lg overflow-hidden flex flex-col max-h-[85vh]">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 shrink-0">
-              <h2 className="text-base font-semibold text-gray-900">{t("wallet.pendingModalTitle")}</h2>
-              <button
-                type="button"
-                title={t("serviceDetail.close")}
-                onClick={() => setPendingModalOpen(false)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            <div className="overflow-y-auto flex-1 divide-y divide-gray-100">
-              {pendingDetailsLoading ? (
-                <div className="px-5 py-10 flex justify-center">
-                  <Spinner size="sm" />
+      {/* Pending / dispute detail modal — portaled for reliable mobile centering */}
+      {pendingModalOpen && typeof document !== "undefined" && createPortal(
+        <div className="fixed inset-0 z-50 grid place-items-center p-4 min-h-[100dvh]">
+          <div
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            onClick={closePendingModal}
+            aria-hidden
+          />
+          <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden flex flex-col h-auto max-h-[min(85dvh,calc(100dvh-2rem))] z-10">
+            <div
+              className={`flex min-h-0 w-[200%] transition-transform duration-300 ease-in-out ${
+                pendingModalView === "detail" ? "-translate-x-1/2" : "translate-x-0"
+              }`}
+            >
+              {/* Panel — list */}
+              <div className="w-1/2 shrink-0 flex flex-col min-h-0 h-auto max-h-[min(85dvh,calc(100dvh-2rem))]">
+                <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 shrink-0">
+                  <h2 className="text-base font-semibold text-gray-900">{t("wallet.pendingModalTitle")}</h2>
+                  <button
+                    type="button"
+                    title={t("serviceDetail.close")}
+                    onClick={closePendingModal}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
                 </div>
-              ) : workerHolds.length === 0 && disputeEligible.length === 0 ? (
-                <p className="px-5 py-10 text-center text-sm text-gray-400">{t("wallet.noPendingItems")}</p>
-              ) : (
-                <>
-                  {workerHolds.length > 0 && (
-                    <div className="px-5 py-4">
-                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">
-                        {t("wallet.workerHoldsSection")}
-                      </p>
-                      <p className="text-xs text-gray-400 mb-3 leading-relaxed">{t("wallet.workerHoldsHint")}</p>
-                      <ul className="space-y-2">
-                        {workerHolds.map((item) => (
-                          <li key={item.booking_id}>
-                            <button
-                              type="button"
-                              onClick={() => handleOpenPendingBooking(item.booking_id, "worker")}
-                              className="w-full flex items-center gap-3 rounded-lg border border-gray-100 px-3 py-3 text-left hover:bg-gray-50 transition-colors cursor-pointer"
-                            >
-                              <div className="min-w-0 flex-1">
-                                <p className="text-sm font-medium text-gray-900 truncate">{item.listing_title}</p>
-                                <p className="text-xs text-gray-500 mt-0.5">
-                                  {t("wallet.from")} {item.other_user_name}
-                                </p>
-                                <p className="text-xs text-amber-700 mt-0.5">
-                                  {t("wallet.disputeDeadline", { date: formatDisputeDeadline(item.completed_at) })}
-                                </p>
-                                {item.has_open_dispute && (
-                                  <span className="inline-block mt-1 text-[10px] font-medium text-red-600 bg-red-50 px-2 py-0.5 rounded-full">
-                                    {t("wallet.openDisputeBadge")}
-                                  </span>
-                                )}
-                              </div>
-                              <span className="text-sm font-bold text-amber-600 shrink-0">+{fmt(item.amount)} $</span>
-                              {detailLoading === item.booking_id
-                                ? <div className="h-4 w-4 rounded-full border-2 border-gray-300 border-t-gray-500 animate-spin shrink-0" />
-                                : <ChevronRight className="h-4 w-4 text-gray-400 shrink-0" />
-                              }
-                            </button>
-                          </li>
-                        ))}
-                      </ul>
+                <div className="overflow-y-auto flex-1 divide-y divide-gray-100">
+                  {pendingDetailsLoading ? (
+                    <div className="px-5 py-10 flex justify-center">
+                      <Spinner size="sm" />
                     </div>
+                  ) : workerHolds.length === 0 && disputeEligible.length === 0 ? (
+                    <p className="px-5 py-10 text-center text-sm text-gray-400">{t("wallet.noPendingItems")}</p>
+                  ) : (
+                    <>
+                      {workerHolds.length > 0 && (
+                        <div className="px-5 py-4">
+                          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">
+                            {t("wallet.workerHoldsSection")}
+                          </p>
+                          <p className="text-xs text-gray-400 mb-3 leading-relaxed">{t("wallet.workerHoldsHint")}</p>
+                          <ul className="space-y-2">
+                            {workerHolds.map((item) => (
+                              <li key={item.booking_id}>
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenPendingBooking(item.booking_id, "worker")}
+                                  className="w-full flex items-center gap-3 rounded-lg border border-gray-100 px-3 py-3 text-left hover:bg-gray-50 transition-colors cursor-pointer"
+                                >
+                                  <div className="min-w-0 flex-1">
+                                    <p className="text-sm font-medium text-gray-900 truncate">{item.listing_title}</p>
+                                    <p className="text-xs text-gray-500 mt-0.5">
+                                      {t("wallet.from")} {item.other_user_name}
+                                    </p>
+                                    <p className="text-xs text-amber-700 mt-0.5">
+                                      {t("wallet.disputeDeadline", { date: formatDisputeDeadline(item.completed_at) })}
+                                    </p>
+                                    {item.has_open_dispute && (
+                                      <span className="inline-block mt-1 text-[10px] font-medium text-red-600 bg-red-50 px-2 py-0.5 rounded-full">
+                                        {t("wallet.openDisputeBadge")}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <span className="text-sm font-bold text-amber-600 shrink-0">+{fmt(item.amount)} $</span>
+                                  {detailLoading === item.booking_id
+                                    ? <div className="h-4 w-4 rounded-full border-2 border-gray-300 border-t-gray-500 animate-spin shrink-0" />
+                                    : <ChevronRight className="h-4 w-4 text-gray-400 shrink-0" />
+                                  }
+                                </button>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                      {disputeEligible.length > 0 && (
+                        <div className="px-5 py-4">
+                          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">
+                            {t("wallet.disputeEligibleSection")}
+                          </p>
+                          <p className="text-xs text-gray-400 mb-3 leading-relaxed">{t("wallet.disputeEligibleHint")}</p>
+                          <ul className="space-y-2">
+                            {disputeEligible.map((item) => (
+                              <li key={item.booking_id}>
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenPendingBooking(item.booking_id, "client")}
+                                  className="w-full flex items-center gap-3 rounded-lg border border-gray-100 px-3 py-3 text-left hover:bg-gray-50 transition-colors cursor-pointer"
+                                >
+                                  <div className="min-w-0 flex-1">
+                                    <p className="text-sm font-medium text-gray-900 truncate">{item.listing_title}</p>
+                                    <p className="text-xs text-gray-500 mt-0.5">
+                                      {t("wallet.to")} {item.other_user_name}
+                                    </p>
+                                    <p className="text-xs text-red-600 mt-0.5">
+                                      {t("wallet.disputeDeadline", { date: formatDisputeDeadline(item.completed_at) })}
+                                    </p>
+                                  </div>
+                                  <div className="text-right shrink-0">
+                                    <span className="text-sm font-bold text-gray-800 block">−{fmt(item.amount_paid)} $</span>
+                                    <span className="text-[10px] text-gray-400">{t("wallet.amountPaid")}</span>
+                                  </div>
+                                  {detailLoading === item.booking_id
+                                    ? <div className="h-4 w-4 rounded-full border-2 border-gray-300 border-t-gray-500 animate-spin shrink-0" />
+                                    : <ChevronRight className="h-4 w-4 text-gray-400 shrink-0" />
+                                  }
+                                </button>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </>
                   )}
-                  {disputeEligible.length > 0 && (
-                    <div className="px-5 py-4">
-                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">
-                        {t("wallet.disputeEligibleSection")}
-                      </p>
-                      <p className="text-xs text-gray-400 mb-3 leading-relaxed">{t("wallet.disputeEligibleHint")}</p>
-                      <ul className="space-y-2">
-                        {disputeEligible.map((item) => (
-                          <li key={item.booking_id}>
-                            <button
-                              type="button"
-                              onClick={() => handleOpenPendingBooking(item.booking_id, "client")}
-                              className="w-full flex items-center gap-3 rounded-lg border border-gray-100 px-3 py-3 text-left hover:bg-gray-50 transition-colors cursor-pointer"
-                            >
-                              <div className="min-w-0 flex-1">
-                                <p className="text-sm font-medium text-gray-900 truncate">{item.listing_title}</p>
-                                <p className="text-xs text-gray-500 mt-0.5">
-                                  {t("wallet.to")} {item.other_user_name}
-                                </p>
-                                <p className="text-xs text-red-600 mt-0.5">
-                                  {t("wallet.disputeDeadline", { date: formatDisputeDeadline(item.completed_at) })}
-                                </p>
-                              </div>
-                              <div className="text-right shrink-0">
-                                <span className="text-sm font-bold text-gray-800 block">−{fmt(item.amount_paid)} $</span>
-                                <span className="text-[10px] text-gray-400">{t("wallet.amountPaid")}</span>
-                              </div>
-                              {detailLoading === item.booking_id
-                                ? <div className="h-4 w-4 rounded-full border-2 border-gray-300 border-t-gray-500 animate-spin shrink-0" />
-                                : <ChevronRight className="h-4 w-4 text-gray-400 shrink-0" />
-                              }
-                            </button>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                </>
-              )}
+                </div>
+              </div>
+
+              {/* Panel — booking detail (slide in) */}
+              <div className="w-1/2 shrink-0 flex flex-col min-h-0 h-auto max-h-[min(85dvh,calc(100dvh-2rem))]">
+                {pendingDetailBooking && session?.access_token && (
+                  <BookingDetailModal
+                    embedded
+                    booking={pendingDetailBooking.booking}
+                    userRole={pendingDetailBooking.role}
+                    accessToken={session.access_token}
+                    onClose={closePendingModal}
+                    onBack={backToPendingList}
+                    onUpdated={(id, updates) => {
+                      setPendingDetailBooking((prev) =>
+                        prev ? { ...prev, booking: { ...prev.booking, ...updates } } : prev,
+                      );
+                      fetchPendingDetails();
+                    }}
+                    onMessage={(userId) => {
+                      closePendingModal();
+                      startConversation(userId);
+                    }}
+                  />
+                )}
+              </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
 
       {/* Payout detail modal */}

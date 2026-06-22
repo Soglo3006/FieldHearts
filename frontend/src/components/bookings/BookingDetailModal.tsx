@@ -45,7 +45,7 @@ import {
   isWorkBasedPricingMode,
 } from "@/lib/hourlyPayment";
 import { normalizePricingMode, resolveBookingCheckoutBase, getEffectiveBookingPrice, getBookingPriceRangeBounds, formatBookingServiceBaseDisplay, formatBookingCheckoutTotalDisplay, formatBookingFeeComponentRange } from "@/lib/listingPrice";
-import { isAwaitingPriceAgreement } from "@/lib/priceNegotiation";
+import { isAwaitingPriceAgreement, canAccessPriceNegotiation, isPriceAgreementComplete } from "@/lib/priceNegotiation";
 import { buildClientPaymentSummary, buildSplitDepositFullReceipt } from "@/lib/paymentSuccessSummary";
 import {
   Carousel,
@@ -112,6 +112,10 @@ export interface BookingDetail {
   balance_due_cents?: number | null;
   price_confirmed_by_client_at?: string | null;
   price_confirmed_by_worker_at?: string | null;
+  client_proposed_price?: number | string | null;
+  worker_proposed_price?: number | string | null;
+  price_selected_by_client?: number | string | null;
+  price_selected_by_worker?: number | string | null;
 }
 
 interface Props {
@@ -121,6 +125,10 @@ interface Props {
   onClose: () => void;
   onUpdated: (bookingId: string, updates: Partial<BookingDetail>) => void;
   onMessage: (userId: string) => void;
+  /** Renders inside a parent shell (no backdrop); parent handles scroll lock. */
+  embedded?: boolean;
+  /** Back to parent list (embedded mode). */
+  onBack?: () => void;
 }
 
 const STATUS_BADGE: Record<BookingStatus, string> = {
@@ -215,9 +223,11 @@ function BookingDetailHeroCarousel({ images, title }: { images: string[]; title:
 export default function BookingDetailModal({
   booking: initialBooking, userRole, accessToken,
   onClose, onUpdated, onMessage,
+  embedded = false,
+  onBack,
 }: Props) {
   const { t, i18n } = useTranslation();
-  useScrollLock(true);
+  useScrollLock(!embedded);
   const [booking, setBooking] = useState(initialBooking);
 
   useEffect(() => {
@@ -274,7 +284,7 @@ export default function BookingDetailModal({
   useEffect(() => {
     const poll = () => {
       const status = bookingRef.current.status;
-      if (status === "active" || status === "negotiating") {
+      if (status === "active" || status === "negotiating" || (status === "accepted" && canAccessPriceNegotiation(bookingRef.current))) {
         refreshBookingFromApi();
       }
     };
@@ -614,15 +624,41 @@ export default function BookingDetailModal({
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60">
-      <div className="absolute inset-0" onClick={onClose} />
-
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col z-10 overflow-hidden">
+  const modalBody = (
+    <>
         {/* Header — changes based on step */}
         <div className="flex items-start justify-between gap-3 px-5 py-4 border-b border-gray-100 shrink-0">
           <div className="min-w-0 flex-1">
-            {step !== "detail" ? (
+            {embedded && step === "detail" && onBack ? (
+              <>
+                <button
+                  type="button"
+                  onClick={onBack}
+                  className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 transition-colors cursor-pointer"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  {t("wallet.pendingModalTitle")}
+                </button>
+                <div className="flex flex-wrap items-center gap-2 mt-2">
+                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${displayStatusBadge.className}`}>
+                    {displayStatusBadge.label}
+                  </span>
+                  {booking.is_one_time && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-800">
+                      <Tag className="h-3 w-3" /> {t("bookings.oneTime")}
+                    </span>
+                  )}
+                  {displayPaymentBadge && (
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold border ${displayPaymentBadge.className}`}>
+                      {displayPaymentBadge.label}
+                    </span>
+                  )}
+                </div>
+                <h2 className="mt-2 text-lg font-bold text-gray-900 leading-snug line-clamp-2">
+                  {booking.title}
+                </h2>
+              </>
+            ) : step !== "detail" ? (
               <button
                 type="button"
                 onClick={() => setStep("detail")}
@@ -847,6 +883,7 @@ export default function BookingDetailModal({
                 if (booking.status === "rejected") return null;
 
                 if (isAwaitingPriceAgreement(booking)) {
+                  const isQuoteMode = normalizePricingMode(booking.pricing_mode) === "quote";
                   return (
                     <Card className="overflow-hidden shadow-none">
                       <div className="flex items-center gap-2 bg-white px-4 py-2.5 border-b border-gray-100">
@@ -856,8 +893,10 @@ export default function BookingDetailModal({
                         </span>
                       </div>
                       <CardContent className="px-4 py-4 text-sm">
-                        <p className="font-semibold text-green-700">{t("listingPrice.quote")}</p>
-                        <p className="text-xs text-gray-500 mt-2 leading-relaxed">{t("listingPrice.quoteTotalsHint")}</p>
+                        <p className="font-semibold text-green-700">{totalLine}</p>
+                        <p className="text-xs text-gray-500 mt-2 leading-relaxed">
+                          {t(isQuoteMode ? "listingPrice.quoteTotalsHint" : "serviceDetail.rangeTotalsHint")}
+                        </p>
                       </CardContent>
                     </Card>
                   );
@@ -1466,7 +1505,7 @@ export default function BookingDetailModal({
               </div>
             </div>
 
-            {booking.deposit_enabled && (
+            {booking.deposit_enabled && !isAwaitingPriceAgreement(booking) && (
               <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-800">
                 <div className="flex items-center justify-between gap-2">
                   <p className="font-medium">{t("deposit.listingNoticeTitle")}</p>
@@ -1514,7 +1553,7 @@ export default function BookingDetailModal({
             )}
 
             {/* Price negotiation (range / quote) */}
-            {booking.status === "negotiating" && (
+            {canAccessPriceNegotiation(booking) && (
               <PriceNegotiationSection
                 booking={booking}
                 userRole={userRole}
@@ -1526,8 +1565,11 @@ export default function BookingDetailModal({
               />
             )}
 
-            {/* Worker customize */}
-            {userRole === "worker" && ["pending", "negotiating", "accepted"].includes(booking.status) && (
+            {/* Worker customize — quote: deposit/note only after price agreement */}
+            {userRole === "worker" &&
+              (normalizePricingMode(booking.pricing_mode) === "quote"
+                ? booking.status === "accepted" && isPriceAgreementComplete(booking)
+                : ["pending", "negotiating", "accepted"].includes(booking.status)) && (
               <WorkerCustomizeSection
                 booking={booking}
                 accessToken={accessToken}
@@ -1575,7 +1617,9 @@ export default function BookingDetailModal({
                 <WorkSessionsPanel
                   bookingId={booking.id}
                   isHourly
+                  userRole={userRole}
                   canEdit={booking.status === "active"}
+                  approvedHoursTotal={booking.approved_hours_total}
                   onUpdated={refreshBookingFromApi}
                 />
               </div>
@@ -1843,6 +1887,18 @@ export default function BookingDetailModal({
           </div>{/* end cancel panel */}
 
         </div>{/* end sliding panels */}
+    </>
+  );
+
+  return embedded ? (
+    <div className="relative bg-white w-full h-full flex flex-col overflow-hidden">
+      {modalBody}
+    </div>
+  ) : (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60">
+      <div className="absolute inset-0" onClick={onClose} />
+      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col z-10 overflow-hidden">
+        {modalBody}
       </div>
     </div>
   );

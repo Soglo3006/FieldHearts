@@ -14,6 +14,7 @@ import {
   ChevronLeft,
   Clock,
   ChevronRight,
+  ChevronDown,
   Calendar,
   AlertCircle,
   CheckCircle2,
@@ -24,7 +25,12 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Label } from "@/components/ui/label";
 import { getLanguageCode } from "@/lib/locale";
 import { Separator } from "@/components/ui/separator";
@@ -41,6 +47,7 @@ import {
 } from "@/lib/groupWalletTransactions";
 import { getDisputeWindowState } from "@/lib/disputes";
 import { useScrollLock } from "@/hooks/useScrollLock";
+import { cn } from "@/lib/utils";
 
 interface WalletData {
   balance: number;
@@ -72,6 +79,14 @@ interface DisputeEligibleItem {
   amount_paid: number;
 }
 
+interface ApprovedPayoutItem {
+  booking_id: string;
+  listing_title: string;
+  amount: number;
+  completed_at: string;
+  other_user_name: string;
+}
+
 type Period = "2weeks" | "1month" | "3months" | "6months" | "1year" | "all";
 
 const PERIODS: { key: Period; labelKey: string }[] = [
@@ -98,6 +113,21 @@ const TX_CATEGORY_FILTERS: { key: TransactionCategoryFilter; labelKey: string }[
 
 const TX_PAGE_SIZE = 6;
 
+const WALLET_MODAL_EASE = "duration-500 ease-[cubic-bezier(0.32,0.72,0,1)]";
+
+const WALLET_FILTER_TRIGGER_CLASS =
+  "h-9 w-full border border-gray-300 rounded-lg cursor-pointer text-xs sm:text-sm px-3 flex items-center justify-between bg-white text-left hover:border-gray-400 transition-colors";
+
+function walletModalShellClass(isDetail: boolean) {
+  return cn(
+    "relative bg-white rounded-2xl shadow-xl w-full overflow-hidden flex flex-col z-10",
+    "transition-[min-height,max-height] duration-500 ease-[cubic-bezier(0.32,0.72,0,1)]",
+    isDetail
+      ? "max-w-lg min-h-[min(72dvh,calc(100dvh-3rem))] max-h-[min(85dvh,calc(100dvh-2rem))]"
+      : "max-w-lg max-h-[min(85dvh,calc(100dvh-2rem))] h-auto",
+  );
+}
+
 function fmt(n: number) {
   return Number(n).toFixed(2);
 }
@@ -117,6 +147,32 @@ function formatPayoutDate(dateStr: string, lang: string) {
       weekday: "long", month: "long", day: "numeric", year: "numeric",
     });
   } catch { return dateStr; }
+}
+
+function WalletDetailLoadingPanel({
+  onBack,
+  backLabel,
+}: {
+  onBack: () => void;
+  backLabel: string;
+}) {
+  return (
+    <div className="flex flex-col h-full min-h-[min(72dvh,calc(100dvh-3rem))] animate-in fade-in-0 duration-300">
+      <div className="px-5 py-4 border-b border-gray-100 shrink-0">
+        <button
+          type="button"
+          onClick={onBack}
+          className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 transition-colors cursor-pointer"
+        >
+          <ChevronLeft className="h-4 w-4" />
+          {backLabel}
+        </button>
+      </div>
+      <div className="flex flex-1 items-center justify-center">
+        <Spinner size="sm" />
+      </div>
+    </div>
+  );
 }
 
 function WalletSkeleton() {
@@ -200,6 +256,7 @@ export default function WalletPage() {
   const [period, setPeriod] = useState<Period>("2weeks");
   const [txCategoryFilter, setTxCategoryFilter] = useState<TransactionCategoryFilter>("all");
   const [txPage, setTxPage] = useState(1);
+  const [txSlideDir, setTxSlideDir] = useState<"prev" | "next">("next");
   const [connectStatus, setConnectStatus] = useState<{
     connected: boolean;
     charges_enabled: boolean;
@@ -239,6 +296,16 @@ export default function WalletPage() {
   const [pendingDetailsLoading, setPendingDetailsLoading] = useState(false);
   const [workerHolds, setWorkerHolds] = useState<PendingHoldItem[]>([]);
   const [disputeEligible, setDisputeEligible] = useState<DisputeEligibleItem[]>([]);
+  const [approvedModalOpen, setApprovedModalOpen] = useState(false);
+  const [approvedModalView, setApprovedModalView] = useState<"list" | "detail">("list");
+  const [approvedDetailBooking, setApprovedDetailBooking] = useState<{
+    booking: BookingDetail;
+    role: "worker" | "client";
+  } | null>(null);
+  const [approvedDetailsLoading, setApprovedDetailsLoading] = useState(false);
+  const [approvedItems, setApprovedItems] = useState<ApprovedPayoutItem[]>([]);
+  const [approvedDetailLoading, setApprovedDetailLoading] = useState(false);
+  const [pendingDetailLoading, setPendingDetailLoading] = useState(false);
   const { startConversation } = useStartConversation();
 
   useEffect(() => {
@@ -297,15 +364,33 @@ export default function WalletPage() {
     }
   }, [session?.access_token]);
 
+  const fetchApprovedDetails = useCallback(async () => {
+    if (!session?.access_token) return;
+    setApprovedDetailsLoading(true);
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/wallet/approved-details`, {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      setApprovedItems(Array.isArray(data.items) ? data.items : []);
+    } catch {
+    } finally {
+      setApprovedDetailsLoading(false);
+    }
+  }, [session?.access_token]);
+
   useEffect(() => {
     if (!session?.access_token || !user) return;
     fetchPendingDetails();
-  }, [session?.access_token, user, fetchPendingDetails]);
+    fetchApprovedDetails();
+  }, [session?.access_token, user, fetchPendingDetails, fetchApprovedDetails]);
 
   const closePendingModal = () => {
     setPendingModalOpen(false);
     setPendingModalView("list");
     setPendingDetailBooking(null);
+    setPendingDetailLoading(false);
   };
 
   const openPendingModal = () => {
@@ -318,7 +403,58 @@ export default function WalletPage() {
   const backToPendingList = () => {
     setPendingModalView("list");
     setPendingDetailBooking(null);
+    setPendingDetailLoading(false);
   };
+
+  const closeApprovedModal = () => {
+    setApprovedModalOpen(false);
+    setApprovedModalView("list");
+    setApprovedDetailBooking(null);
+    setApprovedDetailLoading(false);
+  };
+
+  const openApprovedModal = () => {
+    setApprovedModalView("list");
+    setApprovedDetailBooking(null);
+    setApprovedModalOpen(true);
+    fetchApprovedDetails();
+  };
+
+  const backToApprovedList = () => {
+    setApprovedModalView("list");
+    setApprovedDetailBooking(null);
+    setApprovedDetailLoading(false);
+  };
+
+  const handleOpenApprovedBooking = async (bookingId: string) => {
+    if (!session?.access_token) return;
+    setDetailLoading(bookingId);
+    setApprovedDetailLoading(true);
+    setApprovedModalView("detail");
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/bookings/${bookingId}`, {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      if (!res.ok) {
+        setApprovedModalView("list");
+        return;
+      }
+      const data = await res.json();
+      setApprovedDetailBooking({ booking: data as BookingDetail, role: "worker" });
+    } catch {
+      setApprovedModalView("list");
+    } finally {
+      setDetailLoading(null);
+      setApprovedDetailLoading(false);
+    }
+  };
+
+  const formatCompletedDate = (completedAt: string) =>
+    new Date(completedAt).toLocaleDateString(lang === "fr" ? "fr-CA" : "en-CA", {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+    });
 
   const formatDisputeDeadline = (completedAt: string) => {
     const window = getDisputeWindowState(completedAt);
@@ -336,22 +472,31 @@ export default function WalletPage() {
   const handleOpenPendingBooking = async (bookingId: string, role: "worker" | "client") => {
     if (!session?.access_token) return;
     setDetailLoading(bookingId);
+    setPendingDetailLoading(true);
+    setPendingModalView("detail");
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/bookings/${bookingId}`, {
         headers: { Authorization: `Bearer ${session.access_token}` },
       });
-      if (!res.ok) return;
+      if (!res.ok) {
+        setPendingModalView("list");
+        return;
+      }
       const data = await res.json();
       setPendingDetailBooking({ booking: data as BookingDetail, role });
-      setPendingModalView("detail");
     } catch {
+      setPendingModalView("list");
     } finally {
       setDetailLoading(null);
+      setPendingDetailLoading(false);
     }
   };
 
   const hasPendingModalContent =
     (wallet?.pending_amount ?? 0) > 0 || workerHolds.length > 0 || disputeEligible.length > 0;
+
+  const hasApprovedModalContent =
+    (wallet?.available_for_payout ?? 0) > 0 || approvedItems.length > 0;
 
   const handleOpenBooking = async (tx: DisplayWalletTransaction) => {
     if (!tx.booking_id || !session?.access_token) return;
@@ -429,7 +574,7 @@ export default function WalletPage() {
     }
   }, [searchParams, session]);
 
-  useScrollLock(pendingModalOpen);
+  useScrollLock(pendingModalOpen || approvedModalOpen);
 
   const groupedTransactions = useMemo(
     () => groupWalletTransactions(transactions, t),
@@ -446,8 +591,38 @@ export default function WalletPage() {
   }, [displayTransactions, txPage]);
 
   useEffect(() => {
+    setTxSlideDir("next");
     setTxPage(1);
   }, [period, txCategoryFilter]);
+
+  const changeTxPage = (next: number) => {
+    setTxPage((current) => {
+      if (next === current) return current;
+      setTxSlideDir(next > current ? "next" : "prev");
+      return next;
+    });
+  };
+
+  const scrollToTransactionHistory = () => {
+    window.setTimeout(() => {
+      document.getElementById("wallet-transaction-history")?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    }, 0);
+  };
+
+  const openEarnedDetails = () => {
+    setTxCategoryFilter("received");
+    setTxPage(1);
+    scrollToTransactionHistory();
+  };
+
+  const openSpentDetails = () => {
+    setTxCategoryFilter("all");
+    setTxPage(1);
+    scrollToTransactionHistory();
+  };
 
   useEffect(() => {
     if (txPage > txTotalPages) setTxPage(txTotalPages);
@@ -556,7 +731,18 @@ export default function WalletPage() {
                   <div className="h-2 w-2 rounded-full bg-green-500" />
                   <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{t("wallet.approvedAmount")}</p>
                 </div>
-                <p className="text-xl font-bold text-green-700">{fmt(wallet?.available_for_payout ?? 0)}&nbsp;$</p>
+                <div className="flex items-baseline flex-wrap gap-x-2 gap-y-0.5">
+                  <p className="text-xl font-bold text-green-700">{fmt(wallet?.available_for_payout ?? 0)}&nbsp;$</p>
+                  {hasApprovedModalContent && (
+                    <button
+                      type="button"
+                      onClick={openApprovedModal}
+                      className="text-xs text-green-700 hover:text-green-900 hover:underline cursor-pointer font-medium whitespace-nowrap"
+                    >
+                      {t("wallet.viewApprovedDetail")} →
+                    </button>
+                  )}
+                </div>
                 <p className="text-[11px] text-gray-400 mt-1">{t("wallet.approvedAmountDesc")}</p>
               </div>
               <div className="px-5 py-4">
@@ -595,6 +781,13 @@ export default function WalletPage() {
                 <p className="text-lg font-bold text-gray-900 mt-0.5">
                   {fmt(wallet?.total_earned ?? 0)}&nbsp;$
                 </p>
+                <button
+                  type="button"
+                  onClick={openEarnedDetails}
+                  className="text-xs text-green-700 hover:text-green-900 hover:underline mt-1 font-medium cursor-pointer"
+                >
+                  {t("wallet.viewPendingDetail")} →
+                </button>
               </div>
             </CardContent>
           </Card>
@@ -610,6 +803,13 @@ export default function WalletPage() {
                 <p className="text-lg font-bold text-gray-900 mt-0.5">
                   {fmt(wallet?.total_spent ?? 0)}&nbsp;$
                 </p>
+                <button
+                  type="button"
+                  onClick={openSpentDetails}
+                  className="text-xs text-red-700 hover:text-red-900 hover:underline mt-1 font-medium cursor-pointer"
+                >
+                  {t("wallet.viewPendingDetail")} →
+                </button>
               </div>
             </CardContent>
           </Card>
@@ -666,7 +866,7 @@ export default function WalletPage() {
         )}
 
         {/* Transaction history */}
-        <Card className="shadow-sm overflow-hidden">
+        <Card id="wallet-transaction-history" className="shadow-sm">
           <CardHeader className="pb-3 pt-4 px-5 space-y-2.5">
             <CardTitle className="text-base font-semibold text-gray-900">
               {t("wallet.transactionHistory")}
@@ -676,41 +876,55 @@ export default function WalletPage() {
                 <Label htmlFor="wallet-period-filter" className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">
                   {t("wallet.periodFilterLabel")}
                 </Label>
-                <Select value={period} onValueChange={(v) => setPeriod(v as Period)}>
-                  <SelectTrigger
-                    id="wallet-period-filter"
-                    className="h-9 w-full text-xs sm:text-sm bg-gray-50 border-gray-200 focus:ring-1 focus:ring-green-600"
+                <DropdownMenu modal={false}>
+                  <DropdownMenuTrigger asChild>
+                    <button type="button" id="wallet-period-filter" className={WALLET_FILTER_TRIGGER_CLASS}>
+                      <span className="truncate">{currentPeriodLabel}</span>
+                      <ChevronDown className="h-4 w-4 text-gray-400 shrink-0" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent
+                    align="start"
+                    className="w-[var(--radix-dropdown-menu-trigger-width)] min-w-[12rem]"
                   >
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
                     {PERIODS.map((p) => (
-                      <SelectItem key={p.key} value={p.key} className="text-sm">
+                      <DropdownMenuItem
+                        key={p.key}
+                        className="cursor-pointer text-sm"
+                        onClick={() => setPeriod(p.key)}
+                      >
                         {t(p.labelKey)}
-                      </SelectItem>
+                      </DropdownMenuItem>
                     ))}
-                  </SelectContent>
-                </Select>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
               <div className="min-w-0 space-y-1">
                 <Label htmlFor="wallet-tx-type-filter" className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">
                   {t("wallet.txFilterLabel")}
                 </Label>
-                <Select value={txCategoryFilter} onValueChange={(v) => setTxCategoryFilter(v as TransactionCategoryFilter)}>
-                  <SelectTrigger
-                    id="wallet-tx-type-filter"
-                    className="h-9 w-full text-xs sm:text-sm bg-gray-50 border-gray-200 focus:ring-1 focus:ring-green-600"
+                <DropdownMenu modal={false}>
+                  <DropdownMenuTrigger asChild>
+                    <button type="button" id="wallet-tx-type-filter" className={WALLET_FILTER_TRIGGER_CLASS}>
+                      <span className="truncate">{currentCategoryLabel}</span>
+                      <ChevronDown className="h-4 w-4 text-gray-400 shrink-0" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent
+                    align="start"
+                    className="w-[var(--radix-dropdown-menu-trigger-width)] min-w-[12rem]"
                   >
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
                     {TX_CATEGORY_FILTERS.map((c) => (
-                      <SelectItem key={c.key} value={c.key} className="text-sm">
+                      <DropdownMenuItem
+                        key={c.key}
+                        className="cursor-pointer text-sm"
+                        onClick={() => setTxCategoryFilter(c.key)}
+                      >
                         {t(c.labelKey)}
-                      </SelectItem>
+                      </DropdownMenuItem>
                     ))}
-                  </SelectContent>
-                </Select>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             </div>
           </CardHeader>
@@ -761,7 +975,15 @@ export default function WalletPage() {
               </button>
             </CardContent>
           ) : (
-            <ul className="divide-y divide-gray-100">
+            <div className="overflow-hidden">
+              <ul
+                key={txPage}
+                className={cn(
+                  "divide-y divide-gray-100",
+                  "animate-in fade-in-0 duration-300 ease-out",
+                  txSlideDir === "next" ? "slide-in-from-right-4" : "slide-in-from-left-4",
+                )}
+              >
               {pagedTransactions.map((tx) => {
                 const isPayout = !tx.booking_id && tx.type === "debit" && tx.description?.toLowerCase().includes("versement");
                 const isClickable = !!tx.booking_id || isPayout;
@@ -825,7 +1047,8 @@ export default function WalletPage() {
                 </li>
                 );
               })}
-            </ul>
+              </ul>
+            </div>
           )}
 
           {!txLoading && displayTransactions.length > 0 && txTotalPages > 1 && (
@@ -833,7 +1056,7 @@ export default function WalletPage() {
               <button
                 type="button"
                 disabled={txPage <= 1}
-                onClick={() => setTxPage((p) => Math.max(1, p - 1))}
+                onClick={() => changeTxPage(Math.max(1, txPage - 1))}
                 aria-label={t("wallet.txPrevPage")}
                 className="flex items-center gap-1 text-sm text-gray-600 hover:text-gray-900 disabled:opacity-40 disabled:cursor-not-allowed"
               >
@@ -846,7 +1069,7 @@ export default function WalletPage() {
               <button
                 type="button"
                 disabled={txPage >= txTotalPages}
-                onClick={() => setTxPage((p) => Math.min(txTotalPages, p + 1))}
+                onClick={() => changeTxPage(Math.min(txTotalPages, txPage + 1))}
                 aria-label={t("wallet.txNextPage")}
                 className="flex items-center gap-1 text-sm text-gray-600 hover:text-gray-900 disabled:opacity-40 disabled:cursor-not-allowed"
               >
@@ -867,14 +1090,16 @@ export default function WalletPage() {
             onClick={closePendingModal}
             aria-hidden
           />
-          <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden flex flex-col h-auto max-h-[min(85dvh,calc(100dvh-2rem))] z-10">
+          <div className={walletModalShellClass(pendingModalView === "detail")}>
             <div
-              className={`flex min-h-0 w-[200%] transition-transform duration-300 ease-in-out ${
-                pendingModalView === "detail" ? "-translate-x-1/2" : "translate-x-0"
-              }`}
+              className={cn(
+                "flex min-h-0 w-[200%] transition-transform",
+                WALLET_MODAL_EASE,
+                pendingModalView === "detail" ? "-translate-x-1/2" : "translate-x-0",
+              )}
             >
               {/* Panel — list */}
-              <div className="w-1/2 shrink-0 flex flex-col min-h-0 h-auto max-h-[min(85dvh,calc(100dvh-2rem))]">
+              <div className="w-1/2 shrink-0 flex flex-col min-h-0 h-full max-h-[min(85dvh,calc(100dvh-2rem))]">
                 <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 shrink-0">
                   <h2 className="text-base font-semibold text-gray-900">{t("wallet.pendingModalTitle")}</h2>
                   <button
@@ -977,26 +1202,139 @@ export default function WalletPage() {
               </div>
 
               {/* Panel — booking detail (slide in) */}
-              <div className="w-1/2 shrink-0 flex flex-col min-h-0 h-auto max-h-[min(85dvh,calc(100dvh-2rem))]">
-                {pendingDetailBooking && session?.access_token && (
-                  <BookingDetailModal
-                    embedded
-                    booking={pendingDetailBooking.booking}
-                    userRole={pendingDetailBooking.role}
-                    accessToken={session.access_token}
-                    onClose={closePendingModal}
-                    onBack={backToPendingList}
-                    onUpdated={(id, updates) => {
-                      setPendingDetailBooking((prev) =>
-                        prev ? { ...prev, booking: { ...prev.booking, ...updates } } : prev,
-                      );
-                      fetchPendingDetails();
-                    }}
-                    onMessage={(userId) => {
-                      closePendingModal();
-                      startConversation(userId);
-                    }}
-                  />
+              <div className="w-1/2 shrink-0 flex flex-col min-h-0 h-full max-h-[min(85dvh,calc(100dvh-2rem))]">
+                {pendingModalView === "detail" && (
+                  pendingDetailLoading ? (
+                    <WalletDetailLoadingPanel
+                      onBack={backToPendingList}
+                      backLabel={t("wallet.pendingModalTitle")}
+                    />
+                  ) : pendingDetailBooking && session?.access_token ? (
+                    <BookingDetailModal
+                      embedded
+                      embeddedBackLabel={t("wallet.pendingModalTitle")}
+                      booking={pendingDetailBooking.booking}
+                      userRole={pendingDetailBooking.role}
+                      accessToken={session.access_token}
+                      onClose={closePendingModal}
+                      onBack={backToPendingList}
+                      onUpdated={(id, updates) => {
+                        setPendingDetailBooking((prev) =>
+                          prev ? { ...prev, booking: { ...prev.booking, ...updates } } : prev,
+                        );
+                        fetchPendingDetails();
+                      }}
+                      onMessage={(userId) => {
+                        closePendingModal();
+                        startConversation(userId);
+                      }}
+                    />
+                  ) : null
+                )}
+              </div>
+            </div>
+          </div>
+        </div>,
+        document.body,
+      )}
+
+      {/* Approved payout detail modal */}
+      {approvedModalOpen && typeof document !== "undefined" && createPortal(
+        <div className="fixed inset-0 z-50 grid place-items-center p-4 min-h-[100dvh]">
+          <div
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            onClick={closeApprovedModal}
+            aria-hidden
+          />
+          <div className={walletModalShellClass(approvedModalView === "detail")}>
+            <div
+              className={cn(
+                "flex min-h-0 w-[200%] transition-transform",
+                WALLET_MODAL_EASE,
+                approvedModalView === "detail" ? "-translate-x-1/2" : "translate-x-0",
+              )}
+            >
+              <div className="w-1/2 shrink-0 flex flex-col min-h-0 h-full max-h-[min(85dvh,calc(100dvh-2rem))]">
+                <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 shrink-0">
+                  <h2 className="text-base font-semibold text-gray-900">{t("wallet.approvedModalTitle")}</h2>
+                  <button
+                    type="button"
+                    title={t("serviceDetail.close")}
+                    onClick={closeApprovedModal}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
+                <div className="overflow-y-auto flex-1 divide-y divide-gray-100">
+                  {approvedDetailsLoading ? (
+                    <div className="px-5 py-10 flex justify-center">
+                      <Spinner size="sm" />
+                    </div>
+                  ) : approvedItems.length === 0 ? (
+                    <p className="px-5 py-10 text-center text-sm text-gray-400">{t("wallet.noApprovedItems")}</p>
+                  ) : (
+                    <div className="px-5 py-4">
+                      <p className="text-xs text-gray-400 mb-3 leading-relaxed">{t("wallet.approvedSectionHint")}</p>
+                      <ul className="space-y-2">
+                        {approvedItems.map((item) => (
+                          <li key={item.booking_id}>
+                            <button
+                              type="button"
+                              onClick={() => handleOpenApprovedBooking(item.booking_id)}
+                              className="w-full flex items-center gap-3 rounded-lg border border-gray-100 px-3 py-3 text-left hover:bg-gray-50 transition-colors cursor-pointer"
+                            >
+                              <div className="min-w-0 flex-1">
+                                <p className="text-sm font-medium text-gray-900 truncate">{item.listing_title}</p>
+                                <p className="text-xs text-gray-500 mt-0.5">
+                                  {t("wallet.from")} {item.other_user_name}
+                                </p>
+                                <p className="text-xs text-green-700 mt-0.5">
+                                  {t("wallet.completedOn", { date: formatCompletedDate(item.completed_at) })}
+                                </p>
+                              </div>
+                              <span className="text-sm font-bold text-green-700 shrink-0">+{fmt(item.amount)} $</span>
+                              {detailLoading === item.booking_id
+                                ? <div className="h-4 w-4 rounded-full border-2 border-gray-300 border-t-gray-500 animate-spin shrink-0" />
+                                : <ChevronRight className="h-4 w-4 text-gray-400 shrink-0" />
+                              }
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="w-1/2 shrink-0 flex flex-col min-h-0 h-full max-h-[min(85dvh,calc(100dvh-2rem))]">
+                {approvedModalView === "detail" && (
+                  approvedDetailLoading ? (
+                    <WalletDetailLoadingPanel
+                      onBack={backToApprovedList}
+                      backLabel={t("wallet.approvedModalTitle")}
+                    />
+                  ) : approvedDetailBooking && session?.access_token ? (
+                    <BookingDetailModal
+                      embedded
+                      embeddedBackLabel={t("wallet.approvedModalTitle")}
+                      booking={approvedDetailBooking.booking}
+                      userRole={approvedDetailBooking.role}
+                      accessToken={session.access_token}
+                      onClose={closeApprovedModal}
+                      onBack={backToApprovedList}
+                      onUpdated={(id, updates) => {
+                        setApprovedDetailBooking((prev) =>
+                          prev ? { ...prev, booking: { ...prev.booking, ...updates } } : prev,
+                        );
+                        fetchApprovedDetails();
+                      }}
+                      onMessage={(userId) => {
+                        closeApprovedModal();
+                        startConversation(userId);
+                      }}
+                    />
+                  ) : null
                 )}
               </div>
             </div>

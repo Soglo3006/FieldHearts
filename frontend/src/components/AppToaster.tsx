@@ -11,7 +11,9 @@ export default function AppToaster() {
       richColors
       position="top-right"
       closeButton
-      closeButtonAriaLabel={t("common.close")}
+      toastOptions={{
+        closeButtonAriaLabel: t("common.close"),
+      }}
     />
   );
 }

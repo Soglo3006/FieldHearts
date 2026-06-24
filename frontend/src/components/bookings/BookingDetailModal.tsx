@@ -130,6 +130,8 @@ interface Props {
   embedded?: boolean;
   /** Back to parent list (embedded mode). */
   onBack?: () => void;
+  /** Label on embedded back button (defaults to pending modal title). */
+  embeddedBackLabel?: string;
 }
 
 const STATUS_BADGE: Record<BookingStatus, string> = {
@@ -226,6 +228,7 @@ export default function BookingDetailModal({
   onClose, onUpdated, onMessage,
   embedded = false,
   onBack,
+  embeddedBackLabel,
 }: Props) {
   const { t, i18n } = useTranslation();
   useScrollLock(!embedded);
@@ -638,7 +641,7 @@ export default function BookingDetailModal({
                   className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 transition-colors cursor-pointer"
                 >
                   <ChevronLeft className="h-4 w-4" />
-                  {t("wallet.pendingModalTitle")}
+                  {embeddedBackLabel ?? t("wallet.pendingModalTitle")}
                 </button>
                 <div className="flex flex-wrap items-center gap-2 mt-2">
                   <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${displayStatusBadge.className}`}>
@@ -1900,7 +1903,7 @@ export default function BookingDetailModal({
   );
 
   return embedded ? (
-    <div className="relative bg-white w-full h-full flex flex-col overflow-hidden">
+    <div className="relative bg-white w-full h-full min-h-0 flex flex-col overflow-hidden animate-in fade-in-0 duration-300">
       {modalBody}
     </div>
   ) : (

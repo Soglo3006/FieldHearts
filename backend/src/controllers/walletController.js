@@ -193,6 +193,52 @@ export const getPendingDisputeDetails = async (req, res) => {
   }
 };
 
+/** Worker credits past dispute window — available for next payout */
+export const getApprovedPayoutDetails = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const disputeCutoff = getDisputeCutoffDate();
+
+    const result = await pool.query(
+      `SELECT b.id AS booking_id,
+              s.title AS listing_title,
+              t.amount,
+              b.completed_at,
+              CASE WHEN uc.account_type = 'company' THEN uc.company_name ELSE uc.full_name END AS other_user_name
+       FROM transactions t
+       JOIN bookings b ON b.id = t.booking_id
+       JOIN services s ON s.id = b.service_id
+       JOIN users uc ON uc.id = b.client_id
+       WHERE t.user_id = $1
+         AND t.type = 'credit'
+         AND b.worker_id = $1
+         AND b.status = 'completed'
+         AND b.payment_status = ANY($3::text[])
+         AND EXISTS (
+           SELECT 1 FROM payments p
+           WHERE p.booking_id = b.id AND p.status IN ('paid', 'refunded')
+         )
+         AND NOT EXISTS (SELECT 1 FROM disputes d WHERE d.booking_id = b.id AND d.status = 'open')
+         AND (
+           b.completed_at <= $2
+           OR EXISTS (SELECT 1 FROM disputes d WHERE d.booking_id = b.id AND d.status IN ('resolved', 'rejected'))
+         )
+       ORDER BY b.completed_at DESC`,
+      [userId, disputeCutoff.toISOString(), WORKER_HOLD_PAYMENT_STATUSES],
+    );
+
+    res.json({
+      items: result.rows.map((row) => ({
+        ...row,
+        amount: Number(row.amount),
+      })),
+    });
+  } catch (err) {
+    console.error("getApprovedPayoutDetails error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
 export const getTransactions = async (req, res) => {
   try {
     const userId = req.user.id;

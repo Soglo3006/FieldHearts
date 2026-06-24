@@ -1,11 +1,12 @@
 import express from "express";
-import { getWallet, getTransactions, exportTransactions, triggerPayout, getPlatformEarnings, getPayoutDetails, getPendingDisputeDetails } from "../controllers/walletController.js";
+import { getWallet, getTransactions, exportTransactions, triggerPayout, getPlatformEarnings, getPayoutDetails, getPendingDisputeDetails, getApprovedPayoutDetails } from "../controllers/walletController.js";
 import { protect, adminOnly } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
 router.get("/", protect, getWallet);
 router.get("/pending-details", protect, getPendingDisputeDetails);
+router.get("/approved-details", protect, getApprovedPayoutDetails);
 router.get("/transactions", protect, getTransactions);
 router.get("/payout-details", protect, getPayoutDetails);
 router.get("/export", protect, adminOnly, exportTransactions);

@@ -54,10 +54,13 @@ type DateTimeFieldProps = {
   label: string;
   value: string;
   onChange: (value: string) => void;
+  /** Earliest allowed datetime (`YYYY-MM-DDTHH:mm`) — used on the date input. */
+  min?: string;
   className?: string;
+  invalid?: boolean;
 };
 
-export default function DateTimeField({ id, label, value, onChange, className }: DateTimeFieldProps) {
+export default function DateTimeField({ id, label, value, onChange, min, className, invalid }: DateTimeFieldProps) {
   const { t, i18n } = useTranslation();
   const locale = getIntlLocale(i18n.language, { fr: "fr-CA", en: "en-CA" });
   const { date, hour, minute } = parseValue(value);
@@ -84,8 +87,16 @@ export default function DateTimeField({ id, label, value, onChange, className }:
     onChange(buildValue(d, h, m));
   };
 
+  const minDate = min?.match(/^(\d{4}-\d{2}-\d{2})/)?.[1];
+
   return (
-    <div className={cn("rounded-xl border border-gray-200 bg-white p-3 shadow-xs", className)}>
+    <div
+      className={cn(
+        "rounded-xl border bg-white p-3 shadow-xs",
+        invalid ? "border-red-300 ring-1 ring-red-200" : "border-gray-200",
+        className,
+      )}
+    >
       <Label htmlFor={`${id}-date`} className="text-sm font-semibold text-gray-900">
         {label}
       </Label>
@@ -97,6 +108,7 @@ export default function DateTimeField({ id, label, value, onChange, className }:
               id={`${id}-date`}
               type="date"
               value={date}
+              min={minDate}
               onChange={(e) => update({ date: e.target.value })}
               className="[color-scheme:light]"
             />

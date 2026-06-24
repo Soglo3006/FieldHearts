@@ -8,7 +8,7 @@ import ConditionalShell from "@/components/ConditionalShell";
 import LogoutOverlay from "@/components/LogoutOverlay";
 import { AuthBootstrapOverlay } from "@/components/auth/AuthBootstrapOverlay";
 import ComingSoonOverlay from "@/components/ComingSoonOverlay";
-import { Toaster } from "sonner";
+import AppToaster from "@/components/AppToaster";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Analytics } from "@vercel/analytics/react";
 import Script from "next/script";
@@ -150,7 +150,7 @@ export default function RootLayout({
           <ConditionalShell>{children}</ConditionalShell>
           <LogoutOverlay />
           <AuthBootstrapOverlay />
-          <Toaster richColors position="top-right" />
+          <AppToaster />
           <SpeedInsights />
           <Analytics />
           </AuthGateProvider>

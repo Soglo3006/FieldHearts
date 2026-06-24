@@ -1,5 +1,5 @@
 import { getTaxRate } from "@/lib/taxes";
-import { resolveBookingCheckoutBase } from "@/lib/listingPrice";
+import { getEffectiveBookingPrice } from "@/lib/listingPrice";
 
 type BookingFinancialInput = {
   price: string | number;
@@ -33,7 +33,7 @@ function roundMoney(value: number) {
 }
 
 export function getBookingDisputeFinancialOutcome(booking: BookingFinancialInput): DisputeFinancialOutcome {
-  const basePrice = resolveBookingCheckoutBase(booking);
+  const basePrice = getEffectiveBookingPrice(booking);
   const taxRate = booking.tax_rate ? Number(booking.tax_rate) : getTaxRate(booking.client_province ?? "QC");
   const buyerCommission = roundMoney(basePrice * 0.05);
   const taxes = roundMoney(basePrice * taxRate);

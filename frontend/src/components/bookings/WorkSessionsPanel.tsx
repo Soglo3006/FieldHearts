@@ -1,14 +1,18 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import HoursMinutesInput from "@/components/bookings/HoursMinutesInput";
+import {
+  formatWorkDuration,
+  parseHoursMinutesInput,
+  partsToInputStrings,
+} from "@/lib/workHours";
 
 export type WorkSession = {
   id: string;
@@ -33,6 +37,21 @@ const STATUS_CLASS: Record<string, string> = {
   disputed: "bg-red-100 text-red-800",
 };
 
+const LIVE_POLL_MS = 3500;
+
+function sessionsFingerprint(sessions: WorkSession[]): string {
+  return JSON.stringify(
+    sessions.map((s) => ({
+      id: s.id,
+      status: s.status,
+      hours_worker: s.hours_worker,
+      hours_client: s.hours_client,
+      hours_final: s.hours_final,
+      updated_at: (s as WorkSession & { updated_at?: string }).updated_at,
+    })),
+  );
+}
+
 type Props = {
   bookingId: string;
   isHourly: boolean;
@@ -54,31 +73,68 @@ export default function WorkSessionsPanel({
   const { session } = useAuth();
   const [sessions, setSessions] = useState<WorkSession[]>([]);
   const [loading, setLoading] = useState(true);
-  const [hoursInput, setHoursInput] = useState("");
-  const [modifyHours, setModifyHours] = useState("");
+  const [hoursPart, setHoursPart] = useState("");
+  const [minutesPart, setMinutesPart] = useState("");
+  const [modifyHoursPart, setModifyHoursPart] = useState("");
+  const [modifyMinutesPart, setModifyMinutesPart] = useState("");
   const [activeSession, setActiveSession] = useState<string | null>(null);
+  const [modifySession, setModifySession] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const sessionsFingerprintRef = useRef("");
+  const approvedHoursRef = useRef(approvedHoursTotal);
 
   const approvedTotal = Number(approvedHoursTotal) || 0;
 
-  const load = useCallback(async () => {
+  const clearHoursInput = () => {
+    setHoursPart("");
+    setMinutesPart("");
+    setActiveSession(null);
+  };
+
+  const clearModifyInput = () => {
+    setModifyHoursPart("");
+    setModifyMinutesPart("");
+    setModifySession(null);
+  };
+
+  const load = useCallback(async (opts?: { silent?: boolean }) => {
     if (!session?.access_token || !isHourly) return;
-    setLoading(true);
+    if (!opts?.silent) setLoading(true);
     try {
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/work-sessions?booking_id=${bookingId}`,
         { headers: { Authorization: `Bearer ${session.access_token}` } },
       );
+      if (!res.ok) return;
       const data = await res.json();
-      setSessions(Array.isArray(data) ? data : []);
+      const next = Array.isArray(data) ? data : [];
+      const fp = sessionsFingerprint(next);
+      if (fp !== sessionsFingerprintRef.current) {
+        sessionsFingerprintRef.current = fp;
+        setSessions(next);
+      }
     } finally {
-      setLoading(false);
+      if (!opts?.silent) setLoading(false);
     }
   }, [bookingId, isHourly, session?.access_token]);
 
   useEffect(() => {
     load();
   }, [load]);
+
+  // Live sync while modal is open (other party submits / approves hours)
+  useEffect(() => {
+    if (!isHourly || !session?.access_token) return;
+    const poll = () => load({ silent: true });
+    const interval = setInterval(poll, LIVE_POLL_MS);
+    return () => clearInterval(interval);
+  }, [isHourly, session?.access_token, load]);
+
+  useEffect(() => {
+    if (approvedHoursRef.current === approvedHoursTotal) return;
+    approvedHoursRef.current = approvedHoursTotal;
+    load({ silent: true });
+  }, [approvedHoursTotal, load]);
 
   if (!isHourly) return null;
 
@@ -99,31 +155,56 @@ export default function WorkSessionsPanel({
         toast.error(err.message || t("workSessions.error"));
         return false;
       }
-      await load();
+      await load({ silent: true });
       onUpdated?.();
-      setHoursInput("");
-      setModifyHours("");
-      setActiveSession(null);
+      clearHoursInput();
+      clearModifyInput();
       return true;
     } finally {
       setSaving(false);
     }
   };
 
-  const parseHours = (raw: string) => {
-    const hours = Number(raw);
-    if (!Number.isFinite(hours) || hours <= 0 || hours > 24) {
+  const parseHoursMinutes = (hoursStr: string, minutesStr: string) => {
+    const total = parseHoursMinutesInput(hoursStr, minutesStr);
+    if (total == null) {
       toast.error(t("workSessions.invalidHours"));
       return null;
     }
-    return hours;
+    return total;
+  };
+
+  const activateSessionInput = (sessionId: string, decimal?: number | null) => {
+    setActiveSession(sessionId);
+    if (activeSession !== sessionId) {
+      const parts = partsToInputStrings(decimal);
+      setHoursPart(parts.hours);
+      setMinutesPart(parts.minutes);
+    }
+  };
+
+  const activateModifyInput = (sessionId: string, decimal?: number | null) => {
+    setModifySession(sessionId);
+    if (modifySession !== sessionId) {
+      const parts = partsToInputStrings(decimal);
+      setModifyHoursPart(parts.hours);
+      setModifyMinutesPart(parts.minutes);
+    }
+  };
+
+  const sessionHoursForSubmit = (s: WorkSession) => {
+    if (activeSession === s.id) {
+      return parseHoursMinutes(hoursPart, minutesPart);
+    }
+    if (s.hours_worker != null) return s.hours_worker;
+    return parseHoursMinutes(hoursPart, minutesPart);
   };
 
   const handleCreate = () => apiPost("/", { booking_id: bookingId, title: t("workSessions.defaultTitle") });
 
   const handleCreateAndSubmit = async () => {
     if (!session?.access_token || userRole !== "worker" || !canEdit) return;
-    const hours = parseHours(hoursInput);
+    const hours = parseHoursMinutes(hoursPart, minutesPart);
     if (hours == null) return;
 
     setSaving(true);
@@ -159,9 +240,9 @@ export default function WorkSessionsPanel({
         return;
       }
       toast.success(t("workSessions.submittedSuccess"));
-      await load();
+      await load({ silent: true });
       onUpdated?.();
-      setHoursInput("");
+      clearHoursInput();
     } finally {
       setSaving(false);
     }
@@ -170,14 +251,32 @@ export default function WorkSessionsPanel({
   const workerCanSubmitOnSession = (status: string) =>
     canEdit && userRole === "worker" && ["scheduled", "pending_worker"].includes(status);
 
+  const displayParts = (sessionId: string, decimal: number | null | undefined) => {
+    if (activeSession === sessionId) {
+      return { hours: hoursPart, minutes: minutesPart };
+    }
+    return partsToInputStrings(decimal);
+  };
+
+  const displayModifyParts = (sessionId: string, decimal: number | null | undefined) => {
+    if (modifySession === sessionId) {
+      return { hours: modifyHoursPart, minutes: modifyMinutesPart };
+    }
+    return partsToInputStrings(decimal);
+  };
+
+  const hasHoursInput = hoursPart.trim() !== "" || minutesPart.trim() !== "";
+  const hasModifyInput = modifyHoursPart.trim() !== "" || modifyMinutesPart.trim() !== "";
+
   return (
     <div className="space-y-4">
       <div className="flex items-start justify-between gap-2">
         <div>
           <h3 className="text-sm font-semibold text-gray-900">{t("workSessions.title")}</h3>
+          <p className="text-xs text-gray-500 mt-1 leading-relaxed">{t("workSessions.hourlyBillingHint")}</p>
           {approvedTotal > 0 && (
             <p className="text-xs text-green-700 mt-0.5 font-medium">
-              {t("workSessions.totalApproved", { hours: approvedTotal })}
+              {t("workSessions.totalApproved", { duration: formatWorkDuration(approvedTotal, t) })}
             </p>
           )}
         </div>
@@ -198,24 +297,21 @@ export default function WorkSessionsPanel({
             {userRole === "worker" ? t("workSessions.emptyWorker") : t("workSessions.emptyClient")}
           </p>
           {canEdit && userRole === "worker" && (
-            <div className="flex gap-2 items-end rounded-lg border border-dashed border-gray-200 bg-gray-50 p-3">
-              <div className="flex-1 space-y-1">
-                <Label className="text-xs">{t("workSessions.hoursLabel")}</Label>
-                <Input
-                  type="number"
-                  min={0.25}
-                  max={24}
-                  step={0.25}
-                  value={hoursInput}
-                  onChange={(e) => setHoursInput(e.target.value)}
-                  placeholder="5"
-                />
-              </div>
+            <div className="flex flex-col sm:flex-row gap-2 sm:items-end rounded-lg border border-dashed border-gray-200 bg-gray-50 p-3">
+              <HoursMinutesInput
+                idPrefix="empty-submit"
+                label={t("workSessions.hoursLabel")}
+                hours={hoursPart}
+                minutes={minutesPart}
+                onHoursChange={setHoursPart}
+                onMinutesChange={setMinutesPart}
+                className="flex-1"
+              />
               <Button
                 type="button"
                 size="sm"
                 className="bg-green-700 hover:bg-green-800 shrink-0"
-                disabled={saving || !hoursInput}
+                disabled={saving || !hasHoursInput}
                 onClick={handleCreateAndSubmit}
               >
                 {t("workSessions.submitHours")}
@@ -225,147 +321,170 @@ export default function WorkSessionsPanel({
         </div>
       ) : (
         <ul className="space-y-3">
-          {sessions.map((s) => (
-            <li key={s.id} className="rounded-xl border border-gray-200 p-3 space-y-2">
-              <div className="flex items-start justify-between gap-2">
-                <div>
-                  <p className="font-medium text-gray-900">{s.title}</p>
-                  {s.hours_final != null && (
-                    <p className="text-sm text-green-700">
-                      {t("workSessions.approvedHours", { hours: s.hours_final })}
-                    </p>
-                  )}
-                  {s.hours_worker != null && s.status !== "approved" && (
-                    <p className="text-xs text-gray-500">
-                      {t("workSessions.submittedHours", { hours: s.hours_worker })}
-                    </p>
-                  )}
-                </div>
-                <span
-                  className={cn(
-                    "text-xs px-2 py-0.5 rounded-full font-medium",
-                    STATUS_CLASS[s.status] ?? STATUS_CLASS.scheduled,
-                  )}
-                >
-                  {t(`workSessions.status.${s.status}`, s.status)}
-                </span>
-              </div>
+          {sessions.map((s) => {
+            const inputParts = displayParts(s.id, s.hours_worker);
+            const modifyParts = displayModifyParts(s.id, s.hours_worker);
+            const clientProposal = s.hours_client ?? s.hours_worker;
 
-              {workerCanSubmitOnSession(s.status) && (
-                <div className="flex gap-2 items-end">
-                  <div className="flex-1 space-y-1">
-                    <Label className="text-xs">{t("workSessions.hoursLabel")}</Label>
-                    <Input
-                      type="number"
-                      min={0.25}
-                      max={24}
-                      step={0.25}
-                      value={activeSession === s.id ? hoursInput : String(s.hours_worker ?? "")}
-                      onChange={(e) => {
-                        setActiveSession(s.id);
-                        setHoursInput(e.target.value);
-                      }}
-                      placeholder="2"
-                    />
+            return (
+              <li key={s.id} className="rounded-xl border border-gray-200 p-3 space-y-2">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <p className="font-medium text-gray-900">{s.title}</p>
+                    {s.hours_final != null && (
+                      <p className="text-sm text-green-700">
+                        {t("workSessions.approvedHours", {
+                          duration: formatWorkDuration(s.hours_final, t),
+                        })}
+                      </p>
+                    )}
+                    {s.hours_worker != null && s.status !== "approved" && (
+                      <p className="text-xs text-gray-500">
+                        {t("workSessions.submittedHours", {
+                          duration: formatWorkDuration(s.hours_worker, t),
+                        })}
+                      </p>
+                    )}
                   </div>
-                  <Button
-                    type="button"
-                    size="sm"
-                    className="bg-green-700 hover:bg-green-800 shrink-0"
-                    disabled={saving}
-                    onClick={() => {
-                      const hours = parseHours(hoursInput || String(s.hours_worker ?? ""));
-                      if (hours != null) apiPost(`/${s.id}/submit`, { hours });
-                    }}
+                  <span
+                    className={cn(
+                      "text-xs px-2 py-0.5 rounded-full font-medium",
+                      STATUS_CLASS[s.status] ?? STATUS_CLASS.scheduled,
+                    )}
                   >
-                    {t("workSessions.submitHours")}
-                  </Button>
+                    {t(`workSessions.status.${s.status}`, s.status)}
+                  </span>
                 </div>
-              )}
 
-              {canEdit && userRole === "client" && s.status === "pending_client" && (
-                <div className="space-y-2 border-t border-gray-100 pt-2">
-                  <p className="text-xs text-gray-600">{t("workSessions.clientReviewHint")}</p>
-                  <div className="flex flex-wrap gap-2">
+                {workerCanSubmitOnSession(s.status) && (
+                  <div className="flex flex-col sm:flex-row gap-2 sm:items-end">
+                    <HoursMinutesInput
+                      idPrefix={`submit-${s.id}`}
+                      label={t("workSessions.hoursLabel")}
+                      hours={inputParts.hours}
+                      minutes={inputParts.minutes}
+                      onHoursChange={(value) => {
+                        activateSessionInput(s.id, s.hours_worker);
+                        setHoursPart(value);
+                      }}
+                      onMinutesChange={(value) => {
+                        activateSessionInput(s.id, s.hours_worker);
+                        setMinutesPart(value);
+                      }}
+                      onFocus={() => activateSessionInput(s.id, s.hours_worker)}
+                      className="flex-1"
+                    />
                     <Button
                       type="button"
                       size="sm"
-                      className="bg-green-700 hover:bg-green-800"
+                      className="bg-green-700 hover:bg-green-800 shrink-0"
                       disabled={saving}
-                      onClick={() => apiPost(`/${s.id}/client-respond`, { action: "approve" })}
-                    >
-                      {t("workSessions.approve")}
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      disabled={saving}
-                      onClick={() => apiPost(`/${s.id}/client-respond`, { action: "contest" })}
-                    >
-                      {t("workSessions.contest")}
-                    </Button>
-                  </div>
-                  <div className="flex gap-2 items-end">
-                    <div className="flex-1 space-y-1">
-                      <Label className="text-xs">{t("workSessions.modifyHours")}</Label>
-                      <Input
-                        type="number"
-                        min={0.25}
-                        max={24}
-                        step={0.25}
-                        value={modifyHours}
-                        onChange={(e) => setModifyHours(e.target.value)}
-                        placeholder={String(s.hours_worker ?? "")}
-                      />
-                    </div>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="secondary"
-                      disabled={saving || !modifyHours}
                       onClick={() => {
-                        const hours = parseHours(modifyHours);
-                        if (hours != null) {
-                          apiPost(`/${s.id}/client-respond`, { action: "modify", hours });
-                        }
+                        const hours = sessionHoursForSubmit(s);
+                        if (hours != null) apiPost(`/${s.id}/submit`, { hours });
                       }}
                     >
-                      {t("workSessions.proposeChange")}
+                      {t("workSessions.submitHours")}
                     </Button>
                   </div>
-                </div>
-              )}
+                )}
 
-              {canEdit && userRole === "worker" && s.status === "pending_worker" && (
-                <div className="space-y-2 border-t border-gray-100 pt-2">
-                  <p className="text-xs text-gray-600">
-                    {t("workSessions.workerReviewHint", { hours: s.hours_client ?? s.hours_worker })}
-                  </p>
-                  <div className="flex gap-2">
-                    <Button
-                      type="button"
-                      size="sm"
-                      className="bg-green-700 hover:bg-green-800"
-                      disabled={saving}
-                      onClick={() => apiPost(`/${s.id}/worker-respond`, { action: "approve" })}
-                    >
-                      {t("workSessions.acceptModification")}
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      disabled={saving}
-                      onClick={() => apiPost(`/${s.id}/worker-respond`, { action: "dispute" })}
-                    >
-                      {t("workSessions.dispute")}
-                    </Button>
+                {canEdit && userRole === "client" && s.status === "pending_client" && (
+                  <div className="space-y-2 border-t border-gray-100 pt-2">
+                    <p className="text-xs text-gray-600">{t("workSessions.clientReviewHint")}</p>
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        className="bg-green-700 hover:bg-green-800"
+                        disabled={saving}
+                        onClick={() => apiPost(`/${s.id}/client-respond`, { action: "approve" })}
+                      >
+                        {t("workSessions.approve")}
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        disabled={saving}
+                        onClick={() => apiPost(`/${s.id}/client-respond`, { action: "contest" })}
+                      >
+                        {t("workSessions.contest")}
+                      </Button>
+                    </div>
+                    <div className="flex flex-col sm:flex-row gap-2 sm:items-end">
+                      <HoursMinutesInput
+                        idPrefix={`modify-${s.id}`}
+                        label={t("workSessions.modifyHours")}
+                        hours={modifyParts.hours}
+                        minutes={modifyParts.minutes}
+                        onHoursChange={(value) => {
+                          activateModifyInput(s.id, s.hours_worker);
+                          setModifyHoursPart(value);
+                        }}
+                        onMinutesChange={(value) => {
+                          activateModifyInput(s.id, s.hours_worker);
+                          setModifyMinutesPart(value);
+                        }}
+                        onFocus={() => activateModifyInput(s.id, s.hours_worker)}
+                        className="flex-1"
+                      />
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="secondary"
+                        disabled={saving || !hasModifyInput}
+                        onClick={() => {
+                          const hours =
+                            modifySession === s.id
+                              ? parseHoursMinutes(modifyHoursPart, modifyMinutesPart)
+                              : parseHoursMinutes(
+                                  partsToInputStrings(s.hours_worker).hours,
+                                  partsToInputStrings(s.hours_worker).minutes,
+                                );
+                          if (hours != null) {
+                            apiPost(`/${s.id}/client-respond`, { action: "modify", hours });
+                          }
+                        }}
+                      >
+                        {t("workSessions.proposeChange")}
+                      </Button>
+                    </div>
                   </div>
-                </div>
-              )}
-            </li>
-          ))}
+                )}
+
+                {canEdit && userRole === "worker" && s.status === "pending_worker" && clientProposal != null && (
+                  <div className="space-y-2 border-t border-gray-100 pt-2">
+                    <p className="text-xs text-gray-600">
+                      {t("workSessions.workerReviewHint", {
+                        duration: formatWorkDuration(clientProposal, t),
+                      })}
+                    </p>
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        className="bg-green-700 hover:bg-green-800"
+                        disabled={saving}
+                        onClick={() => apiPost(`/${s.id}/worker-respond`, { action: "approve" })}
+                      >
+                        {t("workSessions.acceptModification")}
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        disabled={saving}
+                        onClick={() => apiPost(`/${s.id}/worker-respond`, { action: "dispute" })}
+                      >
+                        {t("workSessions.dispute")}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </li>
+            );
+          })}
         </ul>
       )}
     </div>

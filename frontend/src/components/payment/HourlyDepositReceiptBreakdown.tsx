@@ -4,6 +4,7 @@ import { Separator } from "@/components/ui/separator";
 import { useTranslation } from "react-i18next";
 import { formatTaxRate } from "@/lib/taxes";
 import { isWorkBasedPricingMode } from "@/lib/hourlyPayment";
+import { formatHourlyRateSubtext } from "@/lib/workHours";
 
 export type HourlyDepositReceiptProps = {
   depositPaid: number;
@@ -48,7 +49,7 @@ export function HourlyDepositReceiptBreakdown({
 
   const hourlySubtext =
     hourlyRate != null && hoursLabel != null
-      ? `${fmt(hourlyRate)} $/h × ${hoursLabel} h`
+      ? formatHourlyRateSubtext(hourlyRate, hoursLabel, fmt, t)
       : null;
 
   return (

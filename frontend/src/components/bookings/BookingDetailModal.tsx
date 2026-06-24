@@ -36,6 +36,7 @@ import { SplitDepositFullReceiptBreakdown } from "@/components/payment/SplitDepo
 import CancelConfirmPanel from "@/components/bookings/CancelConfirmPanel";
 import { BookingCalendarPanel } from "@/components/calendar/CalendarPageClient";
 import WorkSessionsPanel from "@/components/bookings/WorkSessionsPanel";
+import { formatHourlyRateSubtext, resolveBillingHours } from "@/lib/workHours";
 import {
   computeHourlyBalanceDueCents,
   needsBookingPayment,
@@ -838,8 +839,11 @@ export default function BookingDetailModal({
 
             {/* Payment breakdown — top */}
             {(() => {
+                const isHourlyModeEarly = normalizePricingMode(booking.pricing_mode) === "hourly";
+                const hasApprovedHours =
+                  isHourlyModeEarly && (Number(booking.approved_hours_total) || 0) > 0;
                 const base =
-                  booking.status === "completed"
+                  booking.status === "completed" || hasApprovedHours
                     ? getEffectiveBookingPrice(booking)
                     : resolveBookingCheckoutBase(booking);
                 const origBase = resolveBookingCheckoutBase({
@@ -861,7 +865,11 @@ export default function BookingDetailModal({
                 const workerReceives  = base * 0.80;
                 const isHourlyMode    = normalizePricingMode(booking.pricing_mode) === "hourly";
                 const hourlyRate      = isHourlyMode ? Number(booking.price) : null;
-                const estimatedH      = isHourlyMode && booking.estimated_hours ? Number(booking.estimated_hours) : null;
+                const billingHours    = isHourlyMode ? resolveBillingHours(booking) : null;
+                const hourlySubtext   =
+                  isHourlyMode && hourlyRate != null && billingHours != null
+                    ? formatHourlyRateSubtext(hourlyRate, billingHours, fmt, t)
+                    : null;
                 const priceRangeBounds = getBookingPriceRangeBounds(booking);
                 const commissionRange = formatBookingFeeComponentRange(booking, taxRate, "commission");
                 const taxesRange = formatBookingFeeComponentRange(booking, taxRate, "taxes");
@@ -942,8 +950,8 @@ export default function BookingDetailModal({
                             <div className="flex justify-between text-gray-600">
                               <div>
                                 <div>{t("serviceDetail.servicePrice")}</div>
-                                {isHourlyMode && hourlyRate != null && estimatedH != null && (
-                                  <div className="text-xs text-gray-400">{fmt(hourlyRate)} $/h × {estimatedH} h</div>
+                                {hourlySubtext && (
+                                  <div className="text-xs text-gray-400">{hourlySubtext}</div>
                                 )}
                               </div>
                               <span className="font-medium">{fmt(base)} $</span>
@@ -1037,8 +1045,8 @@ export default function BookingDetailModal({
                           <div className="flex justify-between text-gray-600">
                             <div>
                               <div>{t("serviceDetail.servicePrice")}</div>
-                              {isHourlyMode && hourlyRate != null && estimatedH != null && (
-                                <div className="text-xs text-gray-400">{fmt(hourlyRate)} $/h × {estimatedH} h</div>
+                              {hourlySubtext && (
+                                <div className="text-xs text-gray-400">{hourlySubtext}</div>
                               )}
                             </div>
                             <span className="font-medium">
@@ -1110,8 +1118,8 @@ export default function BookingDetailModal({
                             <div className="flex justify-between text-gray-600">
                               <div>
                                 <div>{t("serviceDetail.servicePrice")}</div>
-                                {isHourlyMode && hourlyRate != null && estimatedH != null && (
-                                  <div className="text-xs text-gray-400">{fmt(hourlyRate)} $/h × {estimatedH} h</div>
+                                {hourlySubtext && (
+                                  <div className="text-xs text-gray-400">{hourlySubtext}</div>
                                 )}
                               </div>
                               <span className="font-medium">{fmt(base)} $</span>
@@ -1199,8 +1207,8 @@ export default function BookingDetailModal({
                           <div className="flex justify-between text-gray-600">
                             <div>
                               <div>{t("serviceDetail.servicePrice")}</div>
-                              {isHourlyMode && hourlyRate != null && estimatedH != null && (
-                                <div className="text-xs text-gray-400">{fmt(hourlyRate)} $/h × {estimatedH} h</div>
+                              {hourlySubtext && (
+                                <div className="text-xs text-gray-400">{hourlySubtext}</div>
                               )}
                             </div>
                             <span className="font-medium">
@@ -1308,8 +1316,8 @@ export default function BookingDetailModal({
                           <div className="flex justify-between text-gray-600">
                             <div>
                               <div>{t("serviceDetail.servicePrice")}</div>
-                              {isHourlyMode && hourlyRate != null && estimatedH != null && (
-                                <div className="text-xs text-gray-400">{fmt(hourlyRate)} $/h × {estimatedH} h</div>
+                              {hourlySubtext && (
+                                <div className="text-xs text-gray-400">{hourlySubtext}</div>
                               )}
                             </div>
                             <span className="font-medium">
@@ -1355,8 +1363,8 @@ export default function BookingDetailModal({
                           <div className="flex justify-between text-gray-600">
                             <div>
                               <div>{t("serviceDetail.servicePrice")}</div>
-                              {isHourlyMode && hourlyRate != null && estimatedH != null && (
-                                <div className="text-xs text-gray-400">{fmt(hourlyRate)} $/h × {estimatedH} h</div>
+                              {hourlySubtext && (
+                                <div className="text-xs text-gray-400">{hourlySubtext}</div>
                               )}
                             </div>
                             <span className="font-medium">{servicePriceLine}</span>
@@ -1423,8 +1431,8 @@ export default function BookingDetailModal({
                       <div className="flex justify-between text-gray-600">
                         <div>
                           <div>{t("serviceDetail.servicePrice")}</div>
-                          {isHourlyMode && hourlyRate != null && estimatedH != null && (
-                            <div className="text-xs text-gray-400">{fmt(hourlyRate)} $/h × {estimatedH} h</div>
+                          {hourlySubtext && (
+                            <div className="text-xs text-gray-400">{hourlySubtext}</div>
                           )}
                         </div>
                         <span className="font-medium">
@@ -1607,6 +1615,7 @@ export default function BookingDetailModal({
                   bookingStatus={booking.status}
                   userRole={userRole}
                   canEdit={["accepted", "active"].includes(booking.status)}
+                  isHourly={normalizePricingMode(booking.pricing_mode) === "hourly"}
                 />
               </div>
             )}

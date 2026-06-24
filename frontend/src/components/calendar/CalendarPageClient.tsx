@@ -15,6 +15,8 @@ import { toast } from "sonner";
 import DateTimeField from "@/components/ui/DateTimeField";
 import CalendarEventSchedule from "@/components/calendar/CalendarEventSchedule";
 import ScheduleConfirmStatus, { ScheduleOutcomeBanner } from "@/components/calendar/ScheduleConfirmStatus";
+import BookingDetailModal, { type BookingDetail } from "@/components/bookings/BookingDetailModal";
+import { useStartConversation } from "@/hooks/useStartConversation";
 
 export type CalendarEvent = {
   id: string;
@@ -68,8 +70,36 @@ export default function CalendarPageClient() {
   const [eventsLoading, setEventsLoading] = useState(true);
   const [selectedDay, setSelectedDay] = useState<Date | null>(new Date());
   const [dayPage, setDayPage] = useState(0);
+  const [detailBooking, setDetailBooking] = useState<{
+    booking: BookingDetail;
+    role: "worker" | "client";
+  } | null>(null);
+  const [detailLoadingId, setDetailLoadingId] = useState<string | null>(null);
+
+  const { startConversation } = useStartConversation();
 
   const EVENTS_PER_PAGE = 3;
+
+  const openBookingModal = useCallback(
+    async (event: CalendarEvent) => {
+      if (!session?.access_token) return;
+      setDetailLoadingId(event.booking_id);
+      try {
+        const res = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/bookings/${event.booking_id}`,
+          { headers: { Authorization: `Bearer ${session.access_token}` } },
+        );
+        if (!res.ok) return;
+        const data = (await res.json()) as BookingDetail;
+        const role: "worker" | "client" =
+          event.my_role === "worker" || event.my_role === "client" ? event.my_role : "client";
+        setDetailBooking({ booking: data, role });
+      } finally {
+        setDetailLoadingId(null);
+      }
+    },
+    [session?.access_token],
+  );
 
   const goToMonth = (delta: -1 | 1) => {
     setSlideDirection(delta === -1 ? "prev" : "next");
@@ -260,27 +290,34 @@ export default function CalendarPageClient() {
               <ul className="mt-4 space-y-3">
                 {pagedSelectedEvents.map((event) => (
                   <li key={event.id} className="rounded-xl border border-gray-100 bg-gray-50 p-3">
-                    <Link
-                      href={`/bookings?booking=${event.booking_id}`}
-                      className="font-medium text-gray-900 hover:text-green-700 hover:underline line-clamp-2"
+                    <button
+                      type="button"
+                      onClick={() => openBookingModal(event)}
+                      disabled={detailLoadingId === event.booking_id}
+                      className="w-full text-left rounded-lg transition-colors hover:bg-white/80 disabled:opacity-70"
                     >
-                      {event.title}
-                    </Link>
-                    <CalendarEventSchedule startsAt={event.starts_at} endsAt={event.ends_at} />
-                    {event.location && <p className="mt-1 text-xs text-gray-600">{event.location}</p>}
-                    {event.notes && <p className="mt-1 text-xs text-gray-500">{event.notes}</p>}
-                    <div className="mt-2 flex flex-wrap gap-3">
-                      <Link
-                        href={`/bookings?booking=${event.booking_id}`}
-                        className="text-xs font-medium text-green-700 hover:underline"
+                      <span className="font-medium text-gray-900 hover:text-green-700 line-clamp-2 block">
+                        {event.title}
+                      </span>
+                      <CalendarEventSchedule startsAt={event.starts_at} endsAt={event.ends_at} />
+                      {event.location && <p className="mt-1 text-xs text-gray-600">{event.location}</p>}
+                      {event.notes && <p className="mt-1 text-xs text-gray-500 line-clamp-2">{event.notes}</p>}
+                    </button>
+                    <div className="mt-2 flex flex-wrap items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => openBookingModal(event)}
+                        disabled={detailLoadingId === event.booking_id}
+                        className="text-xs font-medium text-green-700 hover:underline disabled:opacity-60"
                       >
-                        {t("calendar.openBooking")}
-                      </Link>
+                        {detailLoadingId === event.booking_id ? "…" : t("calendar.openBooking")}
+                      </button>
                       <a
                         href={googleCalendarUrl(event)}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-xs font-medium text-green-700 hover:underline"
+                        onClick={(e) => e.stopPropagation()}
                       >
                         {t("calendar.addGoogle")}
                       </a>
@@ -313,6 +350,25 @@ export default function CalendarPageClient() {
           )}
         </div>
       </div>
+
+      {detailBooking && session?.access_token && (
+        <BookingDetailModal
+          booking={detailBooking.booking}
+          userRole={detailBooking.role}
+          accessToken={session.access_token}
+          onClose={() => setDetailBooking(null)}
+          onUpdated={(bookingId, updates) => {
+            setDetailBooking((prev) =>
+              prev ? { ...prev, booking: { ...prev.booking, ...updates } } : prev,
+            );
+            loadEvents();
+          }}
+          onMessage={(userId) => {
+            setDetailBooking(null);
+            startConversation(userId);
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -324,6 +380,7 @@ type BookingCalendarPanelProps = {
   bookingStatus: string;
   userRole: "client" | "worker";
   canEdit: boolean;
+  isHourly?: boolean;
 };
 
 function isScheduleAgreed(event: CalendarEvent) {
@@ -337,6 +394,7 @@ export function BookingCalendarPanel({
   bookingStatus,
   userRole,
   canEdit,
+  isHourly = false,
 }: BookingCalendarPanelProps) {
   const { t, i18n } = useTranslation();
   const { session } = useAuth();
@@ -349,6 +407,11 @@ export function BookingCalendarPanel({
   const [endsAt, setEndsAt] = useState("");
   const [notes, setNotes] = useState("");
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
+
+  const scheduleRangeInvalid = useMemo(() => {
+    if (!startsAt || !endsAt) return false;
+    return new Date(endsAt).getTime() <= new Date(startsAt).getTime();
+  }, [startsAt, endsAt]);
 
   const myConfirmed = (event: CalendarEvent) =>
     userRole === "client" ? !!event.confirmed_by_client : !!event.confirmed_by_worker;
@@ -443,7 +506,14 @@ export function BookingCalendarPanel({
 
   return (
     <div className="space-y-4">
-      <p className="text-xs text-gray-600 leading-relaxed">{t("calendar.scheduleAgreementHint")}</p>
+      <div>
+        <p className="text-xs text-gray-600 leading-relaxed">{t("calendar.scheduleAgreementHint")}</p>
+        {isHourly && (
+          <p className="text-xs text-red-600 leading-relaxed pt-2 mt-2 border-t border-gray-200">
+            {t("calendar.hourlyScheduleBillingHint")}
+          </p>
+        )}
+      </div>
 
       {canEdit && (
         <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 sm:p-4 space-y-4">
@@ -459,9 +529,14 @@ export function BookingCalendarPanel({
               id={`end-${bookingId}`}
               label={t("calendar.endsAt")}
               value={endsAt}
+              min={startsAt || undefined}
+              invalid={scheduleRangeInvalid}
               onChange={setEndsAt}
             />
           </div>
+          {scheduleRangeInvalid && (
+            <p className="text-xs text-red-600 leading-relaxed">{t("calendar.endBeforeStart")}</p>
+          )}
           <div className="space-y-1.5">
             <Label htmlFor={`notes-${bookingId}`}>{t("calendar.notes")}</Label>
             <Textarea
@@ -475,7 +550,7 @@ export function BookingCalendarPanel({
           <Button
             type="button"
             onClick={handleCreate}
-            disabled={saving || !startsAt || !endsAt}
+            disabled={saving || !startsAt || !endsAt || scheduleRangeInvalid}
             className="w-full sm:w-auto bg-green-700 hover:bg-green-800"
           >
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}

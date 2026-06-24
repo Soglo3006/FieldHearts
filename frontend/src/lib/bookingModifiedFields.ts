@@ -39,6 +39,7 @@ export function bookingLiveFingerprint(booking: {
   deposit_type?: string | null;
   deposit_value?: number | string | null;
   last_modified_at?: string | null;
+  approved_hours_total?: number | string | null;
 }): string {
   return JSON.stringify({
     status: booking.status,
@@ -55,5 +56,6 @@ export function bookingLiveFingerprint(booking: {
     deposit_type: booking.deposit_type,
     deposit_value: booking.deposit_value,
     last_modified_at: booking.last_modified_at,
+    approved_hours_total: booking.approved_hours_total,
   });
 }

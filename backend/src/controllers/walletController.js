@@ -31,11 +31,11 @@ export const getWallet = async (req, res) => {
     );
 
     const result = await pool.query(
-      "SELECT balance, total_spent FROM wallets WHERE user_id = $1",
+      "SELECT balance FROM wallets WHERE user_id = $1",
       [userId]
     );
 
-    const wallet = result.rows[0] ?? { balance: 0, total_spent: 0 };
+    const wallet = result.rows[0] ?? { balance: 0 };
 
     // Compute total_earned from credit transactions where user is the worker
     // This always reflects refund adjustments (credit amount is reduced by refundService)
@@ -47,6 +47,25 @@ export const getWallet = async (req, res) => {
       [userId]
     );
     const total_earned = Number(earnedResult.rows[0]?.total_earned ?? 0);
+
+    // Net client spend: debits minus dispute refunds (cancellation updates debit amount in place)
+    const spentResult = await pool.query(
+      `SELECT COALESCE(SUM(
+         CASE
+           WHEN t.type = 'debit' THEN t.amount::numeric
+           WHEN t.type = 'credit' AND (
+             t.description ILIKE '%remboursement%'
+             OR t.description ILIKE '%refund%'
+           ) THEN -t.amount::numeric
+           ELSE 0
+         END
+       ), 0) AS total_spent
+       FROM transactions t
+       JOIN bookings b ON b.id = t.booking_id
+       WHERE t.user_id = $1 AND b.client_id = $1`,
+      [userId]
+    );
+    const total_spent = Number(spentResult.rows[0]?.total_spent ?? 0);
 
     // ── Payout breakdown ──────────────────────────────────────────────────────
     // Dispute window: 3 calendar days after completion
@@ -105,6 +124,7 @@ export const getWallet = async (req, res) => {
     res.json({
       ...wallet,
       total_earned,
+      total_spent,
       available_for_payout: availableForPayout,
       pending_amount: pendingAmount,
       commission_amount: 0,
@@ -235,6 +255,83 @@ export const getApprovedPayoutDetails = async (req, res) => {
     });
   } catch (err) {
     console.error("getApprovedPayoutDetails error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+/** Worker credits that make up total_earned */
+export const getEarnedDetails = async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const result = await pool.query(
+      `SELECT t.id,
+              t.booking_id,
+              t.type,
+              t.amount,
+              t.description,
+              t.other_user_name,
+              t.listing_title,
+              t.created_at
+       FROM transactions t
+       JOIN bookings b ON b.id = t.booking_id
+       WHERE t.user_id = $1 AND t.type = 'credit' AND b.worker_id = $1
+       ORDER BY t.created_at DESC`,
+      [userId],
+    );
+
+    res.json({
+      items: result.rows.map((row) => ({
+        ...row,
+        amount: Number(row.amount),
+      })),
+    });
+  } catch (err) {
+    console.error("getEarnedDetails error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+/** Client debits (and refund credits) that make up total_spent */
+export const getSpentDetails = async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const result = await pool.query(
+      `SELECT t.id,
+              t.booking_id,
+              t.type,
+              t.amount,
+              t.description,
+              t.other_user_name,
+              t.listing_title,
+              t.created_at
+       FROM transactions t
+       JOIN bookings b ON b.id = t.booking_id
+       WHERE t.user_id = $1
+         AND b.client_id = $1
+         AND (
+           t.type = 'debit'
+           OR (
+             t.type = 'credit'
+             AND (
+               t.description ILIKE '%remboursement%'
+               OR t.description ILIKE '%refund%'
+             )
+           )
+         )
+       ORDER BY t.created_at DESC`,
+      [userId],
+    );
+
+    res.json({
+      items: result.rows.map((row) => ({
+        ...row,
+        amount: Number(row.amount),
+      })),
+    });
+  } catch (err) {
+    console.error("getSpentDetails error:", err);
     res.status(500).json({ message: "Server error" });
   }
 };

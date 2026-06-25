@@ -543,7 +543,14 @@
     "disputeDeadline": "Deadline: {{date}}",
     "openDisputeBadge": "Dispute open",
     "noPendingItems": "No bookings in the dispute window.",
-    "amountPaid": "Paid"
+    "amountPaid": "Paid",
+    "earnedModalTitle": "Total earned",
+    "earnedModalHint": "All worker earnings recorded on the platform.",
+    "spentModalTitle": "Total spent",
+    "spentModalHint": "All client payments (deposits, balances, net cancellations), minus refunds.",
+    "noSummaryItems": "No transactions for this total.",
+    "txSelectionTotalLabel": "Amount for selected filters ({{period}} · {{category}})",
+    "txSelectionCount": "{{count}} transaction(s)"
   },
   "post": {
     "title": "Post a Listing",

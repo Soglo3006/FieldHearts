@@ -9,8 +9,6 @@ import Link from "next/link";
 import { useStartConversation } from "@/hooks/useStartConversation";
 import BookingDetailModal, { type BookingDetail } from "@/components/bookings/BookingDetailModal";
 import {
-  ArrowDownCircle,
-  ArrowUpCircle,
   ChevronLeft,
   Clock,
   ChevronRight,
@@ -111,7 +109,255 @@ const TX_CATEGORY_FILTERS: { key: TransactionCategoryFilter; labelKey: string }[
   { key: "other",           labelKey: "wallet.txFilterOther" },
 ];
 
+interface SummaryTransactionItem {
+  id: string;
+  booking_id: string | null;
+  type: "credit" | "debit";
+  amount: number;
+  description: string;
+  other_user_name: string | null;
+  listing_title: string | null;
+  created_at: string;
+}
+
+function WalletSummaryModal({
+  open,
+  onClose,
+  title,
+  hint,
+  total,
+  variant,
+  view,
+  items,
+  loading,
+  page,
+  totalPages,
+  slideDir,
+  onPageChange,
+  onItemClick,
+  itemLoadingId,
+  detailBooking,
+  detailLoading,
+  onBack,
+  accessToken,
+  onBookingUpdated,
+  onMessage,
+  lang,
+  t,
+}: {
+  open: boolean;
+  onClose: () => void;
+  title: string;
+  hint: string;
+  total: number;
+  variant: "earned" | "spent";
+  view: "list" | "detail";
+  items: DisplayWalletTransaction[];
+  loading: boolean;
+  page: number;
+  totalPages: number;
+  slideDir: "prev" | "next";
+  onPageChange: (page: number) => void;
+  onItemClick: (tx: DisplayWalletTransaction) => void;
+  itemLoadingId: string | null;
+  detailBooking: { booking: BookingDetail; role: "worker" | "client" } | null;
+  detailLoading: boolean;
+  onBack: () => void;
+  accessToken?: string;
+  onBookingUpdated: (id: string, updates: Partial<BookingDetail>) => void;
+  onMessage: (userId: string) => void;
+  lang: string;
+  t: (key: string, opts?: Record<string, unknown>) => string;
+}) {
+  if (!open || typeof document === "undefined") return null;
+
+  const isEarned = variant === "earned";
+  const toneClass = isEarned ? "text-green-700" : "text-red-600";
+  const sign = isEarned ? "+" : "−";
+  const isDetail = view === "detail";
+
+  return createPortal(
+    <div className="fixed inset-0 z-50 grid place-items-center p-4 min-h-[100dvh]">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} aria-hidden />
+      <div className={walletModalShellClass(isDetail)}>
+        <div
+          className={cn(
+            "flex min-h-0 w-[200%] transition-transform",
+            WALLET_MODAL_EASE,
+            isDetail ? "-translate-x-1/2" : "translate-x-0",
+          )}
+        >
+          {/* Panel — list */}
+          <div
+            className={cn(
+              "w-1/2 shrink-0 flex flex-col min-h-0",
+              isDetail
+                ? "h-full max-h-[min(85dvh,calc(100dvh-2rem))]"
+                : "max-h-[min(85dvh,calc(100dvh-2rem))]",
+            )}
+          >
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 shrink-0">
+              <h2 className="text-base font-semibold text-gray-900">{title}</h2>
+              <button type="button" title={t("serviceDetail.close")} onClick={onClose} className="text-gray-400 hover:text-gray-600">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="px-5 py-3 border-b border-gray-100 bg-gray-50/80 shrink-0">
+              <p className="text-xs text-gray-500">{hint}</p>
+              <p className={cn("text-2xl font-bold mt-1 tabular-nums", toneClass)}>
+                {sign}{fmt(total)}&nbsp;$
+              </p>
+            </div>
+
+            <div className="overflow-hidden shrink-0">
+              {loading ? (
+                <div className="px-5 py-10 flex justify-center">
+                  <Spinner size="sm" />
+                </div>
+              ) : items.length === 0 ? (
+                <p className="px-5 py-10 text-center text-sm text-gray-400">{t("wallet.noSummaryItems")}</p>
+              ) : (
+                <div className="overflow-hidden">
+                  <ul
+                    key={page}
+                    className={cn(
+                      "divide-y divide-gray-100",
+                      "animate-in fade-in-0 duration-300 ease-out",
+                      slideDir === "next" ? "slide-in-from-right-4" : "slide-in-from-left-4",
+                    )}
+                  >
+                    {items.map((tx) => {
+                      const isCredit = isEarned || tx.type === "credit";
+                      const isRefund = !isEarned && tx.type === "credit";
+                      const showPartBreakdown =
+                        isEarned
+                          ? tx.isGrouped || tx.parts.some((p) => p.category === "deposit_retained")
+                          : !isCredit && (tx.isGrouped || (tx.parts.length === 1 && isDepositOnlyDescription(tx.description)));
+                      const partLine = tx.parts
+                        .map((part) => `${part.label} ${fmt(part.amount)} $`)
+                        .join(t("wallet.txPartsJoin"));
+                      const clickable = !!tx.booking_id;
+                      return (
+                        <li key={tx.id}>
+                          <button
+                            type="button"
+                            disabled={!clickable}
+                            onClick={() => clickable && onItemClick(tx)}
+                            className={cn(
+                              "w-full flex items-center gap-3 px-5 py-3 text-left transition-colors",
+                              clickable ? "hover:bg-gray-50 cursor-pointer" : "cursor-default",
+                            )}
+                          >
+                            <div
+                              className={cn(
+                                "h-9 w-9 rounded-xl flex items-center justify-center shrink-0",
+                                isCredit ? "bg-green-100" : "bg-red-100",
+                              )}
+                            >
+                              {isCredit
+                                ? <TrendingUp className="h-5 w-5 text-green-600" />
+                                : <TrendingDown className="h-5 w-5 text-red-500" />}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-gray-900 truncate">
+                                {tx.listing_title ?? tx.description}
+                              </p>
+                              {showPartBreakdown && (
+                                <p className="text-xs text-gray-500 mt-0.5 truncate">{partLine}</p>
+                              )}
+                              {isRefund && (
+                                <p className="text-xs text-gray-500 mt-0.5 truncate">{tx.description}</p>
+                              )}
+                              <div className="flex items-center gap-1 mt-0.5 flex-wrap">
+                                {tx.other_user_name && (
+                                  <span className="text-xs text-gray-500 truncate">
+                                    {isCredit ? t("wallet.from") : t("wallet.to")}&nbsp;{tx.other_user_name}
+                                  </span>
+                                )}
+                                {tx.other_user_name && <span className="text-xs text-gray-300">·</span>}
+                                <span className="text-xs text-gray-400">{formatDate(tx.created_at, lang)}</span>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <span
+                                className={cn(
+                                  "text-sm font-bold tabular-nums",
+                                  isCredit ? "text-green-700" : "text-red-600",
+                                )}
+                              >
+                                {isCredit ? "+" : "−"}{fmt(tx.amount)}&nbsp;$
+                              </span>
+                              {clickable && (
+                                itemLoadingId === tx.id
+                                  ? <div className="h-4 w-4 rounded-full border-2 border-gray-300 border-t-gray-500 animate-spin" />
+                                  : <ChevronRight className="h-4 w-4 text-gray-400" />
+                              )}
+                            </div>
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              )}
+            </div>
+
+            {!loading && totalPages > 1 && (
+              <div className="flex items-center justify-between gap-3 px-5 py-3 border-t border-gray-100 shrink-0">
+                <button
+                  type="button"
+                  disabled={page <= 1}
+                  onClick={() => onPageChange(Math.max(1, page - 1))}
+                  className="flex items-center gap-1 text-sm text-gray-600 hover:text-gray-900 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  {t("wallet.txPrevPage")}
+                </button>
+                <span className="text-xs text-gray-500 tabular-nums">
+                  {t("wallet.txPageOf", { page, total: totalPages })}
+                </span>
+                <button
+                  type="button"
+                  disabled={page >= totalPages}
+                  onClick={() => onPageChange(Math.min(totalPages, page + 1))}
+                  className="flex items-center gap-1 text-sm text-gray-600 hover:text-gray-900 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  {t("wallet.txNextPage")}
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Panel — booking detail (slide in) */}
+          <div className="w-1/2 shrink-0 flex flex-col min-h-0 h-full max-h-[min(85dvh,calc(100dvh-2rem))]">
+            {isDetail && (
+              detailLoading ? (
+                <WalletDetailLoadingPanel onBack={onBack} backLabel={title} />
+              ) : detailBooking && accessToken ? (
+                <BookingDetailModal
+                  embedded
+                  embeddedBackLabel={title}
+                  booking={detailBooking.booking}
+                  userRole={detailBooking.role}
+                  accessToken={accessToken}
+                  onClose={onClose}
+                  onBack={onBack}
+                  onUpdated={onBookingUpdated}
+                  onMessage={onMessage}
+                />
+              ) : null
+            )}
+          </div>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  );
+}
 const TX_PAGE_SIZE = 6;
+const SUMMARY_MODAL_PAGE_SIZE = 6;
 
 const WALLET_MODAL_EASE = "duration-500 ease-[cubic-bezier(0.32,0.72,0,1)]";
 
@@ -306,6 +552,30 @@ export default function WalletPage() {
   const [approvedItems, setApprovedItems] = useState<ApprovedPayoutItem[]>([]);
   const [approvedDetailLoading, setApprovedDetailLoading] = useState(false);
   const [pendingDetailLoading, setPendingDetailLoading] = useState(false);
+  const [earnedModalOpen, setEarnedModalOpen] = useState(false);
+  const [earnedModalView, setEarnedModalView] = useState<"list" | "detail">("list");
+  const [earnedDetailBooking, setEarnedDetailBooking] = useState<{
+    booking: BookingDetail;
+    role: "worker" | "client";
+  } | null>(null);
+  const [earnedDetailLoading, setEarnedDetailLoading] = useState(false);
+  const [earnedItems, setEarnedItems] = useState<SummaryTransactionItem[]>([]);
+  const [earnedDetailsLoading, setEarnedDetailsLoading] = useState(false);
+  const [earnedPage, setEarnedPage] = useState(1);
+  const [earnedSlideDir, setEarnedSlideDir] = useState<"prev" | "next">("next");
+  const [earnedRowLoading, setEarnedRowLoading] = useState<string | null>(null);
+  const [spentModalOpen, setSpentModalOpen] = useState(false);
+  const [spentModalView, setSpentModalView] = useState<"list" | "detail">("list");
+  const [spentDetailBooking, setSpentDetailBooking] = useState<{
+    booking: BookingDetail;
+    role: "worker" | "client";
+  } | null>(null);
+  const [spentDetailLoading, setSpentDetailLoading] = useState(false);
+  const [spentItems, setSpentItems] = useState<SummaryTransactionItem[]>([]);
+  const [spentDetailsLoading, setSpentDetailsLoading] = useState(false);
+  const [spentPage, setSpentPage] = useState(1);
+  const [spentSlideDir, setSpentSlideDir] = useState<"prev" | "next">("next");
+  const [spentRowLoading, setSpentRowLoading] = useState<string | null>(null);
   const { startConversation } = useStartConversation();
 
   useEffect(() => {
@@ -380,6 +650,38 @@ export default function WalletPage() {
     }
   }, [session?.access_token]);
 
+  const fetchEarnedDetails = useCallback(async () => {
+    if (!session?.access_token) return;
+    setEarnedDetailsLoading(true);
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/wallet/earned-details`, {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      setEarnedItems(Array.isArray(data.items) ? data.items : []);
+    } catch {
+    } finally {
+      setEarnedDetailsLoading(false);
+    }
+  }, [session?.access_token]);
+
+  const fetchSpentDetails = useCallback(async () => {
+    if (!session?.access_token) return;
+    setSpentDetailsLoading(true);
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/wallet/spent-details`, {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      setSpentItems(Array.isArray(data.items) ? data.items : []);
+    } catch {
+    } finally {
+      setSpentDetailsLoading(false);
+    }
+  }, [session?.access_token]);
+
   useEffect(() => {
     if (!session?.access_token || !user) return;
     fetchPendingDetails();
@@ -424,6 +726,74 @@ export default function WalletPage() {
     setApprovedModalView("list");
     setApprovedDetailBooking(null);
     setApprovedDetailLoading(false);
+  };
+
+  const closeEarnedModal = () => {
+    setEarnedModalOpen(false);
+    setEarnedModalView("list");
+    setEarnedDetailBooking(null);
+    setEarnedDetailLoading(false);
+    setEarnedRowLoading(null);
+    setEarnedPage(1);
+    setEarnedSlideDir("next");
+  };
+
+  const openEarnedModal = () => {
+    setEarnedModalView("list");
+    setEarnedDetailBooking(null);
+    setEarnedPage(1);
+    setEarnedSlideDir("next");
+    setEarnedModalOpen(true);
+    fetchEarnedDetails();
+  };
+
+  const backToEarnedList = () => {
+    setEarnedModalView("list");
+    setEarnedDetailBooking(null);
+    setEarnedDetailLoading(false);
+    setEarnedRowLoading(null);
+  };
+
+  const closeSpentModal = () => {
+    setSpentModalOpen(false);
+    setSpentModalView("list");
+    setSpentDetailBooking(null);
+    setSpentDetailLoading(false);
+    setSpentRowLoading(null);
+    setSpentPage(1);
+    setSpentSlideDir("next");
+  };
+
+  const openSpentModal = () => {
+    setSpentModalView("list");
+    setSpentDetailBooking(null);
+    setSpentPage(1);
+    setSpentSlideDir("next");
+    setSpentModalOpen(true);
+    fetchSpentDetails();
+  };
+
+  const backToSpentList = () => {
+    setSpentModalView("list");
+    setSpentDetailBooking(null);
+    setSpentDetailLoading(false);
+    setSpentRowLoading(null);
+  };
+
+  const changeEarnedPage = (next: number) => {
+    setEarnedPage((current) => {
+      if (next === current) return current;
+      setEarnedSlideDir(next > current ? "next" : "prev");
+      return next;
+    });
+  };
+
+  const changeSpentPage = (next: number) => {
+    setSpentPage((current) => {
+      if (next === current) return current;
+      setSpentSlideDir(next > current ? "next" : "prev");
+      return next;
+    });
   };
 
   const handleOpenApprovedBooking = async (bookingId: string) => {
@@ -574,7 +944,7 @@ export default function WalletPage() {
     }
   }, [searchParams, session]);
 
-  useScrollLock(pendingModalOpen || approvedModalOpen);
+  useScrollLock(pendingModalOpen || approvedModalOpen || earnedModalOpen || spentModalOpen);
 
   const groupedTransactions = useMemo(
     () => groupWalletTransactions(transactions, t),
@@ -584,11 +954,60 @@ export default function WalletPage() {
     () => groupedTransactions.filter((tx) => transactionMatchesCategory(tx, txCategoryFilter)),
     [groupedTransactions, txCategoryFilter],
   );
+  const filteredSelectionAmount = useMemo(
+    () =>
+      displayTransactions.reduce((sum, tx) => {
+        const signed = tx.type === "credit" ? Number(tx.amount) : -Number(tx.amount);
+        return sum + signed;
+      }, 0),
+    [displayTransactions],
+  );
   const txTotalPages = Math.max(1, Math.ceil(displayTransactions.length / TX_PAGE_SIZE));
   const pagedTransactions = useMemo(() => {
     const start = (txPage - 1) * TX_PAGE_SIZE;
     return displayTransactions.slice(start, start + TX_PAGE_SIZE);
   }, [displayTransactions, txPage]);
+
+  const earnedDisplayItems = useMemo(() => {
+    const withType = earnedItems.map((item) => ({
+      ...item,
+      type: item.type ?? ("credit" as const),
+    }));
+    return groupWalletTransactions(withType, t);
+  }, [earnedItems, t]);
+  const earnedTotalPages = Math.max(1, Math.ceil(earnedDisplayItems.length / SUMMARY_MODAL_PAGE_SIZE));
+  const pagedEarnedItems = useMemo(() => {
+    const start = (earnedPage - 1) * SUMMARY_MODAL_PAGE_SIZE;
+    return earnedDisplayItems.slice(start, start + SUMMARY_MODAL_PAGE_SIZE);
+  }, [earnedDisplayItems, earnedPage]);
+
+  const spentDisplayItems = useMemo(() => {
+    const debits = spentItems.filter((item) => item.type === "debit");
+    const refunds = spentItems.filter((item) => item.type === "credit");
+    const groupedDebits = groupWalletTransactions(debits, t);
+    const refundRows: DisplayWalletTransaction[] = refunds.map((tx) => ({
+      ...tx,
+      groupedIds: [tx.id],
+      isGrouped: false,
+      parts: [
+        {
+          label: tx.description,
+          amount: Number(tx.amount),
+          sortOrder: 0,
+          category: "refund" as const,
+        },
+      ],
+      categories: ["refund" as const],
+    }));
+    return [...groupedDebits, ...refundRows].sort(
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+    );
+  }, [spentItems, t]);
+  const spentTotalPages = Math.max(1, Math.ceil(spentDisplayItems.length / SUMMARY_MODAL_PAGE_SIZE));
+  const pagedSpentItems = useMemo(() => {
+    const start = (spentPage - 1) * SUMMARY_MODAL_PAGE_SIZE;
+    return spentDisplayItems.slice(start, start + SUMMARY_MODAL_PAGE_SIZE);
+  }, [spentDisplayItems, spentPage]);
 
   useEffect(() => {
     setTxSlideDir("next");
@@ -603,30 +1022,63 @@ export default function WalletPage() {
     });
   };
 
-  const scrollToTransactionHistory = () => {
-    window.setTimeout(() => {
-      document.getElementById("wallet-transaction-history")?.scrollIntoView({
-        behavior: "smooth",
-        block: "start",
+  const handleOpenEarnedBooking = async (tx: DisplayWalletTransaction) => {
+    if (!tx.booking_id || !session?.access_token) return;
+    setEarnedRowLoading(tx.id);
+    setEarnedModalView("detail");
+    setEarnedDetailLoading(true);
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/bookings/${tx.booking_id}`, {
+        headers: { Authorization: `Bearer ${session.access_token}` },
       });
-    }, 0);
+      if (!res.ok) {
+        setEarnedModalView("list");
+        return;
+      }
+      const data = await res.json();
+      setEarnedDetailBooking({ booking: data as BookingDetail, role: "worker" });
+    } catch {
+      setEarnedModalView("list");
+    } finally {
+      setEarnedRowLoading(null);
+      setEarnedDetailLoading(false);
+    }
   };
 
-  const openEarnedDetails = () => {
-    setTxCategoryFilter("received");
-    setTxPage(1);
-    scrollToTransactionHistory();
-  };
-
-  const openSpentDetails = () => {
-    setTxCategoryFilter("all");
-    setTxPage(1);
-    scrollToTransactionHistory();
+  const handleOpenSpentBooking = async (tx: DisplayWalletTransaction) => {
+    if (!tx.booking_id || !session?.access_token) return;
+    setSpentRowLoading(tx.id);
+    setSpentModalView("detail");
+    setSpentDetailLoading(true);
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/bookings/${tx.booking_id}`, {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      if (!res.ok) {
+        setSpentModalView("list");
+        return;
+      }
+      const data = await res.json();
+      setSpentDetailBooking({ booking: data as BookingDetail, role: "client" });
+    } catch {
+      setSpentModalView("list");
+    } finally {
+      setSpentRowLoading(null);
+      setSpentDetailLoading(false);
+    }
   };
 
   useEffect(() => {
     if (txPage > txTotalPages) setTxPage(txTotalPages);
   }, [txPage, txTotalPages]);
+
+  useEffect(() => {
+    if (earnedPage > earnedTotalPages) setEarnedPage(earnedTotalPages);
+  }, [earnedPage, earnedTotalPages]);
+
+  useEffect(() => {
+    if (spentPage > spentTotalPages) setSpentPage(spentTotalPages);
+  }, [spentPage, spentTotalPages]);
 
   if (loading) {
     return (
@@ -783,7 +1235,7 @@ export default function WalletPage() {
                 </p>
                 <button
                   type="button"
-                  onClick={openEarnedDetails}
+                  onClick={openEarnedModal}
                   className="text-xs text-green-700 hover:text-green-900 hover:underline mt-1 font-medium cursor-pointer"
                 >
                   {t("wallet.viewPendingDetail")} →
@@ -805,7 +1257,7 @@ export default function WalletPage() {
                 </p>
                 <button
                   type="button"
-                  onClick={openSpentDetails}
+                  onClick={openSpentModal}
                   className="text-xs text-red-700 hover:text-red-900 hover:underline mt-1 font-medium cursor-pointer"
                 >
                   {t("wallet.viewPendingDetail")} →
@@ -927,6 +1379,28 @@ export default function WalletPage() {
                 </DropdownMenu>
               </div>
             </div>
+            <div className="mt-2.5 rounded-lg border border-gray-100 bg-gray-50 px-3 py-2 flex items-center justify-between gap-2">
+              <p className="text-xs text-gray-500">
+                {t("wallet.txSelectionTotalLabel", {
+                  period: currentPeriodLabel,
+                  category: currentCategoryLabel,
+                })}
+              </p>
+              <div className="text-right">
+                <p
+                  className={cn(
+                    "text-sm font-semibold tabular-nums",
+                    filteredSelectionAmount >= 0 ? "text-green-700" : "text-red-600",
+                  )}
+                >
+                  {filteredSelectionAmount >= 0 ? "+" : "−"}
+                  {fmt(Math.abs(filteredSelectionAmount))}&nbsp;$
+                </p>
+                <p className="text-[11px] text-gray-400">
+                  {t("wallet.txSelectionCount", { count: displayTransactions.length })}
+                </p>
+              </div>
+            </div>
           </CardHeader>
 
           <Separator />
@@ -1002,15 +1476,15 @@ export default function WalletPage() {
                 >
                   {/* Icon */}
                   <div
-                    className={`h-8 w-8 sm:h-9 sm:w-9 rounded-full flex items-center justify-center shrink-0 ${
+                    className={`h-8 w-8 sm:h-9 sm:w-9 rounded-xl flex items-center justify-center shrink-0 ${
                       tx.type === "credit" ? "bg-green-100" : "bg-red-100"
                     }`}
                   >
                     {isPayout
                       ? <Banknote className="h-4 w-4 sm:h-5 sm:w-5 text-red-500" />
                       : tx.type === "credit"
-                        ? <ArrowDownCircle className="h-4 w-4 sm:h-5 sm:w-5 text-green-600" />
-                        : <ArrowUpCircle className="h-4 w-4 sm:h-5 sm:w-5 text-red-500" />
+                        ? <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-green-600" />
+                        : <TrendingDown className="h-4 w-4 sm:h-5 sm:w-5 text-red-500" />
                     }
                   </div>
 
@@ -1343,6 +1817,74 @@ export default function WalletPage() {
         document.body,
       )}
 
+      <WalletSummaryModal
+        open={earnedModalOpen}
+        onClose={closeEarnedModal}
+        title={t("wallet.earnedModalTitle")}
+        hint={t("wallet.earnedModalHint")}
+        total={wallet?.total_earned ?? 0}
+        variant="earned"
+        view={earnedModalView}
+        items={pagedEarnedItems}
+        loading={earnedDetailsLoading}
+        page={earnedPage}
+        totalPages={earnedTotalPages}
+        slideDir={earnedSlideDir}
+        onPageChange={changeEarnedPage}
+        onItemClick={handleOpenEarnedBooking}
+        itemLoadingId={earnedRowLoading}
+        detailBooking={earnedDetailBooking}
+        detailLoading={earnedDetailLoading}
+        onBack={backToEarnedList}
+        accessToken={session?.access_token}
+        onBookingUpdated={(id, updates) => {
+          setEarnedDetailBooking((prev) =>
+            prev ? { ...prev, booking: { ...prev.booking, ...updates } } : prev,
+          );
+          fetchEarnedDetails();
+        }}
+        onMessage={(userId) => {
+          closeEarnedModal();
+          startConversation(userId);
+        }}
+        lang={lang}
+        t={t}
+      />
+
+      <WalletSummaryModal
+        open={spentModalOpen}
+        onClose={closeSpentModal}
+        title={t("wallet.spentModalTitle")}
+        hint={t("wallet.spentModalHint")}
+        total={wallet?.total_spent ?? 0}
+        variant="spent"
+        view={spentModalView}
+        items={pagedSpentItems}
+        loading={spentDetailsLoading}
+        page={spentPage}
+        totalPages={spentTotalPages}
+        slideDir={spentSlideDir}
+        onPageChange={changeSpentPage}
+        onItemClick={handleOpenSpentBooking}
+        itemLoadingId={spentRowLoading}
+        detailBooking={spentDetailBooking}
+        detailLoading={spentDetailLoading}
+        onBack={backToSpentList}
+        accessToken={session?.access_token}
+        onBookingUpdated={(id, updates) => {
+          setSpentDetailBooking((prev) =>
+            prev ? { ...prev, booking: { ...prev.booking, ...updates } } : prev,
+          );
+          fetchSpentDetails();
+        }}
+        onMessage={(userId) => {
+          closeSpentModal();
+          startConversation(userId);
+        }}
+        lang={lang}
+        t={t}
+      />
+
       {/* Payout detail modal */}
       {payoutModal && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-black/40 backdrop-blur-sm">
@@ -1350,7 +1892,12 @@ export default function WalletPage() {
             {/* Header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 shrink-0">
               <h2 className="text-base font-semibold text-gray-900">{t("wallet.payoutDetails")}</h2>
-              <button onClick={() => setPayoutModal(null)} className="text-gray-400 hover:text-gray-600">
+              <button
+                type="button"
+                title={t("serviceDetail.close")}
+                onClick={() => setPayoutModal(null)}
+                className="text-gray-400 hover:text-gray-600"
+              >
                 <X className="h-5 w-5" />
               </button>
             </div>

@@ -539,7 +539,14 @@
     "disputeDeadline": "Limite : {{date}}",
     "openDisputeBadge": "Litige ouvert",
     "noPendingItems": "Aucune réservation dans la fenêtre de litige.",
-    "amountPaid": "Payé"
+    "amountPaid": "Payé",
+    "earnedModalTitle": "Total gagné",
+    "earnedModalHint": "Tous vos revenus prestataire enregistrés sur la plateforme.",
+    "spentModalTitle": "Total dépensé",
+    "spentModalHint": "Tous vos paiements client (dépôts, soldes, annulations nettes), moins les remboursements.",
+    "noSummaryItems": "Aucune transaction pour ce total.",
+    "txSelectionTotalLabel": "Montant selon les filtres ({{period}} · {{category}})",
+    "txSelectionCount": "{{count}} transaction(s)"
   },
   "post": {
     "title": "Publier une annonce",

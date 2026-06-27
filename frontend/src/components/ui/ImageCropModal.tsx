@@ -81,7 +81,14 @@ export default function ImageCropModal({
           </button>
         </div>
 
-        <div className={cropAreaClass}>
+        <div
+          className={cropAreaClass}
+          onWheel={(e) => {
+            e.preventDefault();
+            const delta = e.deltaY > 0 ? -0.1 : 0.1;
+            setZoom((z) => Math.min(maxZoom, Math.max(minZoom, +(z + delta).toFixed(2))));
+          }}
+        >
           <Cropper
             image={image}
             crop={crop}
@@ -91,6 +98,7 @@ export default function ImageCropModal({
             minZoom={minZoom}
             maxZoom={maxZoom}
             showGrid={false}
+            zoomWithScroll={false}
             onCropChange={setCrop}
             onZoomChange={setZoom}
             onCropComplete={(_, px) => setCroppedAreaPixels(px)}

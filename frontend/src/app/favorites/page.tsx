@@ -9,12 +9,15 @@ import { AspectRatio } from "@/components/ui/aspect-ratio";
 import AppImage from "@/components/ui/AppImage";
 import { useAuth } from "@/contexts/AuthContext";
 import { getPublicServiceLocation } from "@/lib/serviceLocation";
-import { resolveListingTitle, type ServiceLikeWithI18n } from "@/lib/serviceListingI18n";
-import ListingLangPills from "@/components/ui/ListingLangPills";
+import { type ServiceLikeWithI18n } from "@/lib/serviceListingI18n";
 import { formatListingPriceLine } from "@/lib/listingPrice";
 import ProfileCompletionRequiredScreen from "@/components/profile/ProfileCompletionRequiredScreen";
 import { useMyProfile } from "@/hooks/useMyProfile";
 import { isProfileDetailsIncomplete } from "@/lib/onboardingSteps";
+import BookingSectionPagination from "@/components/bookings/BookingSectionPagination";
+import { cn } from "@/lib/utils";
+
+const FAVORITES_PAGE_SIZE = 4;
 
 interface FavoriteService extends Pick<ServiceLikeWithI18n, "language" | "translations"> {
   id: string;
@@ -34,13 +37,33 @@ interface FavoriteService extends Pick<ServiceLikeWithI18n, "language" | "transl
 }
 
 export default function FavoritesPage() {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const { user, session } = useAuth();
   const { profile, loading: profileLoading } = useMyProfile();
   const [items, setItems] = useState<FavoriteService[]>([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [slideDir, setSlideDir] = useState<"prev" | "next">("next");
 
   const token = session?.access_token;
+  const totalPages = Math.max(1, Math.ceil(items.length / FAVORITES_PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const pagedItems = items.slice(
+    (safePage - 1) * FAVORITES_PAGE_SIZE,
+    safePage * FAVORITES_PAGE_SIZE,
+  );
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
+
+  const changePage = (next: number) => {
+    setPage((current) => {
+      if (next === current) return current;
+      setSlideDir(next > current ? "next" : "prev");
+      return next;
+    });
+  };
 
   useEffect(() => {
     const load = async () => {
@@ -158,8 +181,16 @@ export default function FavoritesPage() {
             </Link>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {items.map((s) => (
+          <>
+            <div
+              key={safePage}
+              className={cn(
+                "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4",
+                "animate-in fade-in-0 duration-300 ease-out",
+                slideDir === "next" ? "slide-in-from-right-4" : "slide-in-from-left-4",
+              )}
+            >
+              {pagedItems.map((s) => (
               <div key={s.id} className="border rounded-xl shadow-sm bg-white flex flex-col overflow-hidden hover:shadow-lg transition-all">
                 <Link href={`/serviceDetail/${s.id}`} className="block">
                   <AspectRatio ratio={16 / 9}>
@@ -207,7 +238,14 @@ export default function FavoritesPage() {
                 </div>
               </div>
             ))}
-          </div>
+            </div>
+            <BookingSectionPagination
+              page={safePage}
+              totalPages={totalPages}
+              onPrevious={() => changePage(safePage - 1)}
+              onNext={() => changePage(safePage + 1)}
+            />
+          </>
         )}
       </main>
     </div>

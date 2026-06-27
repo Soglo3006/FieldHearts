@@ -190,27 +190,26 @@ function WalletSummaryModal({
           {/* Panel — list */}
           <div
             className={cn(
-              "w-1/2 shrink-0 flex flex-col min-h-0",
-              isDetail
-                ? "h-full max-h-[min(85dvh,calc(100dvh-2rem))]"
-                : "max-h-[min(85dvh,calc(100dvh-2rem))]",
+              "w-1/2 shrink-0 grid min-h-0 max-h-[min(85dvh,calc(100dvh-2rem))]",
+              "grid-rows-[auto_auto_minmax(0,1fr)_auto]",
+              isDetail && "h-full",
             )}
           >
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 shrink-0">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
               <h2 className="text-base font-semibold text-gray-900">{title}</h2>
               <button type="button" title={t("serviceDetail.close")} onClick={onClose} className="text-gray-400 hover:text-gray-600">
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            <div className="px-5 py-3 border-b border-gray-100 bg-gray-50/80 shrink-0">
-              <p className="text-xs text-gray-500">{hint}</p>
-              <p className={cn("text-2xl font-bold mt-1 tabular-nums", toneClass)}>
+            <div className="px-5 py-2.5 border-b border-gray-100 bg-gray-50/80">
+              <p className="text-xs text-gray-500 leading-snug">{hint}</p>
+              <p className={cn("text-2xl font-bold mt-0.5 tabular-nums", toneClass)}>
                 {sign}{fmt(total)}&nbsp;$
               </p>
             </div>
 
-            <div className="overflow-hidden shrink-0">
+            <div className="min-h-0 overflow-y-auto overscroll-contain">
               {loading ? (
                 <div className="px-5 py-10 flex justify-center">
                   <Spinner size="sm" />
@@ -218,43 +217,44 @@ function WalletSummaryModal({
               ) : items.length === 0 ? (
                 <p className="px-5 py-10 text-center text-sm text-gray-400">{t("wallet.noSummaryItems")}</p>
               ) : (
-                <div className="overflow-hidden">
-                  <ul
-                    key={page}
-                    className={cn(
-                      "divide-y divide-gray-100",
-                      "animate-in fade-in-0 duration-300 ease-out",
-                      slideDir === "next" ? "slide-in-from-right-4" : "slide-in-from-left-4",
-                    )}
-                  >
-                    {items.map((tx) => {
-                      const isCredit = isEarned || tx.type === "credit";
-                      const isRefund = !isEarned && tx.type === "credit";
-                      const showPartBreakdown =
-                        isEarned
-                          ? tx.isGrouped || tx.parts.some((p) => p.category === "deposit_retained")
-                          : !isCredit && (tx.isGrouped || (tx.parts.length === 1 && isDepositOnlyDescription(tx.description)));
-                      const partLine = tx.parts
-                        .map((part) => `${part.label} ${fmt(part.amount)} $`)
-                        .join(t("wallet.txPartsJoin"));
-                      const clickable = !!tx.booking_id;
-                      return (
-                        <li key={tx.id}>
-                          <button
-                            type="button"
-                            disabled={!clickable}
-                            onClick={() => clickable && onItemClick(tx)}
+                <ul
+                  key={page}
+                  className={cn(
+                    "divide-y divide-gray-100",
+                    "animate-in fade-in-0 duration-300 ease-out",
+                    slideDir === "next" ? "slide-in-from-right-4" : "slide-in-from-left-4",
+                  )}
+                >
+                  {items.map((tx) => {
+                    const isCredit = isEarned || tx.type === "credit";
+                    const isRefund = !isEarned && tx.type === "credit";
+                    const showPartBreakdown = shouldShowSummaryPartBreakdown(
+                      isEarned,
+                      isCredit,
+                      isRefund,
+                      tx,
+                    );
+                    const partLine = tx.parts
+                      .map((part) => `${part.label} ${fmt(part.amount)} $`)
+                      .join(t("wallet.txPartsJoin"));
+                    const clickable = !!tx.booking_id;
+                    return (
+                      <li key={tx.id}>
+                        <button
+                          type="button"
+                          disabled={!clickable}
+                          onClick={() => clickable && onItemClick(tx)}
+                          className={cn(
+                            "w-full flex items-start gap-3 px-5 py-3 text-left transition-colors",
+                            clickable ? "hover:bg-gray-50 cursor-pointer" : "cursor-default",
+                          )}
+                        >
+                          <div
                             className={cn(
-                              "w-full flex items-center gap-3 px-5 py-3 text-left transition-colors",
-                              clickable ? "hover:bg-gray-50 cursor-pointer" : "cursor-default",
+                              "h-9 w-9 rounded-xl flex items-center justify-center shrink-0 mt-0.5",
+                              isCredit ? "bg-green-100" : "bg-red-100",
                             )}
                           >
-                            <div
-                              className={cn(
-                                "h-9 w-9 rounded-xl flex items-center justify-center shrink-0",
-                                isCredit ? "bg-green-100" : "bg-red-100",
-                              )}
-                            >
                               {isCredit
                                 ? <TrendingUp className="h-5 w-5 text-green-600" />
                                 : <TrendingDown className="h-5 w-5 text-red-500" />}
@@ -279,7 +279,7 @@ function WalletSummaryModal({
                                 <span className="text-xs text-gray-400">{formatDate(tx.created_at, lang)}</span>
                               </div>
                             </div>
-                            <div className="flex items-center gap-1.5 shrink-0">
+                            <div className="flex items-center gap-1.5 shrink-0 self-center">
                               <span
                                 className={cn(
                                   "text-sm font-bold tabular-nums",
@@ -298,13 +298,12 @@ function WalletSummaryModal({
                         </li>
                       );
                     })}
-                  </ul>
-                </div>
+                </ul>
               )}
             </div>
 
             {!loading && totalPages > 1 && (
-              <div className="flex items-center justify-between gap-3 px-5 py-3 border-t border-gray-100 shrink-0">
+              <div className="flex items-center justify-between gap-3 px-5 py-3 border-t border-gray-100">
                 <button
                   type="button"
                   disabled={page <= 1}
@@ -367,10 +366,27 @@ const WALLET_FILTER_TRIGGER_CLASS =
 function walletModalShellClass(isDetail: boolean) {
   return cn(
     "relative bg-white rounded-2xl shadow-xl w-full overflow-hidden flex flex-col z-10",
-    "transition-[min-height,max-height] duration-500 ease-[cubic-bezier(0.32,0.72,0,1)]",
-    isDetail
-      ? "max-w-lg min-h-[min(72dvh,calc(100dvh-3rem))] max-h-[min(85dvh,calc(100dvh-2rem))]"
-      : "max-w-lg max-h-[min(85dvh,calc(100dvh-2rem))] h-auto",
+    "max-w-lg max-h-[min(85dvh,calc(100dvh-2rem))]",
+    "transition-[min-height] duration-500 ease-[cubic-bezier(0.32,0.72,0,1)]",
+    isDetail && "min-h-[min(72dvh,calc(100dvh-3rem))]",
+  );
+}
+
+function shouldShowSummaryPartBreakdown(
+  isEarned: boolean,
+  isCredit: boolean,
+  isRefund: boolean,
+  tx: DisplayWalletTransaction,
+): boolean {
+  if (isRefund || isCredit) return false;
+  if (isEarned) {
+    return tx.isGrouped || tx.parts.some((p) => p.category === "deposit_retained");
+  }
+  return (
+    tx.isGrouped ||
+    tx.parts.some((p) =>
+      ["deposit", "balance", "full", "cancellation"].includes(p.category),
+    )
   );
 }
 

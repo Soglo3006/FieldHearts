@@ -919,7 +919,7 @@ export default function Header() {
             open={showSettings}
             onClose={() => setShowSettings(false)}
             scrollRef={settingsScrollRef}
-            maxWidthClassName="max-w-[min(96vw,72rem)]"
+            maxWidthClassName="max-w-full sm:max-w-3xl lg:max-w-4xl"
           >
             <span className="sr-only">{t("settings.title")}</span>
             <SettingsPage

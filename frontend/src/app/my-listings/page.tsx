@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
@@ -8,18 +8,20 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { PostPublishLink } from "@/components/navigation/PostPublishLink";
-import { Plus, Grid3x3, MapPin, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, Grid3x3, MapPin, ChevronDown } from "lucide-react";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import AppImage from "@/components/ui/AppImage";
 import EditListingModal from "@/components/listings/EditListingModal";
+import BookingSectionPagination from "@/components/bookings/BookingSectionPagination";
 import { Spinner } from "@/components/ui/Spinner";
 import { getPublicServiceLocation } from "@/lib/serviceLocation";
 import { resolveListingTitle, type ServiceLikeWithI18n } from "@/lib/serviceListingI18n";
 import ListingLangPills from "@/components/ui/ListingLangPills";
 import { formatListingPriceLine } from "@/lib/listingPrice";
 import { formatListingCategoryLine } from "@/lib/listingTags";
+import { cn } from "@/lib/utils";
 
-const PAGE_SIZE = 9;
+const SECTION_PAGE_SIZE = 4;
 
 interface MyService extends ServiceLikeWithI18n {
   id: string;
@@ -49,61 +51,105 @@ interface MyService extends ServiceLikeWithI18n {
   is_active: boolean;
 }
 
-function Pagination({ page, total, onChange }: { page: number; total: number; onChange: (p: number) => void }) {
-  const totalPages = Math.ceil(total / PAGE_SIZE);
-  if (totalPages <= 1) return null;
-
-  const pages: number[] = [];
-  const start = Math.max(1, page - 2);
-  const end = Math.min(totalPages, start + 4);
-  for (let i = start; i <= end; i++) pages.push(i);
+function MyListingsSection({
+  title,
+  items,
+  page,
+  slideDir,
+  isOpen,
+  onToggleOpen,
+  onPageChange,
+  historical = false,
+  confirmDeleteId,
+  deletingId,
+  onEdit,
+  onConfirmDelete,
+  onDelete,
+  t,
+  i18nLang,
+  showSeparator,
+}: {
+  title: string;
+  items: MyService[];
+  page: number;
+  slideDir: "prev" | "next";
+  isOpen: boolean;
+  onToggleOpen: () => void;
+  onPageChange: (page: number) => void;
+  historical?: boolean;
+  confirmDeleteId: string | null;
+  deletingId: string | null;
+  onEdit: (s: MyService) => void;
+  onConfirmDelete: (id: string | null) => void;
+  onDelete: (id: string) => void;
+  t: (key: string, opts?: Record<string, unknown>) => string;
+  i18nLang: string | undefined;
+  showSeparator?: boolean;
+}) {
+  const totalPages = Math.max(1, Math.ceil(items.length / SECTION_PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const start = (safePage - 1) * SECTION_PAGE_SIZE;
+  const pagedItems = items.slice(start, start + SECTION_PAGE_SIZE);
 
   return (
-    <div className="flex items-center justify-center gap-1 mt-6">
-      <button
-        type="button"
-        disabled={page === 1}
-        onClick={() => onChange(page - 1)}
-        className="w-8 h-8 flex items-center justify-center rounded-lg border text-gray-500 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-colors"
-      >
-        <ChevronLeft className="h-4 w-4" />
-      </button>
-
-      {start > 1 && (
-        <>
-          <button type="button" onClick={() => onChange(1)} className="w-8 h-8 flex items-center justify-center rounded-lg border text-sm hover:bg-gray-50 cursor-pointer transition-colors">1</button>
-          {start > 2 && <span className="text-gray-400 text-sm px-1">…</span>}
-        </>
-      )}
-
-      {pages.map((p) => (
+    <div>
+      {showSeparator && <div className="border-t border-gray-200 mb-8" aria-hidden />}
+      <div className="mb-3 flex items-center justify-center gap-2">
+        <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-widest text-center">
+          {title}
+          <span className="text-gray-300 font-normal normal-case tracking-normal text-xs ml-1">
+            ({items.length})
+          </span>
+        </h2>
         <button
-          key={p}
           type="button"
-          onClick={() => onChange(p)}
-          className={`w-8 h-8 flex items-center justify-center rounded-lg border text-sm cursor-pointer transition-colors ${
-            p === page ? "bg-green-700 border-green-700 text-white font-semibold" : "hover:bg-gray-50 text-gray-700"
-          }`}
+          onClick={onToggleOpen}
+          className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors"
         >
-          {p}
+          {isOpen ? t("bookings.hideSection") : t("bookings.showSection")}
+          <ChevronDown className={cn("h-4 w-4 transition-transform", isOpen && "rotate-180")} />
         </button>
-      ))}
-
-      {end < totalPages && (
-        <>
-          {end < totalPages - 1 && <span className="text-gray-400 text-sm px-1">…</span>}
-          <button type="button" onClick={() => onChange(totalPages)} className="w-8 h-8 flex items-center justify-center rounded-lg border text-sm hover:bg-gray-50 cursor-pointer transition-colors">{totalPages}</button>
-        </>
-      )}
-
-      <button
-        type="button"
-        disabled={page === totalPages}
-        onClick={() => onChange(page + 1)}
-        className="w-8 h-8 flex items-center justify-center rounded-lg border text-gray-500 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-colors"
+      </div>
+      <div
+        className={cn(
+          "grid transition-all duration-300 ease-out",
+          isOpen ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0",
+        )}
       >
-        <ChevronRight className="h-4 w-4" />
-      </button>
+        <div className="overflow-hidden">
+          <div className="overflow-hidden">
+            <div
+              key={safePage}
+              className={cn(
+                "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4",
+                "animate-in fade-in-0 duration-300 ease-out",
+                slideDir === "next" ? "slide-in-from-right-4" : "slide-in-from-left-4",
+              )}
+            >
+              {pagedItems.map((s) => (
+                <ListingCard
+                  key={s.id}
+                  s={s}
+                  historical={historical}
+                  confirmDeleteId={confirmDeleteId}
+                  deletingId={deletingId}
+                  onEdit={onEdit}
+                  onConfirmDelete={onConfirmDelete}
+                  onDelete={onDelete}
+                  t={t}
+                  i18nLang={i18nLang}
+                />
+              ))}
+            </div>
+          </div>
+          <BookingSectionPagination
+            page={safePage}
+            totalPages={totalPages}
+            onPrevious={() => onPageChange(safePage - 1)}
+            onNext={() => onPageChange(safePage + 1)}
+          />
+        </div>
+      </div>
     </div>
   );
 }
@@ -217,8 +263,26 @@ export default function MyListingsPage() {
 
   const [activePage, setActivePage] = useState(1);
   const [historyPage, setHistoryPage] = useState(1);
-  const activeSectionRef = useRef<HTMLDivElement>(null);
-  const historySectionRef = useRef<HTMLDivElement>(null);
+  const [activeOpen, setActiveOpen] = useState(true);
+  const [historyOpen, setHistoryOpen] = useState(true);
+  const [activeSlideDir, setActiveSlideDir] = useState<"prev" | "next">("next");
+  const [historySlideDir, setHistorySlideDir] = useState<"prev" | "next">("next");
+
+  const changeActivePage = (next: number) => {
+    setActivePage((current) => {
+      if (next === current) return current;
+      setActiveSlideDir(next > current ? "next" : "prev");
+      return next;
+    });
+  };
+
+  const changeHistoryPage = (next: number) => {
+    setHistoryPage((current) => {
+      if (next === current) return current;
+      setHistorySlideDir(next > current ? "next" : "prev");
+      return next;
+    });
+  };
 
   useEffect(() => {
     if (authLoading) return;
@@ -262,8 +326,16 @@ export default function MyListingsPage() {
   const activeListings = listings.filter((s) => s.is_active);
   const historyListings = listings.filter((s) => !s.is_active);
 
-  const pagedActive = activeListings.slice((activePage - 1) * PAGE_SIZE, activePage * PAGE_SIZE);
-  const pagedHistory = historyListings.slice((historyPage - 1) * PAGE_SIZE, historyPage * PAGE_SIZE);
+  const activeTotalPages = Math.max(1, Math.ceil(activeListings.length / SECTION_PAGE_SIZE));
+  const historyTotalPages = Math.max(1, Math.ceil(historyListings.length / SECTION_PAGE_SIZE));
+
+  useEffect(() => {
+    if (activePage > activeTotalPages) setActivePage(activeTotalPages);
+  }, [activePage, activeTotalPages]);
+
+  useEffect(() => {
+    if (historyPage > historyTotalPages) setHistoryPage(historyTotalPages);
+  }, [historyPage, historyTotalPages]);
 
   if (authLoading) {
     return (
@@ -309,65 +381,45 @@ export default function MyListingsPage() {
             </PostPublishLink>
           </div>
         ) : (
-          <div className="space-y-10">
-            {/* Active listings */}
+          <div className="space-y-8">
             {activeListings.length > 0 && (
-              <div ref={activeSectionRef} className="scroll-mt-24">
-                <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-4">
-                  {t("myListings.active")} ({activeListings.length})
-                </h2>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {pagedActive.map((s) => (
-                    <ListingCard
-                      key={s.id} s={s}
-                      confirmDeleteId={confirmDeleteId} deletingId={deletingId}
-                      onEdit={setEditingService} onConfirmDelete={setConfirmDeleteId} onDelete={handleDelete}
-                      t={t}
-                      i18nLang={i18n.language}
-                    />
-                  ))}
-                </div>
-                <Pagination
-                  page={activePage}
-                  total={activeListings.length}
-                  onChange={(p) => {
-                    setActivePage(p);
-                    requestAnimationFrame(() => {
-                      activeSectionRef.current?.scrollIntoView({ block: "start" });
-                    });
-                  }}
-                />
-              </div>
+              <MyListingsSection
+                title={t("myListings.active")}
+                items={activeListings}
+                page={activePage}
+                slideDir={activeSlideDir}
+                isOpen={activeOpen}
+                onToggleOpen={() => setActiveOpen((v) => !v)}
+                onPageChange={changeActivePage}
+                confirmDeleteId={confirmDeleteId}
+                deletingId={deletingId}
+                onEdit={setEditingService}
+                onConfirmDelete={setConfirmDeleteId}
+                onDelete={handleDelete}
+                t={t}
+                i18nLang={i18n.language}
+              />
             )}
 
-            {/* Historical listings */}
             {historyListings.length > 0 && (
-              <div ref={historySectionRef} className="scroll-mt-24">
-                <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-4">
-                  {t("myListings.history")} ({historyListings.length})
-                </h2>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {pagedHistory.map((s) => (
-                    <ListingCard
-                      key={s.id} s={s} historical
-                      confirmDeleteId={confirmDeleteId} deletingId={deletingId}
-                      onEdit={setEditingService} onConfirmDelete={setConfirmDeleteId} onDelete={handleDelete}
-                      t={t}
-                      i18nLang={i18n.language}
-                    />
-                  ))}
-                </div>
-                <Pagination
-                  page={historyPage}
-                  total={historyListings.length}
-                  onChange={(p) => {
-                    setHistoryPage(p);
-                    requestAnimationFrame(() => {
-                      historySectionRef.current?.scrollIntoView({ block: "start" });
-                    });
-                  }}
-                />
-              </div>
+              <MyListingsSection
+                title={t("myListings.history")}
+                items={historyListings}
+                page={historyPage}
+                slideDir={historySlideDir}
+                isOpen={historyOpen}
+                onToggleOpen={() => setHistoryOpen((v) => !v)}
+                onPageChange={changeHistoryPage}
+                historical
+                showSeparator={activeListings.length > 0}
+                confirmDeleteId={confirmDeleteId}
+                deletingId={deletingId}
+                onEdit={setEditingService}
+                onConfirmDelete={setConfirmDeleteId}
+                onDelete={handleDelete}
+                t={t}
+                i18nLang={i18n.language}
+              />
             )}
           </div>
         )}

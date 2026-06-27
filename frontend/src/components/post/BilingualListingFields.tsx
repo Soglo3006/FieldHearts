@@ -166,7 +166,7 @@ export default function BilingualListingFields({ value, onChange, mode = "offer"
         <Label htmlFor="desc-main" className="text-base font-medium text-gray-900">
           {t("post.description")} <span className="text-red-500">*</span>
         </Label>
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-start">
           <PostSelect
             value={firstDescLang}
             onValueChange={(v) => setFirstDescLang(v as Locale)}
@@ -178,7 +178,7 @@ export default function BilingualListingFields({ value, onChange, mode = "offer"
           <Textarea
             id="desc-main"
             rows={1}
-            className="flex-1 resize-none overflow-hidden rounded-md border-input bg-background text-sm shadow-sm"
+            className="flex-1 min-h-12 py-3 resize-none overflow-hidden rounded-md border-input bg-background text-sm shadow-sm"
             placeholder={descPh}
             value={value.description?.[firstDescLang] ?? ""}
             ref={(el) => { if (el) autoResize(el); }}
@@ -211,13 +211,13 @@ export default function BilingualListingFields({ value, onChange, mode = "offer"
                 <X className="h-4 w-4" />
               </button>
             </div>
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-              <div className="flex h-10 w-full shrink-0 items-center rounded-md border border-input bg-background px-3 text-sm font-medium text-gray-800 sm:w-[min(100%,12.5rem)]">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-start">
+              <div className="flex h-12 min-h-12 w-full shrink-0 items-center rounded-md border border-input bg-background px-3 text-sm font-medium text-gray-800 sm:w-[min(100%,12.5rem)]">
                 {labelFor(dFirst)}
               </div>
               <Textarea
                 rows={1}
-                className="flex-1 resize-none overflow-hidden rounded-md border-input bg-background text-sm shadow-sm"
+                className="flex-1 min-h-12 py-3 resize-none overflow-hidden rounded-md border-input bg-background text-sm shadow-sm"
                 placeholder={descPhOther}
                 value={value.description?.[dFirst] ?? ""}
                 ref={(el) => { if (el) autoResize(el); }}

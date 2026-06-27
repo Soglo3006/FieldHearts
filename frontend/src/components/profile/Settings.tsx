@@ -225,14 +225,14 @@ export default function SettingsPage({ onClose, scrollRef }: { onClose: () => vo
 
   if (loading) {
     return (
-      <div className="flex min-h-0 flex-1 flex-col items-center justify-center bg-white py-16">
+      <div className="flex min-h-0 flex-1 flex-col items-center justify-center bg-white py-16 overflow-x-hidden max-w-full">
         <Spinner size="xl" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-full w-full bg-white">
+    <div className="min-h-full w-full max-w-full overflow-x-hidden bg-white">
       {/* Header */}
       <div className="bg-white border-b relative">
         {/* Bottom-sheet handle (mobile only) */}
@@ -242,39 +242,39 @@ export default function SettingsPage({ onClose, scrollRef }: { onClose: () => vo
         <button aria-label={t("common.close")} title={t("common.close")} onClick={onClose} className="absolute top-2 right-2 sm:top-3 sm:right-3 p-2 rounded-full hover:bg-gray-100 text-gray-500 hover:text-gray-900 cursor-pointer leading-none touch-manipulation">
           <X className="h-5 w-5" />
         </button>
-        <div className="w-full px-6 py-3 pr-14 sm:px-8 sm:py-6">
-          <h1 className="text-xl sm:text-3xl font-bold text-gray-900">{t("settings.title")}</h1>
-          <p className="text-gray-600 mt-1 text-sm sm:text-base">
+        <div className="w-full min-w-0 px-4 py-3 pr-12 sm:px-8 sm:py-6">
+          <h1 className="text-xl sm:text-3xl font-bold text-gray-900 break-words">{t("settings.title")}</h1>
+          <p className="text-gray-600 mt-1 text-sm sm:text-base break-words">
             {isPerson ? t("settings.manageAccount") : t("settings.manageCompany")}
           </p>
         </div>
       </div>
 
-      <div className="w-full px-4 py-4 sm:px-8 sm:py-8">
-        <div className="grid gap-4 sm:gap-6">
+      <div className="w-full min-w-0 max-w-full px-4 py-4 sm:px-8 sm:py-8">
+        <div className="grid min-w-0 gap-4 sm:gap-6">
 
           {/* Profile Information */}
-          <Card className="p-4 sm:p-6">
-            <div className="flex items-start justify-between mb-4 sm:mb-6 gap-2">
-              <div className="flex items-center gap-3">
+          <Card className="min-w-0 overflow-hidden p-4 sm:p-6">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between mb-4 sm:mb-6">
+              <div className="flex items-start gap-3 min-w-0 flex-1">
                 {isPerson ? <User className="h-5 w-5 sm:h-6 sm:w-6 text-green-700 shrink-0" /> : <Building2 className="h-5 w-5 sm:h-6 sm:w-6 text-green-700 shrink-0" />}
-                <div>
-                  <h2 className="text-base sm:text-xl font-bold text-gray-900">
+                <div className="min-w-0">
+                  <h2 className="text-base sm:text-xl font-bold text-gray-900 break-words">
                     {isPerson ? t("settings.profileInfo") : t("settings.companyInfo")}
                   </h2>
-                  <p className="text-xs sm:text-sm text-gray-600">
+                  <p className="text-xs sm:text-sm text-gray-600 break-words">
                     {isPerson ? t("settings.updatePersonal") : t("settings.updateCompany")}
                   </p>
                 </div>
               </div>
-              <Link href="/profile/edit" onClick={onClose}>
-                <Button variant="outline" size="sm" className="cursor-pointer shrink-0 text-xs sm:text-sm">
+              <Link href="/profile/edit" onClick={onClose} className="shrink-0 self-start">
+                <Button variant="outline" size="sm" className="cursor-pointer text-xs sm:text-sm">
                   {t("settings.edit")} <ChevronRight className="h-3 w-3 sm:h-4 sm:w-4 ml-1" />
                 </Button>
               </Link>
             </div>
-            <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 items-center sm:items-start">
-              <div className="flex justify-center sm:justify-start">
+            <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 items-center sm:items-start min-w-0">
+              <div className="flex justify-center sm:justify-start shrink-0">
                 <ProfilePictureUploader
                   currentProfilePicture={userProfilePicture}
                   userName={displayName || "User"}
@@ -284,48 +284,48 @@ export default function SettingsPage({ onClose, scrollRef }: { onClose: () => vo
                   readOnly={true}
                 />
               </div>
-              <div className="flex-1 space-y-2 sm:space-y-3 w-full">
-                <div className="flex items-center gap-3 text-gray-700">
-                  {isPerson ? <User className="h-4 w-4 text-gray-400 shrink-0" /> : <Building2 className="h-4 w-4 text-gray-400 shrink-0" />}
-                  <span className="font-medium text-sm sm:text-base truncate">
+              <div className="flex-1 space-y-2 sm:space-y-3 w-full min-w-0">
+                <div className="flex items-start gap-3 text-gray-700 min-w-0">
+                  {isPerson ? <User className="h-4 w-4 text-gray-400 shrink-0 mt-0.5" /> : <Building2 className="h-4 w-4 text-gray-400 shrink-0 mt-0.5" />}
+                  <span className="font-medium text-sm sm:text-base min-w-0 break-words">
                     {displayName || <span className="inline-block h-4 w-32 bg-gray-200 rounded animate-pulse" />}
                   </span>
                   {isCompany && <span className="text-xs text-gray-500 shrink-0">({t("settings.companyNameLabel")})</span>}
                 </div>
-                <div className="flex items-center gap-3 text-gray-700">
-                  <Mail className="h-4 w-4 text-gray-400 shrink-0" />
-                  <span className="text-sm sm:text-base truncate">
+                <div className="flex items-start gap-3 text-gray-700 min-w-0">
+                  <Mail className="h-4 w-4 text-gray-400 shrink-0 mt-0.5" />
+                  <span className="text-sm sm:text-base min-w-0 break-all">
                     {profileData?.email || user?.email || <span className="inline-block h-4 w-48 bg-gray-200 rounded animate-pulse" />}
                   </span>
                 </div>
                 {profileData?.phone && (
-                  <div className="flex items-center gap-3 text-gray-700">
-                    <Phone className="h-4 w-4 text-gray-400 shrink-0" />
-                    <span className="text-sm sm:text-base">{profileData.phone}</span>
+                  <div className="flex items-start gap-3 text-gray-700 min-w-0">
+                    <Phone className="h-4 w-4 text-gray-400 shrink-0 mt-0.5" />
+                    <span className="text-sm sm:text-base min-w-0 break-words">{profileData.phone}</span>
                   </div>
                 )}
                 {profileData?.city && profileData?.province && (
-                  <div className="flex items-center gap-3 text-gray-700">
-                    <MapPin className="h-4 w-4 text-gray-400 shrink-0" />
-                    <span className="text-sm sm:text-base">{profileData.city}, {profileData.province}</span>
+                  <div className="flex items-start gap-3 text-gray-700 min-w-0">
+                    <MapPin className="h-4 w-4 text-gray-400 shrink-0 mt-0.5" />
+                    <span className="text-sm sm:text-base min-w-0 break-words">{profileData.city}, {profileData.province}</span>
                   </div>
                 )}
                 {isPerson && profileData?.profession && (
-                  <div className="flex items-center gap-3 text-gray-700">
-                    <Briefcase className="h-4 w-4 text-gray-400 shrink-0" />
-                    <span className="text-sm sm:text-base">{profileData.profession}</span>
+                  <div className="flex items-start gap-3 text-gray-700 min-w-0">
+                    <Briefcase className="h-4 w-4 text-gray-400 shrink-0 mt-0.5" />
+                    <span className="text-sm sm:text-base min-w-0 break-words">{profileData.profession}</span>
                   </div>
                 )}
                 {isCompany && profileData?.industry && (
-                  <div className="flex items-center gap-3 text-gray-700">
-                    <Briefcase className="h-4 w-4 text-gray-400 shrink-0" />
-                    <span className="text-sm sm:text-base">{profileData.industry}</span>
+                  <div className="flex items-start gap-3 text-gray-700 min-w-0">
+                    <Briefcase className="h-4 w-4 text-gray-400 shrink-0 mt-0.5" />
+                    <span className="text-sm sm:text-base min-w-0 break-words">{profileData.industry}</span>
                   </div>
                 )}
                 {isCompany && profileData?.team_size && (
-                  <div className="flex items-center gap-3 text-gray-700">
-                    <Users className="h-4 w-4 text-gray-400 shrink-0" />
-                    <span className="text-sm sm:text-base">{profileData.team_size} {t("settings.employees")}</span>
+                  <div className="flex items-start gap-3 text-gray-700 min-w-0">
+                    <Users className="h-4 w-4 text-gray-400 shrink-0 mt-0.5" />
+                    <span className="text-sm sm:text-base min-w-0 break-words">{profileData.team_size} {t("settings.employees")}</span>
                   </div>
                 )}
               </div>
@@ -333,7 +333,7 @@ export default function SettingsPage({ onClose, scrollRef }: { onClose: () => vo
           </Card>
 
           {/* Password & Security */}
-          <Card className="p-4 sm:p-6">
+          <Card className="min-w-0 overflow-hidden p-4 sm:p-6">
             <div className="flex items-center gap-3 mb-4 sm:mb-6">
               <Lock className="h-5 w-5 sm:h-6 sm:w-6 text-green-700 shrink-0" />
               <div>
@@ -352,7 +352,7 @@ export default function SettingsPage({ onClose, scrollRef }: { onClose: () => vo
           </Card>
 
           {/* Connected Accounts */}
-          <Card className="p-4 sm:p-6">
+          <Card className="min-w-0 overflow-hidden p-4 sm:p-6">
             <div className="flex items-center gap-3 mb-4 sm:mb-6">
               <Link2 className="h-5 w-5 sm:h-6 sm:w-6 text-green-700 shrink-0" />
               <div>
@@ -426,7 +426,7 @@ export default function SettingsPage({ onClose, scrollRef }: { onClose: () => vo
           </Card>
 
           {/* Notifications */}
-          <Card className="p-4 sm:p-6">
+          <Card className="min-w-0 overflow-hidden p-4 sm:p-6">
             <div className="flex items-center gap-3 mb-4 sm:mb-6">
               <Bell className="h-5 w-5 sm:h-6 sm:w-6 text-green-700 shrink-0" />
               <div>
@@ -455,15 +455,15 @@ export default function SettingsPage({ onClose, scrollRef }: { onClose: () => vo
           </Card>
 
           {/* Language & Region */}
-          <Card className="p-4 sm:p-6">
-            <div className="flex items-center gap-3 mb-4 sm:mb-6">
+          <Card className="min-w-0 overflow-hidden p-4 sm:p-6">
+            <div className="flex items-center gap-3 mb-4 sm:mb-6 min-w-0">
               <Globe className="h-5 w-5 sm:h-6 sm:w-6 text-green-700 shrink-0" />
-              <div>
+              <div className="min-w-0">
                 <h2 className="text-base sm:text-xl font-bold text-gray-900">{t("settings.languageRegion")}</h2>
                 <p className="text-xs sm:text-sm text-gray-600">{t("settings.setLanguageRegion")}</p>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 min-w-0">
               <div>
                 <Label className="mb-2 block text-sm">{t("settings.language")}</Label>
                 <Select value={language} onValueChange={(v) => setLanguage(v as "fr" | "en")}>
@@ -487,7 +487,7 @@ export default function SettingsPage({ onClose, scrollRef }: { onClose: () => vo
           </Card>
 
           {/* Billing & Payments */}
-          <Card className="p-4 sm:p-6">
+          <Card className="min-w-0 overflow-hidden p-4 sm:p-6">
             <div className="flex items-center gap-3 mb-4 sm:mb-6">
               <CreditCard className="h-5 w-5 sm:h-6 sm:w-6 text-green-700 shrink-0" />
               <div>
@@ -508,13 +508,13 @@ export default function SettingsPage({ onClose, scrollRef }: { onClose: () => vo
                     <Spinner size="sm" /> {t("settings.stripeLoading")}
                   </div>
                 ) : stripeStatus.charges_enabled ? (
-                  <div className="flex items-center gap-3 bg-green-50 border border-green-200 rounded-xl px-4 py-3">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center bg-green-50 border border-green-200 rounded-xl px-4 py-3 min-w-0">
                     <Check className="h-4 w-4 text-green-600 shrink-0" />
                     <div className="flex-1 min-w-0">
                       <p className="font-semibold text-green-800 text-sm">{t("settings.stripeConnected")}</p>
-                      <p className="text-xs text-green-600 mt-0.5">{t("settings.stripeConnectedDesc")}</p>
+                      <p className="text-xs text-green-600 mt-0.5 break-words">{t("settings.stripeConnectedDesc")}</p>
                     </div>
-                    <Button variant="outline" size="sm" onClick={handleConnectStripe} disabled={stripeLoading} className="cursor-pointer shrink-0 text-xs gap-1">
+                    <Button variant="outline" size="sm" onClick={handleConnectStripe} disabled={stripeLoading} className="cursor-pointer shrink-0 text-xs gap-1 w-full sm:w-auto">
                       {stripeLoading ? <Spinner size="sm" /> : <ExternalLink className="h-3 w-3" />}
                       {t("settings.stripeManage")}
                     </Button>
@@ -534,12 +534,12 @@ export default function SettingsPage({ onClose, scrollRef }: { onClose: () => vo
                     </Button>
                   </div>
                 ) : (
-                  <div className="flex items-center gap-3">
-                    <Button onClick={handleConnectStripe} disabled={stripeLoading} className="bg-green-700 hover:bg-green-800 text-white cursor-pointer text-sm gap-2 h-9 rounded-xl px-4">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center min-w-0">
+                    <Button onClick={handleConnectStripe} disabled={stripeLoading} className="w-full sm:w-auto bg-green-700 hover:bg-green-800 text-white cursor-pointer text-sm gap-2 h-9 rounded-xl px-4">
                       {stripeLoading ? <Spinner size="sm" /> : <ExternalLink className="h-3 w-3" />}
                       {t("settings.stripeConnectAccount")}
                     </Button>
-                    <p className="text-xs text-gray-400 flex items-center gap-1">
+                    <p className="text-xs text-gray-400 flex items-center gap-1 min-w-0 break-words">
                       <Check className="h-3.5 w-3.5 text-gray-300" />
                       {t("settings.stripeSecure")}
                     </p>
@@ -571,7 +571,7 @@ export default function SettingsPage({ onClose, scrollRef }: { onClose: () => vo
           <div className="h-px bg-gray-200" />
 
           {/* Danger Zone */}
-          <Card className="p-4 sm:p-6 border-red-200">
+          <Card className="min-w-0 overflow-hidden p-4 sm:p-6 border-red-200">
             <div className="space-y-3">
               <Button variant="outline" className="w-full justify-between border-red-200 text-red-600 hover:bg-red-50 cursor-pointer text-sm" onClick={() => goToScreen("logout")}>
                 <span className="flex items-center gap-2"><LogOut className="h-4 w-4" />{t("settings.logout")}</span>

@@ -80,7 +80,13 @@ export default function SupportModal({ open, onClose }: SupportModalProps) {
         <div className="space-y-3">
           <Input placeholder={t("support.subjectPlaceholder")} value={subject} onChange={(e) => setSubject(e.target.value)} />
           <Input placeholder={t("support.categoryPlaceholder")} value={category} onChange={(e) => setCategory(e.target.value)} />
-          <Textarea placeholder={t("support.messagePlaceholder")} value={description} onChange={(e) => setDescription(e.target.value)} rows={5} />
+          <Textarea
+            placeholder={t("support.messagePlaceholder")}
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            rows={5}
+            className="resize-none"
+          />
         </div>
 
         {error && <div className="mt-3 text-sm text-red-600">{error}</div>}

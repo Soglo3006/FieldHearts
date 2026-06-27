@@ -37,6 +37,43 @@ export type CalendarEvent = {
   my_role?: "worker" | "client";
 };
 
+function bookingStatusBadge(
+  statusRaw: string | null | undefined,
+  t: (key: string, opts?: Record<string, unknown>) => string,
+) {
+  const status = (statusRaw ?? "").toLowerCase();
+  const labelKey = [
+    "pending",
+    "negotiating",
+    "accepted",
+    "active",
+    "completed",
+    "cancelled",
+    "rejected",
+    "refused",
+    "confirmed",
+    "disputed",
+  ].includes(status)
+    ? `bookings.${status}`
+    : null;
+
+  const label = labelKey ? t(labelKey) : statusRaw ?? "";
+
+  const base = "shrink-0 rounded-full px-2 py-1 text-[11px] font-semibold border";
+  if (status === "completed")
+    return { label, className: `${base} bg-gray-100 text-gray-700 border-gray-200` };
+  if (status === "cancelled" || status === "rejected" || status === "refused")
+    return { label, className: `${base} bg-red-50 text-red-700 border-red-100` };
+  if (status === "disputed")
+    return { label, className: `${base} bg-amber-50 text-amber-800 border-amber-100` };
+  if (status === "accepted" || status === "pending" || status === "negotiating" || status === "confirmed")
+    return { label, className: `${base} bg-blue-50 text-blue-800 border-blue-100` };
+  if (status === "active")
+    return { label, className: `${base} bg-green-50 text-green-800 border-green-100` };
+
+  return label ? { label, className: `${base} bg-gray-50 text-gray-700 border-gray-200` } : null;
+}
+
 function startOfMonth(d: Date) {
   return new Date(d.getFullYear(), d.getMonth(), 1);
 }
@@ -299,7 +336,11 @@ export default function CalendarPageClient() {
                       <span className="font-medium text-gray-900 hover:text-green-700 line-clamp-2 block">
                         {event.title}
                       </span>
-                      <CalendarEventSchedule startsAt={event.starts_at} endsAt={event.ends_at} />
+                      <CalendarEventSchedule
+                        startsAt={event.starts_at}
+                        endsAt={event.ends_at}
+                        statusBadge={bookingStatusBadge(event.booking_status ?? event.status, t)}
+                      />
                       {event.location && <p className="mt-1 text-xs text-gray-600">{event.location}</p>}
                       {event.notes && <p className="mt-1 text-xs text-gray-500 line-clamp-2">{event.notes}</p>}
                     </button>
@@ -308,9 +349,16 @@ export default function CalendarPageClient() {
                         type="button"
                         onClick={() => openBookingModal(event)}
                         disabled={detailLoadingId === event.booking_id}
-                        className="text-xs font-medium text-green-700 hover:underline disabled:opacity-60"
+                        className="inline-flex items-center gap-1 text-xs font-medium text-green-700 hover:underline disabled:opacity-60"
                       >
-                        {detailLoadingId === event.booking_id ? "…" : t("calendar.openBooking")}
+                        {detailLoadingId === event.booking_id ? (
+                          <>
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                            <span>{t("calendar.openBooking")}</span>
+                          </>
+                        ) : (
+                          t("calendar.openBooking")
+                        )}
                       </button>
                       <a
                         href={googleCalendarUrl(event)}
@@ -582,7 +630,11 @@ export function BookingCalendarPanel({
                     {t("calendar.proposedBy", { name: event.proposer_name })}
                   </p>
                 )}
-                <CalendarEventSchedule startsAt={event.starts_at} endsAt={event.ends_at} />
+                <CalendarEventSchedule
+                  startsAt={event.starts_at}
+                  endsAt={event.ends_at}
+                  statusBadge={bookingStatusBadge(event.booking_status ?? event.status, t)}
+                />
                 <ScheduleConfirmStatus
                   className="mt-2"
                   confirmedByClient={!!event.confirmed_by_client}

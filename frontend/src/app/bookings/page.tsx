@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, Suspense, useCallback, useRef } from "react";
+import { useEffect, useState, Suspense, useCallback, useRef, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -8,7 +8,7 @@ import { supabase } from "@/lib/supabaseClient";
 import Link from "next/link";
 import { useStartConversation } from "@/hooks/useStartConversation";
 import { useUnreadBookings } from "@/hooks/useUnreadBookings";
-import { CalendarDays, CheckCircle, XCircle, Clock } from "lucide-react";
+import { CalendarDays, CheckCircle, XCircle, Clock, ChevronDown } from "lucide-react";
 import LeaveReviewModal from "@/components/bookings/LeaveReviewModal";
 import OpenDisputeModal from "@/components/bookings/OpenDisputeModal";
 import BookingDetailModal, { type BookingDetail } from "@/components/bookings/BookingDetailModal";
@@ -82,6 +82,11 @@ function BookingsContent() {
   const [seenReceivedIds, setSeenReceivedIds] = useState<Set<string>>(new Set());
   const [seenSentIds,     setSeenSentIds]     = useState<Set<string>>(new Set());
   const [seenDoneCount,   setSeenDoneCount]   = useState(0);
+  const [doneRenderedPage, setDoneRenderedPage] = useState(1);
+  const [doneReceivedPage, setDoneReceivedPage] = useState(1);
+  const [doneRenderedOpen, setDoneRenderedOpen] = useState(true);
+  const [doneReceivedOpen, setDoneReceivedOpen] = useState(true);
+  const DONE_PAGE_SIZE = 4;
 
   // Load persisted seen data from localStorage on mount (after user is known)
   useEffect(() => {
@@ -351,6 +356,16 @@ function BookingsContent() {
   const completedReceived = uniqueCompleted.filter((b) => b.worker_id === uid);
   const completedSent     = uniqueCompleted.filter((b) => b.client_id === uid);
   const doneCount = uniqueCompleted.length;
+  const doneRenderedTotalPages = Math.max(1, Math.ceil(completedReceived.length / DONE_PAGE_SIZE));
+  const doneReceivedTotalPages = Math.max(1, Math.ceil(completedSent.length / DONE_PAGE_SIZE));
+  const pagedCompletedReceived = useMemo(() => {
+    const start = (doneRenderedPage - 1) * DONE_PAGE_SIZE;
+    return completedReceived.slice(start, start + DONE_PAGE_SIZE);
+  }, [completedReceived, doneRenderedPage]);
+  const pagedCompletedSent = useMemo(() => {
+    const start = (doneReceivedPage - 1) * DONE_PAGE_SIZE;
+    return completedSent.slice(start, start + DONE_PAGE_SIZE);
+  }, [completedSent, doneReceivedPage]);
 
   // Badge logic — based on unseen IDs, not counts
   // Received: new pending requests (need worker action)
@@ -383,10 +398,22 @@ function BookingsContent() {
 
   const switchTab = (newTab: "received" | "sent" | "done") => {
     setTab(newTab);
+    if (newTab !== "done") {
+      setDoneRenderedPage(1);
+      setDoneReceivedPage(1);
+    }
     if (newTab === "received") markReceivedSeen();
     if (newTab === "sent")     markSentSeen();
     if (newTab === "done")     markDoneSeen();
   };
+
+  useEffect(() => {
+    if (doneRenderedPage > doneRenderedTotalPages) setDoneRenderedPage(doneRenderedTotalPages);
+  }, [doneRenderedPage, doneRenderedTotalPages]);
+
+  useEffect(() => {
+    if (doneReceivedPage > doneReceivedTotalPages) setDoneReceivedPage(doneReceivedTotalPages);
+  }, [doneReceivedPage, doneReceivedTotalPages]);
 
   // Auto-mark current tab as seen once data loads
   useEffect(() => {
@@ -541,9 +568,25 @@ function BookingsContent() {
           <div className="space-y-6">
             {completedReceived.length > 0 && (
               <div>
-                <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">{t("bookings.servicesRendered")}</h2>
-                <div className="space-y-3">
-                  {completedReceived.map((b) => (
+                <div className="mb-3 flex items-center gap-2">
+                  <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">{t("bookings.servicesRendered")}</h2>
+                  <button
+                    type="button"
+                    onClick={() => setDoneRenderedOpen((v) => !v)}
+                    className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors"
+                  >
+                    {doneRenderedOpen ? t("bookings.hideSection") : t("bookings.showSection")}
+                    <ChevronDown className={`h-4 w-4 transition-transform ${doneRenderedOpen ? "rotate-180" : ""}`} />
+                  </button>
+                </div>
+                <div
+                  className={`grid transition-all duration-300 ease-out ${
+                    doneRenderedOpen ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+                  }`}
+                >
+                  <div className="overflow-hidden">
+                    <div className="space-y-3">
+                      {pagedCompletedReceived.map((b) => (
                     (() => {
                       const outcome = getBookingDisputeFinancialOutcome(b);
                       const finalAmount = outcome.finalWorkerReceives ?? outcome.workerReceivesOriginal;
@@ -575,15 +618,56 @@ function BookingsContent() {
                         </div>
                       );
                     })()
-                  ))}
+                      ))}
+                    </div>
+                    {doneRenderedTotalPages > 1 && (
+                      <div className="mt-3 flex items-center justify-between gap-3 px-1">
+                        <button
+                          type="button"
+                          disabled={doneRenderedPage <= 1}
+                          onClick={() => setDoneRenderedPage((p) => Math.max(1, p - 1))}
+                          className="text-sm text-gray-600 hover:text-gray-900 disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                          {t("common.previous")}
+                        </button>
+                        <span className="text-xs text-gray-500 tabular-nums">
+                          {t("wallet.txPageOf", { page: doneRenderedPage, total: doneRenderedTotalPages })}
+                        </span>
+                        <button
+                          type="button"
+                          disabled={doneRenderedPage >= doneRenderedTotalPages}
+                          onClick={() => setDoneRenderedPage((p) => Math.min(doneRenderedTotalPages, p + 1))}
+                          className="text-sm text-gray-600 hover:text-gray-900 disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                          {t("common.next")}
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             )}
             {completedSent.length > 0 && (
               <div>
-                <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">{t("bookings.servicesReceived")}</h2>
-                <div className="space-y-3">
-                  {completedSent.map((b) => (
+                <div className="mb-3 flex items-center gap-2">
+                  <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">{t("bookings.servicesReceived")}</h2>
+                  <button
+                    type="button"
+                    onClick={() => setDoneReceivedOpen((v) => !v)}
+                    className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors"
+                  >
+                    {doneReceivedOpen ? t("bookings.hideSection") : t("bookings.showSection")}
+                    <ChevronDown className={`h-4 w-4 transition-transform ${doneReceivedOpen ? "rotate-180" : ""}`} />
+                  </button>
+                </div>
+                <div
+                  className={`grid transition-all duration-300 ease-out ${
+                    doneReceivedOpen ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+                  }`}
+                >
+                  <div className="overflow-hidden">
+                    <div className="space-y-3">
+                      {pagedCompletedSent.map((b) => (
                     (() => {
                       const outcome = getBookingDisputeFinancialOutcome(b);
                       const finalAmount = outcome.finalClientPaid ?? outcome.totalPaidOriginal;
@@ -624,7 +708,32 @@ function BookingsContent() {
                         </div>
                       );
                     })()
-                  ))}
+                      ))}
+                    </div>
+                    {doneReceivedTotalPages > 1 && (
+                      <div className="mt-3 flex items-center justify-between gap-3 px-1">
+                        <button
+                          type="button"
+                          disabled={doneReceivedPage <= 1}
+                          onClick={() => setDoneReceivedPage((p) => Math.max(1, p - 1))}
+                          className="text-sm text-gray-600 hover:text-gray-900 disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                          {t("common.previous")}
+                        </button>
+                        <span className="text-xs text-gray-500 tabular-nums">
+                          {t("wallet.txPageOf", { page: doneReceivedPage, total: doneReceivedTotalPages })}
+                        </span>
+                        <button
+                          type="button"
+                          disabled={doneReceivedPage >= doneReceivedTotalPages}
+                          onClick={() => setDoneReceivedPage((p) => Math.min(doneReceivedTotalPages, p + 1))}
+                          className="text-sm text-gray-600 hover:text-gray-900 disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                          {t("common.next")}
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             )}

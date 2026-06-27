@@ -57,9 +57,12 @@ export default function LocationMapModal({ location, lat, lng, isApproximate = f
 
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
   const addressQuery = location.trim();
-  const mapQuery =
-    addressQuery || (lat != null && lng != null ? `${lat},${lng}` : "");
-  const mapSrc = `https://www.google.com/maps/embed/v1/place?key=${apiKey}&q=${encodeURIComponent(mapQuery)}&zoom=${isApproximate ? 12 : 16}`;
+  const hasCoords = Number.isFinite(lat) && Number.isFinite(lng);
+  const coordQuery = hasCoords ? `${lat},${lng}` : "";
+  const mapQuery = addressQuery || coordQuery;
+  const mapSrc = isApproximate && hasCoords
+    ? `https://www.google.com/maps/embed/v1/view?key=${apiKey}&center=${encodeURIComponent(coordQuery)}&zoom=12`
+    : `https://www.google.com/maps/embed/v1/place?key=${apiKey}&q=${encodeURIComponent(mapQuery)}&zoom=${isApproximate ? 12 : 16}`;
   const mapsHref = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapQuery)}`;
   const headerTitle =
     addressQuery ||

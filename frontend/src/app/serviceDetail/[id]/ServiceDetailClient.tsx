@@ -435,8 +435,8 @@ export default function ServiceDetailClient() {
       {isMapOpen && (
         <LocationMapModal
           location={getPublicServiceLocation(service)}
-          lat={service.hide_exact_location ? null : service.latitude}
-          lng={service.hide_exact_location ? null : service.longitude}
+          lat={service.latitude}
+          lng={service.longitude}
           isApproximate={hasApproximateServiceLocation(service)}
           onClose={() => setIsMapOpen(false)}
         />

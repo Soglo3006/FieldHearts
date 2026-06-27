@@ -398,6 +398,8 @@
     "noDoneDesc": "Vos réservations complétées apparaîtront ici.",
     "servicesRendered": "Services rendus",
     "servicesReceived": "Services reçus",
+    "hideSection": "Cacher",
+    "showSection": "Afficher",
     "reviewModal": {
       "title": "Laisser un avis",
       "subtitle": "Évaluez votre expérience avec {{name}}",

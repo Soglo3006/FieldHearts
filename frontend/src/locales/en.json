@@ -402,6 +402,8 @@
     "noDoneDesc": "Your completed bookings will appear here.",
     "servicesRendered": "Services rendered",
     "servicesReceived": "Services received",
+    "hideSection": "Hide",
+    "showSection": "Show",
     "reviewModal": {
       "title": "Leave a Review",
       "subtitle": "Rate your experience with {{name}}",

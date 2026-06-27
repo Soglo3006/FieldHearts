@@ -22,6 +22,8 @@ import { getIntlLocale } from "@/lib/locale";
 import { toast } from "sonner";
 import { isWorkBasedPricingMode } from "@/lib/hourlyPayment";
 import { normalizePricingMode } from "@/lib/listingPrice";
+import { cn } from "@/lib/utils";
+import BookingSectionPagination from "@/components/bookings/BookingSectionPagination";
 
 function LoadingSkeleton() {
   return (
@@ -84,6 +86,8 @@ function BookingsContent() {
   const [seenDoneCount,   setSeenDoneCount]   = useState(0);
   const [doneRenderedPage, setDoneRenderedPage] = useState(1);
   const [doneReceivedPage, setDoneReceivedPage] = useState(1);
+  const [doneRenderedSlideDir, setDoneRenderedSlideDir] = useState<"prev" | "next">("next");
+  const [doneReceivedSlideDir, setDoneReceivedSlideDir] = useState<"prev" | "next">("next");
   const [doneRenderedOpen, setDoneRenderedOpen] = useState(true);
   const [doneReceivedOpen, setDoneReceivedOpen] = useState(true);
   const DONE_PAGE_SIZE = 4;
@@ -401,6 +405,8 @@ function BookingsContent() {
     if (newTab !== "done") {
       setDoneRenderedPage(1);
       setDoneReceivedPage(1);
+      setDoneRenderedSlideDir("next");
+      setDoneReceivedSlideDir("next");
     }
     if (newTab === "received") markReceivedSeen();
     if (newTab === "sent")     markSentSeen();
@@ -414,6 +420,22 @@ function BookingsContent() {
   useEffect(() => {
     if (doneReceivedPage > doneReceivedTotalPages) setDoneReceivedPage(doneReceivedTotalPages);
   }, [doneReceivedPage, doneReceivedTotalPages]);
+
+  const changeDoneRenderedPage = (next: number) => {
+    setDoneRenderedPage((current) => {
+      if (next === current) return current;
+      setDoneRenderedSlideDir(next > current ? "next" : "prev");
+      return next;
+    });
+  };
+
+  const changeDoneReceivedPage = (next: number) => {
+    setDoneReceivedPage((current) => {
+      if (next === current) return current;
+      setDoneReceivedSlideDir(next > current ? "next" : "prev");
+      return next;
+    });
+  };
 
   // Auto-mark current tab as seen once data loads
   useEffect(() => {
@@ -565,178 +587,184 @@ function BookingsContent() {
             <p className="text-sm text-gray-400 mt-1">{t("bookings.noDoneDesc")}</p>
           </div>
         ) : (
-          <div className="space-y-6">
-            {completedReceived.length > 0 && (
-              <div>
-                <div className="mb-3 flex items-center gap-2">
-                  <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">{t("bookings.servicesRendered")}</h2>
-                  <button
-                    type="button"
-                    onClick={() => setDoneRenderedOpen((v) => !v)}
-                    className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors"
-                  >
-                    {doneRenderedOpen ? t("bookings.hideSection") : t("bookings.showSection")}
-                    <ChevronDown className={`h-4 w-4 transition-transform ${doneRenderedOpen ? "rotate-180" : ""}`} />
-                  </button>
-                </div>
-                <div
-                  className={`grid transition-all duration-300 ease-out ${
-                    doneRenderedOpen ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
-                  }`}
+          <div className="flex flex-col md:flex-row md:items-start">
+            <div className="flex-1 min-w-0 md:pr-6">
+              <div className="mb-3 flex items-center justify-center gap-2">
+                <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide text-center">
+                  {t("bookings.servicesRendered")}
+                  <span className="text-gray-300 font-normal normal-case tracking-normal text-xs ml-1">
+                    ({completedReceived.length})
+                  </span>
+                </h2>
+                <button
+                  type="button"
+                  onClick={() => setDoneRenderedOpen((v) => !v)}
+                  className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors"
                 >
+                  {doneRenderedOpen ? t("bookings.hideSection") : t("bookings.showSection")}
+                  <ChevronDown className={`h-4 w-4 transition-transform ${doneRenderedOpen ? "rotate-180" : ""}`} />
+                </button>
+              </div>
+              <div
+                className={`grid transition-all duration-300 ease-out ${
+                  doneRenderedOpen ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+                }`}
+              >
+                <div className="overflow-hidden">
                   <div className="overflow-hidden">
-                    <div className="space-y-3">
-                      {pagedCompletedReceived.map((b) => (
-                    (() => {
-                      const outcome = getBookingDisputeFinancialOutcome(b);
-                      const finalAmount = outcome.finalWorkerReceives ?? outcome.workerReceivesOriginal;
+                    <div
+                      key={doneRenderedPage}
+                      className={cn(
+                        "space-y-3",
+                        "animate-in fade-in-0 duration-300 ease-out",
+                        doneRenderedSlideDir === "next" ? "slide-in-from-right-4" : "slide-in-from-left-4",
+                      )}
+                    >
+                    {pagedCompletedReceived.length === 0 ? (
+                      <p className="text-sm text-gray-400 text-center py-6">—</p>
+                    ) : (
+                      pagedCompletedReceived.map((b) => {
+                        const outcome = getBookingDisputeFinancialOutcome(b);
+                        const finalAmount = outcome.finalWorkerReceives ?? outcome.workerReceivesOriginal;
 
-                      return (
-                        <div
-                          key={b.id}
-                          className="bg-white border border-gray-200 rounded-xl p-4 flex items-center gap-4 cursor-pointer hover:border-gray-300 transition-colors"
-                          onClick={() => setDetailBooking({ booking: b as BookingDetail, role: "worker" })}
-                        >
-                          {b.image_url && (
-                            <AppImage src={b.image_url} alt={b.title} width={56} height={56} className="h-14 w-14 rounded-lg object-cover shrink-0" />
-                          )}
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium text-gray-900 truncate">{b.title}</p>
-                            <p className="text-sm text-gray-500">{t("bookings.clientLabel")} : {("client_name" in b ? (b as ReceivedBooking).client_name : (b as SentBooking).worker_name)}</p>
-                            <p className="text-xs text-gray-400">{new Date(b.created_at).toLocaleDateString(bookingDateLocale, { year: "numeric", month: "long", day: "numeric" })}</p>
-                          </div>
-                          <div className="text-right shrink-0">
-                            <p className="font-semibold text-green-700">+{finalAmount.toFixed(2)} $</p>
-                            {outcome.hasFinancialAdjustment && outcome.finalWorkerReceives !== null && (
-                              <>
-                                <p className="text-xs text-gray-400 line-through">+{outcome.workerReceivesOriginal.toFixed(2)} $</p>
-                                <p className="text-xs text-amber-700">{t("bookings.finalAfterDispute")}</p>
-                              </>
+                        return (
+                          <div
+                            key={b.id}
+                            className="bg-white border border-gray-200 rounded-xl p-4 flex items-center gap-4 cursor-pointer hover:border-gray-300 transition-colors"
+                            onClick={() => setDetailBooking({ booking: b as BookingDetail, role: "worker" })}
+                          >
+                            {b.image_url && (
+                              <AppImage src={b.image_url} alt={b.title} width={56} height={56} className="h-14 w-14 rounded-lg object-cover shrink-0" />
                             )}
-                            <span className="inline-block mt-1 text-xs bg-green-100 text-green-800 border border-green-200 rounded-full px-2 py-0.5">{t("bookings.done")}</span>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium text-gray-900 truncate">{b.title}</p>
+                              <p className="text-sm text-gray-500">{t("bookings.clientLabel")} : {("client_name" in b ? (b as ReceivedBooking).client_name : (b as SentBooking).worker_name)}</p>
+                              <p className="text-xs text-gray-400">{new Date(b.created_at).toLocaleDateString(bookingDateLocale, { year: "numeric", month: "long", day: "numeric" })}</p>
+                            </div>
+                            <div className="text-right shrink-0">
+                              <p className="font-semibold text-green-700">+{finalAmount.toFixed(2)} $</p>
+                              {outcome.hasFinancialAdjustment && outcome.finalWorkerReceives !== null && (
+                                <>
+                                  <p className="text-xs text-gray-400 line-through">+{outcome.workerReceivesOriginal.toFixed(2)} $</p>
+                                  <p className="text-xs text-amber-700">{t("bookings.finalAfterDispute")}</p>
+                                </>
+                              )}
+                              <span className="inline-block mt-1 text-xs bg-green-100 text-green-800 border border-green-200 rounded-full px-2 py-0.5">{t("bookings.done")}</span>
+                              {!b.has_reviewed && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => { e.stopPropagation(); setReviewBooking({ id: b.id, targetName: (b as ReceivedBooking).client_name }); }}
+                                  className="block mt-1 text-xs text-green-700 hover:underline"
+                                >
+                                  {t("bookings.leaveReview")}
+                                </button>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      );
-                    })()
-                      ))}
-                    </div>
-                    {doneRenderedTotalPages > 1 && (
-                      <div className="mt-3 flex items-center justify-between gap-3 px-1">
-                        <button
-                          type="button"
-                          disabled={doneRenderedPage <= 1}
-                          onClick={() => setDoneRenderedPage((p) => Math.max(1, p - 1))}
-                          className="text-sm text-gray-600 hover:text-gray-900 disabled:opacity-40 disabled:cursor-not-allowed"
-                        >
-                          {t("common.previous")}
-                        </button>
-                        <span className="text-xs text-gray-500 tabular-nums">
-                          {t("wallet.txPageOf", { page: doneRenderedPage, total: doneRenderedTotalPages })}
-                        </span>
-                        <button
-                          type="button"
-                          disabled={doneRenderedPage >= doneRenderedTotalPages}
-                          onClick={() => setDoneRenderedPage((p) => Math.min(doneRenderedTotalPages, p + 1))}
-                          className="text-sm text-gray-600 hover:text-gray-900 disabled:opacity-40 disabled:cursor-not-allowed"
-                        >
-                          {t("common.next")}
-                        </button>
-                      </div>
+                        );
+                      })
                     )}
+                    </div>
                   </div>
+                  <BookingSectionPagination
+                    page={doneRenderedPage}
+                    totalPages={doneRenderedTotalPages}
+                    onPrevious={() => changeDoneRenderedPage(doneRenderedPage - 1)}
+                    onNext={() => changeDoneRenderedPage(doneRenderedPage + 1)}
+                  />
                 </div>
               </div>
-            )}
-            {completedSent.length > 0 && (
-              <div>
-                <div className="mb-3 flex items-center gap-2">
-                  <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">{t("bookings.servicesReceived")}</h2>
-                  <button
-                    type="button"
-                    onClick={() => setDoneReceivedOpen((v) => !v)}
-                    className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors"
-                  >
-                    {doneReceivedOpen ? t("bookings.hideSection") : t("bookings.showSection")}
-                    <ChevronDown className={`h-4 w-4 transition-transform ${doneReceivedOpen ? "rotate-180" : ""}`} />
-                  </button>
-                </div>
-                <div
-                  className={`grid transition-all duration-300 ease-out ${
-                    doneReceivedOpen ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
-                  }`}
-                >
-                  <div className="overflow-hidden">
-                    <div className="space-y-3">
-                      {pagedCompletedSent.map((b) => (
-                    (() => {
-                      const outcome = getBookingDisputeFinancialOutcome(b);
-                      const finalAmount = outcome.finalClientPaid ?? outcome.totalPaidOriginal;
+            </div>
 
-                      return (
-                        <div
-                          key={b.id}
-                          className="bg-white border border-gray-200 rounded-xl p-4 flex items-center gap-4 cursor-pointer hover:border-gray-300 transition-colors"
-                          onClick={() => setDetailBooking({ booking: b as BookingDetail, role: "client" })}
-                        >
-                          {b.image_url && (
-                            <AppImage src={b.image_url} alt={b.title} width={56} height={56} className="h-14 w-14 rounded-lg object-cover shrink-0" />
-                          )}
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium text-gray-900 truncate">{b.title}</p>
-                            <p className="text-sm text-gray-500">{t("bookings.providerLabel")} : {("worker_name" in b ? (b as SentBooking).worker_name : (b as ReceivedBooking).client_name)}</p>
-                            <p className="text-xs text-gray-400">{new Date(b.created_at).toLocaleDateString(bookingDateLocale, { year: "numeric", month: "long", day: "numeric" })}</p>
-                          </div>
-                          <div className="text-right shrink-0">
-                            <p className="font-semibold text-red-600">-{finalAmount.toFixed(2)} $</p>
-                            {outcome.hasFinancialAdjustment && outcome.finalClientPaid !== null && (
-                              <>
-                                <p className="text-xs text-gray-400 line-through">-{outcome.totalPaidOriginal.toFixed(2)} $</p>
-                                <p className="text-xs text-amber-700">{t("bookings.finalAfterDispute")}</p>
-                              </>
+            <div className="my-6 border-t border-gray-200 md:my-0 md:border-t-0 md:w-px md:self-stretch md:shrink-0 md:bg-gray-200" aria-hidden />
+
+            <div className="flex-1 min-w-0 md:pl-6">
+              <div className="mb-3 flex items-center justify-center gap-2">
+                <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide text-center">
+                  {t("bookings.servicesReceived")}
+                  <span className="text-gray-300 font-normal normal-case tracking-normal text-xs ml-1">
+                    ({completedSent.length})
+                  </span>
+                </h2>
+                <button
+                  type="button"
+                  onClick={() => setDoneReceivedOpen((v) => !v)}
+                  className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors"
+                >
+                  {doneReceivedOpen ? t("bookings.hideSection") : t("bookings.showSection")}
+                  <ChevronDown className={`h-4 w-4 transition-transform ${doneReceivedOpen ? "rotate-180" : ""}`} />
+                </button>
+              </div>
+              <div
+                className={`grid transition-all duration-300 ease-out ${
+                  doneReceivedOpen ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+                }`}
+              >
+                <div className="overflow-hidden">
+                  <div className="overflow-hidden">
+                    <div
+                      key={doneReceivedPage}
+                      className={cn(
+                        "space-y-3",
+                        "animate-in fade-in-0 duration-300 ease-out",
+                        doneReceivedSlideDir === "next" ? "slide-in-from-right-4" : "slide-in-from-left-4",
+                      )}
+                    >
+                    {pagedCompletedSent.length === 0 ? (
+                      <p className="text-sm text-gray-400 text-center py-6">—</p>
+                    ) : (
+                      pagedCompletedSent.map((b) => {
+                        const outcome = getBookingDisputeFinancialOutcome(b);
+                        const finalAmount = outcome.finalClientPaid ?? outcome.totalPaidOriginal;
+
+                        return (
+                          <div
+                            key={b.id}
+                            className="bg-white border border-gray-200 rounded-xl p-4 flex items-center gap-4 cursor-pointer hover:border-gray-300 transition-colors"
+                            onClick={() => setDetailBooking({ booking: b as BookingDetail, role: "client" })}
+                          >
+                            {b.image_url && (
+                              <AppImage src={b.image_url} alt={b.title} width={56} height={56} className="h-14 w-14 rounded-lg object-cover shrink-0" />
                             )}
-                            <span className="inline-block mt-1 text-xs bg-green-100 text-green-800 border border-green-200 rounded-full px-2 py-0.5">{t("bookings.done")}</span>
-                            {!b.has_reviewed && (
-                              <button
-                                type="button"
-                                onClick={(e) => { e.stopPropagation(); setReviewBooking({ id: b.id, targetName: ("worker_name" in b ? (b as SentBooking).worker_name : (b as ReceivedBooking).client_name) }); }}
-                                className="block mt-1 text-xs text-green-700 hover:underline"
-                              >
-                                {t("bookings.leaveReview")}
-                              </button>
-                            )}
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium text-gray-900 truncate">{b.title}</p>
+                              <p className="text-sm text-gray-500">{t("bookings.providerLabel")} : {("worker_name" in b ? (b as SentBooking).worker_name : (b as ReceivedBooking).client_name)}</p>
+                              <p className="text-xs text-gray-400">{new Date(b.created_at).toLocaleDateString(bookingDateLocale, { year: "numeric", month: "long", day: "numeric" })}</p>
+                            </div>
+                            <div className="text-right shrink-0">
+                              <p className="font-semibold text-red-600">-{finalAmount.toFixed(2)} $</p>
+                              {outcome.hasFinancialAdjustment && outcome.finalClientPaid !== null && (
+                                <>
+                                  <p className="text-xs text-gray-400 line-through">-{outcome.totalPaidOriginal.toFixed(2)} $</p>
+                                  <p className="text-xs text-amber-700">{t("bookings.finalAfterDispute")}</p>
+                                </>
+                              )}
+                              <span className="inline-block mt-1 text-xs bg-green-100 text-green-800 border border-green-200 rounded-full px-2 py-0.5">{t("bookings.done")}</span>
+                              {!b.has_reviewed && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => { e.stopPropagation(); setReviewBooking({ id: b.id, targetName: ("worker_name" in b ? (b as SentBooking).worker_name : (b as ReceivedBooking).client_name) }); }}
+                                  className="block mt-1 text-xs text-green-700 hover:underline"
+                                >
+                                  {t("bookings.leaveReview")}
+                                </button>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      );
-                    })()
-                      ))}
-                    </div>
-                    {doneReceivedTotalPages > 1 && (
-                      <div className="mt-3 flex items-center justify-between gap-3 px-1">
-                        <button
-                          type="button"
-                          disabled={doneReceivedPage <= 1}
-                          onClick={() => setDoneReceivedPage((p) => Math.max(1, p - 1))}
-                          className="text-sm text-gray-600 hover:text-gray-900 disabled:opacity-40 disabled:cursor-not-allowed"
-                        >
-                          {t("common.previous")}
-                        </button>
-                        <span className="text-xs text-gray-500 tabular-nums">
-                          {t("wallet.txPageOf", { page: doneReceivedPage, total: doneReceivedTotalPages })}
-                        </span>
-                        <button
-                          type="button"
-                          disabled={doneReceivedPage >= doneReceivedTotalPages}
-                          onClick={() => setDoneReceivedPage((p) => Math.min(doneReceivedTotalPages, p + 1))}
-                          className="text-sm text-gray-600 hover:text-gray-900 disabled:opacity-40 disabled:cursor-not-allowed"
-                        >
-                          {t("common.next")}
-                        </button>
-                      </div>
+                        );
+                      })
                     )}
+                    </div>
                   </div>
+                  <BookingSectionPagination
+                    page={doneReceivedPage}
+                    totalPages={doneReceivedTotalPages}
+                    onPrevious={() => changeDoneReceivedPage(doneReceivedPage - 1)}
+                    onNext={() => changeDoneReceivedPage(doneReceivedPage + 1)}
+                  />
                 </div>
               </div>
-            )}
+            </div>
           </div>
         )
       )}

@@ -1,18 +1,23 @@
 "use client";
+import { useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import AppImage from "@/components/ui/AppImage";
-import { MapPin, Grid3x3, Star, CheckCircle } from "lucide-react";
+import { MapPin, Grid3x3, Star, CheckCircle, ChevronDown } from "lucide-react";
 import { ReceivedBooking, BookingStatus, STATUS_CONFIG, BOOKING_GROUPS, formatDate } from "./bookingTypes";
 import { type BookingDetail } from "./BookingDetailModal";
 import PayNowButton from "./PayNowButton";
+import BookingSectionPagination from "./BookingSectionPagination";
 import { negotiationHintPrimary, negotiationHintAction } from "./negotiationCardStyles";
 import { useTranslation } from "react-i18next";
 import { getDisputeWindowState } from "@/lib/disputes";
 import { formatBookingCheckoutTotalDisplay, resolveBookingCheckoutBase } from "@/lib/listingPrice";
 import { resolveCheckoutPrice, needsBookingPayment, resolveBalanceFullServiceBase } from "@/lib/hourlyPayment";
 import { getTaxRate } from "@/lib/taxes";
+import { cn } from "@/lib/utils";
+
+const RECEIVED_PAGE_SIZE = 4;
 
 function StatusBadge({ status }: { status: BookingStatus }) {
   const { t } = useTranslation();
@@ -63,20 +68,76 @@ export default function ReceivedBookingsList({
   onUpdateStatus, onMarkCompleted, onMessage, onReview, onDispute, onCardClick,
 }: Props) {
   const { t } = useTranslation();
+  const [groupOpen, setGroupOpen] = useState<Record<string, boolean>>(() =>
+    Object.fromEntries(BOOKING_GROUPS.map((g) => [g.labelKey, true])),
+  );
+  const [groupPage, setGroupPage] = useState<Record<string, number>>(() =>
+    Object.fromEntries(BOOKING_GROUPS.map((g) => [g.labelKey, 1])),
+  );
+  const [groupSlideDir, setGroupSlideDir] = useState<Record<string, "prev" | "next">>(() =>
+    Object.fromEntries(BOOKING_GROUPS.map((g) => [g.labelKey, "next"])),
+  );
+
+  const visibleGroups = BOOKING_GROUPS.filter(({ statuses }) =>
+    bookings.some((b) => statuses.includes(b.status)),
+  );
+
+  const changeGroupPage = (labelKey: string, next: number) => {
+    setGroupPage((current) => {
+      const prev = current[labelKey] ?? 1;
+      if (next === prev) return current;
+      setGroupSlideDir((dirs) => ({ ...dirs, [labelKey]: next > prev ? "next" : "prev" }));
+      return { ...current, [labelKey]: next };
+    });
+  };
+
   return (
     <div className="space-y-8">
-      {BOOKING_GROUPS
-        .filter(({ statuses }) => bookings.some((b) => statuses.includes(b.status)))
-        .map(({ labelKey, statuses }) => (
+      {visibleGroups.map(({ labelKey, statuses }, index) => {
+        const groupBookings = bookings.filter((b) => statuses.includes(b.status));
+        const totalPages = Math.max(1, Math.ceil(groupBookings.length / RECEIVED_PAGE_SIZE));
+        const page = Math.min(groupPage[labelKey] ?? 1, totalPages);
+        const start = (page - 1) * RECEIVED_PAGE_SIZE;
+        const pagedBookings = groupBookings.slice(start, start + RECEIVED_PAGE_SIZE);
+        const isOpen = groupOpen[labelKey] ?? true;
+        const slideDir = groupSlideDir[labelKey] ?? "next";
+
+        return (
           <div key={labelKey}>
-            <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-3 flex items-center gap-2">
-              {t(labelKey)}
-              <span className="text-gray-300 font-normal normal-case tracking-normal text-xs">
-                ({bookings.filter((b) => statuses.includes(b.status)).length})
-              </span>
-            </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {bookings.filter((b) => statuses.includes(b.status)).map((b) => {
+            {index > 0 && <div className="border-t border-gray-200 mb-8" aria-hidden />}
+            <div className="mb-3 flex items-center justify-center gap-2">
+              <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-widest text-center">
+                {t(labelKey)}
+                <span className="text-gray-300 font-normal normal-case tracking-normal text-xs ml-1">
+                  ({groupBookings.length})
+                </span>
+              </h2>
+              <button
+                type="button"
+                onClick={() => setGroupOpen((prev) => ({ ...prev, [labelKey]: !isOpen }))}
+                className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors"
+              >
+                {isOpen ? t("bookings.hideSection") : t("bookings.showSection")}
+                <ChevronDown className={cn("h-4 w-4 transition-transform", isOpen && "rotate-180")} />
+              </button>
+            </div>
+            <div
+              className={cn(
+                "grid transition-all duration-300 ease-out",
+                isOpen ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0",
+              )}
+            >
+              <div className="overflow-hidden">
+                <div className="overflow-hidden">
+                  <div
+                    key={page}
+                    className={cn(
+                      "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4",
+                      "animate-in fade-in-0 duration-300 ease-out",
+                      slideDir === "next" ? "slide-in-from-right-4" : "slide-in-from-left-4",
+                    )}
+                  >
+              {pagedBookings.map((b) => {
                 const isLooking = b.service_type === "looking";
                 const statusBar = STATUS_CONFIG[b.status]?.bar ?? "bg-gray-400";
                 const disputeWindow = getDisputeWindowState(b.completed_at);
@@ -347,9 +408,19 @@ export default function ReceivedBookingsList({
                   </div>
                 );
               })}
+                  </div>
+                </div>
+                <BookingSectionPagination
+                  page={page}
+                  totalPages={totalPages}
+                  onPrevious={() => changeGroupPage(labelKey, page - 1)}
+                  onNext={() => changeGroupPage(labelKey, page + 1)}
+                />
+              </div>
             </div>
           </div>
-        ))}
+        );
+      })}
     </div>
   );
 }

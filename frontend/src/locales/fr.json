@@ -99,8 +99,9 @@
     "spokenLanguageFilter": "Langue préférée pour l’annonce",
     "cardTrustReviews": "⭐ {{rating}} ({{count}} avis)",
     "cardTrustReviews_plural": "⭐ {{rating}} ({{count}} avis)",
-    "cardTrustClients": "{{count}} client",
-    "cardTrustClients_plural": "{{count}} clients"
+    "cardClientsServed": "{{count}} client servi",
+    "cardClientsServed_plural": "{{count}} clients servis",
+    "cardClientsServedTitle": "Réservations terminées pour cette annonce"
   },
   "listingPrice": {
     "quote": "Prix à discuter",

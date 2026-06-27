@@ -16,7 +16,7 @@ import { resolveListingTitle, type ServiceLikeWithI18n } from "@/lib/serviceList
 import ListingLangPills from "@/components/ui/ListingLangPills";
 import { ListingsRegionEmptyState } from "@/components/listings/ListingsRegionEmptyState";
 import { ListingCardImageCarousel, getListingGalleryUrls } from "@/components/listings/ListingCardImageCarousel";
-import { ListingTrustLine } from "@/components/listings/ListingTrustLine";
+import { ListingCardSubtitle, ListingCardPriceRow } from "@/components/listings/ListingTrustLine";
 import { formatListingPriceLine } from "@/lib/listingPrice";
 import { LOCATION_SEARCH_RADIUS_KM } from "@/lib/geocodeCanadianLocation";
 
@@ -141,7 +141,7 @@ function ListingGridCard({ s, globalIndex }: { s: ApiService; globalIndex: numbe
   const galleryUrls = getListingGalleryUrls(s.image_urls, s.image_url);
   const categoryLine = formatListingCategoryLine(s.category_name, s, t, " | ");
   return (
-    <div className="group flex flex-col border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white hover:shadow-md transition-shadow">
+    <div className="group flex h-full flex-col border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white hover:shadow-md transition-shadow">
       <AspectRatio ratio={16 / 9}>
         {galleryUrls.length > 0 ? (
           <div className="relative w-full h-full cursor-pointer" onClick={() => router.push(detailHref)}>
@@ -183,18 +183,15 @@ function ListingGridCard({ s, globalIndex }: { s: ApiService; globalIndex: numbe
             <Badge className="shrink-0 border-0 bg-green-100 text-xs text-green-700">{t("listings.offering")}</Badge>
           )}
         </div>
-        <ListingTrustLine
+        <ListingCardSubtitle
+          categoryLine={categoryLine || null}
           reviewCount={s.review_count}
           averageRating={s.average_rating}
-          completedBookingsCount={s.completed_bookings_count}
-          className="mb-1"
         />
-
-        {categoryLine ? (
-          <p className="text-xs text-gray-400 mb-1 line-clamp-1">{categoryLine}</p>
-        ) : null}
-
-        <p className="text-green-700 font-bold text-base mb-2">{formatListingPriceLine(t, s)}</p>
+        <ListingCardPriceRow
+          price={formatListingPriceLine(t, s)}
+          completedBookingsCount={s.completed_bookings_count}
+        />
 
         <div className="flex items-center justify-between text-xs text-gray-500 mt-auto">
           <div className="flex items-center gap-1 min-w-0">

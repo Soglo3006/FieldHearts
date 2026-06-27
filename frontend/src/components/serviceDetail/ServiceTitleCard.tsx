@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { MapPin, Calendar, Globe, Truck, Zap, Tag } from "lucide-react";
+import { MapPin, Calendar, Globe, Truck, Zap, Tag, Users } from "lucide-react";
 import SaveShareActions from "@/components/serviceDetail/SaveShareActions";
 import { useTranslation } from "react-i18next";
 import { getPublicServiceLocation } from "@/lib/serviceLocation";
@@ -16,7 +16,6 @@ import {
   formatSpokenLanguageLabel,
   formatUrgencyLabel,
 } from "@/lib/formatServiceDetailFields";
-
 interface Service {
   id: string;
   type: "offer" | "looking";
@@ -45,6 +44,7 @@ interface Service {
   deposit_enabled?: boolean;
   deposit_type?: string | null;
   deposit_value?: number | string | null;
+  completed_bookings_count?: number | string | null;
   owner_name: string;
   owner_id: string;
   owner_avatar: string | null;
@@ -75,6 +75,12 @@ export default function ServiceTitleCard({
       : "";
   const categoryLine = formatListingCategoryLine(service.category_name, service, t, " · ");
   const hasCategory = Boolean(service.category_name || service.subcategory || categoryLine);
+  const clientsServed = (() => {
+    const v = service.completed_bookings_count;
+    if (v == null) return 0;
+    const n = typeof v === "number" ? v : parseInt(String(v), 10);
+    return Number.isFinite(n) ? n : 0;
+  })();
 
   return (
     <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
@@ -112,6 +118,18 @@ export default function ServiceTitleCard({
             </button>
             <span>·</span>
             <span>{formatRelativeDate(service.created_at)}</span>
+            {clientsServed > 0 && (
+              <>
+                <span>·</span>
+                <span
+                  className="inline-flex items-center gap-1"
+                  title={t("listings.cardClientsServedTitle")}
+                >
+                  <Users className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                  {t("listings.cardClientsServed", { count: clientsServed })}
+                </span>
+              </>
+            )}
           </div>
 
           <SaveShareActions serviceId={service.id} title={displayTitle} ownerId={service.owner_id} />

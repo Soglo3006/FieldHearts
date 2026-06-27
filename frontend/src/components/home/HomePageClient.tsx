@@ -23,7 +23,8 @@ import dynamic from "next/dynamic";
 import { getListingGalleryUrls } from "@/components/listings/ListingCardImageCarousel";
 const AdBanner = dynamic(() => import("@/components/AdBanner"), { ssr: false });
 const ListingCardImageCarousel = dynamic(() => import("@/components/listings/ListingCardImageCarousel").then(m => ({ default: m.ListingCardImageCarousel })), { ssr: false });
-import { ListingTrustLine } from "@/components/listings/ListingTrustLine";
+import { ListingCardSubtitle, ListingCardPriceRow } from "@/components/listings/ListingTrustLine";
+import { formatListingCategoryLine } from "@/lib/listingTags";
 import { formatListingPriceLine } from "@/lib/listingPrice";
 
 const CityAutocomplete = dynamic(() => import("@/components/ui/CityAutocomplete"), { ssr: false });
@@ -63,6 +64,8 @@ export interface HomeListing extends ServiceLikeWithI18n {
   created_at: string;
   category: string;
   category_name?: string;
+  subcategory?: string | null;
+  listing_tags?: unknown;
   type?: "offer" | "looking";
   review_count?: number | string | null;
   average_rating?: number | string | null;
@@ -88,6 +91,12 @@ function ListingCard({
   const router = useRouter();
   const galleryUrls = getListingGalleryUrls(listing.image_urls, listing.image_url);
   const resolvedTitle = resolveListingTitle(listing, i18nLang);
+  const categoryLine = formatListingCategoryLine(
+    listing.category_name ?? listing.category ?? null,
+    listing,
+    t,
+    " | ",
+  );
   const detailHref = `/serviceDetail/${listing.id}`;
   return (
     <div className="group h-full border rounded-xl shadow-sm bg-white flex flex-col overflow-hidden hover:shadow-md transition-shadow">
@@ -124,12 +133,16 @@ function ListingCard({
             <span className="bg-green-100 text-green-700 text-xs font-semibold px-2 py-0.5 rounded-full shrink-0">{t("listings.offering")}</span>
           )}
         </div>
-        <ListingTrustLine
+        <ListingCardSubtitle
+          categoryLine={categoryLine || null}
           reviewCount={listing.review_count}
           averageRating={listing.average_rating}
-          completedBookingsCount={listing.completed_bookings_count}
         />
-        <p className="text-green-700 font-semibold">{formatListingPriceLine(t, listing)}</p>
+        <ListingCardPriceRow
+          price={formatListingPriceLine(t, listing)}
+          completedBookingsCount={listing.completed_bookings_count}
+          priceClassName="font-semibold"
+        />
         <div className="flex items-center justify-between text-xs text-gray-500 mt-auto">
           <div className="flex items-center gap-1 min-w-0">
             <MapPin className="h-3 w-3 shrink-0" />

@@ -606,7 +606,8 @@ export const getServiceById = async (req, res) => {
           u.account_type AS owner_account_type,
           u.province AS owner_province,
           c.name AS category_name,
-          c.image_url AS category_image_url
+          c.image_url AS category_image_url,
+          (SELECT COUNT(*)::int FROM bookings b WHERE b.service_id = s.id AND b.status = 'completed') AS completed_bookings_count
        FROM services s
        JOIN users u ON s.user_id = u.id
        LEFT JOIN categories c ON c.id = s.category_id

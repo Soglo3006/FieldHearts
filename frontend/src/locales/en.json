@@ -99,8 +99,9 @@
     "spokenLanguageFilter": "Listing language preference",
     "cardTrustReviews": "⭐ {{rating}} ({{count}} review)",
     "cardTrustReviews_plural": "⭐ {{rating}} ({{count}} reviews)",
-    "cardTrustClients": "{{count}} client",
-    "cardTrustClients_plural": "{{count}} clients"
+    "cardClientsServed": "{{count}} client served",
+    "cardClientsServed_plural": "{{count}} clients served",
+    "cardClientsServedTitle": "Completed bookings for this listing"
   },
   "listingPrice": {
     "quote": "Price to discuss",

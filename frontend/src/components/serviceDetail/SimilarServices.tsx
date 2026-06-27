@@ -7,7 +7,9 @@ import AppImage from "@/components/ui/AppImage";
 import { getPublicServiceLocation } from "@/lib/serviceLocation";
 import { resolveListingTitle, type ServiceLikeWithI18n } from "@/lib/serviceListingI18n";
 import { formatListingPriceLine } from "@/lib/listingPrice";
+import { formatListingCategoryLine } from "@/lib/listingTags";
 import ListingLangPills from "@/components/ui/ListingLangPills";
+import { ListingCardSubtitle, ListingCardPriceRow } from "@/components/listings/ListingTrustLine";
 
 interface SimilarService {
   id: string;
@@ -24,6 +26,13 @@ interface SimilarService {
   image_urls?: string[] | null;
   language?: string | null;
   translations?: ServiceLikeWithI18n["translations"];
+  category?: string | null;
+  category_name?: string | null;
+  subcategory?: string | null;
+  listing_tags?: unknown;
+  review_count?: number | string | null;
+  average_rating?: number | string | null;
+  completed_bookings_count?: number | string | null;
 }
 
 interface Props {
@@ -42,9 +51,15 @@ export default function SimilarServices({ services }: Props) {
         {services.map((s) => {
           const thumb = s.image_urls?.[0] ?? s.image_url;
           const resolved = resolveListingTitle(s, i18n.language);
+          const categoryLine = formatListingCategoryLine(
+            s.category_name ?? s.category ?? null,
+            s,
+            t,
+            " | ",
+          );
           return (
-            <Link key={s.id} href={`/serviceDetail/${s.id}`} className="block group">
-              <div className="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white hover:shadow-md transition-shadow">
+            <Link key={s.id} href={`/serviceDetail/${s.id}`} className="block group h-full">
+              <div className="flex h-full flex-col border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white hover:shadow-md transition-shadow">
                 <AspectRatio ratio={16 / 9}>
                   <div className="relative h-full w-full">
                     <ListingLangPills service={s} />
@@ -57,11 +72,19 @@ export default function SimilarServices({ services }: Props) {
                     )}
                   </div>
                 </AspectRatio>
-                <div className="p-3">
-                  <p className="font-semibold text-gray-900 line-clamp-1 group-hover:text-green-700 transition-colors">{resolved}</p>
-                  <p className="text-green-700 font-bold text-sm mt-1">{formatListingPriceLine(t, s)}</p>
+                <div className="flex flex-1 flex-col p-3">
+                  <p className="font-semibold text-gray-900 line-clamp-1 group-hover:text-green-700 transition-colors text-sm">{resolved}</p>
+                  <ListingCardSubtitle
+                    categoryLine={categoryLine || null}
+                    reviewCount={s.review_count}
+                    averageRating={s.average_rating}
+                  />
+                  <ListingCardPriceRow
+                    price={formatListingPriceLine(t, s)}
+                    completedBookingsCount={s.completed_bookings_count}
+                  />
                   {getPublicServiceLocation(s) && (
-                    <p className="text-xs text-gray-500 mt-0.5 flex items-center gap-1">
+                    <p className="text-xs text-gray-500 mt-auto flex items-center gap-1">
                       <MapPin className="h-3 w-3 shrink-0" />
                       <span className="line-clamp-1">{getPublicServiceLocation(s)}</span>
                     </p>

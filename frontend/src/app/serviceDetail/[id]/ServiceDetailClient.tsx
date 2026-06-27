@@ -74,6 +74,7 @@ interface Service {
   deposit_enabled?: boolean;
   deposit_type?: string | null;
   deposit_value?: number | string | null;
+  completed_bookings_count?: number | string | null;
 }
 
 interface SimilarService {
@@ -92,6 +93,13 @@ interface SimilarService {
   image_urls?: string[] | null;
   language?: string | null;
   translations?: ServiceLikeWithI18n["translations"];
+  category?: string | null;
+  category_name?: string | null;
+  subcategory?: string | null;
+  listing_tags?: unknown;
+  review_count?: number | string | null;
+  average_rating?: number | string | null;
+  completed_bookings_count?: number | string | null;
 }
 
 export default function ServiceDetailClient() {
@@ -207,7 +215,10 @@ export default function ServiceDetailClient() {
           : `${process.env.NEXT_PUBLIC_API_URL}/services`;
         fetch(similarUrl)
           .then((r) => r.json())
-          .then((list: SimilarService[]) => setSimilarServices(list.filter((s) => s.id !== data.id).slice(0, 2)))
+          .then((json: SimilarService[] | { data?: SimilarService[] }) => {
+            const list = Array.isArray(json) ? json : Array.isArray(json?.data) ? json.data : [];
+            setSimilarServices(list.filter((s) => s.id !== data.id).slice(0, 2));
+          })
           .catch(() => {});
       } catch {
         setError(true);

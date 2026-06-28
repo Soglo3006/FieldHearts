@@ -1,6 +1,6 @@
 import pool from "../config/db.js";
 import { normalizePricingMode } from "../utils/servicePricing.js";
-import { ensureDepositsAndCalendarSchema } from "../utils/depositSchema.js";
+import { ensureDepositsAndCalendarSchema, resolveBookingDepositMeta } from "../utils/depositSchema.js";
 import {
   computeBalanceDueCents,
   isHourlyBooking,
@@ -37,11 +37,12 @@ async function autoApproveStaleSessions(bookingId) {
 
 async function loadBookingForPaymentGuard(bookingId) {
   const bookingResult = await pool.query(
-    `SELECT b.approved_hours_total, b.paid_service_base_cents, b.balance_due_cents,
-            b.payment_status, b.custom_price, b.completed_by_worker, b.completed_by_client,
+    `SELECT b.*, s.title AS service_title, s.price AS service_price,
             COALESCE(b.pricing_mode, s.pricing_mode) AS pricing_mode,
-            s.price AS service_price, s.price_max, s.estimated_hours AS service_estimated_hours,
-            s.deposit_enabled, s.deposit_type, s.deposit_value
+            s.price_max, s.estimated_hours AS service_estimated_hours,
+            s.deposit_enabled AS service_deposit_enabled,
+            s.deposit_type AS service_deposit_type,
+            s.deposit_value AS service_deposit_value
      FROM bookings b
      JOIN services s ON s.id = b.service_id
      WHERE b.id = $1`,
@@ -56,14 +57,13 @@ async function loadBookingForPaymentGuard(bookingId) {
 }
 
 function serviceMetaFromRow(row) {
+  const deposit = resolveBookingDepositMeta(row);
   return {
     pricing_mode: row.pricing_mode,
     price: row.price ?? row.service_price,
     price_max: row.price_max,
     estimated_hours: row.estimated_hours ?? row.service_estimated_hours,
-    deposit_enabled: row.deposit_enabled,
-    deposit_type: row.deposit_type,
-    deposit_value: row.deposit_value,
+    ...deposit,
   };
 }
 

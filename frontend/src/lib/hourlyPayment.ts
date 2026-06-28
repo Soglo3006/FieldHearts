@@ -177,6 +177,17 @@ export function fixedAwaitingWorkForBalance(
   );
 }
 
+export function hasUnpaidBalanceDue(
+  booking: BookingPaymentFields,
+  depositConfig?: DepositConfig | null,
+): boolean {
+  const meta = depositConfig ?? booking;
+  if (!usesSplitDepositPayment(booking, meta)) return false;
+  if (booking.payment_status !== "deposit_paid") return false;
+  if (!isBalanceCheckoutReady(booking)) return false;
+  return computeBalanceDueCents(booking, meta) > 0;
+}
+
 export function resolveCheckoutKind(
   booking: BookingPaymentFields,
   depositConfig?: DepositConfig | null,
@@ -192,10 +203,8 @@ export function resolveCheckoutKind(
   if (usesSplitDepositPayment(booking, meta)) {
     if (booking.status === "accepted" && unpaid) return "deposit";
     if (
-      booking.status === "active" &&
-      booking.payment_status === "deposit_paid" &&
-      computeBalanceDueCents(booking, meta) > 0 &&
-      isBalanceCheckoutReady(booking)
+      (booking.status === "active" || booking.status === "completed") &&
+      hasUnpaidBalanceDue(booking, meta)
     ) {
       return "balance";
     }

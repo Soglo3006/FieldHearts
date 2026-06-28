@@ -25,7 +25,7 @@ import { normalizeAvailability, normalizeMobility } from "@/lib/serviceFieldCano
 import type { PricingMode } from "@/lib/listingPrice";
 import { normalizePricingMode } from "@/lib/listingPrice";
 import type { ListingPricingFields } from "@/lib/listingPrice";
-import { resolveDepositBaseAmount } from "@/lib/deposit";
+import { resolveDepositBaseAmount, isDepositFormValueValid } from "@/lib/deposit";
 import { cn } from "@/lib/utils";
 import { parseListingTags } from "@/lib/listingTags";
 import DepositFields from "@/components/post/DepositFields";
@@ -221,12 +221,20 @@ export default function EditListingModal({ service, accessToken, onClose, onSave
 
   const locationOk = location.trim() !== "" && isResolvedLocationDetails(locationDetails);
 
+  const depositOk = isDepositFormValueValid(
+    pricingMode !== "quote" && depositEnabled,
+    depositType,
+    depositValue,
+    editPricingFields(),
+  );
+
   const isValid =
     hasRequiredBilingualFields(translations) &&
     category.trim() !== "" &&
     tags.length >= 1 &&
     pricingOk &&
-    locationOk;
+    locationOk &&
+    depositOk;
 
   const handleSave = async () => {
     if (!isValid) {
@@ -427,6 +435,7 @@ export default function EditListingModal({ service, accessToken, onClose, onSave
               onValueChange={setDepositValue}
               pricingMode={pricingMode}
               servicePrice={depositBase}
+              pricingFields={editPricingFields()}
             />
           )}
 

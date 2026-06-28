@@ -1,10 +1,9 @@
 "use client";
 import { useState } from "react";
-import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import AppImage from "@/components/ui/AppImage";
-import { Upload, Trash2, Camera, Plus, Pencil } from "lucide-react";
+import { Trash2, Plus, Pencil } from "lucide-react";
 import type { Area } from "react-easy-crop";
 import ImageCropModal from "@/components/ui/ImageCropModal";
 import getCroppedImg from "@/utils/cropImage";
@@ -31,7 +30,6 @@ export default function EditPortfolioCard({ portfolio, isPerson, onAdd, onUpdate
   const sectionTitle = isPerson ? t("profile.portfolio") : t("profile.ourWork");
   const sectionSubtitle = isPerson ? t("profile.uploadPortfolio") : t("profile.uploadProjects");
   const addItemLabel = isPerson ? t("profile.addPortfolioItem", "Ajouter un élément au portfolio") : t("profile.addProjectItem");
-  const uploadLabel = isPerson ? t("profile.uploadPortfolioImages") : t("profile.uploadProjectImages");
   const titlePlaceholder = isPerson ? t("profile.portfolioTitlePlaceholder") : t("profile.projectTitlePlaceholder");
   const addButtonLabel = isPerson ? t("profile.addToPortfolio") : t("profile.addToProjects");
   const [showModal, setShowModal] = useState(false);
@@ -100,84 +98,102 @@ export default function EditPortfolioCard({ portfolio, isPerson, onAdd, onUpdate
     setError(false);
   };
 
+  const portfolioTips = [
+    t("profile.tipQuality"),
+    t("profile.tipVariety"),
+    t("profile.tipBright"),
+  ];
+
   return (
     <>
-      <Card className="p-6 sm:p-8 mb-6">
-        <div className="mb-6">
-          <h2 className="text-xl font-bold text-gray-900 mb-2">{sectionTitle}</h2>
-          <p className="text-gray-600">{sectionSubtitle}</p>
+      <div className="mb-6 border-2 border-green-700 rounded-2xl overflow-hidden bg-white grid grid-cols-1 lg:grid-cols-2">
+        {/* Left panel — style page contact */}
+        <div className="bg-green-800 px-8 py-10 sm:px-10 sm:py-12 flex flex-col justify-between border-b lg:border-b-0 lg:border-r border-green-700">
+          <div>
+            <h2 className="text-2xl sm:text-3xl font-bold text-white leading-tight mb-3">
+              {sectionTitle}
+            </h2>
+            <p className="text-green-200 text-sm mb-10 leading-relaxed">
+              {sectionSubtitle}
+            </p>
 
-          {portfolio.length === 0 && (
-            <div className="bg-green-50 border border-green-200 rounded-lg p-4 mt-4">
-              <div className="flex items-start gap-3">
-                <Camera className="h-5 w-5 text-green-600 mt-0.5 shrink-0" />
-                <div>
-                  <h3 className="font-semibold text-green-900 mb-2">{t("profile.tipTitle")}</h3>
-                  <ul className="text-sm text-green-800 space-y-1.5">
-                    <li>• {t("profile.tipQuality")}</li>
-                    <li>• {t("profile.tipVariety")}</li>
-                    <li>• {t("profile.tipBright")}</li>
-                  </ul>
+            <div className="space-y-6">
+              <p className="text-white font-semibold text-sm">{t("profile.tipTitle")}</p>
+              {portfolioTips.map((tip) => (
+                <div key={tip} className="flex items-start gap-4">
+                  <div className="w-2.5 h-2.5 rounded-full bg-green-300 shrink-0 mt-1.5" />
+                  <p className="text-green-200 text-xs leading-relaxed">{tip}</p>
                 </div>
-              </div>
+              ))}
             </div>
-          )}
-        </div>
-
-        {portfolio.length > 0 && (
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
-            {portfolio.map((item, i) => (
-              <div key={i} className="relative group">
-                <div className="relative overflow-hidden rounded-lg aspect-4/3">
-                  <button
-                    type="button"
-                    onClick={() => openMobileActions(item)}
-                    className="absolute inset-0 z-10 cursor-pointer md:hidden"
-                    aria-label={item.title || t("profile.portfolioItemAlt")}
-                  />
-                  <AppImage src={item.image} alt={item.title} fill sizes="(max-width: 768px) 50vw, 33vw" className="object-cover" />
-                  <div className="absolute inset-0 bg-opacity-0 group-hover:bg-opacity-40 transition-all duration-200" />
-                  <div className="absolute top-2 right-2 hidden gap-2 opacity-0 transition-opacity md:flex group-hover:opacity-100">
-                    <button
-                      type="button"
-                      onClick={() => handleEditItem(item)}
-                      title={t("common.edit")}
-                      aria-label={t("common.edit")}
-                      className="p-2 bg-white/95 text-gray-700 rounded-full hover:bg-white cursor-pointer"
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => onRemove(item.id)}
-                      title={t("profile.deleteItem", "Supprimer")}
-                      aria-label={t("profile.deleteItem", "Supprimer")}
-                      className="p-2 bg-red-500 text-white rounded-full hover:bg-red-600 cursor-pointer"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </div>
-                </div>
-                <p className="text-sm text-gray-700 mt-2 text-center font-medium">{item.title}</p>
-              </div>
-            ))}
           </div>
-        )}
-
-        <div
-          className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center hover:border-green-700 transition-colors cursor-pointer group"
-          onClick={() => document.getElementById("portfolio-upload")?.click()}
-        >
-          <input type="file" accept="image/*" id="portfolio-upload" onChange={handleUpload} title={addItemLabel} aria-label={addItemLabel} className="hidden" />
-          <Upload className="h-12 w-12 text-gray-400 mx-auto mb-3 group-hover:text-green-600 transition-colors" />
-          <h3 className="text-lg font-semibold text-gray-900 mb-1">{uploadLabel}</h3>
-          <p className="text-gray-500 text-sm mb-4">{t("profile.clickToBrowse")}</p>
-          <Button variant="outline" className="gap-2 cursor-pointer mb-3" type="button">
-            <Plus className="h-4 w-4" /> {t("profile.chooseFiles")}
-          </Button>
-          <p className="text-xs text-gray-400">{t("profile.maxFileSize")}</p>
         </div>
-      </Card>
+
+        {/* Right panel */}
+        <div className="px-6 py-8 sm:px-8 sm:py-10 bg-white flex flex-col">
+          {portfolio.length > 0 ? (
+            <div className="grid grid-cols-2 gap-4 mb-6">
+              {portfolio.map((item) => (
+                <div key={item.id} className="relative group">
+                  <div className="relative overflow-hidden rounded-lg border border-gray-200 aspect-4/3">
+                    <button
+                      type="button"
+                      onClick={() => openMobileActions(item)}
+                      className="absolute inset-0 z-10 cursor-pointer md:hidden"
+                      aria-label={item.title || t("profile.portfolioItemAlt")}
+                    />
+                    <AppImage src={item.image} alt={item.title} fill sizes="(max-width: 768px) 50vw, 33vw" className="object-cover" />
+                    <div className="absolute top-2 right-2 hidden gap-2 opacity-0 transition-opacity md:flex group-hover:opacity-100">
+                      <button
+                        type="button"
+                        onClick={() => handleEditItem(item)}
+                        title={t("common.edit")}
+                        aria-label={t("common.edit")}
+                        className="p-2 bg-white/95 text-gray-700 rounded-full hover:bg-white cursor-pointer shadow-sm"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onRemove(item.id)}
+                        title={t("profile.deleteItem", "Supprimer")}
+                        aria-label={t("profile.deleteItem", "Supprimer")}
+                        className="p-2 bg-red-500 text-white rounded-full hover:bg-red-600 cursor-pointer shadow-sm"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                  <p className="text-sm text-gray-700 mt-2 font-medium line-clamp-2">{item.title}</p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-gray-500 mb-6">{t("profile.noPortfolio")}</p>
+          )}
+
+          <div className="mt-auto space-y-2">
+            <input
+              type="file"
+              accept="image/*"
+              id="portfolio-upload"
+              onChange={handleUpload}
+              title={addItemLabel}
+              aria-label={addItemLabel}
+              className="hidden"
+            />
+            <Button
+              type="button"
+              onClick={() => document.getElementById("portfolio-upload")?.click()}
+              className="w-full bg-green-700 hover:bg-green-800 text-white font-semibold h-12 gap-2 cursor-pointer"
+            >
+              <Plus className="h-4 w-4" />
+              {t("profile.chooseFiles")}
+            </Button>
+            <p className="text-xs text-gray-400 text-center">{t("profile.maxFileSize")}</p>
+          </div>
+        </div>
+      </div>
 
       {showActionModal && selectedItem && (
         <div className="fixed inset-0 z-110 flex items-end bg-black/55 p-4 md:hidden">

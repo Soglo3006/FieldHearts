@@ -141,6 +141,7 @@ function ListingCard({
         <ListingCardPriceRow
           price={formatListingPriceLine(t, listing)}
           completedBookingsCount={listing.completed_bookings_count}
+          listingType={listing.type}
           priceClassName="font-semibold"
         />
         <div className="flex items-center justify-between text-xs text-gray-500 mt-auto">

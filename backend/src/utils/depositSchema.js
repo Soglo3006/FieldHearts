@@ -206,6 +206,36 @@ export function calculateDepositAmount(servicePrice, service) {
 }
 
 /**
+ * Validates worker/client deposit config against an agreed or proposed price (quote negotiation).
+ * @param {number} price
+ * @param {string | null | undefined} depositType
+ * @param {number | string | null | undefined} depositValue
+ * @returns {{ error: string | null }}
+ */
+export function validateDepositAgainstPrice(price, depositType, depositValue) {
+  const p = Number(price);
+  if (!Number.isFinite(p) || p < 0.01) {
+    return { error: "Invalid price" };
+  }
+  if (!depositType || depositValue == null || Number(depositValue) <= 0) {
+    return { error: null };
+  }
+  const raw = Number(depositValue);
+  if (!Number.isFinite(raw) || raw <= 0) {
+    return { error: "Invalid deposit value" };
+  }
+  if (depositType === "percent") {
+    if (raw > 100) return { error: "Deposit percent cannot exceed 100" };
+    return { error: null };
+  }
+  if (depositType === "fixed") {
+    if (raw > p) return { error: "Deposit cannot exceed the agreed price" };
+    return { error: null };
+  }
+  return { error: "Invalid deposit type" };
+}
+
+/**
  * @param {unknown} body
  * @param {number | null} servicePrice for validation
  * @param {string} [pricingMode]

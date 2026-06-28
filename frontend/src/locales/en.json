@@ -101,7 +101,10 @@
     "cardTrustReviews_plural": "⭐ {{rating}} ({{count}} reviews)",
     "cardClientsServed": "{{count}} client served",
     "cardClientsServed_plural": "{{count}} clients served",
-    "cardClientsServedTitle": "Completed bookings for this listing"
+    "cardClientsServedTitle": "Completed bookings for this service offer",
+    "cardProvidersFound": "{{count}} provider found",
+    "cardProvidersFound_plural": "{{count}} providers found",
+    "cardProvidersFoundTitle": "Completed bookings with a provider for this job post"
   },
   "listingPrice": {
     "quote": "Price to discuss",
@@ -1892,7 +1895,7 @@
     "depositLabel": "Deposit (optional)",
     "depositHint": "The deposit applies once the price is agreed, before the client pays.",
     "depositConfirmHint": "You can adjust the deposit before confirming the amount.",
-    "providerDeposit": "Deposit proposed by the provider",
+    "proposalDeposit": "Deposit: {{value}}",
     "currentAgreedPrice": "Currently agreed price",
     "renegotiateHint": "To change the price, enter a new amount below and confirm again with the other party."
   },
@@ -2078,6 +2081,8 @@
     "percentLabel": "Deposit required: {{percent}}% (${{amount}})",
     "percentOnlyLabel": "Deposit required: {{percent}}%",
     "paymentLine": "Deposit (guarantee)",
+    "exceedsPriceError": "The deposit cannot exceed ${{max}} (the listed price amount).",
+    "percentMaxError": "The percentage cannot exceed 100%.",
     "cancelPolicy": "If you cancel, the deposit is kept by the provider (5% platform fee is non-refundable).",
     "cancelWithDeposit": "Cancel (deposit retained)",
     "cancelConfirm": "Cancel this booking? The deposit will not be refunded.",

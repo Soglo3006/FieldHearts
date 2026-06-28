@@ -27,14 +27,14 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import type { PricingMode } from "@/lib/listingPrice";
 import { formatListingPriceLine, type ListingPricingFields } from "@/lib/listingPrice";
-import { resolveDepositBaseAmount } from "@/lib/deposit";
+import { resolveDepositBaseAmount, isDepositFormValueValid } from "@/lib/deposit";
 import { cn } from "@/lib/utils";
 import {
   labelAvailability,
   labelSpokenLanguage,
   labelMobility,
 } from "@/lib/postFormConfirmLabels";
-import DepositFields, { DepositFieldAlignedColumn, PriceDepositInputRow } from "@/components/post/DepositFields";
+import DepositFields, { DepositFieldAlignedColumn, DepositValueSection, PriceDepositInputRow } from "@/components/post/DepositFields";
 import type { DepositType } from "@/lib/deposit";
 
 interface Props {
@@ -123,11 +123,12 @@ export default function OfferServiceForm({ onSuccess }: Props) {
     ? formatListingTagsDisplay(category, tags, null, t, " · ")
     : "";
 
-  const depositOk =
-    !depositEnabled ||
-    (depositValue.trim() !== "" &&
-      Number(depositValue) > 0 &&
-      (depositType === "percent" ? Number(depositValue) < 100 : true));
+  const depositOk = isDepositFormValueValid(
+    pricingMode !== "quote" && depositEnabled,
+    depositType,
+    depositValue,
+    offerPricingFields(),
+  );
 
   const isValid =
     hasRequiredBilingualFields(translations) &&
@@ -214,6 +215,7 @@ export default function OfferServiceForm({ onSuccess }: Props) {
     onValueChange: setDepositValue,
     pricingMode,
     servicePrice: depositBase,
+    pricingFields: offerPricingFields(),
   };
 
   const priceInputWidthClass =
@@ -334,6 +336,16 @@ export default function OfferServiceForm({ onSuccess }: Props) {
               <Input type="number" value={price} onChange={(e) => setPrice(e.target.value)} min="0.01" step="0.01" placeholder="25.00" className="h-12 pl-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" />
             </div>
           </PriceDepositInputRow>
+          {depositEnabled && (
+            <DepositValueSection
+              type={depositType}
+              onTypeChange={setDepositType}
+              value={depositValue}
+              onValueChange={setDepositValue}
+              pricingFields={offerPricingFields()}
+              inputId="deposit-value-hourly"
+            />
+          )}
           <div className="space-y-2">
             <Label className="text-base font-medium text-gray-900">{t("post.estimatedHoursLabel")}</Label>
             <Input type="number" value={estimatedHours} onChange={(e) => setEstimatedHours(e.target.value)} min="0.25" step="0.25" placeholder="2" className="h-12 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" />
@@ -342,42 +354,15 @@ export default function OfferServiceForm({ onSuccess }: Props) {
         </div>
       )}
 
-      {depositEnabled && pricingMode !== "quote" && (
-        <div className="space-y-3 rounded-xl border border-gray-200 bg-gray-50/60 p-4">
-          <div className="grid grid-cols-2 gap-2">
-            {([["fixed", t("deposit.typeFixed")], ["percent", t("deposit.typePercent")]] as const).map(([opt, label]) => (
-              <button
-                key={opt}
-                type="button"
-                onClick={() => setDepositType(opt)}
-                className={`flex-1 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
-                  depositType === opt
-                    ? "border-green-600 bg-green-50 text-green-900"
-                    : "border-gray-200 bg-white text-gray-700 hover:border-gray-300"
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="deposit-value-main">
-              {depositType === "percent" ? t("deposit.percentValue") : t("deposit.fixedValue")}
-            </Label>
-            <input
-              id="deposit-value-main"
-              type="number"
-              min={depositType === "percent" ? 1 : 0.01}
-              max={depositType === "percent" ? 99 : depositBase ? depositBase - 0.01 : undefined}
-              step={depositType === "percent" ? 1 : 0.01}
-              value={depositValue}
-              onChange={(e) => setDepositValue(e.target.value)}
-              placeholder={depositType === "percent" ? "20" : "20.00"}
-              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-            />
-          </div>
-          <p className="text-xs text-red-500">{t("deposit.nonRefundableNotice")}</p>
-        </div>
+      {depositEnabled && pricingMode !== "quote" && pricingMode !== "hourly" && (
+        <DepositValueSection
+          type={depositType}
+          onTypeChange={setDepositType}
+          value={depositValue}
+          onValueChange={setDepositValue}
+          pricingFields={offerPricingFields()}
+          inputId="deposit-value-main"
+        />
       )}
 
       <div className="space-y-2">

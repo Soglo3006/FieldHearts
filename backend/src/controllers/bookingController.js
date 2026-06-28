@@ -12,6 +12,7 @@ import {
   ensureDepositsAndCalendarSchema,
   resolveBookingDepositMeta,
   resolveDepositBaseAmount,
+  validateDepositAgainstPrice,
 } from "../utils/depositSchema.js";
 import { normalizePricingMode } from "../utils/servicePricing.js";
 import { resolveBookingHourlyRate } from "../utils/hourlyPayment.js";
@@ -864,6 +865,14 @@ export const negotiateBookingPrice = async (req, res) => {
     if (isWorker && pricingMode === "quote") {
       const parsedDeposit = parseBookingDepositOverride(req.body, b);
       if (parsedDeposit?.error) return res.status(400).json({ message: parsedDeposit.error });
+      if (parsedDeposit?.finalDepositEnabled) {
+        const depositCheck = validateDepositAgainstPrice(
+          parsed,
+          parsedDeposit.finalDepositType,
+          parsedDeposit.finalDepositValue,
+        );
+        if (depositCheck.error) return res.status(400).json({ message: depositCheck.error });
+      }
       depositOverride = parsedDeposit;
     }
 
@@ -975,6 +984,14 @@ export const confirmBookingPrice = async (req, res) => {
     if (isWorker && pricingMode === "quote") {
       const parsedDeposit = parseBookingDepositOverride(req.body, b);
       if (parsedDeposit?.error) return res.status(400).json({ message: parsedDeposit.error });
+      if (parsedDeposit?.finalDepositEnabled) {
+        const depositCheck = validateDepositAgainstPrice(
+          selectedPrice,
+          parsedDeposit.finalDepositType,
+          parsedDeposit.finalDepositValue,
+        );
+        if (depositCheck.error) return res.status(400).json({ message: depositCheck.error });
+      }
       depositOverride = parsedDeposit;
     }
     const confirmCol = isClient ? "price_confirmed_by_client_at" : "price_confirmed_by_worker_at";

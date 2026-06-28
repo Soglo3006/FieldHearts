@@ -8,6 +8,28 @@ export type DepositConfig = {
   deposit_value?: number | string | null;
 };
 
+/** Defaults for booking customize / negotiation deposit fields (listing or booking override; else fixed + empty). */
+export function getInitialDepositFormState(config: DepositConfig): {
+  type: DepositType;
+  value: string;
+} {
+  const type = config.deposit_type;
+  const raw = config.deposit_value != null ? Number(config.deposit_value) : null;
+  if (type && raw != null && Number.isFinite(raw) && raw > 0) {
+    const normalized: DepositType = type === "percent" ? "percent" : "fixed";
+    return {
+      type: normalized,
+      value: String(normalized === "percent" ? Math.round(raw) : raw),
+    };
+  }
+  return { type: "fixed", value: "" };
+}
+
+export function hasActiveDepositConfig(config: DepositConfig): boolean {
+  const { type, value } = getInitialDepositFormState(config);
+  return value !== "" && (type === "fixed" || type === "percent");
+}
+
 type DepositBaseInput = ListingPricingFields & {
   estimated_hours?: number | string | null;
 };
@@ -56,6 +78,59 @@ export function resolveDepositBaseAmount(
   const p =
     custom != null && Number.isFinite(custom) ? custom : Number(service.price);
   return Number.isFinite(p) && p >= 0.01 ? p : null;
+}
+
+export const DEPOSIT_PERCENT_MAX = 100;
+
+/** Max fixed deposit ($) allowed when creating/editing a listing (vs price, range max, or hourly estimate). */
+export function resolveDepositFixedMaxForListing(
+  service: DepositBaseInput,
+): number | null {
+  const mode = normalizePricingMode(service.pricing_mode);
+
+  if (mode === "fixed" || mode === "quote") {
+    const p = Number(service.price);
+    return Number.isFinite(p) && p >= 0.01 ? p : null;
+  }
+
+  if (mode === "range") {
+    const hi = Number(service.price_max ?? service.price);
+    return Number.isFinite(hi) && hi >= 0.01 ? hi : null;
+  }
+
+  if (mode === "hourly") {
+    return resolveDepositBaseAmount(service, null);
+  }
+
+  return null;
+}
+
+export function getDepositValueInputMax(
+  type: DepositType,
+  service: DepositBaseInput,
+): number | undefined {
+  if (type === "percent") return DEPOSIT_PERCENT_MAX;
+  return resolveDepositFixedMaxForListing(service) ?? undefined;
+}
+
+export function isDepositFormValueValid(
+  enabled: boolean,
+  type: DepositType,
+  value: string,
+  service: DepositBaseInput,
+): boolean {
+  if (!enabled) return true;
+
+  const raw = Number(value);
+  if (!value.trim() || !Number.isFinite(raw) || raw <= 0) return false;
+
+  if (type === "percent") {
+    return raw <= DEPOSIT_PERCENT_MAX;
+  }
+
+  const maxFixed = resolveDepositFixedMaxForListing(service);
+  if (maxFixed == null) return false;
+  return raw <= maxFixed;
 }
 
 export function calculateDepositAmount(

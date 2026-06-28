@@ -45,7 +45,7 @@ import {
   resolveBalanceFullServiceBase,
   isWorkBasedPricingMode,
 } from "@/lib/hourlyPayment";
-import { normalizePricingMode, resolveBookingCheckoutBase, getEffectiveBookingPrice, getBookingPriceRangeBounds, formatBookingServiceBaseDisplay, formatBookingCheckoutTotalDisplay, formatBookingFeeComponentRange } from "@/lib/listingPrice";
+import { normalizePricingMode, resolveBookingCheckoutBase, getEffectiveBookingPrice, getBookingPriceRangeBounds, formatBookingServiceBaseDisplay, formatBookingCheckoutTotalDisplay, formatBookingFeeComponentRange, shouldShowListingOriginalPriceStrike } from "@/lib/listingPrice";
 import { isAwaitingPriceAgreement, canAccessPriceNegotiation, isPriceAgreementComplete } from "@/lib/priceNegotiation";
 import { buildClientPaymentSummary, buildSplitDepositFullReceipt } from "@/lib/paymentSuccessSummary";
 import {
@@ -853,6 +853,7 @@ export default function BookingDetailModal({
                   ...booking,
                   custom_price: null,
                 });
+                const showOrigPriceStrike = shouldShowListingOriginalPriceStrike(booking, origBase);
                 const fmt = (n: number) => n.toFixed(2);
 
                 const billingProvince = booking.client_province ?? "QC";
@@ -1054,7 +1055,7 @@ export default function BookingDetailModal({
                             </div>
                             <span className="font-medium">
                               {fmt(base)} $
-                              {booking.custom_price && Number(booking.custom_price) !== origBase && (
+                              {showOrigPriceStrike && (
                                 <span className="text-xs text-gray-400 line-through ml-2">{fmt(origBase)} $</span>
                               )}
                             </span>
@@ -1216,7 +1217,7 @@ export default function BookingDetailModal({
                             </div>
                             <span className="font-medium">
                               {fmt(base)} $
-                              {booking.custom_price && Number(booking.custom_price) !== origBase && (
+                              {showOrigPriceStrike && (
                                 <span className="text-xs text-gray-400 line-through ml-2">{fmt(origBase)} $</span>
                               )}
                             </span>
@@ -1325,7 +1326,7 @@ export default function BookingDetailModal({
                             </div>
                             <span className="font-medium">
                               {servicePriceLine}
-                              {booking.custom_price && Number(booking.custom_price) !== origBase && !priceRangeBounds && (
+                              {showOrigPriceStrike && !priceRangeBounds && (
                                 <span className="text-xs text-gray-400 line-through ml-2">{fmt(origBase)} $</span>
                               )}
                             </span>
@@ -1440,7 +1441,7 @@ export default function BookingDetailModal({
                         </div>
                         <span className="font-medium">
                           {servicePriceLine}
-                          {booking.custom_price && Number(booking.custom_price) !== origBase && !priceRangeBounds && (
+                          {showOrigPriceStrike && !priceRangeBounds && (
                             <span className="text-xs text-gray-400 line-through ml-2">{fmt(origBase)} $</span>
                           )}
                         </span>

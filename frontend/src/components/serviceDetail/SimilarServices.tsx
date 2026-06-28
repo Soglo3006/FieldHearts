@@ -33,6 +33,7 @@ interface SimilarService {
   review_count?: number | string | null;
   average_rating?: number | string | null;
   completed_bookings_count?: number | string | null;
+  type?: "offer" | "looking" | null;
 }
 
 interface Props {
@@ -82,6 +83,7 @@ export default function SimilarServices({ services }: Props) {
                   <ListingCardPriceRow
                     price={formatListingPriceLine(t, s)}
                     completedBookingsCount={s.completed_bookings_count}
+                    listingType={s.type ?? undefined}
                   />
                   {getPublicServiceLocation(s) && (
                     <p className="text-xs text-gray-500 mt-auto flex items-center gap-1">

@@ -39,11 +39,24 @@ export function buildListingCardSubtitleSegments(
   return segments;
 }
 
-function buildTrustOnlySegments(t: TFunction, fields: TrustFields): string[] {
+type ListingType = "offer" | "looking" | null | undefined;
+
+export function getListingCompletedBookingsLabelKey(listingType?: ListingType): string {
+  return listingType === "looking" ? "listings.cardProvidersFound" : "listings.cardClientsServed";
+}
+
+export function getListingCompletedBookingsTitleKey(listingType?: ListingType): string {
+  return listingType === "looking" ? "listings.cardProvidersFoundTitle" : "listings.cardClientsServedTitle";
+}
+
+function buildTrustOnlySegments(
+  t: TFunction,
+  fields: TrustFields & { listingType?: ListingType },
+): string[] {
   const segments = buildListingCardSubtitleSegments(t, fields);
   const cb = toInt(fields.completedBookingsCount);
   if (cb > 0) {
-    segments.push(t("listings.cardClientsServed", { count: cb }));
+    segments.push(t(getListingCompletedBookingsLabelKey(fields.listingType), { count: cb }));
   }
   return segments;
 }
@@ -73,20 +86,24 @@ export function ListingCardSubtitle({
   );
 }
 
-/** Price with optional clients-served badge on the same row */
+/** Price with optional completed-bookings badge on the same row */
 export function ListingCardPriceRow({
   price,
   completedBookingsCount,
+  listingType,
   priceClassName,
   className,
 }: {
   price: ReactNode;
   completedBookingsCount?: unknown;
+  listingType?: ListingType;
   priceClassName?: string;
   className?: string;
 }) {
   const { t } = useTranslation();
   const cb = toInt(completedBookingsCount);
+  const labelKey = getListingCompletedBookingsLabelKey(listingType);
+  const titleKey = getListingCompletedBookingsTitleKey(listingType);
 
   return (
     <div className={cn("mb-2 flex items-end justify-between gap-2", className)}>
@@ -94,16 +111,17 @@ export function ListingCardPriceRow({
       {cb > 0 && (
         <span
           className="inline-flex min-w-0 items-center gap-1 text-[11px] leading-tight text-gray-500"
-          title={t("listings.cardClientsServedTitle")}
+          title={t(titleKey)}
         >
           <Users className="h-3 w-3 shrink-0" aria-hidden />
-          <span className="truncate">{t("listings.cardClientsServed", { count: cb })}</span>
+          <span className="truncate">{t(labelKey, { count: cb })}</span>
         </span>
       )}
     </div>
   );
 }
 type ListingTrustLineProps = TrustFields & {
+  listingType?: ListingType;
   className?: string;
 };
 
@@ -112,6 +130,7 @@ export function ListingTrustLine({
   reviewCount,
   averageRating,
   completedBookingsCount,
+  listingType,
   className,
 }: ListingTrustLineProps) {
   const { t } = useTranslation();
@@ -119,6 +138,7 @@ export function ListingTrustLine({
     reviewCount,
     averageRating,
     completedBookingsCount,
+    listingType,
   });
   if (segments.length === 0) return null;
 

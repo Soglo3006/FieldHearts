@@ -168,6 +168,21 @@ export function getEffectiveBookingPrice(booking: {
   return Number(booking.custom_price ?? booking.price);
 }
 
+/** Strikethrough listing price on receipts when the agreed amount differs — not for quote ($0 placeholder). */
+export function shouldShowListingOriginalPriceStrike(
+  booking: {
+    pricing_mode?: string | null;
+    custom_price?: number | string | null;
+  },
+  originalBase: number,
+): boolean {
+  if (normalizePricingMode(booking.pricing_mode) === "quote") return false;
+  const agreed = booking.custom_price != null ? Number(booking.custom_price) : null;
+  if (agreed == null || !Number.isFinite(agreed) || agreed < 0.01) return false;
+  if (!Number.isFinite(originalBase) || originalBase < 0.01) return false;
+  return Math.abs(agreed - originalBase) >= 0.01;
+}
+
 function roundMoney(n: number) {
   return Math.round(n * 100) / 100;
 }

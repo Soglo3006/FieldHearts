@@ -1,5 +1,5 @@
 import pool from "../config/db.js";
-import { ensureDepositsAndCalendarSchema } from "../utils/depositSchema.js";
+import { ensureDepositsAndCalendarSchema, resolveBookingDepositMeta } from "../utils/depositSchema.js";
 import {
   computeBalanceDueCents,
   isBalanceCheckoutReady,
@@ -37,9 +37,7 @@ export async function refreshHourlyBalanceDue(bookingId, { notifyClient = false 
     price: booking.price,
     price_max: booking.price_max,
     estimated_hours: booking.estimated_hours ?? booking.service_estimated_hours,
-    deposit_enabled: booking.deposit_enabled,
-    deposit_type: booking.deposit_type,
-    deposit_value: booking.deposit_value,
+    ...resolveBookingDepositMeta(booking),
   };
 
   if (!usesSplitDepositPayment(booking, meta)) {

@@ -14,16 +14,38 @@ import OpenDisputeModal from "@/components/bookings/OpenDisputeModal";
 import BookingDetailModal, { type BookingDetail } from "@/components/bookings/BookingDetailModal";
 import ReceivedBookingsList from "@/components/bookings/ReceivedBookingsList";
 import SentBookingsList from "@/components/bookings/SentBookingsList";
-import { ReceivedBooking, SentBooking, BookingStatus } from "@/components/bookings/bookingTypes";
+import { ReceivedBooking, SentBooking, BookingStatus, sortBookingsByDateDesc } from "@/components/bookings/bookingTypes";
 import { Spinner } from "@/components/ui/Spinner";
 import AppImage from "@/components/ui/AppImage";
 import { getBookingDisputeFinancialOutcome } from "@/lib/disputeFinancials";
 import { getIntlLocale } from "@/lib/locale";
 import { toast } from "sonner";
-import { isWorkBasedPricingMode } from "@/lib/hourlyPayment";
+import { isWorkBasedPricingMode, hasUnpaidBalanceDue } from "@/lib/hourlyPayment";
 import { normalizePricingMode } from "@/lib/listingPrice";
 import { cn } from "@/lib/utils";
 import BookingSectionPagination from "@/components/bookings/BookingSectionPagination";
+import PayNowButton from "@/components/bookings/PayNowButton";
+import { resolveCheckoutPrice, resolveBalanceFullServiceBase } from "@/lib/hourlyPayment";
+import { resolveBookingCheckoutBase } from "@/lib/listingPrice";
+
+function bookingDepositConfig(b: {
+  deposit_enabled?: boolean;
+  deposit_type?: string | null;
+  deposit_value?: number | string | null;
+}) {
+  return b.deposit_enabled
+    ? {
+        deposit_enabled: true as const,
+        deposit_type: b.deposit_type,
+        deposit_value: b.deposit_value,
+      }
+    : null;
+}
+
+function staysInActiveBookingsList(b: ReceivedBooking | SentBooking): boolean {
+  if (b.status !== "completed") return true;
+  return hasUnpaidBalanceDue(b, bookingDepositConfig(b));
+}
 
 function LoadingSkeleton() {
   return (
@@ -355,10 +377,14 @@ function BookingsContent() {
     seenIds.add(b.id);
     return true;
   });
-  const visibleReceived = received.filter((b) => b.status !== "completed");
-  const visibleSent = sent.filter((b) => b.status !== "completed");
-  const completedReceived = uniqueCompleted.filter((b) => b.worker_id === uid);
-  const completedSent     = uniqueCompleted.filter((b) => b.client_id === uid);
+  const visibleReceived = received.filter(staysInActiveBookingsList);
+  const visibleSent = sent.filter(staysInActiveBookingsList);
+  const completedReceived = sortBookingsByDateDesc(
+    uniqueCompleted.filter((b) => b.worker_id === uid),
+  );
+  const completedSent = sortBookingsByDateDesc(
+    uniqueCompleted.filter((b) => b.client_id === uid),
+  );
   const doneCount = uniqueCompleted.length;
   const doneRenderedTotalPages = Math.max(1, Math.ceil(completedReceived.length / DONE_PAGE_SIZE));
   const doneReceivedTotalPages = Math.max(1, Math.ceil(completedSent.length / DONE_PAGE_SIZE));
@@ -639,7 +665,7 @@ function BookingsContent() {
                             <div className="flex-1 min-w-0">
                               <p className="font-medium text-gray-900 truncate">{b.title}</p>
                               <p className="text-sm text-gray-500">{t("bookings.clientLabel")} : {("client_name" in b ? (b as ReceivedBooking).client_name : (b as SentBooking).worker_name)}</p>
-                              <p className="text-xs text-gray-400">{new Date(b.created_at).toLocaleDateString(bookingDateLocale, { year: "numeric", month: "long", day: "numeric" })}</p>
+                              <p className="text-xs text-gray-400">{new Date(b.completed_at ?? b.created_at).toLocaleDateString(bookingDateLocale, { year: "numeric", month: "long", day: "numeric" })}</p>
                             </div>
                             <div className="text-right shrink-0">
                               <p className="font-semibold text-green-700">+{finalAmount.toFixed(2)} $</p>
@@ -716,6 +742,9 @@ function BookingsContent() {
                       pagedCompletedSent.map((b) => {
                         const outcome = getBookingDisputeFinancialOutcome(b);
                         const finalAmount = outcome.finalClientPaid ?? outcome.totalPaidOriginal;
+                        const depositConfig = bookingDepositConfig(b);
+                        const balancePayment = hasUnpaidBalanceDue(b, depositConfig);
+                        const checkoutKind = balancePayment ? "balance" as const : null;
 
                         return (
                           <div
@@ -729,7 +758,7 @@ function BookingsContent() {
                             <div className="flex-1 min-w-0">
                               <p className="font-medium text-gray-900 truncate">{b.title}</p>
                               <p className="text-sm text-gray-500">{t("bookings.providerLabel")} : {("worker_name" in b ? (b as SentBooking).worker_name : (b as ReceivedBooking).client_name)}</p>
-                              <p className="text-xs text-gray-400">{new Date(b.created_at).toLocaleDateString(bookingDateLocale, { year: "numeric", month: "long", day: "numeric" })}</p>
+                              <p className="text-xs text-gray-400">{new Date(b.completed_at ?? b.created_at).toLocaleDateString(bookingDateLocale, { year: "numeric", month: "long", day: "numeric" })}</p>
                             </div>
                             <div className="text-right shrink-0">
                               <p className="font-semibold text-red-600">-{finalAmount.toFixed(2)} $</p>
@@ -740,6 +769,25 @@ function BookingsContent() {
                                 </>
                               )}
                               <span className="inline-block mt-1 text-xs bg-green-100 text-green-800 border border-green-200 rounded-full px-2 py-0.5">{t("bookings.done")}</span>
+                              {balancePayment && session?.access_token && (
+                                <div className="mt-2" onClick={(e) => e.stopPropagation()}>
+                                  <PayNowButton
+                                    bookingId={b.id}
+                                    accessToken={session.access_token}
+                                    bookingTitle={b.title}
+                                    price={resolveCheckoutPrice(b, depositConfig)}
+                                    clientProvince={b.client_province ?? null}
+                                    taxRateStored={b.tax_rate ? Number(b.tax_rate) : null}
+                                    checkoutKind={checkoutKind}
+                                    depositConfig={depositConfig}
+                                    depositAmountCents={b.deposit_amount_cents}
+                                    fullServiceBase={
+                                      resolveBalanceFullServiceBase(b) ?? resolveBookingCheckoutBase(b)
+                                    }
+                                    pricingMode={b.pricing_mode}
+                                  />
+                                </div>
+                              )}
                               {!b.has_reviewed && (
                                 <button
                                   type="button"

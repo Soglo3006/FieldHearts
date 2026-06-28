@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useTranslation } from "react-i18next";
-import { normalizePricingMode } from "@/lib/listingPrice";
+import { normalizePricingMode, type ListingPricingFields } from "@/lib/listingPrice";
 import {
   getNegotiationBounds,
   getPartyProposals,
@@ -22,7 +22,7 @@ import {
 import { negotiationActionButtonClass } from "./negotiationCardStyles";
 import { cn } from "@/lib/utils";
 import DepositFields from "@/components/post/DepositFields";
-import type { DepositType } from "@/lib/deposit";
+import { isDepositFormValueValid, getInitialDepositFormState, hasActiveDepositConfig, type DepositType } from "@/lib/deposit";
 
 interface Booking {
   id: string;
@@ -68,9 +68,21 @@ function formatAmount(amount: number | null): string {
   return amount != null ? `${amount.toFixed(2)} $` : "";
 }
 
+function formatProposalDepositValue(
+  depositType: string | null | undefined,
+  depositValue: number | string | null | undefined,
+): string | null {
+  if (!depositType || depositValue == null || Number(depositValue) <= 0) return null;
+  if (depositType === "percent") {
+    return `${Math.round(Number(depositValue))} %`;
+  }
+  return `${Number(depositValue).toFixed(2)} $`;
+}
+
 function ProposalCard({
   label,
   amount,
+  depositLine,
   isMine,
   isSelected,
   selectable,
@@ -82,6 +94,7 @@ function ProposalCard({
 }: {
   label: string;
   amount: number | null;
+  depositLine?: string | null;
   isMine: boolean;
   isSelected: boolean;
   selectable: boolean;
@@ -120,9 +133,17 @@ function ProposalCard({
           </span>
         )}
       </div>
-      <p className={cn("mt-2 text-lg font-bold", hasAmount ? "text-gray-900" : "text-gray-400 text-sm font-medium")}>
+      <p
+        className={cn(
+          "mt-2 text-lg font-bold",
+          hasAmount ? "text-gray-900" : "text-gray-400 text-sm font-medium",
+        )}
+      >
         {hasAmount ? formatAmount(amount) : noProposalLabel}
       </p>
+      {hasAmount && depositLine && (
+        <p className="mt-1 text-sm font-medium text-gray-600">{depositLine}</p>
+      )}
       {hasAmount && selectable && !isSelected && (
         <p className="text-xs text-gray-500 mt-2">{selectLabel}</p>
       )}
@@ -137,29 +158,19 @@ export default function PriceNegotiationSection({ booking, userRole, accessToken
   const negotiationBounds = useMemo(() => getNegotiationBounds(booking), [booking]);
   const proposals = useMemo(() => getPartyProposals(booking), [booking]);
 
-  const hasBookingDeposit =
-    booking.deposit_type != null &&
-    booking.deposit_value != null &&
-    Number(booking.deposit_value) > 0;
+  const initialDeposit = useMemo(
+    () => getInitialDepositFormState(booking),
+    [booking.deposit_type, booking.deposit_value, booking.id],
+  );
 
   const [editPrice, setEditPrice] = useState(() =>
     getMyProposalAmount(booking, userRole, negotiationBounds),
   );
   const [depositEnabled, setDepositEnabled] = useState(
-    () => hasBookingDeposit || booking.deposit_enabled === true,
+    () => hasActiveDepositConfig(booking) || booking.deposit_enabled === true,
   );
-  const [depositType, setDepositType] = useState<DepositType>(
-    (booking.deposit_type as DepositType) ?? "percent",
-  );
-  const [depositValue, setDepositValue] = useState(() =>
-    hasBookingDeposit
-      ? String(
-          booking.deposit_type === "percent"
-            ? Math.round(Number(booking.deposit_value))
-            : Number(booking.deposit_value),
-        )
-      : "",
-  );
+  const [depositType, setDepositType] = useState<DepositType>(() => initialDeposit.type);
+  const [depositValue, setDepositValue] = useState(() => initialDeposit.value);
   const [selectedPrice, setSelectedPrice] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [confirming, setConfirming] = useState(false);
@@ -177,21 +188,11 @@ export default function PriceNegotiationSection({ booking, userRole, accessToken
   ]);
 
   useEffect(() => {
-    const active =
-      booking.deposit_type != null &&
-      booking.deposit_value != null &&
-      Number(booking.deposit_value) > 0;
+    const initial = getInitialDepositFormState(booking);
+    const active = hasActiveDepositConfig(booking);
     setDepositEnabled(active || booking.deposit_enabled === true);
-    setDepositType((booking.deposit_type as DepositType) ?? "percent");
-    setDepositValue(
-      active
-        ? String(
-            booking.deposit_type === "percent"
-              ? Math.round(Number(booking.deposit_value))
-              : Number(booking.deposit_value),
-          )
-        : "",
-    );
+    setDepositType(initial.type);
+    setDepositValue(initial.value);
   }, [booking.deposit_type, booking.deposit_value, booking.deposit_enabled, booking.id]);
 
   useEffect(() => {
@@ -282,6 +283,42 @@ export default function PriceNegotiationSection({ booking, userRole, accessToken
       ? Number(booking.custom_price)
       : null);
 
+  const proposeQuotePricingFields = useMemo((): ListingPricingFields | undefined => {
+    if (!isQuote || depositBasePrice == null || depositBasePrice < 0.01) return undefined;
+    return { pricing_mode: "quote", price: depositBasePrice };
+  }, [isQuote, depositBasePrice]);
+
+  const confirmDepositBasePrice = selectedPrice ?? depositBasePrice;
+  const confirmQuotePricingFields = useMemo((): ListingPricingFields | undefined => {
+    if (!isQuote || confirmDepositBasePrice == null || confirmDepositBasePrice < 0.01) return undefined;
+    return { pricing_mode: "quote", price: confirmDepositBasePrice };
+  }, [isQuote, confirmDepositBasePrice]);
+
+  const isProposeDepositValid = useMemo(() => {
+    if (!isQuote || userRole !== "worker") return true;
+    if (!depositEnabled) return true;
+    if (!proposeQuotePricingFields) return false;
+    return isDepositFormValueValid(true, depositType, depositValue, proposeQuotePricingFields);
+  }, [isQuote, userRole, depositEnabled, depositType, depositValue, proposeQuotePricingFields]);
+
+  const isConfirmDepositValid = useMemo(() => {
+    if (!isQuote || userRole !== "worker") return true;
+    if (!depositEnabled) return true;
+    if (!confirmQuotePricingFields) return false;
+    return isDepositFormValueValid(true, depositType, depositValue, confirmQuotePricingFields);
+  }, [isQuote, userRole, depositEnabled, depositType, depositValue, confirmQuotePricingFields]);
+
+  const agreementComplete = isPriceAgreementComplete(booking);
+
+  const providerDepositValue =
+    isQuote && (hasActiveDepositConfig(booking) || booking.deposit_enabled)
+      ? formatProposalDepositValue(booking.deposit_type, booking.deposit_value)
+      : null;
+  const providerDepositLine =
+    providerDepositValue != null
+      ? t("priceNegotiation.proposalDeposit", { value: providerDepositValue })
+      : null;
+
   const buildDepositPayload = () => {
     if (!isQuote || userRole !== "worker") return {};
     if (!depositEnabled || !depositValue.trim()) {
@@ -292,16 +329,8 @@ export default function PriceNegotiationSection({ booking, userRole, accessToken
     return { deposit_type: depositType, deposit_value: val };
   };
 
-  const formatDepositLabel = () => {
-    if (!hasBookingDeposit && !booking.deposit_enabled) return null;
-    if (!booking.deposit_value || Number(booking.deposit_value) <= 0) return null;
-    return booking.deposit_type === "percent"
-      ? `${Number(booking.deposit_value)} %`
-      : `${Number(booking.deposit_value).toFixed(2)} $`;
-  };
-
   const proposePrice = async () => {
-    if (!isPriceValid || parsedEditPrice == null) return;
+    if (!isPriceValid || parsedEditPrice == null || !isProposeDepositValid) return;
     setSaving(true);
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/bookings/${booking.id}/negotiate-price`, {
@@ -320,7 +349,7 @@ export default function PriceNegotiationSection({ booking, userRole, accessToken
   };
 
   const confirmPrice = async () => {
-    if (selectedPrice == null) return;
+    if (selectedPrice == null || !isConfirmDepositValid) return;
     setConfirming(true);
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/bookings/${booking.id}/confirm-price`, {
@@ -347,8 +376,12 @@ export default function PriceNegotiationSection({ booking, userRole, accessToken
     booking.custom_price != null && Number(booking.custom_price) >= 0.01
       ? Number(booking.custom_price)
       : null;
-  const showAgreedBanner =
-    booking.status === "accepted" && agreedPrice != null && isPriceAgreementComplete(booking);
+  const agreedSummaryValue =
+    agreementComplete && agreedPrice != null
+      ? providerDepositLine
+        ? `${formatAmount(agreedPrice)} · ${providerDepositLine}`
+        : formatAmount(agreedPrice)
+      : null;
 
   const rangeDisplay =
     negotiationBounds &&
@@ -360,26 +393,23 @@ export default function PriceNegotiationSection({ booking, userRole, accessToken
   return (
     <div className="space-y-3">
       <NegotiationCard>
-        <p className="font-medium">{t("priceNegotiation.title")}</p>
-        <p className="text-xs mt-1.5 text-red-500 leading-relaxed">{t("priceNegotiation.subtitle")}</p>
+        {agreedSummaryValue ? (
+          <NegotiationRow label={t("priceNegotiation.title")} value={agreedSummaryValue} />
+        ) : (
+          <>
+            <p className="font-medium">{t("priceNegotiation.title")}</p>
+            <p className="text-xs mt-1.5 text-red-500 leading-relaxed">{t("priceNegotiation.subtitle")}</p>
+          </>
+        )}
       </NegotiationCard>
 
-      {showAgreedBanner && (
-        <NegotiationCard className="space-y-1">
-          <NegotiationRow
-            label={t("priceNegotiation.currentAgreedPrice")}
-            value={formatAmount(agreedPrice)}
-          />
-          <p className="text-xs text-gray-500 leading-relaxed">{t("priceNegotiation.renegotiateHint")}</p>
-        </NegotiationCard>
-      )}
-
-      {isRange && rangeDisplay && (
+      {!agreementComplete && isRange && rangeDisplay && (
         <NegotiationCard>
           <NegotiationRow label={t("priceNegotiation.rangeLabel")} value={rangeDisplay} />
         </NegotiationCard>
       )}
 
+      {!agreementComplete && (
       <NegotiationCard className="space-y-3">
         <NegotiationRow label={t("priceNegotiation.proposedAmountLabel")}>
           <NegotiationPriceInput
@@ -400,7 +430,7 @@ export default function PriceNegotiationSection({ booking, userRole, accessToken
             })}
           </p>
         )}
-        {isQuote && userRole === "worker" && (
+        {isQuote && userRole === "worker" && parsedEditPrice != null && parsedEditPrice >= 0.01 && (
           <div className="space-y-1.5 border-t border-gray-100 pt-3">
             <p className="text-xs font-medium text-gray-700">{t("priceNegotiation.depositLabel")}</p>
             <DepositFields
@@ -412,6 +442,7 @@ export default function PriceNegotiationSection({ booking, userRole, accessToken
               onValueChange={setDepositValue}
               pricingMode="quote"
               servicePrice={depositBasePrice}
+              pricingFields={proposeQuotePricingFields}
             />
             <p className="text-xs text-gray-500 leading-relaxed">{t("priceNegotiation.depositHint")}</p>
           </div>
@@ -420,23 +451,15 @@ export default function PriceNegotiationSection({ booking, userRole, accessToken
           size="sm"
           className={negotiationActionButtonClass}
           onClick={proposePrice}
-          disabled={saving || !isPriceValid}
+          disabled={saving || !isPriceValid || !isProposeDepositValid}
         >
           {saving ? "…" : t("priceNegotiation.propose")}
         </Button>
       </NegotiationCard>
+      )}
 
-      {hasAnyPartyProposal(booking) && (
+      {!agreementComplete && hasAnyPartyProposal(booking) && (
         <>
-          {isQuote && userRole === "client" && formatDepositLabel() && (
-            <NegotiationCard>
-              <NegotiationRow
-                label={t("priceNegotiation.providerDeposit")}
-                value={formatDepositLabel()!}
-              />
-            </NegotiationCard>
-          )}
-
           {showDualProposals ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <ProposalCard
@@ -454,6 +477,7 @@ export default function PriceNegotiationSection({ booking, userRole, accessToken
               <ProposalCard
                 label={t("priceNegotiation.providerProposal")}
                 amount={proposals.worker}
+                depositLine={providerDepositLine}
                 isMine={userRole === "worker"}
                 isSelected={selectedPrice != null && proposals.worker != null && pricesMatch(selectedPrice, proposals.worker)}
                 selectable={canSelectProposal && proposals.worker != null}
@@ -501,27 +525,11 @@ export default function PriceNegotiationSection({ booking, userRole, accessToken
 
           {canConfirm && selectableOptions.length > 0 && (
             <>
-              {isQuote && userRole === "worker" && (
-                <NegotiationCard className="space-y-1.5">
-                  <p className="text-xs font-medium text-gray-700">{t("priceNegotiation.depositLabel")}</p>
-                  <DepositFields
-                    enabled={depositEnabled}
-                    onEnabledChange={setDepositEnabled}
-                    type={depositType}
-                    onTypeChange={setDepositType}
-                    value={depositValue}
-                    onValueChange={setDepositValue}
-                    pricingMode="quote"
-                    servicePrice={selectedPrice ?? depositBasePrice}
-                  />
-                  <p className="text-xs text-gray-500 leading-relaxed">{t("priceNegotiation.depositConfirmHint")}</p>
-                </NegotiationCard>
-              )}
               <Button
               size="sm"
               className={negotiationActionButtonClass}
               onClick={confirmPrice}
-              disabled={confirming || selectedPrice == null}
+              disabled={confirming || selectedPrice == null || !isConfirmDepositValid}
             >
               {confirming ? "…" : t("priceNegotiation.confirmSelected")}
             </Button>

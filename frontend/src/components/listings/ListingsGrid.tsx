@@ -191,6 +191,7 @@ function ListingGridCard({ s, globalIndex }: { s: ApiService; globalIndex: numbe
         <ListingCardPriceRow
           price={formatListingPriceLine(t, s)}
           completedBookingsCount={s.completed_bookings_count}
+          listingType={s.type === "looking" ? "looking" : s.type === "offer" ? "offer" : undefined}
         />
 
         <div className="flex items-center justify-between text-xs text-gray-500 mt-auto">

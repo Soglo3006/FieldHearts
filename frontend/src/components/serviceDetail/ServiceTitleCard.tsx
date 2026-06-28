@@ -16,6 +16,8 @@ import {
   formatSpokenLanguageLabel,
   formatUrgencyLabel,
 } from "@/lib/formatServiceDetailFields";
+import { getListingCompletedBookingsLabelKey, getListingCompletedBookingsTitleKey } from "@/components/listings/ListingTrustLine";
+
 interface Service {
   id: string;
   type: "offer" | "looking";
@@ -123,10 +125,10 @@ export default function ServiceTitleCard({
                 <span>·</span>
                 <span
                   className="inline-flex items-center gap-1"
-                  title={t("listings.cardClientsServedTitle")}
+                  title={t(getListingCompletedBookingsTitleKey(service.type))}
                 >
                   <Users className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                  {t("listings.cardClientsServed", { count: clientsServed })}
+                  {t(getListingCompletedBookingsLabelKey(service.type), { count: clientsServed })}
                 </span>
               </>
             )}

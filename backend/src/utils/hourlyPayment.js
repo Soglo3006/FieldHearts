@@ -146,6 +146,14 @@ export function computeHourlyBalanceCheckoutAmounts(
 /**
  * @returns {'full' | 'deposit' | 'balance' | null}
  */
+export function hasUnpaidBalanceDue(booking, service = null) {
+  const meta = service ?? booking;
+  if (!usesSplitDepositPayment(booking, meta)) return false;
+  if (booking.payment_status !== "deposit_paid") return false;
+  if (!isBalanceCheckoutReady(booking)) return false;
+  return computeBalanceDueCents(booking, meta) > 0;
+}
+
 export function resolveCheckoutKind(booking, service = null) {
   const meta = service ?? booking;
   const unpaid = !booking.payment_status || booking.payment_status === "unpaid";
@@ -158,10 +166,8 @@ export function resolveCheckoutKind(booking, service = null) {
   if (usesSplitDepositPayment(booking, meta)) {
     if (booking.status === "accepted" && unpaid) return "deposit";
     if (
-      booking.status === "active" &&
-      booking.payment_status === "deposit_paid" &&
-      computeBalanceDueCents(booking, meta) > 0 &&
-      isBalanceCheckoutReady(booking)
+      (booking.status === "active" || booking.status === "completed") &&
+      hasUnpaidBalanceDue(booking, meta)
     ) {
       return "balance";
     }

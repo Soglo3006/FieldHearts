@@ -79,6 +79,22 @@ export function formatDate(dateStr: string) {
   } catch { return dateStr; }
 }
 
+/** Sort key for completed/history lists — prefers completion date, then created_at. */
+export function getBookingSortDate(booking: {
+  completed_at?: string | null;
+  created_at: string;
+}): number {
+  const raw = booking.completed_at ?? booking.created_at;
+  const t = new Date(raw).getTime();
+  return Number.isFinite(t) ? t : 0;
+}
+
+export function sortBookingsByDateDesc<T extends { completed_at?: string | null; created_at: string }>(
+  list: T[],
+): T[] {
+  return [...list].sort((a, b) => getBookingSortDate(b) - getBookingSortDate(a));
+}
+
 export const BOOKING_GROUPS = [
   { labelKey: "bookings.groupRequests", statuses: ["pending"] as BookingStatus[] },
   { labelKey: "bookings.groupNegotiation", statuses: ["negotiating"] as BookingStatus[] },

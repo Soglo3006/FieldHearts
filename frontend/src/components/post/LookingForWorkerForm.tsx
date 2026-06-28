@@ -30,7 +30,7 @@ import { toast } from "sonner";
 import type { PricingMode } from "@/lib/listingPrice";
 import { formatListingPriceLine, type ListingPricingFields } from "@/lib/listingPrice";
 import type { DepositType } from "@/lib/deposit";
-import { resolveDepositBaseAmount } from "@/lib/deposit";
+import { resolveDepositBaseAmount, isDepositFormValueValid } from "@/lib/deposit";
 import DepositFields from "@/components/post/DepositFields";
 import {
   labelAvailability,
@@ -124,11 +124,7 @@ export default function LookingForWorkerForm({ onSuccess }: Props) {
 
   const depositBase = resolveDepositBaseAmount(jobPricingFields(), null);
 
-  const depositOk =
-    !depositEnabled ||
-    (depositValue.trim() !== "" &&
-      Number(depositValue) > 0 &&
-      (depositType === "percent" ? Number(depositValue) < 100 : true));
+  const depositOk = isDepositFormValueValid(depositEnabled, depositType, depositValue, jobPricingFields());
 
   const confirmPriceSummary =
     pricingMode === "quote"
@@ -362,6 +358,7 @@ export default function LookingForWorkerForm({ onSuccess }: Props) {
         onValueChange={setDepositValue}
         pricingMode={pricingMode}
         servicePrice={depositBase}
+        pricingFields={jobPricingFields()}
       />
 
       <div className="space-y-2">

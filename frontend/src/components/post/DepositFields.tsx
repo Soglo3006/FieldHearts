@@ -8,6 +8,12 @@ import { cn } from "@/lib/utils";
 import { Info } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { DepositType } from "@/lib/deposit";
+import {
+  getDepositValueInputMax,
+  isDepositFormValueValid,
+  resolveDepositFixedMaxForListing,
+} from "@/lib/deposit";
+import type { ListingPricingFields } from "@/lib/listingPrice";
 
 type Props = {
   enabled: boolean;
@@ -19,9 +25,84 @@ type Props = {
   /** Hide when pricing is quote without a reference amount */
   pricingMode: string;
   servicePrice?: number | null;
+  pricingFields?: ListingPricingFields;
   /** When true, renders only the checkbox (expanded options rendered separately) */
   compact?: boolean;
 };
+
+/** Expanded deposit type + amount (fixed/range/hourly blocks). */
+export function DepositValueSection({
+  type,
+  onTypeChange,
+  value,
+  onValueChange,
+  pricingFields,
+  inputId = "deposit-value",
+}: {
+  type: DepositType;
+  onTypeChange: (value: DepositType) => void;
+  value: string;
+  onValueChange: (value: string) => void;
+  pricingFields: ListingPricingFields;
+  inputId?: string;
+}) {
+  const { t } = useTranslation();
+  const inputMax = getDepositValueInputMax(type, pricingFields);
+  const maxFixed = resolveDepositFixedMaxForListing(pricingFields);
+  const valid = isDepositFormValueValid(true, type, value, pricingFields);
+  const showError = value.trim() !== "" && !valid;
+
+  return (
+    <div className="space-y-3 rounded-xl border border-gray-200 bg-gray-50/60 p-4">
+      <div className="grid grid-cols-2 gap-2">
+        {(
+          [
+            ["fixed", t("deposit.typeFixed")],
+            ["percent", t("deposit.typePercent")],
+          ] as const
+        ).map(([opt, label]) => (
+          <button
+            key={opt}
+            type="button"
+            onClick={() => onTypeChange(opt)}
+            className={cn(
+              "flex-1 rounded-lg border px-3 py-2 text-sm font-medium transition-colors",
+              type === opt
+                ? "border-green-600 bg-green-50 text-green-900"
+                : "border-gray-200 bg-white text-gray-700 hover:border-gray-300",
+            )}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor={inputId}>
+          {type === "percent" ? t("deposit.percentValue") : t("deposit.fixedValue")}
+        </Label>
+        <Input
+          id={inputId}
+          type="number"
+          min={type === "percent" ? 1 : 0.01}
+          max={inputMax}
+          step={type === "percent" ? 1 : 0.01}
+          value={value}
+          onChange={(e) => onValueChange(e.target.value)}
+          placeholder={type === "percent" ? "20" : "20.00"}
+          className={cn(showError && "border-red-500 focus-visible:ring-red-500/30")}
+        />
+        {showError && (
+          <p className="text-xs text-red-500">
+            {type === "percent"
+              ? t("deposit.percentMaxError")
+              : t("deposit.exceedsPriceError", { max: maxFixed?.toFixed(2) ?? "0.00" })}
+          </p>
+        )}
+      </div>
+      <p className="text-xs text-red-500">{t("deposit.nonRefundableNotice")}</p>
+    </div>
+  );
+}
 
 /** Price input + deposit on one row (mobile flex; desktop grid with aligned labels). */
 export function PriceDepositInputRow({
@@ -76,16 +157,22 @@ export default function DepositFields({
   onValueChange,
   pricingMode,
   servicePrice,
+  pricingFields,
   compact = false,
 }: Props) {
   const { t } = useTranslation();
 
-  if (pricingMode === "quote" && (servicePrice == null || servicePrice < 0.01)) {
-    return (
-      <div className="rounded-xl border border-gray-200 bg-gray-50/60 p-4 text-xs text-gray-600">
-        {t("deposit.quoteHint")}
-      </div>
-    );
+  if (pricingMode === "quote") {
+    const refPrice =
+      servicePrice ??
+      (pricingFields?.price != null ? Number(pricingFields.price) : null);
+    if (refPrice == null || refPrice < 0.01) {
+      return (
+        <div className="rounded-xl border border-gray-200 bg-gray-50/60 p-4 text-xs text-gray-600">
+          {t("deposit.quoteHint")}
+        </div>
+      );
+    }
   }
 
   return (
@@ -114,7 +201,28 @@ export default function DepositFields({
         </span>
       </label>
 
-      {!compact && enabled && (
+      {!compact && enabled && pricingFields && (
+        <DepositValueSection
+          type={type}
+          onTypeChange={onTypeChange}
+          value={value}
+          onValueChange={onValueChange}
+          pricingFields={pricingFields}
+        />
+      )}
+
+      {!compact && enabled && !pricingFields && pricingMode === "quote" && servicePrice != null && servicePrice >= 0.01 && (
+        <DepositValueSection
+          type={type}
+          onTypeChange={onTypeChange}
+          value={value}
+          onValueChange={onValueChange}
+          pricingFields={{ pricing_mode: "quote", price: servicePrice }}
+          inputId="deposit-value-quote"
+        />
+      )}
+
+      {!compact && enabled && !pricingFields && pricingMode !== "quote" && (
         <div className="space-y-3 border-t border-gray-200 pt-3">
           <div className="grid grid-cols-2 gap-2">
             {(
@@ -147,7 +255,7 @@ export default function DepositFields({
               id="deposit-value"
               type="number"
               min={type === "percent" ? 1 : 0.01}
-              max={type === "percent" ? 99 : servicePrice ? servicePrice - 0.01 : undefined}
+              max={type === "percent" ? 100 : servicePrice ?? undefined}
               step={type === "percent" ? 1 : 0.01}
               value={value}
               onChange={(e) => onValueChange(e.target.value)}

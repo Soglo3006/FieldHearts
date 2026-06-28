@@ -101,7 +101,10 @@
     "cardTrustReviews_plural": "⭐ {{rating}} ({{count}} avis)",
     "cardClientsServed": "{{count}} client servi",
     "cardClientsServed_plural": "{{count}} clients servis",
-    "cardClientsServedTitle": "Réservations terminées pour cette annonce"
+    "cardClientsServedTitle": "Réservations terminées pour cette annonce (offre de service)",
+    "cardProvidersFound": "{{count}} prestataire trouvé",
+    "cardProvidersFound_plural": "{{count}} prestataires trouvés",
+    "cardProvidersFoundTitle": "Réservations terminées avec un prestataire pour cette annonce (recherche)"
   },
   "listingPrice": {
     "quote": "Prix à discuter",
@@ -1888,7 +1891,7 @@
     "depositLabel": "Dépôt (facultatif)",
     "depositHint": "Le dépôt s'applique une fois le prix convenu, avant le paiement du client.",
     "depositConfirmHint": "Vous pouvez ajuster le dépôt avant de confirmer le montant.",
-    "providerDeposit": "Dépôt proposé par le prestataire",
+    "proposalDeposit": "Dépôt : {{value}}",
     "currentAgreedPrice": "Prix convenu actuellement",
     "renegotiateHint": "Pour changer le prix, saisissez un nouveau montant ci-dessous puis confirmez à nouveau avec l'autre partie."
   },
@@ -2643,6 +2646,8 @@
     "percentLabel": "Dépôt requis : {{percent}} % ({{amount}} $)",
     "percentOnlyLabel": "Dépôt requis : {{percent}} %",
     "paymentLine": "Dépôt (garantie)",
+    "exceedsPriceError": "Le dépôt ne peut pas dépasser {{max}} $ (montant du prix).",
+    "percentMaxError": "Le pourcentage ne peut pas dépasser 100 %.",
     "cancelPolicy": "En cas d'annulation, le dépôt est conservé par le prestataire (frais plateforme 5 % non remboursables).",
     "cancelWithDeposit": "Annuler (dépôt retenu)",
     "cancelConfirm": "Annuler cette réservation ? Le dépôt ne sera pas remboursé.",

@@ -14,6 +14,11 @@ import RangePriceFields, {
   parsePriceInput,
 } from "./RangePriceFields";
 import { NegotiationCard, NegotiationRow } from "./NegotiationCard";
+import {
+  getInitialDepositFormState,
+  hasActiveDepositConfig,
+  type DepositType,
+} from "@/lib/deposit";
 
 interface Booking {
   id: string;
@@ -44,11 +49,11 @@ export default function WorkerCustomizeSection({ booking, accessToken, onSaved }
   const isQuote = pricingMode === "quote";
   const isRange = pricingMode === "range";
   const rangeBounds = useMemo(() => getListingRangeBounds(booking), [booking]);
-
-  const hasBookingDepositOverride =
-    booking.deposit_type != null &&
-    booking.deposit_value != null &&
-    Number(booking.deposit_value) > 0;
+  const initialDeposit = useMemo(() => getInitialDepositFormState(booking), [
+    booking.deposit_type,
+    booking.deposit_value,
+    booking.id,
+  ]);
 
   const [editing, setEditing] = useState(false);
   const [editNote, setEditNote] = useState(booking.worker_note ?? "");
@@ -66,17 +71,19 @@ export default function WorkerCustomizeSection({ booking, accessToken, onSaved }
       ? String(Math.round(Number(booking.estimated_hours)))
       : ""
   );
-  const [editDepositType, setEditDepositType] = useState(booking.deposit_type ?? "percent");
-  const [editDepositValue, setEditDepositValue] = useState(
-    hasBookingDepositOverride
-      ? String(
-          booking.deposit_type === "percent"
-            ? Math.round(Number(booking.deposit_value))
-            : Number(booking.deposit_value),
-        )
-      : "",
-  );
+  const [editDepositType, setEditDepositType] = useState<DepositType>(() => initialDeposit.type);
+  const [editDepositValue, setEditDepositValue] = useState(() => initialDeposit.value);
   const [saving, setSaving] = useState(false);
+
+  const resetDepositFields = () => {
+    const initial = getInitialDepositFormState(booking);
+    setEditDepositType(initial.type);
+    setEditDepositValue(initial.value);
+  };
+
+  useEffect(() => {
+    if (!editing) resetDepositFields();
+  }, [booking.deposit_type, booking.deposit_value, booking.id, editing]);
 
   useEffect(() => {
     setEditPriceMin(getInitialRangeMin(booking, rangeBounds));
@@ -101,6 +108,12 @@ export default function WorkerCustomizeSection({ booking, accessToken, onSaved }
     setEditPriceMax(formatPriceInput(clampToRange(parsed, rangeBounds)));
   };
 
+  const agreedQuotePrice =
+    isQuote &&
+    booking.custom_price != null &&
+    Number(booking.custom_price) >= 0.01;
+  const showDepositFields = !isQuote || agreedQuotePrice;
+
   const save = async () => {
     setSaving(true);
     try {
@@ -119,7 +132,7 @@ export default function WorkerCustomizeSection({ booking, accessToken, onSaved }
       if (editDepositValue.trim() !== "") {
         body.deposit_type = editDepositType;
         body.deposit_value = Number(editDepositValue);
-      } else if (hasBookingDepositOverride || isQuote) {
+      } else if (hasActiveDepositConfig(booking) || isQuote) {
         body.deposit_type = null;
         body.deposit_value = 0;
       }
@@ -149,7 +162,14 @@ export default function WorkerCustomizeSection({ booking, accessToken, onSaved }
       <div className="flex items-center justify-between">
         <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">{t("customizeBooking.title")}</p>
         {!editing && (
-          <button onClick={() => setEditing(true)} className="text-xs text-green-700 hover:underline">
+          <button
+            onClick={() => {
+              resetDepositFields();
+              setEditNote(booking.worker_note ?? "");
+              setEditing(true);
+            }}
+            className="text-xs text-green-700 hover:underline"
+          >
             {t("common.edit")}
           </button>
         )}
@@ -187,7 +207,7 @@ export default function WorkerCustomizeSection({ booking, accessToken, onSaved }
               />
             </div>
           )}
-          {isQuote && booking.custom_price != null && Number(booking.custom_price) >= 0.01 && (
+          {isQuote && agreedQuotePrice && (
             <NegotiationCard>
               <NegotiationRow
                 label={t("customizeBooking.agreedPriceLabel")}
@@ -212,17 +232,18 @@ export default function WorkerCustomizeSection({ booking, accessToken, onSaved }
               />
             </div>
           )}
+          {showDepositFields && (
           <div>
             <label className="text-xs text-gray-500 mb-1 block">{t("deposit.enable")}</label>
             <div className="flex gap-2">
               <select
                 value={editDepositType}
-                onChange={(e) => setEditDepositType(e.target.value)}
+                onChange={(e) => setEditDepositType(e.target.value as DepositType)}
                 aria-label={t("deposit.typeFixed")}
                 className="border rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-600 w-32"
               >
-                <option value="percent">{t("deposit.typePercent")}</option>
                 <option value="fixed">{t("deposit.typeFixed")}</option>
+                <option value="percent">{t("deposit.typePercent")}</option>
               </select>
               <input
                 type="number"
@@ -239,6 +260,7 @@ export default function WorkerCustomizeSection({ booking, accessToken, onSaved }
               <p className="text-xs text-gray-400 mt-1">{t("customizeBooking.quoteDepositHint")}</p>
             )}
           </div>
+          )}
 
           <div>
             <label htmlFor="customizeBookingNote" className="text-xs text-gray-500 mb-1 block">{t("customizeBooking.noteLabel")}</label>
@@ -260,7 +282,18 @@ export default function WorkerCustomizeSection({ booking, accessToken, onSaved }
             >
               {saving ? t("customizeBooking.saving") : t("common.save")}
             </Button>
-            <Button size="sm" variant="outline" onClick={() => setEditing(false)} disabled={saving}>{t("common.cancel")}</Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                resetDepositFields();
+                setEditNote(booking.worker_note ?? "");
+                setEditing(false);
+              }}
+              disabled={saving}
+            >
+              {t("common.cancel")}
+            </Button>
           </div>
         </>
       ) : (
@@ -276,14 +309,20 @@ export default function WorkerCustomizeSection({ booking, accessToken, onSaved }
               <NegotiationRow label={t("customizeBooking.customRangeValue")} value={agreedRangeLabel} />
             </NegotiationCard>
           )}
-          {!isHourly && !isRange && booking.custom_price != null && (
+          {!isHourly && !isRange && !isQuote && booking.custom_price != null && Number(booking.custom_price) >= 0.01 && (
             <p className="text-sm text-gray-700">
               {t("customizeBooking.customPriceValue")}{" "}
               <span className="font-semibold text-green-700">${Number(booking.custom_price)}</span>
             </p>
           )}
+          {isQuote && agreedQuotePrice && (
+            <p className="text-sm text-gray-700">
+              {t("customizeBooking.agreedPriceLabel")}:{" "}
+              <span className="font-semibold text-green-700">{Number(booking.custom_price).toFixed(2)} $</span>
+            </p>
+          )}
           {booking.worker_note && <p className="text-sm text-gray-600 whitespace-pre-line">{booking.worker_note}</p>}
-          {hasBookingDepositOverride && (
+          {hasActiveDepositConfig(booking) && (
             <p className="text-sm text-gray-700">
               {t("deposit.enable")}:{" "}
               <span className="font-semibold text-green-700">
@@ -293,7 +332,7 @@ export default function WorkerCustomizeSection({ booking, accessToken, onSaved }
               </span>
             </p>
           )}
-          {isQuote && !hasBookingDepositOverride && !booking.worker_note && (
+          {isQuote && !hasActiveDepositConfig(booking) && !booking.worker_note && (
             <p className="text-xs text-gray-400 italic leading-relaxed">{t("customizeBooking.quoteAfterAgreementEmpty")}</p>
           )}
           {!isQuote && !booking.custom_price && !booking.custom_price_min && !booking.worker_note && !booking.estimated_hours && (

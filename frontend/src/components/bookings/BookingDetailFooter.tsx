@@ -87,6 +87,7 @@ export default function BookingDetailFooter({
       }
     : null;
   const { kind: checkoutKind } = needsBookingPayment(booking, depositConfig);
+  const clientMustPayBalance = userRole === "client" && checkoutKind === "balance";
   const awaitingHours = hourlyAwaitingApprovedHours(booking);
   const awaitingWork = fixedAwaitingWorkForBalance(booking, depositConfig);
 
@@ -230,7 +231,7 @@ export default function BookingDetailFooter({
 
       {/* Active: mark done */}
 
-      {booking.status === "active" && !booking.has_dispute && !hasMarkedDone && (
+      {booking.status === "active" && !booking.has_dispute && !hasMarkedDone && !clientMustPayBalance && (
 
         <Button className="w-full bg-green-700 hover:bg-green-800 text-white h-11" onClick={onMarkCompleted} disabled={updating}>
 

@@ -630,7 +630,7 @@ export const createCheckoutSession = async (req, res) => {
         });
       }
     } else if (checkoutKind === "balance") {
-      if (b.status !== "active") {
+      if (b.status !== "active" && b.status !== "completed") {
         return res.status(400).json({ message: "Booking must be active before paying the balance" });
       }
       if (b.payment_status !== "deposit_paid") {

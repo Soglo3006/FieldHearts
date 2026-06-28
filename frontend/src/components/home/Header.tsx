@@ -48,6 +48,7 @@ import { formatTranslatedCategoryTrail } from "@/lib/categories";
 import { formatListingPriceLine } from "@/lib/listingPrice";
 import { getLanguageCode, getLanguageToggleValue } from "@/lib/locale";
 import { displayNotificationBody, displayNotificationLink } from "@/lib/notificationDisplay";
+import { cn } from "@/lib/utils";
 import AppImage from "@/components/ui/AppImage";
 
 /** Hauteur commune : barre de recherche, menus, langue, connexion, publier */
@@ -684,107 +685,15 @@ export default function Header() {
 
         {/* Mobile menu — Sheet shadcn (< md seulement) */}
         <Sheet open={mobileMenuOpen} onOpenChange={(open) => { setMobileMenuOpen(open); if (!open) setMobileView("menu"); }}>
-          <SheetContent side="right" className="w-72 p-0 flex flex-col" aria-describedby={undefined}>
-
-            {mobileView === "notifications" ? (
-              <>
-                {/* Notifications sub-panel */}
-                <SheetHeader className="px-4 py-4 border-b border-gray-100">
-                  <SheetTitle asChild>
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => setMobileView("menu")}
-                        className="cursor-pointer p-1 -ml-1 hover:bg-gray-100 rounded-lg transition-colors"
-                      >
-                        <ChevronLeft className="h-5 w-5 text-gray-700" />
-                      </button>
-                      <span className="text-sm font-semibold text-gray-900 flex-1">{t("notifications.title")}</span>
-                      {unreadNotifs > 0 && (
-                        <button onClick={markAllRead} className="cursor-pointer text-xs text-green-700 hover:underline">
-                          {t("notifications.markAllRead")}
-                        </button>
-                      )}
-                    </div>
-                  </SheetTitle>
-                </SheetHeader>
-
-                <div className="flex-1 overflow-y-auto">
-                  {notifsLoading ? (
-                    <div className="flex justify-center py-10">
-                      <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
-                    </div>
-                  ) : notifications.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-16 text-center px-4">
-                      <Bell className="h-10 w-10 text-gray-300 mb-2" />
-                      <p className="text-sm text-gray-500">{t("notifications.noNotifications")}</p>
-                    </div>
-                  ) : (
-                    notifications.map((n) => {
-                      const isUnread = !n.read_at;
-                      const diff = Date.now() - new Date(n.created_at).getTime();
-                      const timeStr = diff < 60_000
-                        ? t("notifications.justNow")
-                        : diff < 3_600_000
-                        ? t("notifications.minutesAgo", { count: Math.floor(diff / 60_000) })
-                        : diff < 86_400_000
-                        ? t("notifications.hoursAgo", { count: Math.floor(diff / 3_600_000) })
-                        : diff < 7 * 86_400_000
-                        ? t("notifications.daysAgo", { count: Math.floor(diff / 86_400_000) })
-                        : new Date(n.created_at).toLocaleDateString(lang === "fr" ? "fr-CA" : "en-CA", { month: "short", day: "numeric" });
-                      return (
-                        <div
-                          key={n.id}
-                          onClick={() => {
-                            if (isUnread) markRead(n.id);
-                            setMobileMenuOpen(false);
-                            setMobileView("menu");
-                            const link = displayNotificationLink(n);
-                            if (link) router.push(link);
-                          }}
-                          className={`flex items-start gap-3 px-4 py-3 cursor-pointer border-b border-gray-100 last:border-b-0 transition-colors ${isUnread ? "bg-green-50/50 hover:bg-green-100/40" : "hover:bg-gray-50"}`}
-                        >
-                          <div className="flex-1 min-w-0">
-                            <p className={`text-sm truncate ${isUnread ? "font-semibold text-gray-900" : "font-medium text-gray-700"}`}>
-                              {n.title}
-                            </p>
-                            <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{displayNotificationBody(n, t)}</p>
-                            <p className="text-[11px] text-gray-400 mt-1">{timeStr}</p>
-                          </div>
-                          <div className="shrink-0 flex gap-1 mt-0.5" onClick={(e) => e.stopPropagation()}>
-                            {isUnread && (
-                              <button
-                                onClick={() => markRead(n.id)}
-                                className="cursor-pointer h-7 w-7 rounded-full flex items-center justify-center text-gray-400 hover:text-green-600 hover:bg-green-100 transition-colors"
-                                title={t("notifications.markAsRead")}
-                              >
-                                <Check className="h-3.5 w-3.5" />
-                              </button>
-                            )}
-                            <button
-                              onClick={() => deleteOne(n.id)}
-                              className="cursor-pointer h-7 w-7 rounded-full flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
-                              title={t("common.delete")}
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-
-                {notifications.length > 0 && (
-                  <div className="shrink-0 border-t border-gray-100 px-4 py-3">
-                    <button onClick={clearAll} className="cursor-pointer text-xs text-gray-400 hover:text-red-500 hover:underline">
-                      {t("notifications.clearAll")}
-                    </button>
-                  </div>
-                )}
-              </>
-            ) : (
-              <>
-                {/* Main menu */}
+          <SheetContent side="right" className="w-72 gap-0 p-0 flex flex-col overflow-hidden" aria-describedby={undefined}>
+            <div
+              className={cn(
+                "flex h-full w-[200%] shrink-0 transition-transform duration-300 ease-in-out",
+                mobileView === "notifications" ? "-translate-x-1/2" : "translate-x-0",
+              )}
+            >
+              {/* Main menu panel */}
+              <div className={cn("flex w-1/2 min-h-0 flex-col h-full", mobileView === "notifications" && "pointer-events-none")}>
                 <SheetHeader className="px-4 py-4 border-b border-gray-100">
                   <SheetTitle asChild>
                     {user ? (
@@ -910,8 +819,108 @@ export default function Header() {
                     <ToggleGroupItem value="EN" className="cursor-pointer text-sm px-4 h-9 flex-1">EN</ToggleGroupItem>
                   </ToggleGroup>
                 </div>
-              </>
-            )}
+              </div>
+
+              {/* Notifications panel */}
+              <div className={cn("flex w-1/2 min-h-0 flex-col", mobileView !== "notifications" && "pointer-events-none")}>
+                <SheetHeader className="px-4 py-4 border-b border-gray-100">
+                  <SheetTitle asChild>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setMobileView("menu")}
+                        className="cursor-pointer p-1 -ml-1 hover:bg-gray-100 rounded-lg transition-colors"
+                        aria-label={t("common.back")}
+                      >
+                        <ChevronLeft className="h-5 w-5 text-gray-700" />
+                      </button>
+                      <span className="text-sm font-semibold text-gray-900 flex-1">{t("notifications.title")}</span>
+                      {unreadNotifs > 0 && (
+                        <button type="button" onClick={markAllRead} className="cursor-pointer text-xs text-green-700 hover:underline">
+                          {t("notifications.markAllRead")}
+                        </button>
+                      )}
+                    </div>
+                  </SheetTitle>
+                </SheetHeader>
+
+                <div className="flex-1 overflow-y-auto">
+                  {notifsLoading ? (
+                    <div className="flex justify-center py-10">
+                      <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+                    </div>
+                  ) : notifications.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-16 text-center px-4">
+                      <Bell className="h-10 w-10 text-gray-300 mb-2" />
+                      <p className="text-sm text-gray-500">{t("notifications.noNotifications")}</p>
+                    </div>
+                  ) : (
+                    notifications.map((n) => {
+                      const isUnread = !n.read_at;
+                      const diff = Date.now() - new Date(n.created_at).getTime();
+                      const timeStr = diff < 60_000
+                        ? t("notifications.justNow")
+                        : diff < 3_600_000
+                        ? t("notifications.minutesAgo", { count: Math.floor(diff / 60_000) })
+                        : diff < 86_400_000
+                        ? t("notifications.hoursAgo", { count: Math.floor(diff / 3_600_000) })
+                        : diff < 7 * 86_400_000
+                        ? t("notifications.daysAgo", { count: Math.floor(diff / 86_400_000) })
+                        : new Date(n.created_at).toLocaleDateString(lang === "fr" ? "fr-CA" : "en-CA", { month: "short", day: "numeric" });
+                      return (
+                        <div
+                          key={n.id}
+                          onClick={() => {
+                            if (isUnread) markRead(n.id);
+                            setMobileMenuOpen(false);
+                            setMobileView("menu");
+                            const link = displayNotificationLink(n);
+                            if (link) router.push(link);
+                          }}
+                          className={`flex items-start gap-3 px-4 py-3 cursor-pointer border-b border-gray-100 last:border-b-0 transition-colors ${isUnread ? "bg-green-50/50 hover:bg-green-100/40" : "hover:bg-gray-50"}`}
+                        >
+                          <div className="flex-1 min-w-0">
+                            <p className={`text-sm truncate ${isUnread ? "font-semibold text-gray-900" : "font-medium text-gray-700"}`}>
+                              {n.title}
+                            </p>
+                            <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{displayNotificationBody(n, t)}</p>
+                            <p className="text-[11px] text-gray-400 mt-1">{timeStr}</p>
+                          </div>
+                          <div className="shrink-0 flex gap-1 mt-0.5" onClick={(e) => e.stopPropagation()}>
+                            {isUnread && (
+                              <button
+                                type="button"
+                                onClick={() => markRead(n.id)}
+                                className="cursor-pointer h-7 w-7 rounded-full flex items-center justify-center text-gray-400 hover:text-green-600 hover:bg-green-100 transition-colors"
+                                title={t("notifications.markAsRead")}
+                              >
+                                <Check className="h-3.5 w-3.5" />
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => deleteOne(n.id)}
+                              className="cursor-pointer h-7 w-7 rounded-full flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+                              title={t("common.delete")}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+
+                {notifications.length > 0 && (
+                  <div className="shrink-0 border-t border-gray-100 px-4 py-3">
+                    <button type="button" onClick={clearAll} className="cursor-pointer text-xs text-gray-400 hover:text-red-500 hover:underline">
+                      {t("notifications.clearAll")}
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
 
           </SheetContent>
         </Sheet>

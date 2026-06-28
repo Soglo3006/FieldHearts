@@ -109,20 +109,20 @@ export default function ServiceTitleCard({
             <p className="mt-2 text-sm text-gray-500 line-clamp-2">{categoryLine}</p>
           )}
 
-          <div className="flex flex-wrap items-center gap-3 mt-4 text-sm text-gray-600">
+          <div className="mt-4 flex flex-col gap-2 text-sm text-gray-600 md:flex-row md:flex-wrap md:items-center md:gap-3">
             <button
               type="button"
               onClick={onOpenMap}
-              className="cursor-pointer flex items-center gap-1 hover:text-green-700"
+              className="cursor-pointer flex items-center gap-1 hover:text-green-700 text-left"
             >
-              <MapPin className="h-4 w-4" />
+              <MapPin className="h-4 w-4 shrink-0" />
               <span className="underline cursor-pointer">{getPublicServiceLocation(service)}</span>
             </button>
-            <span>·</span>
+            <span className="hidden md:inline">·</span>
             <span>{formatRelativeDate(service.created_at)}</span>
             {clientsServed > 0 && (
               <>
-                <span>·</span>
+                <span className="hidden md:inline">·</span>
                 <span
                   className="inline-flex items-center gap-1"
                   title={t(getListingCompletedBookingsTitleKey(service.type))}

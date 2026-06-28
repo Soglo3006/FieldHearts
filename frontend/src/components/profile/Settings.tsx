@@ -463,21 +463,21 @@ export default function SettingsPage({ onClose, scrollRef }: { onClose: () => vo
                 <p className="text-xs sm:text-sm text-gray-600">{t("settings.setLanguageRegion")}</p>
               </div>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 min-w-0">
-              <div>
+            <div className="flex gap-3 min-w-0 sm:grid sm:grid-cols-2 sm:gap-4">
+              <div className="min-w-0 flex-[2]">
                 <Label className="mb-2 block text-sm">{t("settings.language")}</Label>
                 <Select value={language} onValueChange={(v) => setLanguage(v as "fr" | "en")}>
-                  <SelectTrigger className="cursor-pointer text-sm"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="cursor-pointer text-sm w-full"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="en" className="cursor-pointer">English</SelectItem>
                     <SelectItem value="fr" className="cursor-pointer">Français</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
-              <div>
+              <div className="min-w-0 flex-[2]">
                 <Label className="mb-2 block text-sm">{t("settings.region")}</Label>
                 <Select value={region} onValueChange={setRegion}>
-                  <SelectTrigger className="cursor-pointer text-sm"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="cursor-pointer text-sm w-full"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="CA" className="cursor-pointer">Canada</SelectItem>
                   </SelectContent>

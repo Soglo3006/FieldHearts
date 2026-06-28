@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
-import { MapPin, Grid3x3 } from "lucide-react";
+import { MapPin, Grid3x3, Clock } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import AppImage from "@/components/ui/AppImage";
 import { getPublicServiceLocation } from "@/lib/serviceLocation";
@@ -34,6 +34,24 @@ interface SimilarService {
   average_rating?: number | string | null;
   completed_bookings_count?: number | string | null;
   type?: "offer" | "looking" | null;
+  created_at?: string | null;
+}
+
+function formatRelativeDate(dateStr: string, t: (key: string, opts?: Record<string, unknown>) => string): string {
+  try {
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const minutes = Math.floor(diff / 60000);
+    const hours = Math.floor(diff / 3600000);
+    const days = Math.floor(diff / 86400000);
+    if (minutes < 5) return t("home.justNow");
+    if (minutes < 60) return t("home.minutesAgo", { minutes });
+    if (hours < 24) return t("home.hoursAgo", { hours });
+    if (days === 1) return t("home.yesterday");
+    if (days < 7) return t("home.daysAgo", { count: days });
+    return t("home.weeksAgo", { count: Math.floor(days / 7) });
+  } catch {
+    return t("home.recently");
+  }
 }
 
 interface Props {
@@ -85,12 +103,22 @@ export default function SimilarServices({ services }: Props) {
                     completedBookingsCount={s.completed_bookings_count}
                     listingType={s.type ?? undefined}
                   />
-                  {getPublicServiceLocation(s) && (
-                    <p className="text-xs text-gray-500 mt-auto flex items-center gap-1">
-                      <MapPin className="h-3 w-3 shrink-0" />
-                      <span className="line-clamp-1">{getPublicServiceLocation(s)}</span>
-                    </p>
-                  )}
+                  <div className="flex items-center justify-between text-xs text-gray-500 mt-auto">
+                    {getPublicServiceLocation(s) ? (
+                      <div className="flex items-center gap-1 min-w-0">
+                        <MapPin className="h-3 w-3 shrink-0" />
+                        <span className="line-clamp-1">{getPublicServiceLocation(s)}</span>
+                      </div>
+                    ) : (
+                      <span />
+                    )}
+                    {s.created_at && (
+                      <div className="ml-2 flex shrink-0 items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        <span>{formatRelativeDate(s.created_at, t)}</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </Link>

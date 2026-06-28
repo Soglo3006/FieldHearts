@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { PostPublishLink } from "@/components/navigation/PostPublishLink";
-import { Plus, Grid3x3, MapPin, ChevronDown } from "lucide-react";
+import { Plus, Grid3x3, MapPin, ChevronDown, Clock } from "lucide-react";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import AppImage from "@/components/ui/AppImage";
 import EditListingModal from "@/components/listings/EditListingModal";
@@ -19,9 +19,31 @@ import { resolveListingTitle, type ServiceLikeWithI18n } from "@/lib/serviceList
 import ListingLangPills from "@/components/ui/ListingLangPills";
 import { formatListingPriceLine } from "@/lib/listingPrice";
 import { formatListingCategoryLine } from "@/lib/listingTags";
+import { ListingCardSubtitle, ListingCardPriceRow } from "@/components/listings/ListingTrustLine";
 import { cn } from "@/lib/utils";
 
 const SECTION_PAGE_SIZE = 4;
+
+function formatRelativeDate(
+  dateStr: string,
+  t: (key: string, opts?: Record<string, unknown>) => string,
+): string {
+  try {
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const minutes = Math.floor(diff / 60000);
+    const hours = Math.floor(diff / 3600000);
+    const days = Math.floor(diff / 86400000);
+    if (minutes < 5) return t("home.justNow");
+    if (minutes < 60) return t("home.minutesAgo", { minutes });
+    if (hours < 24) return t("home.hoursAgo", { hours });
+    if (days === 1) return t("home.yesterday");
+    if (days < 7) return t("home.daysAgo", { count: days });
+    if (days < 30) return t("home.weeksAgo", { count: Math.floor(days / 7) });
+    return t("home.monthsAgo", { count: Math.floor(days / 30) });
+  } catch {
+    return t("home.recently");
+  }
+}
 
 interface MyService extends ServiceLikeWithI18n {
   id: string;
@@ -37,6 +59,7 @@ interface MyService extends ServiceLikeWithI18n {
   city?: string | null;
   hide_exact_location?: boolean;
   category: string | null;
+  category_name?: string | null;
   subcategory: string | null;
   listing_tags?: unknown;
   poster_type: string | null;
@@ -49,6 +72,9 @@ interface MyService extends ServiceLikeWithI18n {
   image_urls?: string[] | null;
   created_at: string;
   is_active: boolean;
+  completed_bookings_count?: number | string | null;
+  review_count?: number | string | null;
+  average_rating?: number | string | null;
 }
 
 function MyListingsSection({
@@ -169,8 +195,17 @@ function ListingCard({
 }) {
   const thumb = s.image_urls?.[0] ?? s.image_url;
   const displayTitle = resolveListingTitle(s, i18nLang);
+  const categoryLine = formatListingCategoryLine(
+    s.category_name ?? s.category ?? null,
+    s,
+    t,
+    " | ",
+  );
   return (
-    <div className={`border rounded-xl shadow-sm bg-white flex flex-col overflow-hidden transition-all ${historical ? "opacity-60" : "hover:shadow-lg"}`}>
+    <div className={cn(
+      "group border border-gray-200 rounded-xl shadow-sm bg-white flex flex-col overflow-hidden transition-shadow",
+      historical ? "opacity-60" : "hover:shadow-md",
+    )}>
       <Link href={`/serviceDetail/${s.id}`} className="block">
         <AspectRatio ratio={16 / 9}>
           <div className="relative h-full w-full">
@@ -186,38 +221,52 @@ function ListingCard({
         </AspectRatio>
       </Link>
 
-      <div className="p-4 flex flex-col flex-1">
-        <div className="flex items-start gap-2 mb-1">
-          <Link href={`/serviceDetail/${s.id}`} className="flex-1">
-            <h3 className="font-semibold text-gray-900 line-clamp-1 hover:text-green-700 transition-colors">
+      <div className="flex flex-col flex-1 p-3">
+        <Link href={`/serviceDetail/${s.id}`} className="flex flex-col flex-1 text-left outline-none">
+          <div className="flex items-start gap-2 mb-1">
+            <h3 className="font-semibold text-gray-900 line-clamp-1 flex-1 group-hover:text-green-700 transition-colors text-sm">
               {displayTitle}
             </h3>
-          </Link>
-          <div className="flex items-center gap-1.5 shrink-0">
-            {historical && (
-              <Badge className="bg-gray-100 text-gray-500 text-xs border-0">{t("myListings.completed")}</Badge>
-            )}
-            {s.type === "looking" && (
-              <Badge className="bg-blue-100 text-blue-700 text-xs border-0">{t("myListings.looking")}</Badge>
+            <div className="flex items-center gap-1.5 shrink-0">
+              {historical && (
+                <Badge className="bg-gray-100 text-gray-500 text-xs border-0">{t("myListings.completed")}</Badge>
+              )}
+              {s.type === "looking" ? (
+                <Badge className="bg-blue-100 text-blue-700 text-xs border-0">{t("myListings.looking")}</Badge>
+              ) : (
+                <Badge className="bg-green-100 text-green-700 text-xs border-0">{t("listings.offering")}</Badge>
+              )}
+            </div>
+          </div>
+
+          <ListingCardSubtitle
+            categoryLine={categoryLine || null}
+            reviewCount={s.review_count}
+            averageRating={s.average_rating}
+          />
+
+          <ListingCardPriceRow
+            price={formatListingPriceLine(t, s)}
+            completedBookingsCount={s.completed_bookings_count}
+            listingType={s.type === "looking" ? "looking" : s.type === "offer" ? "offer" : undefined}
+          />
+
+          <div className="flex items-center justify-between text-xs text-gray-500 mt-auto">
+            <div className="flex items-center gap-1 min-w-0">
+              <MapPin className="h-3 w-3 shrink-0" />
+              <span className="line-clamp-1">{getPublicServiceLocation(s)}</span>
+            </div>
+            {s.created_at && (
+              <div className="ml-2 flex shrink-0 items-center gap-1">
+                <Clock className="h-3 w-3" />
+                <span>{formatRelativeDate(s.created_at, t)}</span>
+              </div>
             )}
           </div>
-        </div>
-
-        <p className="text-green-700 font-bold text-lg mb-2">{formatListingPriceLine(t, s)}</p>
-
-        <div className="flex items-center text-sm text-gray-500 mb-2">
-          <MapPin className="h-4 w-4 mr-1 flex-shrink-0" />
-          <span className="line-clamp-1">{getPublicServiceLocation(s)}</span>
-        </div>
-
-        {s.category && (
-          <p className="text-xs text-gray-500 line-clamp-1 mb-3">
-            {formatListingCategoryLine(s.category, s, t, " · ")}
-          </p>
-        )}
+        </Link>
 
         {!historical && (
-          <div className="mt-auto pt-3 border-t border-gray-100 flex flex-wrap gap-2">
+          <div className="mt-3 pt-3 border-t border-gray-100 flex flex-wrap gap-2">
             <Button size="sm" variant="outline" className="gap-1.5 flex-1" onClick={() => onEdit(s)}>
               {t("myListings.edit")}
             </Button>

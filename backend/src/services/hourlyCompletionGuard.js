@@ -92,30 +92,33 @@ export async function assertHourlyReadyForCompletion(bookingId, pricingMode) {
 
   const balanceDue = Number(row.balance_due_cents) || computeBalanceDueCents(row, meta);
 
-  if (splitDeposit && row.payment_status === "deposit_paid") {
-    if (isHourlyBooking(row)) {
-      const approvedHours = Number(row.approved_hours_total) || 0;
-      if (approvedHours <= 0) {
-        const err = new Error(
-          "Hourly bookings require approved work hours before completion",
-        );
-        err.statusCode = 400;
-        err.code = "HOURLY_NO_APPROVED_HOURS";
-        throw err;
-      }
-    }
-
-    if (balanceDue > 0) {
+  if (splitDeposit && isHourlyBooking(row)) {
+    const approvedHours = Number(row.approved_hours_total) || 0;
+    if (approvedHours <= 0) {
       const err = new Error(
-        isWorkBasedBooking(row)
-          ? "The remaining balance must be paid before completion"
-          : "Hourly bookings require the approved-hours balance to be paid before completion",
+        "Hourly bookings require approved work hours before completion",
       );
       err.statusCode = 400;
-      err.code = "HOURLY_BALANCE_DUE";
-      err.balance_due_cents = balanceDue;
+      err.code = "HOURLY_NO_APPROVED_HOURS";
       throw err;
     }
+  }
+
+  if (
+    splitDeposit &&
+    balanceDue > 0 &&
+    (row.payment_status === "deposit_paid" ||
+      (row.payment_status === "paid" && isHourlyBooking(row)))
+  ) {
+    const err = new Error(
+      isWorkBasedBooking(row)
+        ? "The remaining balance must be paid before completion"
+        : "Hourly bookings require the approved-hours balance to be paid before completion",
+    );
+    err.statusCode = 400;
+    err.code = "HOURLY_BALANCE_DUE";
+    err.balance_due_cents = balanceDue;
+    throw err;
   }
 
   if (!isHourlyBooking(row)) return;

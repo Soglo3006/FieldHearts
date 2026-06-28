@@ -576,7 +576,14 @@ export const deleteService = async (req, res) => {
 export const getMyServices = async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT * FROM services WHERE user_id = $1 ORDER BY created_at DESC`,
+      `SELECT
+        s.*,
+        COALESCE(c.name, s.category) AS category_name,
+        (SELECT COUNT(*)::int FROM bookings b WHERE b.service_id = s.id AND b.status = 'completed') AS completed_bookings_count
+      FROM services s
+      LEFT JOIN categories c ON c.id = s.category_id
+      WHERE s.user_id = $1
+      ORDER BY s.created_at DESC`,
       [req.user.id]
     );
     result.rows.forEach((row) => canonServiceFieldsInPlace(row));
@@ -880,7 +887,8 @@ export const getUserServices = async (req, res) => {
         CASE WHEN u.account_type = 'company' THEN u.company_name ELSE u.full_name END AS owner_name,
         u.company_name,
         u.account_type,
-        COALESCE(c.name, s.category) AS category_name
+        COALESCE(c.name, s.category) AS category_name,
+        (SELECT COUNT(*)::int FROM bookings b WHERE b.service_id = s.id AND b.status = 'completed') AS completed_bookings_count
       FROM services s
       JOIN users u ON s.user_id = u.id
       LEFT JOIN categories c ON c.id = s.category_id

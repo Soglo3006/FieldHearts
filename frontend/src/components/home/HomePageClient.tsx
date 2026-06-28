@@ -31,6 +31,10 @@ const CityAutocomplete = dynamic(() => import("@/components/ui/CityAutocomplete"
 const toKey = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
+/** Communauté locale — bannière incitation à publier / se connecter */
+const HOME_CTA_IMAGE =
+  "https://images.unsplash.com/photo-1529156069898-49953e39b3ac?w=1600&q=80&auto=format&fit=crop";
+
 function formatRelativeDate(dateStr: string, t: (key: string, opts?: Record<string, unknown>) => string) {
   try {
     const diff = Date.now() - new Date(dateStr).getTime();
@@ -436,17 +440,35 @@ export default function HomePageClient({
                 </div>
               </div>
 
-              {!user && (
-                <div className="col-span-full mt-10 bg-green-800 rounded-2xl p-5 sm:p-10 text-center text-white">
-                  <h2 className="text-2xl font-bold mb-2">
-                    {t("home.ctaTitle")}
+              <div className="col-span-full mt-10 relative overflow-hidden rounded-2xl">
+                <div
+                  className="absolute inset-0"
+                  style={{
+                    backgroundImage: `url('${HOME_CTA_IMAGE}')`,
+                    backgroundPosition: "center",
+                    backgroundSize: "cover",
+                  }}
+                  aria-hidden
+                />
+                <div className="absolute inset-0 bg-green-900/45" aria-hidden />
+                <div
+                  className="absolute inset-0 bg-linear-to-r from-green-900/50 via-green-800/35 to-green-900/30"
+                  aria-hidden
+                />
+                <div className="relative z-10 p-6 sm:p-10 text-center text-white">
+                  <h2 className="text-xl sm:text-2xl font-bold mb-2 drop-shadow-sm">
+                    {user ? t("home.ctaPostTitle") : t("home.ctaTitle")}
                   </h2>
-                  <p>{t("home.ctaSubtitle")}</p>
-                  <Link href="/login">
-                    <Button className="mt-4 cursor-pointer">{t("home.signIn")}</Button>
+                  <p className="text-sm sm:text-base text-green-100 max-w-xl mx-auto">
+                    {user ? t("home.ctaPostSubtitle") : t("home.ctaSubtitle")}
+                  </p>
+                  <Link href={user ? "/post" : "/login"}>
+                    <Button className="mt-5 cursor-pointer bg-white text-green-900 hover:bg-green-50 shadow-md">
+                      {user ? t("home.postListing") : t("home.signIn")}
+                    </Button>
                   </Link>
                 </div>
-              )}
+              </div>
 
               <div className="col-span-full">
                 <AdBanner slot="HOME_BANNER_SLOT" format="horizontal" style={{ minHeight: 90 }} />

@@ -3,12 +3,6 @@ import { useTranslation } from "react-i18next";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { normalizePricingMode } from "@/lib/listingPrice";
-import { Clock, Globe, CheckCircle } from "lucide-react";
-import {
-  formatAvailabilityLabel,
-  formatMobilityLabel,
-  formatSpokenLanguageLabel,
-} from "@/lib/formatServiceDetailFields";
 import { STATUS_CONFIG, type BookingStatus } from "@/components/bookings/bookingTypes";
 
 interface Props {
@@ -19,14 +13,10 @@ interface Props {
   estimatedTotalBase: number | null;
   /** High end of service/budget range; when set above `estimatedTotalBase`, commission/taxes/total show as ranges. */
   estimatedTotalBaseMax?: number | null;
-  ownerId: string;
   workerProvince?: string | null;
   providerFirstName: string;
   /** When true, use enterprise-oriented contact CTA wording where languages differ. */
   providerIsCompany: boolean;
-  availability: string | null;
-  language: string | null;
-  mobility: string | null;
   pricingMode?: string | null;
   serviceEstimatedHours?: number | null;
   existingBookingStatus: string | null;
@@ -40,13 +30,9 @@ export default function BookingSidebar({
   displayPriceLabel,
   estimatedTotalBase,
   estimatedTotalBaseMax,
-  ownerId,
   workerProvince,
   providerFirstName,
   providerIsCompany,
-  availability,
-  language,
-  mobility,
   pricingMode,
   serviceEstimatedHours,
   existingBookingStatus,
@@ -125,47 +111,6 @@ export default function BookingSidebar({
             {t("serviceDetail.paymentTerms")}
           </Link>
         </p>
-      </div>
-
-      {/* Provider info card */}
-      <div className="border border-gray-200 rounded-2xl p-6 bg-white shadow-sm">
-        <h3 className="font-semibold text-gray-900 mb-4">{t("serviceDetail.aboutProvider", { name: providerFirstName })}</h3>
-        <div className="space-y-1">
-          {availability && (
-            <div className="flex items-center justify-between py-3 border-b border-gray-100">
-              <div className="flex items-center gap-2">
-                <Clock className="h-5 w-5 text-green-600" />
-                <span className="text-sm text-gray-600">{t("serviceDetail.availability")}</span>
-              </div>
-              <span className="max-w-32.5 truncate text-right text-sm font-semibold text-gray-900">
-                {formatAvailabilityLabel(availability, t)}
-              </span>
-            </div>
-          )}
-          {language && (
-            <div className="flex items-center justify-between py-3 border-b border-gray-100">
-              <div className="flex items-center gap-2">
-                <Globe className="h-5 w-5 text-green-600" />
-                <span className="text-sm text-gray-600">{t("serviceDetail.language")}</span>
-              </div>
-              <span className="font-semibold text-gray-900 text-sm">{formatSpokenLanguageLabel(language, t)}</span>
-            </div>
-          )}
-          {mobility && (
-            <div className="flex items-center justify-between py-3">
-              <div className="flex items-center gap-2">
-                <CheckCircle className="h-5 w-5 text-green-600" />
-                <span className="text-sm text-gray-600">{t("serviceDetail.mobile")}</span>
-              </div>
-              <span className="font-semibold text-gray-900 text-sm">{formatMobilityLabel(mobility, t)}</span>
-            </div>
-          )}
-        </div>
-        <Link href={`/profile/${ownerId}`}>
-          <Button variant="outline" className="w-full mt-4">
-            {t("serviceDetail.viewProfile")}
-          </Button>
-        </Link>
       </div>
     </>
   );

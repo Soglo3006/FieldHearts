@@ -10,22 +10,29 @@ import { Separator } from '@/components/ui/separator';
 import { Star } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
-import { ExternalLink, Grid3x3, MapPin, Settings, X } from 'lucide-react';
+import { ExternalLink, Grid3x3, MapPin, Settings, X, Clock } from 'lucide-react';
 import { Spinner } from "@/components/ui/Spinner";
 import AppImage from '@/components/ui/AppImage';
 import RatingsPage from '@/components/profile/RatingsPage';
 import { getPublicServiceLocation } from '@/lib/serviceLocation';
+import { formatListingPriceLine } from '@/lib/listingPrice';
+import { ListingCardPriceRow } from '@/components/listings/ListingTrustLine';
 
 interface SidebarListing {
   id: string;
   title: string;
   type?: 'offer' | 'looking';
   price: number | string;
+  price_min?: number | string | null;
+  price_max?: number | string | null;
+  pricing_mode?: string | null;
   location?: string | null;
   address?: string | null;
   city?: string | null;
   hide_exact_location?: boolean;
   image_url?: string | null;
+  created_at?: string;
+  completed_bookings_count?: number | string | null;
 }
 
 interface ProfileSidebarProps {
@@ -46,6 +53,26 @@ interface ProfileSidebarProps {
   /** When set, listing fetch uses API block rules for the current viewer */
   accessToken?: string | null;
   onLoadingChange?: (loading: boolean) => void;
+}
+
+function formatRelativeDate(
+  dateStr: string,
+  t: (key: string, opts?: Record<string, unknown>) => string,
+): string {
+  try {
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const minutes = Math.floor(diff / 60000);
+    const hours = Math.floor(diff / 3600000);
+    const days = Math.floor(diff / 86400000);
+    if (minutes < 5) return t("home.justNow");
+    if (minutes < 60) return t("home.minutesAgo", { minutes });
+    if (hours < 24) return t("home.hoursAgo", { hours });
+    if (days === 1) return t("home.yesterday");
+    if (days < 7) return t("home.daysAgo", { count: days });
+    return t("home.weeksAgo", { count: Math.floor(days / 7) });
+  } catch {
+    return t("home.recently");
+  }
 }
 
 export function ProfileSidebar({ otherUser, onClose, onOpenSettings, isBlocked, isBlockedByOther, blockCheckLoading, accessToken, onLoadingChange }: ProfileSidebarProps) {
@@ -324,15 +351,29 @@ export function ProfileSidebar({ otherUser, onClose, onOpenSettings, isBlocked, 
                                     </Badge>
                                   )}
                                 </div>
-                                <p className="text-green-700 font-bold text-sm mb-1">
-                                  ${listing.price}
-                                </p>
-                                {getPublicServiceLocation(listing) && (
-                                  <div className="flex items-center text-xs text-gray-500">
-                                    <MapPin className="h-3 w-3 mr-1 shrink-0" />
-                                    <span className="line-clamp-1">{getPublicServiceLocation(listing)}</span>
-                                  </div>
-                                )}
+                                <ListingCardPriceRow
+                                  price={formatListingPriceLine(t, listing)}
+                                  completedBookingsCount={listing.completed_bookings_count}
+                                  listingType={listing.type ?? undefined}
+                                  priceClassName="text-sm"
+                                  className="mb-1"
+                                />
+                                <div className="flex items-center justify-between text-xs text-gray-500">
+                                  {getPublicServiceLocation(listing) ? (
+                                    <div className="flex items-center gap-1 min-w-0">
+                                      <MapPin className="h-3 w-3 shrink-0" />
+                                      <span className="line-clamp-1">{getPublicServiceLocation(listing)}</span>
+                                    </div>
+                                  ) : (
+                                    <span />
+                                  )}
+                                  {listing.created_at && (
+                                    <div className="ml-2 flex shrink-0 items-center gap-1">
+                                      <Clock className="h-3 w-3" />
+                                      <span>{formatRelativeDate(listing.created_at, t)}</span>
+                                    </div>
+                                  )}
+                                </div>
                               </div>
                             </div>
                           </Link>

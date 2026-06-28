@@ -103,16 +103,16 @@ export function computeBalanceDueCents(
 ): number {
   if (!usesSplitDepositPayment(booking, depositConfig)) return 0;
 
-  const stored = Number(booking.balance_due_cents);
-  if (Number.isFinite(stored) && stored > 0) return stored;
-
   if (isHourlyBooking(booking)) {
-    const rate = Number(booking.price);
+    const rate = Number(booking.custom_price ?? booking.price);
     const hours = Number(booking.approved_hours_total) || 0;
     if (!Number.isFinite(rate) || rate < 0.01 || hours <= 0) return 0;
     const owed = Math.round(rate * hours * 100) - Number(booking.paid_service_base_cents || 0);
     return Math.max(0, owed);
   }
+
+  const stored = Number(booking.balance_due_cents);
+  if (Number.isFinite(stored) && stored > 0) return stored;
 
   const full = getFullServiceBaseCents(booking, depositConfig);
   const paid = Number(booking.paid_service_base_cents || 0);
@@ -183,9 +183,11 @@ export function hasUnpaidBalanceDue(
 ): boolean {
   const meta = depositConfig ?? booking;
   if (!usesSplitDepositPayment(booking, meta)) return false;
-  if (booking.payment_status !== "deposit_paid") return false;
   if (!isBalanceCheckoutReady(booking)) return false;
-  return computeBalanceDueCents(booking, meta) > 0;
+  const balanceDue = computeBalanceDueCents(booking, meta);
+  if (balanceDue <= 0) return false;
+  if (booking.payment_status === "deposit_paid") return true;
+  return booking.payment_status === "paid" && isHourlyBooking(booking);
 }
 
 export function resolveCheckoutKind(

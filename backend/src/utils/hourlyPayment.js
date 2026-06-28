@@ -80,14 +80,14 @@ export function getFullServiceBaseCents(booking, service = null) {
 export function computeBalanceDueCents(booking, service = null) {
   if (!usesSplitDepositPayment(booking, service)) return 0;
 
-  const stored = Number(booking.balance_due_cents);
-  if (Number.isFinite(stored) && stored > 0) return stored;
-
   if (isHourlyBooking(booking)) {
     const owed =
       getApprovedHoursBaseCents(booking) - Number(booking.paid_service_base_cents || 0);
     return Math.max(0, owed);
   }
+
+  const stored = Number(booking.balance_due_cents);
+  if (Number.isFinite(stored) && stored > 0) return stored;
 
   const full = getFullServiceBaseCents(booking, service);
   const paid = Number(booking.paid_service_base_cents || 0);
@@ -149,9 +149,12 @@ export function computeHourlyBalanceCheckoutAmounts(
 export function hasUnpaidBalanceDue(booking, service = null) {
   const meta = service ?? booking;
   if (!usesSplitDepositPayment(booking, meta)) return false;
-  if (booking.payment_status !== "deposit_paid") return false;
   if (!isBalanceCheckoutReady(booking)) return false;
-  return computeBalanceDueCents(booking, meta) > 0;
+  const balanceDue = computeBalanceDueCents(booking, meta);
+  if (balanceDue <= 0) return false;
+  if (booking.payment_status === "deposit_paid") return true;
+  // Hourly: more approved hours after the client already paid the balance in full.
+  return booking.payment_status === "paid" && isHourlyBooking(booking);
 }
 
 export function resolveCheckoutKind(booking, service = null) {

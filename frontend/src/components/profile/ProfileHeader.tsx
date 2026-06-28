@@ -8,7 +8,7 @@ import {
   Star, MapPin, MessageCircle, Grid3x3, Settings,
   Ellipsis, UserStar, Users, Ban,
 } from "lucide-react";
-import { useTranslation } from "react-i18next";
+import { Spinner } from "@/components/ui/Spinner";
 import { resolveUnedenAvatarUrl } from "@/lib/userDisplay";
 
 interface ProfileUser {
@@ -52,14 +52,14 @@ export default function ProfileHeader({
   const avatarUrl = resolveUnedenAvatarUrl(profileUser.avatar);
   return (
     <Card className="p-4 sm:p-8 mb-4 sm:mb-8">
-      <div className="flex flex-col md:flex-row gap-4 sm:gap-6 items-start md:items-center">
-        <Avatar className="w-24 h-24 sm:w-32 sm:h-32 border-4 border-white shadow-lg">
+      <div className="flex flex-col md:flex-row gap-4 sm:gap-6 items-center md:items-start">
+        <Avatar className="w-24 h-24 sm:w-32 sm:h-32 border-4 border-white shadow-lg shrink-0">
           {avatarUrl ? <AvatarImage src={avatarUrl} alt={displayName} /> : null}
           <AvatarFallback className="text-2xl bg-green-100 text-green-800 font-semibold">{displayName.charAt(0)}</AvatarFallback>
         </Avatar>
 
-        <div className="flex-1">
-          <div className="flex items-center gap-3 mb-2">
+        <div className="flex-1 w-full min-w-0 text-center md:text-left">
+          <div className="flex items-center justify-center md:justify-start gap-3 mb-2 flex-wrap">
             <h1 className="text-xl sm:text-3xl font-bold text-gray-900">{displayName}</h1>
             {isCompany && (
               <Badge className="bg-green-50 text-green-700 border border-green-200 text-xs font-medium px-2 py-0.5 rounded-full">
@@ -70,7 +70,7 @@ export default function ProfileHeader({
 
           <p className="text-base sm:text-lg text-gray-600 mb-3">{displayTitle || t("profile.serviceProvider")}</p>
 
-          <div className="flex flex-wrap items-center gap-4 mb-4">
+          <div className="flex flex-wrap items-center justify-center md:justify-start gap-4 mb-4">
             {profileUser.stats && (
               <button
                 type="button"
@@ -98,20 +98,20 @@ export default function ProfileHeader({
             )}
           </div>
 
-          <div className="flex flex-wrap gap-3">
+          <div className="flex flex-col md:flex-row md:flex-wrap gap-3 justify-center md:justify-start w-full max-w-md md:max-w-none mx-auto md:mx-0">
             {isOwner ? (
               <>
-                <Link href="/messages">
-                  <Button className="bg-green-700 hover:bg-green-800 text-white gap-2 cursor-pointer">
+                <Link href="/messages" className="w-full md:w-auto">
+                  <Button className="w-full md:w-auto bg-green-700 hover:bg-green-800 text-white gap-2 cursor-pointer">
                     <MessageCircle className="h-4 w-4" />
                     {t("profile.viewMessages")}
                   </Button>
                 </Link>
-                <Button variant="outline" className="gap-2 cursor-pointer" onClick={onRatings}>
+                <Button variant="outline" className="w-full md:w-auto gap-2 cursor-pointer" onClick={onRatings}>
                   <UserStar className="h-4 w-4" />
                   {t("profile.viewRatings")}
                 </Button>
-                <Button variant="outline" className="gap-2 cursor-pointer" onClick={onSettings}>
+                <Button variant="outline" className="w-full md:w-auto gap-2 cursor-pointer" onClick={onSettings}>
                   <Settings className="h-4 w-4" />
                   {t("header.settings")}
                 </Button>
@@ -119,7 +119,7 @@ export default function ProfileHeader({
             ) : isBlocked ? (
               <Button
                 variant="outline"
-                className="gap-2 cursor-pointer border-green-600 text-green-600 hover:bg-green-50"
+                className="w-full md:w-auto gap-2 cursor-pointer border-green-600 text-green-600 hover:bg-green-50"
                 onClick={onUnblock}
                 disabled={blockLoading}
               >
@@ -141,25 +141,36 @@ export default function ProfileHeader({
                   <Button
                     onClick={onSendMessage}
                     disabled={sendMessageLoading}
-                    className="bg-green-700 hover:bg-green-800 text-white gap-2 cursor-pointer"
+                    className="w-full md:w-auto bg-green-700 hover:bg-green-800 text-white gap-2 cursor-pointer"
                   >
-                    <MessageCircle className="h-4 w-4" />
-                    {sendMessageLoading ? t("common.loading") : t("profile.sendMessage")}
+                    {sendMessageLoading ? (
+                      <>
+                        <Spinner size="xs" className="border-white border-t-transparent shrink-0" />
+                        {t("common.loading")}
+                      </>
+                    ) : (
+                      <>
+                        <MessageCircle className="h-4 w-4" />
+                        {t("profile.sendMessage")}
+                      </>
+                    )}
                   </Button>
                 )}
-                <Button variant="outline" className="gap-2 cursor-pointer" onClick={onRatings}>
+                <Button variant="outline" className="w-full md:w-auto gap-2 cursor-pointer" onClick={onRatings}>
                   <UserStar className="h-4 w-4" />
                   {t("profile.viewRatings")}
                 </Button>
-                <Link href={isOwner ? "/my-listings" : `/profile/${profileId}/listings`}>
-                  <Button variant="outline" className="gap-2 cursor-pointer">
-                    <Grid3x3 className="h-4 w-4" />
-                    {t("profile.viewAllListingsCount", { count: listingsCount })}
+                <div className="flex w-full md:w-auto gap-3">
+                  <Link href={isOwner ? "/my-listings" : `/profile/${profileId}/listings`} className="flex-1 md:flex-none min-w-0">
+                    <Button variant="outline" className="w-full gap-2 cursor-pointer">
+                      <Grid3x3 className="h-4 w-4" />
+                      {t("profile.viewAllListingsCount", { count: listingsCount })}
+                    </Button>
+                  </Link>
+                  <Button variant="outline" className="gap-2 cursor-pointer shrink-0 px-3" onClick={onEllipsis}>
+                    <Ellipsis className="h-4 w-4" />
                   </Button>
-                </Link>
-                <Button variant="outline" className="gap-2 cursor-pointer" onClick={onEllipsis}>
-                  <Ellipsis className="h-4 w-4" />
-                </Button>
+                </div>
               </>
             )}
           </div>

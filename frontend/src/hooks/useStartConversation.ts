@@ -58,11 +58,12 @@ export function useStartConversation() {
         ]);
         if (iBlocked || theyBlocked) {
           toast.error(t("messages.cannotStartChatBlocked"));
+          setLoading(false);
           return;
         }
 
         router.push(`/messages?compose=${encodeURIComponent(otherUserId)}`);
-      } finally {
+      } catch {
         setLoading(false);
       }
     },

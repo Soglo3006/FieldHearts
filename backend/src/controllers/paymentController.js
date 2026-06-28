@@ -364,7 +364,7 @@ function needsBookingPaymentReconciliation(booking, payment) {
   }
   if (kind === "balance") {
     return (
-      booking.payment_status === "deposit_paid" &&
+      ["deposit_paid", "paid"].includes(booking.payment_status) &&
       Number(booking.balance_due_cents) > 0
     );
   }
@@ -633,7 +633,7 @@ export const createCheckoutSession = async (req, res) => {
       if (b.status !== "active" && b.status !== "completed") {
         return res.status(400).json({ message: "Booking must be active before paying the balance" });
       }
-      if (b.payment_status !== "deposit_paid") {
+      if (!["deposit_paid", "paid"].includes(b.payment_status)) {
         return res.status(400).json({ message: "Deposit must be paid before the balance" });
       }
     }

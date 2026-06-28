@@ -373,13 +373,9 @@ export default function ServiceDetailClient() {
                 displayPriceLabel={displayPriceLabel}
                 estimatedTotalBase={estimatedTotalBase}
                 estimatedTotalBaseMax={estimatedTotalBaseMax}
-                ownerId={service.owner_id}
                 workerProvince={service.owner_province}
                 providerFirstName={providerShortName}
                 providerIsCompany={providerIsCompany}
-                availability={service.availability}
-                language={service.language}
-                mobility={service.mobility}
                 pricingMode={service.pricing_mode}
                 serviceEstimatedHours={parseListingPriceNum(service.estimated_hours)}
                 existingBookingStatus={existingBookingStatus}

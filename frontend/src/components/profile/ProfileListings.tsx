@@ -10,7 +10,7 @@ import { AspectRatio } from "@/components/ui/aspect-ratio";
 import {
   Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious,
 } from "@/components/ui/carousel";
-import { Grid3x3, MapPin, ChevronLeft, ChevronRight } from "lucide-react";
+import { Grid3x3, MapPin, ChevronLeft, ChevronRight, Clock } from "lucide-react";
 import AppImage from "@/components/ui/AppImage";
 import EditListingModal, { type Service as Listing } from "@/components/listings/EditListingModal";
 import { Spinner } from "@/components/ui/Spinner";
@@ -18,13 +18,43 @@ import { getPublicServiceLocation } from "@/lib/serviceLocation";
 import { resolveListingTitle } from "@/lib/serviceListingI18n";
 import ListingLangPills from "@/components/ui/ListingLangPills";
 import { formatListingPriceLine } from "@/lib/listingPrice";
-import { formatTranslatedCategoryTrail } from "@/lib/categories";
+import { formatListingCategoryLine } from "@/lib/listingTags";
+import { ListingCardSubtitle, ListingCardPriceRow } from "@/components/listings/ListingTrustLine";
 
 const PAGE_SIZE = 9;
 
+function formatRelativeDate(
+  dateStr: string,
+  t: (key: string, opts?: Record<string, unknown>) => string,
+): string {
+  try {
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const minutes = Math.floor(diff / 60000);
+    const hours = Math.floor(diff / 3600000);
+    const days = Math.floor(diff / 86400000);
+    if (minutes < 5) return t("home.justNow");
+    if (minutes < 60) return t("home.minutesAgo", { minutes });
+    if (hours < 24) return t("home.hoursAgo", { hours });
+    if (days === 1) return t("home.yesterday");
+    if (days < 7) return t("home.daysAgo", { count: days });
+    if (days < 30) return t("home.weeksAgo", { count: Math.floor(days / 7) });
+    return t("home.monthsAgo", { count: Math.floor(days / 30) });
+  } catch {
+    return t("home.recently");
+  }
+}
+
+type ProfileListing = Listing & {
+  created_at?: string;
+  category_name?: string | null;
+  completed_bookings_count?: number | string | null;
+  review_count?: number | string | null;
+  average_rating?: number | string | null;
+};
+
 interface Props {
-  userListings: Listing[];
-  setUserListings: (fn: (prev: Listing[]) => Listing[]) => void;
+  userListings: ProfileListing[];
+  setUserListings: (fn: (prev: ProfileListing[]) => ProfileListing[]) => void;
   listingsLoading: boolean;
   isOwner: boolean;
   isPerson: boolean;
@@ -131,11 +161,17 @@ export default function ProfileListings({
     ? userListings.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
     : userListings;
 
-  const ListingCardContent = (listing: Listing) => {
+  const ListingCardContent = (listing: ProfileListing) => {
     const thumb = listing.image_urls?.[0] ?? listing.image_url;
     const resolved = resolveListingTitle(listing, i18n.language);
+    const categoryLine = formatListingCategoryLine(
+      listing.category_name ?? listing.category ?? null,
+      listing,
+      t,
+      " | ",
+    );
     return (
-    <div className="border rounded-xl shadow-sm bg-white h-full flex flex-col overflow-hidden hover:shadow-lg transition-all">
+    <div className="group border border-gray-200 rounded-xl shadow-sm bg-white h-full flex flex-col overflow-hidden hover:shadow-md transition-shadow">
       <Link href={`/serviceDetail/${listing.id}`} className="block">
         <AspectRatio ratio={16 / 9}>
           <div className="relative h-full w-full">
@@ -151,39 +187,51 @@ export default function ProfileListings({
         </AspectRatio>
       </Link>
 
-      <div className="p-4 flex flex-col flex-1">
-        <div className="flex items-center gap-2 mb-2">
-          <Link href={`/serviceDetail/${listing.id}`} className="flex-1">
-            <h3 className="font-semibold text-gray-900 line-clamp-1 hover:text-green-700 transition-colors">
+      <div className="flex flex-col flex-1 p-3">
+        <Link href={`/serviceDetail/${listing.id}`} className="flex flex-col flex-1 text-left outline-none">
+          <div className="flex items-start gap-2 mb-1">
+            <h3 className="font-semibold text-gray-900 line-clamp-1 flex-1 group-hover:text-green-700 transition-colors text-sm">
               {resolved}
             </h3>
-          </Link>
-          {listing.type === "looking" ? (
-            <Badge className="shrink-0 border-0 bg-blue-100 text-xs text-blue-700">
-              {t("listings.looking")}
-            </Badge>
-          ) : (
-            <Badge className="shrink-0 border-0 bg-green-100 text-xs text-green-700">
-              {t("listings.offering")}
-            </Badge>
-          )}
-        </div>
+            {listing.type === "looking" ? (
+              <Badge className="shrink-0 border-0 bg-blue-100 text-xs text-blue-700">
+                {t("listings.looking")}
+              </Badge>
+            ) : (
+              <Badge className="shrink-0 border-0 bg-green-100 text-xs text-green-700">
+                {t("listings.offering")}
+              </Badge>
+            )}
+          </div>
 
-        <p className="text-green-700 font-bold text-lg mb-2">{formatListingPriceLine(t, listing)}</p>
+          <ListingCardSubtitle
+            categoryLine={categoryLine || null}
+            reviewCount={listing.review_count}
+            averageRating={listing.average_rating}
+          />
 
-        <div className="flex items-center text-sm text-gray-500 mb-2">
-          <MapPin className="h-4 w-4 mr-1 shrink-0" />
-          <span className="line-clamp-1">{getPublicServiceLocation(listing)}</span>
-        </div>
+          <ListingCardPriceRow
+            price={formatListingPriceLine(t, listing)}
+            completedBookingsCount={listing.completed_bookings_count}
+            listingType={listing.type === "looking" ? "looking" : listing.type === "offer" ? "offer" : undefined}
+          />
 
-        {listing.category && (
-          <p className="text-xs text-gray-500 line-clamp-1 mb-3">
-            {formatTranslatedCategoryTrail(listing.category, listing.subcategory, t, " • ")}
-          </p>
-        )}
+          <div className="flex items-center justify-between text-xs text-gray-500 mt-auto">
+            <div className="flex items-center gap-1 min-w-0">
+              <MapPin className="h-3 w-3 shrink-0" />
+              <span className="line-clamp-1">{getPublicServiceLocation(listing)}</span>
+            </div>
+            {listing.created_at && (
+              <div className="ml-2 flex shrink-0 items-center gap-1">
+                <Clock className="h-3 w-3" />
+                <span>{formatRelativeDate(listing.created_at, t)}</span>
+              </div>
+            )}
+          </div>
+        </Link>
 
         {isOwner && (
-          <div className="mt-auto pt-3 border-t border-gray-100 flex gap-2">
+          <div className="mt-3 pt-3 border-t border-gray-100 flex gap-2">
             <Button size="sm" variant="outline" className="gap-1.5 flex-1" onClick={() => setEditingListing(listing)}>
               {t("common.edit")}
             </Button>

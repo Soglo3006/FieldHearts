@@ -59,7 +59,7 @@ export async function refreshHourlyBalanceDue(bookingId, { notifyClient = false 
     notifyClient &&
     balanceDueCents > 0 &&
     balanceDueCents > prevBalance &&
-    booking.payment_status === "deposit_paid" &&
+    ["deposit_paid", "paid"].includes(booking.payment_status) &&
     isBalanceCheckoutReady(booking)
   ) {
     const owedDollars = (balanceDueCents / 100).toFixed(2);

@@ -9,6 +9,7 @@ import {
   Ellipsis, UserStar, Users, Ban,
 } from "lucide-react";
 import { Spinner } from "@/components/ui/Spinner";
+import { useTranslation } from "react-i18next";
 import { resolveUnedenAvatarUrl } from "@/lib/userDisplay";
 
 interface ProfileUser {

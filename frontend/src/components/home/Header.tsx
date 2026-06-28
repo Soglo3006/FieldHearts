@@ -47,6 +47,7 @@ import { useWalletBadge } from "@/hooks/useWalletBadge";
 import { formatTranslatedCategoryTrail } from "@/lib/categories";
 import { formatListingPriceLine } from "@/lib/listingPrice";
 import { getLanguageCode, getLanguageToggleValue } from "@/lib/locale";
+import { displayNotificationBody, displayNotificationLink } from "@/lib/notificationDisplay";
 import AppImage from "@/components/ui/AppImage";
 
 /** Hauteur commune : barre de recherche, menus, langue, connexion, publier */
@@ -737,7 +738,8 @@ export default function Header() {
                             if (isUnread) markRead(n.id);
                             setMobileMenuOpen(false);
                             setMobileView("menu");
-                            if (n.link) router.push(n.link);
+                            const link = displayNotificationLink(n);
+                            if (link) router.push(link);
                           }}
                           className={`flex items-start gap-3 px-4 py-3 cursor-pointer border-b border-gray-100 last:border-b-0 transition-colors ${isUnread ? "bg-green-50/50 hover:bg-green-100/40" : "hover:bg-gray-50"}`}
                         >
@@ -745,7 +747,7 @@ export default function Header() {
                             <p className={`text-sm truncate ${isUnread ? "font-semibold text-gray-900" : "font-medium text-gray-700"}`}>
                               {n.title}
                             </p>
-                            <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{n.body}</p>
+                            <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{displayNotificationBody(n, t)}</p>
                             <p className="text-[11px] text-gray-400 mt-1">{timeStr}</p>
                           </div>
                           <div className="shrink-0 flex gap-1 mt-0.5" onClick={(e) => e.stopPropagation()}>

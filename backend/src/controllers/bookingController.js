@@ -601,7 +601,7 @@ export const markCompleted = async (req, res) => {
 
       // Reload booking with approved hours for payout
       const freshBooking = await pool.query(
-        `SELECT b.*, s.pricing_mode AS service_pricing_mode, s.estimated_hours AS service_estimated_hours,
+        `SELECT b.*, s.title, s.pricing_mode AS service_pricing_mode, s.estimated_hours AS service_estimated_hours,
             s.price AS service_price,
             CASE WHEN cc.account_type = 'company' THEN cc.company_name ELSE cc.full_name END AS client_name
          FROM bookings b
@@ -1387,6 +1387,7 @@ async function autoRejectOtherRequests(serviceId, acceptedBookingId) {
 }
 
 async function finalizeCompletion(booking) {
+  const listingTitle = (booking.title || "").trim();
   const effectivePrice = getEffectiveBookingPrice(booking);
   // Worker receives 80% (platform keeps 20% commission)
   const workerReceives = effectivePrice * 0.80;
@@ -1406,7 +1407,7 @@ async function finalizeCompletion(booking) {
     await pool.query(
       `INSERT INTO transactions (user_id, booking_id, type, amount, description, other_user_name, listing_title)
        VALUES ($1, $2, 'credit', $3, 'Payment received for completed work', $4, $5)`,
-      [booking.worker_id, booking.id, workerReceives, booking.client_name, booking.title]
+      [booking.worker_id, booking.id, workerReceives, booking.client_name, listingTitle || null]
     );
     // Only credit wallet if transaction didn't already exist
     await pool.query(
@@ -1422,24 +1423,55 @@ async function finalizeCompletion(booking) {
     userId: booking.worker_id,
     type: "payment",
     link: "/wallet",
-    en: { title: "Payment received", body: `You received $${workerReceives.toFixed(2)} for "${booking.title}"` },
-    fr: { title: "Paiement reçu", body: `Vous avez reçu ${workerReceives.toFixed(2)} $ pour « ${booking.title} »` },
+    en: {
+      title: "Payment received",
+      body: listingTitle
+        ? `You received $${workerReceives.toFixed(2)} for "${listingTitle}"`
+        : `You received $${workerReceives.toFixed(2)} for completed work`,
+    },
+    fr: {
+      title: "Paiement reçu",
+      body: listingTitle
+        ? `Vous avez reçu ${workerReceives.toFixed(2)} $ pour « ${listingTitle} »`
+        : `Vous avez reçu ${workerReceives.toFixed(2)} $ pour un travail complété`,
+    },
   });
 
   // Notify both: listing completed
+  const receiptLink = `/bookings?booking=${booking.id}`;
   createLocalizedNotification({
     userId: booking.worker_id,
     type: "booking_completed",
-    link: "/bookings",
-    en: { title: "Listing completed", body: `"${booking.title}" has been marked as completed.` },
-    fr: { title: "Travail terminé", body: `« ${booking.title} » a été marqué comme terminé.` },
+    link: receiptLink,
+    en: {
+      title: "Listing completed",
+      body: listingTitle
+        ? `"${listingTitle}" has been marked as completed.`
+        : "Your booking has been marked as completed.",
+    },
+    fr: {
+      title: "Travail terminé",
+      body: listingTitle
+        ? `« ${listingTitle} » a été marqué comme terminé.`
+        : "Votre réservation a été marquée comme terminée.",
+    },
   });
   createLocalizedNotification({
     userId: booking.client_id,
     type: "booking_completed",
-    link: "/bookings",
-    en: { title: "Listing completed", body: `"${booking.title}" has been marked as completed.` },
-    fr: { title: "Travail terminé", body: `« ${booking.title} » a été marqué comme terminé.` },
+    link: receiptLink,
+    en: {
+      title: "Listing completed",
+      body: listingTitle
+        ? `"${listingTitle}" has been marked as completed.`
+        : "Your booking has been marked as completed.",
+    },
+    fr: {
+      title: "Travail terminé",
+      body: listingTitle
+        ? `« ${listingTitle} » a été marqué comme terminé.`
+        : "Votre réservation a été marquée comme terminée.",
+    },
   });
 }
 

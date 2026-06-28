@@ -24,6 +24,7 @@ import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
 import { getIntlLocale, getLanguageCode } from "@/lib/locale";
+import { displayNotificationBody, displayNotificationLink } from "@/lib/notificationDisplay";
 
 type NotifHookData = ReturnType<typeof useNotifications>;
 
@@ -121,7 +122,7 @@ function NotifRow({
           </p>
           <span className="text-[11px] text-gray-400 shrink-0">{formatTime(notif.created_at, t, lang)}</span>
         </div>
-        <p className="text-[13px] text-gray-500 mt-0.5 line-clamp-2">{notif.body}</p>
+        <p className="text-[13px] text-gray-500 mt-0.5 line-clamp-2">{displayNotificationBody(notif, t)}</p>
       </div>
 
       {/* Actions */}
@@ -158,7 +159,8 @@ export default function NotificationBell({ data }: { data?: NotifHookData }) {
   const handleClick = (notif: AppNotification) => {
     if (!notif.read_at) markRead(notif.id);
     setOpen(false);
-    if (notif.link) router.push(notif.link);
+    const link = displayNotificationLink(notif);
+    if (link) router.push(link);
   };
 
   return (
@@ -177,12 +179,12 @@ export default function NotificationBell({ data }: { data?: NotifHookData }) {
       <DropdownMenuContent align="end" className="w-[380px] p-0 rounded-xl shadow-lg border border-gray-200">
         {/* Header */}
         <div className="border-b border-gray-200 px-4 py-3 flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-gray-900">
-            {t("notifications.title")}
+          <div className="flex flex-col">
+            <h3 className="text-sm font-semibold text-gray-900">{t("notifications.title")}</h3>
             {unreadCount > 0 && (
-              <span className="ml-1.5 text-xs font-normal text-gray-500">{t("notifications.newCount", { count: unreadCount })}</span>
+              <span className="text-xs font-normal text-gray-500">{t("notifications.newCount", { count: unreadCount })}</span>
             )}
-          </h3>
+          </div>
           <div className="flex items-center gap-3">
             {unreadCount > 0 && (
               <button

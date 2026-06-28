@@ -56,6 +56,43 @@ export async function createLocalizedNotification({ userId, type, link = null, e
  * @param {string} userId
  * @param {'message'|'payment'|'listing'|'complaint'} category
  */
+function extractBookingIdFromLink(link) {
+  if (!link) return null;
+  const match = link.match(/[?&]booking=([^&]+)/);
+  return match?.[1] ?? null;
+}
+
+/** Fix legacy rows where listing title was missing at creation time. */
+export function enrichNotificationRow(row) {
+  let { body, link } = row;
+  const bookingId = row.resolved_booking_id ?? extractBookingIdFromLink(link);
+  const listingTitle = (row.service_title || "").trim();
+
+  if (row.type === "booking_completed" && body?.includes("undefined")) {
+    const isFrench = body.includes("«") || /terminé/i.test(body);
+    if (listingTitle) {
+      body = isFrench
+        ? `« ${listingTitle} » a été marqué comme terminé.`
+        : `"${listingTitle}" has been marked as completed.`;
+    } else {
+      body = isFrench
+        ? "La réservation a été marquée comme terminée."
+        : "The booking has been marked as completed.";
+    }
+  } else if (body?.includes("undefined")) {
+    body = body
+      .replace(/"undefined"/g, "this listing")
+      .replace(/« undefined »/g, "cette annonce");
+  }
+
+  if (bookingId && (!link || link === "/bookings")) {
+    link = `/bookings?booking=${bookingId}`;
+  }
+
+  const { service_title, resolved_booking_id, ...rest } = row;
+  return { ...rest, body, link };
+}
+
 export async function shouldSendEmail(userId, category) {
   try {
     const result = await pool.query(

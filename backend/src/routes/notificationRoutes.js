@@ -2,6 +2,7 @@ import express from "express";
 import { protect } from "../middleware/authMiddleware.js";
 import { supabaseAdmin } from "../lib/supabase.js";
 import pool from "../config/db.js";
+import { enrichNotificationRow } from "../services/notificationService.js";
 
 const router = express.Router();
 
@@ -52,14 +53,33 @@ router.delete("/unsubscribe", protect, async (req, res) => {
 router.get("/", protect, async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT id, type, title, body, link, read_at, created_at
-       FROM notifications
-       WHERE user_id = $1
-       ORDER BY created_at DESC
+      `SELECT n.id, n.type, n.title, n.body, n.link, n.read_at, n.created_at,
+              COALESCE(s.title, fix.service_title) AS service_title,
+              COALESCE(b.id, fix.booking_id) AS resolved_booking_id
+       FROM notifications n
+       LEFT JOIN bookings b
+         ON n.link ~ 'booking='
+        AND b.id = (substring(n.link from 'booking=([^&]+)'))::uuid
+        AND (b.client_id = n.user_id OR b.worker_id = n.user_id)
+       LEFT JOIN services s ON s.id = b.service_id
+       LEFT JOIN LATERAL (
+         SELECT bk.id AS booking_id, sv.title AS service_title
+         FROM bookings bk
+         JOIN services sv ON sv.id = bk.service_id
+         WHERE n.type = 'booking_completed'
+           AND n.body LIKE '%undefined%'
+           AND b.id IS NULL
+           AND (bk.client_id = n.user_id OR bk.worker_id = n.user_id)
+           AND bk.status = 'completed'
+         ORDER BY ABS(EXTRACT(EPOCH FROM (n.created_at - COALESCE(bk.completed_at, bk.created_at))))
+         LIMIT 1
+       ) fix ON true
+       WHERE n.user_id = $1
+       ORDER BY n.created_at DESC
        LIMIT 50`,
       [req.user.id]
     );
-    res.json(result.rows);
+    res.json(result.rows.map(enrichNotificationRow));
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Server error" });

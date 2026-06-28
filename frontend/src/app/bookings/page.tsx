@@ -296,18 +296,47 @@ function BookingsContent() {
     if (loadingReceived || loadingSent) return;
     if (suppressOpenFromUrlRef.current) return;
     if (detailBooking?.booking.id === openBookingId) return;
+    if (!uid || !session?.access_token) return;
 
-    const asWorker = received.find((b) => b.id === openBookingId);
-    const asClient = sent.find((b) => b.id === openBookingId);
+    const openReceipt = (booking: ReceivedBooking | SentBooking) => {
+      const role = booking.worker_id === uid ? "worker" : "client";
+      setDetailBooking({ booking: booking as BookingDetail, role });
+      if (booking.status === "completed") {
+        setTab("done");
+      } else if (received.some((b) => b.id === booking.id)) {
+        setTab("received");
+      } else {
+        setTab("sent");
+      }
+    };
 
-    if (asWorker) {
-      setDetailBooking({ booking: asWorker as BookingDetail, role: "worker" });
-      setTab("received");
-    } else if (asClient) {
-      setDetailBooking({ booking: asClient as BookingDetail, role: "client" });
-      setTab("sent");
+    const asInReceived = received.find((b) => b.id === openBookingId);
+    const asInSent = sent.find((b) => b.id === openBookingId);
+    const fromLists = asInReceived ?? asInSent;
+    if (fromLists) {
+      openReceipt(fromLists);
+      return;
     }
-  }, [openBookingId, received, sent, loadingReceived, loadingSent, detailBooking?.booking.id]);
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/bookings/${openBookingId}`, {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        });
+        if (!res.ok || cancelled || suppressOpenFromUrlRef.current) return;
+        const booking = (await res.json()) as ReceivedBooking;
+        if (cancelled || suppressOpenFromUrlRef.current) return;
+        openReceipt(booking);
+      } catch {
+        // ignore — user stays on bookings page
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [openBookingId, received, sent, loadingReceived, loadingSent, detailBooking?.booking.id, uid, session?.access_token]);
 
   const updateStatus = async (bookingId: string, status: BookingStatus, side: "received" | "sent") => {
     setUpdating(bookingId);

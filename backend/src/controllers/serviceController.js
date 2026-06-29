@@ -7,7 +7,7 @@ const supabaseAdmin =
         auth: { autoRefreshToken: false, persistSession: false },
       })
     : null;
-import { validateInput, sanitizeText } from "../utils/validate.js";
+import { CLIENT_TAX_PROVINCE_SQL } from "../utils/taxProvince.js";
 import { expandLocationILIKEpatterns } from "../utils/caLocationFilter.js";
 import { sanitizeListingTranslations, canonicalListingTexts } from "../utils/serviceTranslations.js";
 import {
@@ -612,6 +612,7 @@ export const getServiceById = async (req, res) => {
           u.avatar AS owner_avatar,
           u.account_type AS owner_account_type,
           u.province AS owner_province,
+          ${CLIENT_TAX_PROVINCE_SQL} AS client_tax_province,
           c.name AS category_name,
           c.image_url AS category_image_url,
           (SELECT COUNT(*)::int FROM bookings b WHERE b.service_id = s.id AND b.status = 'completed') AS completed_bookings_count

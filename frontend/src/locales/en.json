@@ -590,6 +590,7 @@
     "listingTags": "Tags / subcategories",
     "listingTagsHint": "Choose up to 5 tags from suggestions or write your own. Custom tags appear under « Other » in browse.",
     "listingTagsPlaceholder": "Type a tag and press Enter…",
+    "listingTagsNoMatch": "No suggestions — press Enter to add a custom tag (Other section).",
     "selectCategoryForTags": "Select a category first to add tags / subcategories.",
     "removeTag": "Remove tag",
     "selectCategory": "Select a category",

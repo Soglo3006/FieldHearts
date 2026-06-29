@@ -366,7 +366,7 @@ export default function LookingForWorkerForm({ onSuccess }: Props) {
           {t("post.location")} <span className="text-red-500">*</span>
         </Label>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
-          <div className="flex-1 space-y-1">
+          <div className="flex-1 min-w-0 space-y-1">
             <LocationAutocomplete
               id="jobLocation"
               value={location}
@@ -379,7 +379,7 @@ export default function LookingForWorkerForm({ onSuccess }: Props) {
               <p className="text-sm font-medium text-red-600">{t("post.locationMustSelectSuggestion")}</p>
             )}
           </div>
-          <div className="flex items-center gap-3 px-4 h-10 bg-white border border-gray-200 rounded-lg sm:w-56 sm:shrink-0">
+          <div className="flex w-full items-center gap-3 px-4 h-10 bg-white border border-gray-200 rounded-lg sm:w-56 sm:shrink-0">
             <input
               type="checkbox"
               id="jobHideLocation"

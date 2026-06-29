@@ -24,6 +24,25 @@ export default function ListingTagsField({ category, tags, onTagsChange, require
     [input, category, tags],
   );
 
+  const hasQuery = input.trim().length > 0;
+  const visibleSuggestions = hasQuery ? suggestions : suggestions.slice(0, 8);
+
+  const suggestionPills = (items: string[]) => (
+    <div className="flex flex-wrap gap-2">
+      {items.map((suggestion) => (
+        <button
+          key={suggestion}
+          type="button"
+          disabled={tags.length >= MAX_LISTING_TAGS}
+          onClick={() => addTag(suggestion)}
+          className="cursor-pointer text-xs px-3 py-1.5 rounded-full border border-gray-200 text-gray-600 hover:border-green-500 hover:text-green-700 hover:bg-green-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          + {translateListingTag(suggestion, t)}
+        </button>
+      ))}
+    </div>
+  );
+
   const addTag = (raw: string) => {
     const value = raw.trim();
     if (!value || tags.length >= MAX_LISTING_TAGS) return;
@@ -67,32 +86,20 @@ export default function ListingTagsField({ category, tags, onTagsChange, require
       </Label>
       <p className="text-xs text-gray-500">{t("post.listingTagsHint")}</p>
 
-      {suggestions.length > 0 && (
-        <div className="flex flex-wrap gap-2">
-          {suggestions.slice(0, 8).map((suggestion) => (
-            <button
-              key={suggestion}
-              type="button"
-              disabled={tags.length >= MAX_LISTING_TAGS}
-              onClick={() => addTag(suggestion)}
-              className="cursor-pointer text-xs px-3 py-1.5 rounded-full border border-gray-200 text-gray-600 hover:border-green-500 hover:text-green-700 hover:bg-green-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              + {translateListingTag(suggestion, t)}
-            </button>
-          ))}
-        </div>
-      )}
+      {visibleSuggestions.length > 0 && suggestionPills(visibleSuggestions)}
 
-      <div className="flex gap-2">
-        <Input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder={t("post.listingTagsPlaceholder")}
-          disabled={!category || tags.length >= MAX_LISTING_TAGS}
-          maxLength={80}
-        />
-      </div>
+      <Input
+        value={input}
+        onChange={(e) => setInput(e.target.value)}
+        onKeyDown={handleKeyDown}
+        placeholder={t("post.listingTagsPlaceholder")}
+        disabled={!category || tags.length >= MAX_LISTING_TAGS}
+        maxLength={80}
+      />
+
+      {hasQuery && visibleSuggestions.length === 0 && (
+        <p className="text-xs text-gray-500">{t("post.listingTagsNoMatch")}</p>
+      )}
 
       {tags.length > 0 && (
         <div className="flex flex-wrap gap-2">

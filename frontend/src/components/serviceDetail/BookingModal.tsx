@@ -19,6 +19,8 @@ interface Props {
   serviceTitle: string;
   providerFirstName: string;
   workerProvince?: string | null;
+  /** Buyer tax province (billing address first) — for "looking" listings, the poster is the client. */
+  clientTaxProvince?: string | null;
   pricingMode?: string | null;
   hourlyRate?: number | null;
   estimatedHours?: string;
@@ -40,6 +42,7 @@ export default function BookingModal({
   serviceTitle,
   providerFirstName,
   workerProvince,
+  clientTaxProvince,
   pricingMode,
   hourlyRate,
   estimatedHours = "",
@@ -53,18 +56,15 @@ export default function BookingModal({
   useScrollLock(true);
   const lang = getLanguageCode(i18n.language);
   const profileTax = useClientTax(lang);
-  // Buyer province: client on offers (logged-in user), listing owner on "looking" searches
+  // Buyer = requester on offers, listing owner on "looking" searches
   const buyerProvince =
-    serviceType === "looking" ? workerProvince : profileTax.province;
-  const taxRate =
-    buyerProvince != null && buyerProvince !== ""
-      ? getTaxRate(buyerProvince)
-      : profileTax.taxRate;
-  const taxLabel =
-    buyerProvince != null && buyerProvince !== ""
-      ? getTaxLabel(buyerProvince, lang)
-      : profileTax.taxLabel;
-  const showBuyerFees = true;
+    serviceType === "looking"
+      ? (clientTaxProvince ?? workerProvince)
+      : profileTax.province;
+  const taxReady = serviceType === "looking" ? true : !profileTax.loading;
+  const taxRate = getTaxRate(buyerProvince ?? "QC");
+  const taxLabel = getTaxLabel(buyerProvince ?? "QC", lang);
+  const showBuyerFees = taxReady;
   const isHourly = String(pricingMode ?? "").toLowerCase() === "hourly";
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-6">

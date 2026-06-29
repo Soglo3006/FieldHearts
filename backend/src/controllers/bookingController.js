@@ -96,29 +96,10 @@ function appendDepositSets(sets, params, depositOverride, startIndex) {
   return startIndex + 3;
 }
 
-const PROVINCE_TAX_RATES = {
-  AB: 0.05, BC: 0.12, MB: 0.12, NB: 0.15, NL: 0.15, NS: 0.15,
-  NT: 0.05, NU: 0.05, ON: 0.13, PE: 0.15, QC: 0.14975, SK: 0.11, YT: 0.05,
-};
-const PROVINCE_NAME_TO_CODE = {
-  "alberta": "AB", "british columbia": "BC", "colombie-britannique": "BC",
-  "manitoba": "MB", "new brunswick": "NB", "nouveau-brunswick": "NB",
-  "newfoundland and labrador": "NL", "nova scotia": "NS", "northwest territories": "NT",
-  "nunavut": "NU", "ontario": "ON", "prince edward island": "PE",
-  "quebec": "QC", "québec": "QC", "saskatchewan": "SK", "yukon": "YT",
-};
-function getWorkerTaxRate(province) {
-  if (!province) return PROVINCE_TAX_RATES.QC;
-  const code = normalizeProvinceCode(province);
-  return PROVINCE_TAX_RATES[code ?? "QC"] ?? PROVINCE_TAX_RATES.QC;
-}
-
-function normalizeProvinceCode(province) {
-  if (!province) return null;
-  const upper = String(province).trim().toUpperCase();
-  if (PROVINCE_TAX_RATES[upper] !== undefined) return upper;
-  return PROVINCE_NAME_TO_CODE[String(province).trim().toLowerCase()] ?? null;
-}
+import {
+  getTaxRateForProvince,
+  resolveClientTaxProvince,
+} from "../utils/taxProvince.js";
 
 function getEffectiveBookingPrice(booking) {
   const mode = normalizePricingMode(booking.pricing_mode ?? booking.service_pricing_mode);
@@ -191,10 +172,9 @@ export const createBooking = async (req, res) => {
     );
     const clientName = applicant.rows[0].display_name;
 
-    // Tax rate based on the client's (buyer's) province
-    const clientResult = await pool.query("SELECT province FROM users WHERE id = $1", [client_id]);
-    const clientProvince = normalizeProvinceCode(clientResult.rows[0]?.province ?? null);
-    const tax_rate = getWorkerTaxRate(clientProvince);
+    // Tax rate based on the client's (buyer's) billing province when available
+    const clientProvince = await resolveClientTaxProvince(pool, client_id);
+    const tax_rate = getTaxRateForProvince(clientProvince);
 
     const estimatedHours =
       req.body.estimated_hours != null || req.body.estimatedHours != null
@@ -619,7 +599,7 @@ export const markCompleted = async (req, res) => {
 
       // Both confirmed — send completion emails to both
       const effectivePrice = getEffectiveBookingPrice(payoutBooking);
-      const taxRate = b.tax_rate ? Number(b.tax_rate) : getWorkerTaxRate(b.client_province);
+      const taxRate = b.tax_rate ? Number(b.tax_rate) : getTaxRateForProvince(b.client_province);
       const totalPaid = (effectivePrice * (1 + 0.05 + taxRate)).toFixed(2);
       const workerReceives = (effectivePrice * 0.80).toFixed(2);
       sendEmail(b.client_email, "jobCompleted", [b.client_name, b.title, b.worker_name, totalPaid, id, "client"]);

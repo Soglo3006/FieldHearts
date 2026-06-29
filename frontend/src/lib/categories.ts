@@ -99,23 +99,78 @@ export function isPresetListingTag(tag: string): boolean {
 }
 
 export function getTagSuggestions(query: string, categoryName: string, selected: string[]): string[] {
-  const q = query.trim().toLowerCase();
+  const q = normalizeTagSearchText(query);
   const selectedKeys = new Set(selected.map((t) => toCategoryKey(t)));
-  const categorySubs = categories.find((c) => c.name === categoryName)?.subcategories ?? [];
-  const pool = [...categorySubs, ...getAllPresetListingTags()];
+  const categoryKey = categoryKeyByLabel.get(toCategoryKey(categoryName));
+  const categoryCat = categories.find(
+    (c) => c.name === categoryName || toCategoryKey(c.name) === categoryKey,
+  );
+  const categorySubs = categoryCat?.subcategories ?? [];
+  const allPresets = getAllPresetListingTags();
 
   const matches: string[] = [];
   const seen = new Set<string>();
-  for (const tag of pool) {
+
+  const tryAdd = (tag: string) => {
     const key = toCategoryKey(tag);
-    if (selectedKeys.has(key) || seen.has(key)) continue;
-    if (!q || tag.toLowerCase().includes(q) || key.replace(/_/g, " ").includes(q)) {
-      seen.add(key);
-      matches.push(tag);
-    }
-    if (matches.length >= 10) break;
+    if (selectedKeys.has(key) || seen.has(key)) return;
+    const searchTexts = getListingTagSearchTexts(tag);
+    const matchesQuery =
+      !q || searchTexts.some((text) => normalizeTagSearchText(text).includes(q));
+    if (!matchesQuery) return;
+    seen.add(key);
+    matches.push(tag);
+  };
+
+  for (const tag of categorySubs) {
+    tryAdd(tag);
+    if (matches.length >= 12) break;
   }
+  for (const tag of allPresets) {
+    if (matches.length >= 12) break;
+    tryAdd(tag);
+  }
+
   return matches;
+}
+
+function normalizeTagSearchText(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
+function getListingTagSearchTexts(tag: string): string[] {
+  const texts = new Set<string>();
+  const add = (value: string | undefined | null) => {
+    const trimmed = value?.trim();
+    if (trimmed) texts.add(trimmed);
+  };
+
+  add(tag);
+  add(toCategoryKey(tag).replace(/_/g, " "));
+
+  const tagKey = toCategoryKey(tag);
+  const meta = subcategoryMetaByLabel.get(tagKey);
+  const localeKeys = new Set<string>();
+
+  for (const cat of categories) {
+    localeKeys.add(`${toCategoryKey(cat.name)}_${tagKey}`);
+  }
+  if (meta) {
+    localeKeys.add(`${meta.categoryKey}_${meta.subcategoryKey}`);
+  }
+
+  for (const key of localeKeys) {
+    for (const localeCategories of localeCategoryMaps) {
+      const localized = localeCategories[key as keyof typeof localeCategories];
+      if (typeof localized === "string") add(localized);
+    }
+  }
+
+  return [...texts];
 }
 
 export const toCategoryKey = (value: string) =>

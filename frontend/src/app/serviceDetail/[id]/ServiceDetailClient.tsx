@@ -65,6 +65,7 @@ interface Service {
   owner_avatar: string | null;
   owner_account_type: string | null;
   owner_province?: string | null;
+  client_tax_province?: string | null;
   category_name: string | null;
   listing_tags?: unknown;
   faq?: Array<{ question: string; answer: string }> | string | null;
@@ -373,7 +374,6 @@ export default function ServiceDetailClient() {
                 displayPriceLabel={displayPriceLabel}
                 estimatedTotalBase={estimatedTotalBase}
                 estimatedTotalBaseMax={estimatedTotalBaseMax}
-                workerProvince={service.owner_province}
                 providerFirstName={providerShortName}
                 providerIsCompany={providerIsCompany}
                 pricingMode={service.pricing_mode}
@@ -419,6 +419,7 @@ export default function ServiceDetailClient() {
           serviceTitle={displayTitle}
           providerFirstName={providerShortName}
           workerProvince={service.owner_province}
+          clientTaxProvince={service.client_tax_province}
           onNoteChange={setBookingNote}
           pricingMode={service.pricing_mode}
           hourlyRate={normalizePricingMode(service.pricing_mode) === "hourly" ? Number(service.price) : null}

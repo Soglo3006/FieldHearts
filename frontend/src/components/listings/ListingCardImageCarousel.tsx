@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, type MouseEvent, type TouchEvent, type TransitionEvent } from "react";
 import { useTranslation } from "react-i18next";
-import { ArrowLeft, ArrowRight } from "lucide-react";
+import { ArrowLeft, ArrowRight, Grid3x3 } from "lucide-react";
 import AppImage from "@/components/ui/AppImage";
 import { cn } from "@/lib/utils";
 
@@ -21,6 +21,48 @@ type ListingCardImageCarouselProps = {
   sizes: string;
   priority?: boolean;
 };
+
+type ListingCardImageProps = {
+  src: string;
+  alt: string;
+  sizes: string;
+  priority?: boolean;
+  className?: string;
+};
+
+function ListingCardImage({ src, alt, sizes, priority = false, className }: ListingCardImageProps) {
+  const [loaded, setLoaded] = useState(false);
+  const [errored, setErrored] = useState(false);
+
+  return (
+    <div className="relative h-full w-full">
+      {!loaded && !errored && (
+        <div className="absolute inset-0 bg-gray-200 animate-pulse motion-reduce:animate-none" aria-hidden />
+      )}
+      {!errored ? (
+        <AppImage
+          src={src}
+          alt={alt}
+          fill
+          sizes={sizes}
+          className={cn(
+            "object-cover transition-opacity duration-300 motion-reduce:transition-none",
+            loaded ? "opacity-100" : "opacity-0",
+            className,
+          )}
+          priority={priority}
+          loading={priority ? undefined : "lazy"}
+          onLoad={() => setLoaded(true)}
+          onError={() => setErrored(true)}
+        />
+      ) : (
+        <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
+          <Grid3x3 className="h-12 w-12 text-gray-300" aria-hidden />
+        </div>
+      )}
+    </div>
+  );
+}
 
 /**
  * Extended track: [clone of last, ...urls, clone of first] so "next" from last
@@ -134,14 +176,11 @@ export function ListingCardImageCarousel({
 
   if (n === 1) {
     return (
-      <AppImage
+      <ListingCardImage
         src={urls[0]!}
         alt={alt}
-        fill
         sizes={sizes}
-        className="object-cover"
         priority={priority}
-        loading={priority ? undefined : "lazy"}
       />
     );
   }
@@ -180,14 +219,11 @@ export function ListingCardImageCarousel({
               className="relative h-full shrink-0"
               style={{ width: `${100 / total}%` }}
             >
-              <AppImage
+              <ListingCardImage
                 src={url}
                 alt={i === 1 ? alt : ""}
-                fill
                 sizes={sizes}
-                className="object-cover"
                 priority={priority && i === 1}
-                loading={priority && i === 1 ? undefined : "lazy"}
               />
             </div>
           ))}

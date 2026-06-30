@@ -233,7 +233,7 @@ export function FileMessage({
               </Avatar>
             )}
 
-            <div className="flex flex-col gap-1">
+            <div className={`flex flex-col gap-1 w-fit max-w-full ${isOwn ? 'items-end' : 'items-start'}`}>
             {repliedTo && !repliedTo.deleted_at && text && (
               <RepliedMessage
                 repliedTo={repliedTo}
@@ -323,7 +323,7 @@ export function FileMessage({
               </Avatar>
             )}
 
-            <div className="flex flex-col gap-1">
+            <div className={`flex flex-col gap-1 w-fit max-w-full ${isOwn ? 'items-end' : 'items-start'}`}>
             {repliedTo && !repliedTo.deleted_at && (
               <RepliedMessage
                 repliedTo={repliedTo}

@@ -236,39 +236,8 @@ export function MessageBubble({
       }}
       onMouseLeave={handleMouseLeave}
         onClick={handleBubbleClick}
-      className={`flex gap-2 items-start ${isOwn ? 'flex-row' : 'flex-row-reverse'}`}
+      className={`flex ${isOwn ? 'gap-1' : 'gap-2'} items-start ${isOwn ? 'flex-row' : 'flex-row-reverse'}`}
     >
-  {/* Actions inline — visibles sans être coupées par le scroll */}
-  {showActions && !isSending && !isFailed && !isDeleted && !isEditing && (
-    <div
-      ref={actionsRef}
-      className="shrink-0 self-center"
-      onMouseEnter={() => {
-        cancelHide();
-        if (!isSending) setHoveredMessageId(messageId);
-      }}
-      onMouseLeave={scheduleHide}
-    >
-      <MessageActions
-        messageKey={messageId}
-        openMenuKey={openMenuKey}
-        onActionComplete={clearInteractionState}
-        onEmojiOpenChange={setIsEmojiOpen}
-        setOpenMenuKey={setOpenMenuKey}
-        isPinned={isPinned}
-        onReact={(emoji) => {
-          onReact?.(emoji);
-          clearInteractionState();
-        }}
-        onReply={onReply}
-        onEdit={isOwn ? handleStartEdit : undefined}
-        onPin={onPin}
-        onDelete={onDelete}
-        showDelete={isOwn}
-      />
-    </div>
-  )}
-
   {/* Avatar + Message */}
   <div className="flex items-end gap-2">
     {/* Avatar pour les messages de l'autre personne */}
@@ -290,15 +259,13 @@ export function MessageBubble({
     )}
 
     {/* Conteneur pour replied + bulle + reactions */}
-    <div className="relative flex flex-col gap-1  w-fit">
+    <div className={`relative flex flex-col gap-1 w-fit max-w-full ${isOwn ? 'items-end' : 'items-start'}`}>
       {/* Message cité */}
       {repliedTo && !repliedTo.deleted_at && !isDeleted && (
-        <div className="max-w-xs md:max-w-md">
-          <RepliedMessage
-            repliedTo={repliedTo}
-            onMessageClick={onReplyClick || (() => {})}
-          />
-        </div>
+        <RepliedMessage
+          repliedTo={repliedTo}
+          onMessageClick={onReplyClick || (() => {})}
+        />
       )}
 
       {/* INDICATEUR "modifié" */}
@@ -309,7 +276,7 @@ export function MessageBubble({
       )}
 
       {/* Container pour bulle + actions (sur la même ligne) */}
-      <div className={`flex items-center gap-2 ${isOwn ? 'flex-row-reverse' : 'flex-row'}`}>
+      <div className={`flex items-center ${isOwn ? 'gap-1 flex-row-reverse' : 'gap-2 flex-row'}`}>
         {/* Bulle de message avec réaction en position absolue */}
         <div className="relative">
           <div
@@ -396,6 +363,36 @@ export function MessageBubble({
           )}
 
         </div>
+
+        {showActions && !isSending && !isFailed && !isDeleted && !isEditing && (
+          <div
+            ref={actionsRef}
+            className={`shrink-0 ${isOwn ? "self-end mb-1" : "self-center"}`}
+            onMouseEnter={() => {
+              cancelHide();
+              if (!isSending) setHoveredMessageId(messageId);
+            }}
+            onMouseLeave={scheduleHide}
+          >
+            <MessageActions
+              messageKey={messageId}
+              openMenuKey={openMenuKey}
+              onActionComplete={clearInteractionState}
+              onEmojiOpenChange={setIsEmojiOpen}
+              setOpenMenuKey={setOpenMenuKey}
+              isPinned={isPinned}
+              onReact={(emoji) => {
+                onReact?.(emoji);
+                clearInteractionState();
+              }}
+              onReply={onReply}
+              onEdit={isOwn ? handleStartEdit : undefined}
+              onPin={onPin}
+              onDelete={onDelete}
+              showDelete={isOwn}
+            />
+          </div>
+        )}
 
 
         {/* Bouton Retry pour messages failed */}

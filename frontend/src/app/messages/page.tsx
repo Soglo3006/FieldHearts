@@ -35,6 +35,98 @@ import { DraftMessagePreparationError, prepareDraftMessageTarget } from '@/lib/d
 import ProfileCompletionRequiredScreen from '@/components/profile/ProfileCompletionRequiredScreen';
 import { useMyProfile } from '@/hooks/useMyProfile';
 import { isProfileDetailsIncomplete } from '@/lib/onboardingSteps';
+import { cn } from '@/lib/utils';
+
+function MessagesThreeColumnSkeleton() {
+  return (
+    <div className="flex h-full min-h-0 overflow-hidden">
+      <div className="flex w-full md:w-64 lg:w-80 border-r flex-col bg-white min-h-0">
+        <div className="sticky top-0 z-10 border-b bg-white p-4 h-18.25 flex items-center">
+          <Skeleton className="h-10 w-full rounded-lg" />
+        </div>
+        <div className="sticky top-18 z-10 border-b bg-white px-4 py-3">
+          <div className="flex items-center justify-between gap-3">
+            <Skeleton className="h-5 w-28 rounded" />
+            <Skeleton className="h-9 w-35 rounded-md" />
+          </div>
+        </div>
+        <div className="flex-1 min-h-0 divide-y">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <div key={i} className="flex items-start gap-3 p-4">
+              <Skeleton className="h-12 w-12 rounded-full shrink-0" />
+              <div className="flex-1 space-y-2 pt-1">
+                <Skeleton className="h-4 w-3/4 rounded" />
+                <Skeleton className="h-3 w-1/2 rounded" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="relative hidden md:flex flex-1 min-w-0 flex-col bg-white min-h-0">
+        <div className="shrink-0 border-b bg-white px-4 h-18.25 flex items-center justify-between">
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            <Skeleton className="h-10 w-10 rounded-full shrink-0" />
+            <div className="space-y-2 flex-1 min-w-0">
+              <Skeleton className="h-4 w-36 rounded" />
+              <Skeleton className="h-3 w-20 rounded" />
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <Skeleton className="h-9 w-9 rounded-md" />
+            <Skeleton className="h-9 w-9 rounded-md" />
+            <Skeleton className="h-9 w-9 rounded-md" />
+          </div>
+        </div>
+        <div className="flex-1 bg-white px-4 py-4 space-y-4 overflow-hidden">
+          {Array.from({ length: 8 }).map((_, index) => (
+            <div key={index} className={`flex items-end gap-2 ${index % 2 === 0 ? 'justify-start' : 'justify-end'}`}>
+              {index % 2 === 0 ? <Skeleton className="h-8 w-8 rounded-full shrink-0" /> : null}
+              <Skeleton className={`h-10 rounded-2xl ${index % 2 === 0 ? 'w-48' : 'w-40'}`} />
+            </div>
+          ))}
+        </div>
+        <div className="shrink-0 border-t bg-white px-4 py-3">
+          <Skeleton className="h-11 w-full rounded-xl" />
+        </div>
+      </div>
+
+      <div className="relative hidden lg:flex w-72 shrink-0 border-l flex-col bg-white min-h-0">
+        <div className="flex h-18.25 shrink-0 items-center justify-between border-b bg-white px-4">
+          <Skeleton className="h-9 w-9 rounded-md" />
+          <Skeleton className="h-5 w-24 rounded" />
+          <Skeleton className="h-9 w-9 rounded-md" />
+        </div>
+        <div className="flex-1 min-h-0 overflow-hidden px-6 py-4 space-y-4">
+          <div className="flex flex-col items-center gap-2">
+            <Skeleton className="h-24 w-24 rounded-full" />
+            <Skeleton className="h-4 w-32 rounded" />
+            <Skeleton className="h-3 w-24 rounded" />
+          </div>
+          <Skeleton className="h-px w-full" />
+          <div className="space-y-2">
+            <Skeleton className="h-3 w-full rounded" />
+            <Skeleton className="h-3 w-5/6 rounded" />
+            <Skeleton className="h-3 w-2/3 rounded" />
+          </div>
+          <Skeleton className="h-px w-full" />
+          {Array.from({ length: 2 }).map((_, index) => (
+            <div key={index} className="rounded-xl border bg-white overflow-hidden">
+              <Skeleton className="aspect-video w-full" />
+              <div className="p-3 space-y-2">
+                <Skeleton className="h-3 w-4/5 rounded" />
+                <Skeleton className="h-3 w-1/3 rounded" />
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="shrink-0 border-t bg-white p-4">
+          <Skeleton className="h-10 w-full rounded-md" />
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function MessagesContent() {
   const { t } = useTranslation();
@@ -90,6 +182,7 @@ function MessagesContent() {
   const [isOnline, setIsOnline] = useState(true);
   const previousChatIdRef = useRef<string | null>(null);
   const previousSidebarChatIdRef = useRef<string | null>(null);
+  const hasCompletedInitialLoadRef = useRef(false);
   const [isProfileSidebarLoading, setIsProfileSidebarLoading] = useState(false);
 
   useEffect(() => {
@@ -164,6 +257,20 @@ function MessagesContent() {
       || blockCheckLoading
       || (shouldSyncSidebarLoading && isProfileSidebarLoading)
     );
+  const isSyncingActiveChat =
+    !newConversationMode &&
+    !pendingNewConvUser &&
+    chats.length > 0 &&
+    !activeChat &&
+    (Boolean(chatIdFromUrl) || !manualMobileListView);
+  const isUnifiedConversationLoading = isConversationShellLoading || isSyncingActiveChat;
+
+  useEffect(() => {
+    if (!isUnifiedConversationLoading && activeChat) {
+      hasCompletedInitialLoadRef.current = true;
+    }
+  }, [isUnifiedConversationLoading, activeChat]);
+
   useEffect(() => {
     if (!pendingNewConvUser?.id || !activeOtherUserId) return;
     if (activeOtherUserId !== pendingNewConvUser.id) return;
@@ -645,6 +752,16 @@ function MessagesContent() {
     router.replace('/messages');
   };
 
+  const handleToggleInfo = (canOpenSettings = true) => {
+    if (isLargeScreen) {
+      if (!canOpenSettings) return;
+      setShowSettings((prev) => !prev);
+    } else {
+      setShowMobileSidebar((prev) => !prev);
+      setShowSettings(false);
+    }
+  };
+
   const openNewConversation = () => {
     setManualMobileListView(false);
     previousChatIdRef.current = activeChatId;
@@ -753,27 +870,17 @@ function MessagesContent() {
 
   // Show a full skeleton while chats are loading to avoid the jarring
   // "Aucune conversation" + skeleton list appearing simultaneously.
-  if (chatsLoading && chats.length === 0) {
+  const showFullPageSkeleton =
+    (chatsLoading && chats.length === 0)
+    || (isUnifiedConversationLoading && !showMobileChat && !hasCompletedInitialLoadRef.current);
+
+  if (showFullPageSkeleton) {
     return (
       <TooltipProvider>
         <div className="flex-1 flex flex-col bg-white min-h-0">
           <div className="flex-1 max-w-400 w-full mx-auto p-0 sm:p-5 min-h-0 flex flex-col">
             <div className="bg-white sm:rounded-xl shadow-sm overflow-hidden flex-1 min-h-0">
-              <div className="flex h-full min-h-0 overflow-hidden">
-                <div className="flex w-full md:w-64 lg:w-80 border-r flex-col bg-white min-h-0 p-3 space-y-2">
-                  <div className="h-10 bg-gray-100 rounded-lg animate-pulse mb-2" />
-                  {Array.from({ length: 8 }).map((_, i) => (
-                    <div key={i} className="flex gap-3 p-2">
-                      <div className="w-10 h-10 bg-gray-100 rounded-full shrink-0 animate-pulse" />
-                      <div className="flex-1 space-y-2 pt-1">
-                        <div className="h-3 bg-gray-100 rounded w-3/4 animate-pulse" />
-                        <div className="h-3 bg-gray-100 rounded w-1/2 animate-pulse" />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <div className="flex-1 bg-white hidden md:block" />
-              </div>
+              <MessagesThreeColumnSkeleton />
             </div>
           </div>
         </div>
@@ -793,7 +900,7 @@ function MessagesContent() {
 
         <div className="flex-1 max-w-400 w-full mx-auto p-0 sm:p-5 min-h-0 flex flex-col">
           <div className="bg-white sm:rounded-xl shadow-sm overflow-hidden flex-1 min-h-0">
-            <div className="flex h-full min-h-0 overflow-hidden">
+            <div className="relative flex h-full min-h-0 overflow-hidden">
 
               {/* Colonne 1 : Liste des conversations */}
               <div className={`${showMobileChat ? 'hidden' : 'flex'} md:flex w-full md:w-64 lg:w-80 border-r flex-col bg-white min-h-0`}>
@@ -812,7 +919,23 @@ function MessagesContent() {
               </div>
 
               {/* Colonne 2 : Zone de messages */}
-              <div className={`${(isLargeScreen || (isMobile ? showMobileChat : true)) && (!showMobileSidebar || isLargeScreen) ? 'flex' : 'hidden'} relative flex-1 min-w-0 flex-col bg-white min-h-0 max-h-full overflow-hidden`}>
+              <div
+                className={cn(
+                  "relative flex-1 min-w-0 flex-col bg-white min-h-0 max-h-full overflow-hidden",
+                  (isLargeScreen || (isMobile ? showMobileChat : true))
+                    && !(showMobileSidebar && !isLargeScreen && isMobile)
+                    ? "flex"
+                    : "hidden",
+                )}
+              >
+                {showMobileSidebar && !isLargeScreen && !isMobile ? (
+                  <button
+                    type="button"
+                    aria-label={t("common.close", "Fermer")}
+                    className="absolute inset-0 z-20 bg-black/20 transition-opacity duration-300 ease-in-out motion-reduce:transition-none"
+                    onClick={() => setShowMobileSidebar(false)}
+                  />
+                ) : null}
                 {isPendingConversationTransition ? (
                   <>
                     <ChatHeader
@@ -823,13 +946,7 @@ function MessagesContent() {
                       showMobileSidebar={showMobileSidebar}
                       isLargeScreen={isLargeScreen}
                       onBack={handleBackToList}
-                      onToggleInfo={() => {
-                        if (isLargeScreen) {
-                          return;
-                        }
-                        setShowMobileSidebar(true);
-                        setShowSettings(false);
-                      }}
+                      onToggleInfo={() => handleToggleInfo(false)}
                     />
 
                     <MessageThread
@@ -981,14 +1098,7 @@ function MessagesContent() {
                       showMobileSidebar={showMobileSidebar}
                       isLargeScreen={isLargeScreen}
                       onBack={handleBackToList}
-                      onToggleInfo={() => {
-                        if (isLargeScreen) {
-                          setShowSettings(!showSettings);
-                        } else {
-                          setShowMobileSidebar(true);
-                          setShowSettings(false);
-                        }
-                      }}
+                      onToggleInfo={() => handleToggleInfo()}
                     />
 
                     <MessageThread
@@ -1061,7 +1171,7 @@ function MessagesContent() {
                   </div>
                 )}
 
-                {isConversationShellLoading && (
+                {isUnifiedConversationLoading && (
                   <div className="absolute inset-0 z-10 flex flex-col bg-white">
                     <div className="shrink-0 border-b bg-white px-4 h-18.25 flex items-center justify-between">
                       <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -1095,22 +1205,46 @@ function MessagesContent() {
               </div>
 
               {/* Colonne 3 : Panneau About */}
-              <div className={`${(isLargeScreen || showMobileSidebar) && !newConversationMode ? 'flex' : 'hidden'} ${isLargeScreen ? 'w-72 shrink-0' : 'flex-1'} relative border-l bg-white min-h-0`}>
-                <div className={showSettings ? 'hidden h-full w-full min-h-0' : 'flex h-full w-full min-h-0'}>
-                  <ProfileSidebar
-                    otherUser={displayedConversationUser}
-                    onClose={!isLargeScreen ? () => setShowMobileSidebar(false) : undefined}
-                    onOpenSettings={!isLargeScreen && activeChat ? () => setShowSettings(true) : undefined}
-                    isBlocked={pendingNewConvUser ? pendingIsBlocked : isBlocked}
-                    isBlockedByOther={pendingNewConvUser ? pendingIsBlockedByOther : isBlockedByOther}
-                    blockCheckLoading={pendingNewConvUser ? pendingBlockCheckLoading : blockCheckLoading}
-                    accessToken={session?.access_token}
-                    onLoadingChange={setIsProfileSidebarLoading}
-                  />
-                </div>
+              {!newConversationMode ? (
+              <div
+                className={cn(
+                  "relative bg-white min-h-0 overflow-hidden",
+                  "transition-[transform,opacity] duration-300 ease-in-out motion-reduce:transition-none",
+                  isLargeScreen
+                    ? "flex w-72 shrink-0 border-l translate-x-0 opacity-100"
+                    : cn(
+                        "absolute inset-y-0 right-0 z-30 flex border-l shadow-xl md:w-80 md:max-w-[min(20rem,85%)]",
+                        showMobileSidebar
+                          ? "w-full translate-x-0 opacity-100 pointer-events-auto"
+                          : "w-full translate-x-full opacity-0 pointer-events-none border-l-0 shadow-none",
+                      ),
+                )}
+              >
+                <div className="relative flex h-full w-full min-h-0">
+                  <div
+                    className={cn(
+                      "absolute inset-0 flex h-full w-full min-h-0 transition-opacity duration-300 ease-in-out motion-reduce:transition-none",
+                      showSettings ? "opacity-0 pointer-events-none" : "opacity-100",
+                    )}
+                  >
+                    <ProfileSidebar
+                      otherUser={displayedConversationUser}
+                      onClose={!isLargeScreen ? () => setShowMobileSidebar(false) : undefined}
+                      onOpenSettings={!isLargeScreen && activeChat ? () => setShowSettings(true) : undefined}
+                      isBlocked={pendingNewConvUser ? pendingIsBlocked : isBlocked}
+                      isBlockedByOther={pendingNewConvUser ? pendingIsBlockedByOther : isBlockedByOther}
+                      blockCheckLoading={pendingNewConvUser ? pendingBlockCheckLoading : blockCheckLoading}
+                      accessToken={session?.access_token}
+                      onLoadingChange={setIsProfileSidebarLoading}
+                    />
+                  </div>
 
-                {showSettings ? (
-                  <div className="absolute inset-0 flex min-h-0 bg-white">
+                  <div
+                    className={cn(
+                      "absolute inset-0 flex min-h-0 bg-white transition-opacity duration-300 ease-in-out motion-reduce:transition-none",
+                      showSettings ? "opacity-100 z-10 pointer-events-auto" : "opacity-0 pointer-events-none z-0",
+                    )}
+                  >
                     <ConversationSettings
                       messages={messages}
                       onMessageClick={scrollToMessage}
@@ -1128,9 +1262,9 @@ function MessagesContent() {
                       onArchive={actions.handleArchive}
                     />
                   </div>
-                ) : null}
+                </div>
 
-                {isConversationShellLoading && (isLargeScreen || showMobileSidebar) ? (
+                {isUnifiedConversationLoading && (isLargeScreen || showMobileSidebar) ? (
                   <div className="absolute inset-0 z-10 flex flex-col border-l bg-white">
                     <div className="flex h-18.25 shrink-0 items-center justify-between border-b bg-white px-4">
                       <Skeleton className="h-9 w-9 rounded-md" />
@@ -1168,6 +1302,7 @@ function MessagesContent() {
                   </div>
                 ) : null}
               </div>
+              ) : null}
 
             </div>
           </div>

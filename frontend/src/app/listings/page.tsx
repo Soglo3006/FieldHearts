@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { useJsApiLoader } from "@react-google-maps/api";
@@ -38,6 +38,37 @@ const decodeSubcategoryFilter = (value: string) => {
   };
 };
 
+type FilterChipState = {
+  serviceType: string;
+  spokenLanguage: string;
+  pricingMode: string;
+  selectedCategories: string[];
+  selectedSubcategories: string[];
+  debouncedLocation: string;
+  debouncedSearch: string;
+  debouncedPrice: [number, number];
+};
+
+function collectActiveChipIds(state: FilterChipState): string[] {
+  const ids: string[] = [];
+  if (state.serviceType !== "all") ids.push("service-type");
+  if (state.spokenLanguage) ids.push("spoken-language");
+  if (state.pricingMode) ids.push("pricing-mode");
+  for (const category of state.selectedCategories) ids.push(`category-${category}`);
+  for (const encoded of state.selectedSubcategories) ids.push(`subcategory-${encoded}`);
+  if (state.debouncedLocation.trim()) ids.push("location");
+  if (state.debouncedSearch.trim()) ids.push("search");
+  if (state.debouncedPrice[0] > 0 || state.debouncedPrice[1] < 1000) ids.push("price-range");
+  return ids;
+}
+
+function mergeChipOrder(prev: string[], activeIds: string[]): string[] {
+  const activeSet = new Set(activeIds);
+  const kept = prev.filter((id) => activeSet.has(id));
+  const added = activeIds.filter((id) => !prev.includes(id));
+  return [...kept, ...added];
+}
+
 // ── Inner component (needs useSearchParams inside Suspense) ──────────────────
 function ListingsContent({ username }: { username?: string }) {
   const { t } = useTranslation();
@@ -74,6 +105,26 @@ function ListingsContent({ username }: { username?: string }) {
   const [pricingMode, setPricingMode] = useState(initialPricingValid);
   const [expandedCategories, setExpandedCategories] = useState<string[]>(initialCategories);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
+  const [filterChipOrder, setFilterChipOrder] = useState<string[]>(() =>
+    collectActiveChipIds({
+      serviceType: searchParams.get("type") ?? "all",
+      spokenLanguage: initialSpokenValid,
+      pricingMode: initialPricingValid,
+      selectedCategories: initialCategories,
+      selectedSubcategories: initialSubcategories,
+      debouncedLocation: searchParams.get("location") ?? "",
+      debouncedSearch: searchParams.get("search") ?? "",
+      debouncedPrice: [0, 1000],
+    }),
+  );
+
+  const registerChip = useCallback((id: string) => {
+    setFilterChipOrder((prev) => (prev.includes(id) ? prev : [...prev, id]));
+  }, []);
+
+  const unregisterChip = useCallback((id: string) => {
+    setFilterChipOrder((prev) => prev.filter((chipId) => chipId !== id));
+  }, []);
 
   // Debounced values — prevent API call on every keystroke/drag
   const [debouncedSearch, setDebouncedSearch] = useState(search);
@@ -180,39 +231,47 @@ function ListingsContent({ username }: { username?: string }) {
       prev.includes(name) ? prev.filter((c) => c !== name) : [...prev, name]
     );
 
-  const selectCategory = (name: string) => {
-    setSelectedCategories((prev) => {
-      if (prev.includes(name)) {
-        setSelectedSubcategories((current) =>
-          current.filter((value) => decodeSubcategoryFilter(value).category !== name)
-        );
-        return prev.filter((category) => category !== name);
-      }
+  const clearCategory = (category: string) => {
+    setSelectedCategories((prev) => prev.filter((value) => value !== category));
+    setFilterChipOrder((order) => order.filter((id) => id !== `category-${category}`));
+  };
 
-      return [...prev, name];
-    });
+  const selectCategory = (name: string) => {
+    const categoryId = `category-${name}`;
+
+    if (selectedCategories.includes(name)) {
+      clearCategory(name);
+      return;
+    }
+
+    registerChip(categoryId);
+    setSelectedCategories((prev) => [...prev, name]);
   };
 
   const selectSubcategory = (cat: string, sub: string) => {
     const encoded = encodeSubcategoryFilter(cat, sub);
+    const subId = `subcategory-${encoded}`;
+    const categoryId = `category-${cat}`;
+    const isRemoving = selectedSubcategories.includes(encoded);
 
-    setSelectedCategories((prev) => (prev.includes(cat) ? prev : [...prev, cat]));
+    if (isRemoving) {
+      unregisterChip(subId);
+      setSelectedSubcategories((prev) => prev.filter((value) => value !== encoded));
+      return;
+    }
+
+    const categoryAlreadySelected = selectedCategories.includes(cat);
+
+    registerChip(subId);
+    if (categoryAlreadySelected) {
+      registerChip(categoryId);
+    }
+    setSelectedSubcategories((prev) => [...prev, encoded]);
     setExpandedCategories((prev) => (prev.includes(cat) ? prev : [...prev, cat]));
-    setSelectedSubcategories((prev) =>
-      prev.includes(encoded)
-        ? prev.filter((value) => value !== encoded)
-        : [...prev, encoded]
-    );
-  };
-
-  const clearCategory = (category: string) => {
-    setSelectedCategories((prev) => prev.filter((value) => value !== category));
-    setSelectedSubcategories((prev) =>
-      prev.filter((value) => decodeSubcategoryFilter(value).category !== category)
-    );
   };
 
   const clearSubcategory = (encoded: string) => {
+    unregisterChip(`subcategory-${encoded}`);
     setSelectedSubcategories((prev) => prev.filter((value) => value !== encoded));
   };
 
@@ -228,76 +287,197 @@ function ListingsContent({ username }: { username?: string }) {
     setSpokenLanguage("");
     setPricingMode("");
     setExpandedCategories([]);
+    setFilterChipOrder([]);
   };
 
-  const activeChips = [
-    debouncedSearch && { label: `"${debouncedSearch}"`, clear: () => setSearch("") },
-    ...selectedCategories.map((category) => ({
-      label: t(`categories.${toKey(category)}`, { defaultValue: category }),
-      clear: () => clearCategory(category),
-    })),
-    ...selectedSubcategories.map((encoded) => {
-      const { category, subcategory } = decodeSubcategoryFilter(encoded);
+  const applyServiceType = (value: string) => {
+    if (value === "all") unregisterChip("service-type");
+    else registerChip("service-type");
+    setServiceType(value);
+  };
 
-      return {
+  const applySpokenLanguage = (value: string) => {
+    if (!value) unregisterChip("spoken-language");
+    else registerChip("spoken-language");
+    setSpokenLanguage(value);
+  };
+
+  const applyPricingMode = (value: string) => {
+    if (!value) unregisterChip("pricing-mode");
+    else registerChip("pricing-mode");
+    setPricingMode(value);
+  };
+
+  useEffect(() => {
+    const activeIds = collectActiveChipIds({
+      serviceType,
+      spokenLanguage,
+      pricingMode,
+      selectedCategories,
+      selectedSubcategories,
+      debouncedLocation,
+      debouncedSearch,
+      debouncedPrice,
+    });
+    setFilterChipOrder((prev) => mergeChipOrder(prev, activeIds));
+  }, [
+    serviceType,
+    spokenLanguage,
+    pricingMode,
+    selectedCategories,
+    selectedSubcategories,
+    debouncedLocation,
+    debouncedSearch,
+    debouncedPrice,
+  ]);
+
+  const chipById = useMemo(() => {
+    const chips = new Map<string, { id: string; label: string; clear: () => void }>();
+
+    if (serviceType !== "all") {
+      chips.set("service-type", {
+        id: "service-type",
+        label: serviceType === "offer" ? t("listings.offering") : t("listings.looking"),
+        clear: () => applyServiceType("all"),
+      });
+    }
+    if (spokenLanguage) {
+      chips.set("spoken-language", {
+        id: "spoken-language",
+        label:
+          spokenLanguage === "french"
+            ? t("post.languageFrench")
+            : spokenLanguage === "english"
+              ? t("post.languageEnglish")
+              : t("post.languageBilingual"),
+        clear: () => applySpokenLanguage(""),
+      });
+    }
+    if (pricingMode) {
+      chips.set("pricing-mode", {
+        id: "pricing-mode",
+        label:
+          pricingMode === "fixed"
+            ? t("post.pricingModeFixed")
+            : pricingMode === "range"
+              ? t("post.pricingModeRange")
+              : pricingMode === "hourly"
+                ? t("post.pricingModeHourly")
+                : t("post.pricingModeQuote"),
+        clear: () => applyPricingMode(""),
+      });
+    }
+    for (const category of selectedCategories) {
+      chips.set(`category-${category}`, {
+        id: `category-${category}`,
+        label: t(`categories.${toKey(category)}`, { defaultValue: category }),
+        clear: () => clearCategory(category),
+      });
+    }
+    for (const encoded of selectedSubcategories) {
+      const { category, subcategory } = decodeSubcategoryFilter(encoded);
+      chips.set(`subcategory-${encoded}`, {
+        id: `subcategory-${encoded}`,
         label: t(`categories.${toKey(category)}_${toKey(subcategory)}`, { defaultValue: subcategory }),
         clear: () => clearSubcategory(encoded),
-      };
-    }),
-    debouncedLocation && { label: ` ${debouncedLocation}`, clear: () => { setLocation(""); setLocationCoords(null); setResolvedLocationCoords(null); } },
-    serviceType !== "all" && { label: serviceType === "offer" ? t("listings.offering") : t("listings.looking"), clear: () => setServiceType("all") },
-    spokenLanguage && {
-      label:
-        spokenLanguage === "french"
-          ? t("post.languageFrench")
-          : spokenLanguage === "english"
-            ? t("post.languageEnglish")
-            : t("post.languageBilingual"),
-      clear: () => setSpokenLanguage(""),
-    },
-    pricingMode && {
-      label:
-        pricingMode === "fixed"
-          ? t("post.pricingModeFixed")
-          : pricingMode === "range"
-            ? t("post.pricingModeRange")
-            : pricingMode === "hourly"
-              ? t("post.pricingModeHourly")
-              : t("post.pricingModeQuote"),
-      clear: () => setPricingMode(""),
-    },
-    (debouncedPrice[0] > 0 || debouncedPrice[1] < 1000) && {
-      label: `$${debouncedPrice[0]}–$${debouncedPrice[1] >= 1000 ? "1000+" : debouncedPrice[1]}`,
-      clear: () => setPriceRange([0, 1000]),
-    },
-  ].filter(Boolean) as { label: string; clear: () => void }[];
+      });
+    }
+    if (debouncedLocation.trim()) {
+      chips.set("location", {
+        id: "location",
+        label: debouncedLocation,
+        clear: () => {
+          unregisterChip("location");
+          setLocation("");
+          setLocationCoords(null);
+          setResolvedLocationCoords(null);
+        },
+      });
+    }
+    if (debouncedSearch.trim()) {
+      chips.set("search", {
+        id: "search",
+        label: `"${debouncedSearch}"`,
+        clear: () => {
+          unregisterChip("search");
+          setSearch("");
+        },
+      });
+    }
+    if (debouncedPrice[0] > 0 || debouncedPrice[1] < 1000) {
+      chips.set("price-range", {
+        id: "price-range",
+        label: `$${debouncedPrice[0]}–$${debouncedPrice[1] >= 1000 ? "1000+" : debouncedPrice[1]}`,
+        clear: () => {
+          unregisterChip("price-range");
+          setPriceRange([0, 1000]);
+        },
+      });
+    }
+
+    return chips;
+  }, [
+    serviceType,
+    spokenLanguage,
+    pricingMode,
+    selectedCategories,
+    selectedSubcategories,
+    debouncedLocation,
+    debouncedSearch,
+    debouncedPrice,
+    t,
+  ]);
+
+  const activeChips = useMemo(
+    () =>
+      filterChipOrder
+        .map((id) => chipById.get(id))
+        .filter((chip): chip is { id: string; label: string; clear: () => void } => Boolean(chip)),
+    [filterChipOrder, chipById],
+  );
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-      {/* ── Mobile filter toggle ── */}
-      <div className="flex items-center gap-2 mb-4 lg:hidden">
-        <button
-          onClick={() => setShowMobileFilters((v) => !v)}
-          className="cursor-pointer flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-        >
-          <SlidersHorizontal className="h-4 w-4" />
-          {t("listings.filters")}
+      {/* ── Mobile filter toggle + active chips ── */}
+      <div className="mb-4 space-y-2 lg:hidden">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowMobileFilters((v) => !v)}
+            aria-expanded={showMobileFilters}
+            className="cursor-pointer flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors shrink-0"
+          >
+            <SlidersHorizontal className="h-4 w-4" />
+            {t("listings.filters")}
+            {activeChips.length > 0 && (
+              <span className="ml-1 bg-green-700 text-white text-xs rounded-full px-1.5 py-0.5 leading-none">
+                {activeChips.length}
+              </span>
+            )}
+          </button>
           {activeChips.length > 0 && (
-            <span className="ml-1 bg-green-700 text-white text-xs rounded-full px-1.5 py-0.5 leading-none">
-              {activeChips.length}
-            </span>
+            <button
+              type="button"
+              onClick={clearFilters}
+              className="cursor-pointer ml-auto text-xs text-green-700 underline hover:text-green-800 shrink-0"
+            >
+              {t("listings.clearAll")}
+            </button>
           )}
-        </button>
+        </div>
         {activeChips.length > 0 && (
-          <div className="flex flex-wrap gap-2 flex-1 min-w-0">
-            {activeChips.map(({ label, clear }) => (
+          <div className="flex flex-wrap gap-1.5">
+            {activeChips.map(({ id, label, clear }) => (
               <span
-                key={label}
-                className="inline-flex items-center gap-1 bg-green-50 text-green-800 text-xs px-3 py-1 rounded-full border border-green-200"
+                key={id}
+                className="inline-flex max-w-full items-center gap-1 bg-green-50 text-green-800 text-xs px-2.5 py-1 rounded-full border border-green-200"
               >
-                {label}
-                <button onClick={clear} className="cursor-pointer ml-1 hover:text-green-900">
-                  <span className="sr-only">{t("listings.clear")}</span>
+                <span className="truncate">{label}</span>
+                <button
+                  type="button"
+                  onClick={clear}
+                  className="cursor-pointer shrink-0 hover:text-green-900"
+                  aria-label={t("listings.clear")}
+                >
                   <X className="h-3 w-3" />
                 </button>
               </span>
@@ -308,8 +488,23 @@ function ListingsContent({ username }: { username?: string }) {
 
       <div className="flex flex-col gap-8 lg:flex-row lg:items-start">
         {/* ── Filter sidebar ── */}
-        <aside className={`w-full lg:w-1/4 lg:self-start ${showMobileFilters ? "block" : "hidden"} lg:block`}>
-          <div className="border border-gray-200 rounded-xl p-4 space-y-5 lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto">
+        <aside
+          className={cn(
+            "w-full lg:w-1/4 lg:self-start",
+            "max-lg:grid max-lg:transition-[grid-template-rows] max-lg:duration-300 max-lg:ease-in-out",
+            showMobileFilters ? "max-lg:grid-rows-[1fr]" : "max-lg:grid-rows-[0fr]",
+          )}
+        >
+          <div className="max-lg:overflow-hidden max-lg:min-h-0">
+            <div
+              className={cn(
+                "border border-gray-200 rounded-xl p-4 space-y-5 lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto",
+                "max-lg:mb-4 max-lg:transition-[opacity,transform] max-lg:duration-300 max-lg:ease-in-out",
+                showMobileFilters
+                  ? "max-lg:opacity-100 max-lg:translate-y-0"
+                  : "max-lg:opacity-0 max-lg:-translate-y-1",
+              )}
+            >
             {/* Mobile close button */}
             <div className="flex items-center justify-between lg:hidden">
               <span className="text-sm font-semibold text-gray-900">{t("listings.filters")}</span>
@@ -348,7 +543,7 @@ function ListingsContent({ username }: { username?: string }) {
                 ].map(({ value, label }) => (
                   <button
                     key={value}
-                    onClick={() => setServiceType(value)}
+                    onClick={() => applyServiceType(value)}
                     className={`cursor-pointer flex-1 text-xs px-2 py-2 rounded-lg border transition-colors ${
                       serviceType === value
                         ? "border-green-700 bg-green-50 text-green-800 font-semibold"
@@ -375,7 +570,7 @@ function ListingsContent({ username }: { username?: string }) {
                   <button
                     key={value || "any-pricing"}
                     type="button"
-                    onClick={() => setPricingMode(value)}
+                    onClick={() => applyPricingMode(value)}
                     className={`cursor-pointer text-xs px-2 py-2 rounded-lg border transition-colors text-center leading-tight ${
                       pricingMode === value
                         ? "border-green-700 bg-green-50 text-green-800 font-semibold"
@@ -401,7 +596,7 @@ function ListingsContent({ username }: { username?: string }) {
                   <button
                     key={value || "any"}
                     type="button"
-                    onClick={() => setSpokenLanguage(value)}
+                    onClick={() => applySpokenLanguage(value)}
                     className={`cursor-pointer text-xs px-2 py-2 rounded-lg border transition-colors text-center leading-tight ${
                       spokenLanguage === value
                         ? "border-green-700 bg-green-50 text-green-800 font-semibold"
@@ -420,7 +615,15 @@ function ListingsContent({ username }: { username?: string }) {
                 <h3 className="text-sm font-semibold text-gray-900">{t("listings.category")}</h3>
                 {selectedCategories.length > 0 && (
                   <button
-                    onClick={() => { setSelectedCategories([]); setSelectedSubcategories([]); }}
+                    onClick={() => {
+                      setSelectedCategories([]);
+                      setSelectedSubcategories([]);
+                      setFilterChipOrder((order) =>
+                        order.filter(
+                          (id) => !id.startsWith("category-") && !id.startsWith("subcategory-"),
+                        ),
+                      );
+                    }}
                     className="cursor-pointer text-xs text-green-700 underline"
                   >
                     {t("listings.clear")}
@@ -531,6 +734,7 @@ function ListingsContent({ username }: { username?: string }) {
 
             {/* Ad in sidebar */}
             <AdBanner slot="LISTINGS_SIDEBAR_SLOT" format="rectangle" style={{ minHeight: 250 }} />
+            </div>
           </div>
         </aside>
 
@@ -540,14 +744,18 @@ function ListingsContent({ username }: { username?: string }) {
           {/* Active filter chips — hidden on mobile (shown in the top bar instead) */}
           {activeChips.length > 0 && (
             <div className="mb-4 hidden flex-wrap gap-2 lg:flex">
-              {activeChips.map(({ label, clear }) => (
+              {activeChips.map(({ id, label, clear }) => (
                 <span
-                  key={label}
+                  key={id}
                   className="inline-flex items-center gap-1 bg-green-50 text-green-800 text-xs px-3 py-1 rounded-full border border-green-200"
                 >
                   {label}
-                  <button onClick={clear} className="cursor-pointer ml-1 hover:text-green-900">
-                    <span className="sr-only">{t("listings.clear")}</span>
+                  <button
+                    type="button"
+                    onClick={clear}
+                    className="cursor-pointer ml-1 hover:text-green-900"
+                    aria-label={t("listings.clear")}
+                  >
                     <X className="h-3 w-3" />
                   </button>
                 </span>

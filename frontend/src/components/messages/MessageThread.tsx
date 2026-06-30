@@ -139,23 +139,29 @@ export function MessageThread({
     }));
 
   const prevPinnedLengthRef = useRef(pinnedMessages.length);
+  const prevScrollHeightForPinRef = useRef(0);
   const scrollViewportRef = useRef<HTMLDivElement | null>(null);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   const [pinnedModalOpen, setPinnedModalOpen] = useState(false);
 
-  // Scroll compensation when pinned banner appears/disappears
+  // Keep viewport stable when pin/unpin changes pinned section height.
   useLayoutEffect(() => {
-    const prev = prevPinnedLengthRef.current;
-    const curr = pinnedMessages.length;
-    prevPinnedLengthRef.current = curr;
-    if (prev === curr) return;
     const viewport = scrollViewportRef.current;
     if (!viewport) return;
-    const atBottom = viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight < SCROLL_TO_BOTTOM_THRESHOLD;
-    if (atBottom) {
-      requestAnimationFrame(() => { viewport.scrollTop = viewport.scrollHeight; });
+    const prevPinnedCount = prevPinnedLengthRef.current;
+    const currPinnedCount = pinnedMessages.length;
+    const prevScrollHeight = prevScrollHeightForPinRef.current;
+
+    if (prevScrollHeight > 0 && prevPinnedCount !== currPinnedCount) {
+      const scrollHeightDelta = viewport.scrollHeight - prevScrollHeight;
+      if (scrollHeightDelta !== 0) {
+        viewport.scrollTop += scrollHeightDelta;
+      }
     }
-  }, [pinnedMessages.length]);
+
+    prevPinnedLengthRef.current = currPinnedCount;
+    prevScrollHeightForPinRef.current = viewport.scrollHeight;
+  }, [pinnedMessages.length, messages.length]);
 
   const updateScrollToBottomVisibility = () => {
     const viewport = scrollViewportRef.current;

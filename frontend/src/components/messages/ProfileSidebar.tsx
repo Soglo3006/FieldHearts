@@ -80,11 +80,13 @@ export function ProfileSidebar({ otherUser, onClose, onOpenSettings, isBlocked, 
   useScrollLock(true);
   const [userListings, setUserListings] = useState<SidebarListing[]>([]);
   const [listingsLoading, setListingsLoading] = useState(false);
+  const [profileBio, setProfileBio] = useState<string | null>(null);
+  const [profileLoading, setProfileLoading] = useState(false);
   const [reviewStats, setReviewStats] = useState<{ avg: number; count: number } | null>(null);
   const [reviewsLoading, setReviewsLoading] = useState(false);
   const [showRatings, setShowRatings] = useState(false);
 
-  const sidebarLoading = listingsLoading || reviewsLoading || blockCheckLoading;
+  const sidebarLoading = listingsLoading || reviewsLoading || blockCheckLoading || profileLoading;
 
   useEffect(() => {
     onLoadingChange?.(!!sidebarLoading);
@@ -94,7 +96,43 @@ export function ProfileSidebar({ otherUser, onClose, onOpenSettings, isBlocked, 
   useEffect(() => {
     setUserListings([]);
     setReviewStats(null);
+    setProfileBio(null);
   }, [otherUser?.id]);
+
+  // Bio depuis l'API backend (table users) — même source que la page profil
+  useEffect(() => {
+    const fetchProfileBio = async () => {
+      if (!otherUser?.id) {
+        setProfileBio(null);
+        return;
+      }
+
+      setProfileLoading(true);
+      try {
+        const headers: HeadersInit = {};
+        if (accessToken) {
+          headers.Authorization = `Bearer ${accessToken}`;
+        }
+        const response = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/profiles/${otherUser.id}`,
+          { headers },
+        );
+        if (!response.ok) {
+          setProfileBio(null);
+          return;
+        }
+        const data = (await response.json()) as { bio?: string | null };
+        const trimmed = typeof data.bio === "string" ? data.bio.trim() : "";
+        setProfileBio(trimmed.length > 0 ? trimmed : null);
+      } catch {
+        setProfileBio(null);
+      } finally {
+        setProfileLoading(false);
+      }
+    };
+
+    void fetchProfileBio();
+  }, [otherUser?.id, accessToken]);
 
   // Charger les listings de l'autre utilisateur
   useEffect(() => {
@@ -284,13 +322,16 @@ export function ProfileSidebar({ otherUser, onClose, onOpenSettings, isBlocked, 
 
               <Separator className="my-4" />
 
-              {/* Section Bio */}
-              <div>
-                <h4 className="font-medium text-gray-900 mb-2">Bio</h4>
-                <p className="text-gray-600 text-sm leading-relaxed break-all overflow-hidden">
-                  {otherUser.bio || t("messages.noBio")}
-                </p>
-              </div>
+              {profileBio && (
+                <div>
+                  <h4 className="font-medium text-gray-900 mb-2">
+                    {isCompany ? t("profile.aboutCompany") : t("profile.aboutMe")}
+                  </h4>
+                  <p className="text-gray-600 text-sm leading-relaxed break-words overflow-hidden whitespace-pre-line">
+                    {profileBio}
+                  </p>
+                </div>
+              )}
 
               {/* Other Services */}
               {userListings.length > 0 && (

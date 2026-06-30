@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ArrowLeft, Info, Phone, Video } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface OtherUser {
   id: string;
@@ -89,7 +90,10 @@ export function ChatHeader({
           variant="ghost"
           size="icon"
           onClick={onToggleInfo}
-          className={`cursor-pointer ${showSettings || showMobileSidebar ? "bg-gray-100" : ""}`}
+          className={cn(
+            "cursor-pointer transition-colors duration-200",
+            showSettings || showMobileSidebar ? "bg-gray-100" : "",
+          )}
         >
           <Info className="h-5 w-5" />
         </Button>

@@ -103,7 +103,7 @@ export function useChats() {
           const [{ data: otherUserProfile }, { data: lastMessage }] = await Promise.all([
             supabase
               .from('profiles')
-              .select('id, full_name, company_name, account_type, avatar_url, bio, created_at')
+              .select('id, full_name, company_name, account_type, avatar_url, created_at')
               .eq('id', otherUserId)
               .maybeSingle(),
             supabase

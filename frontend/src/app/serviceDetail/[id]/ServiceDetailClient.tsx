@@ -105,23 +105,6 @@ interface SimilarService {
 
 export default function ServiceDetailClient() {
   const { t, i18n } = useTranslation();
-
-  function formatRelativeDate(dateStr: string): string {
-    try {
-      const diff = Date.now() - new Date(dateStr).getTime();
-      const minutes = Math.floor(diff / 60000);
-      const hours = Math.floor(diff / 3600000);
-      const days = Math.floor(diff / 86400000);
-      if (minutes < 5) return t("home.justNow");
-      if (minutes < 60) return t("home.minutesAgo", { minutes });
-      if (hours < 24) return t("home.hoursAgo", { hours });
-      if (days === 1) return t("home.yesterday");
-      if (days < 7) return t("home.daysAgo", { count: days });
-      return t("home.weeksAgo", { count: Math.floor(days / 7) });
-    } catch {
-      return dateStr;
-    }
-  }
   const params = useParams();
   const serviceId = params.id as string;
 
@@ -353,7 +336,6 @@ export default function ServiceDetailClient() {
               favoritesCount={favoritesCount}
               providerListingCount={providerListingCount}
               onOpenMap={() => setIsMapOpen(true)}
-              formatRelativeDate={formatRelativeDate}
             />
             <ServiceFaqReviews faqs={faqs} />
           </section>

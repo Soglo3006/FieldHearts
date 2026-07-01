@@ -20,29 +20,9 @@ import ListingLangPills from "@/components/ui/ListingLangPills";
 import { formatListingPriceLine } from "@/lib/listingPrice";
 import { formatListingCategoryLine } from "@/lib/listingTags";
 import { ListingCardSubtitle, ListingCardPriceRow } from "@/components/listings/ListingTrustLine";
+import { formatListingCreationDate } from "@/lib/listingDate";
 
 const PAGE_SIZE = 9;
-
-function formatRelativeDate(
-  dateStr: string,
-  t: (key: string, opts?: Record<string, unknown>) => string,
-): string {
-  try {
-    const diff = Date.now() - new Date(dateStr).getTime();
-    const minutes = Math.floor(diff / 60000);
-    const hours = Math.floor(diff / 3600000);
-    const days = Math.floor(diff / 86400000);
-    if (minutes < 5) return t("home.justNow");
-    if (minutes < 60) return t("home.minutesAgo", { minutes });
-    if (hours < 24) return t("home.hoursAgo", { hours });
-    if (days === 1) return t("home.yesterday");
-    if (days < 7) return t("home.daysAgo", { count: days });
-    if (days < 30) return t("home.weeksAgo", { count: Math.floor(days / 7) });
-    return t("home.monthsAgo", { count: Math.floor(days / 30) });
-  } catch {
-    return t("home.recently");
-  }
-}
 
 type ProfileListing = Listing & {
   created_at?: string;
@@ -221,10 +201,10 @@ export default function ProfileListings({
               <MapPin className="h-3 w-3 shrink-0" />
               <span className="line-clamp-1">{getPublicServiceLocation(listing)}</span>
             </div>
-            {listing.created_at && (
+            {isOwner && listing.created_at && (
               <div className="ml-2 flex shrink-0 items-center gap-1">
                 <Clock className="h-3 w-3" />
-                <span>{formatRelativeDate(listing.created_at, t)}</span>
+                <span>{formatListingCreationDate(listing.created_at, i18n.language)}</span>
               </div>
             )}
           </div>

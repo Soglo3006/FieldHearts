@@ -58,11 +58,10 @@ interface Props {
   favoritesCount: number;
   providerListingCount: number;
   onOpenMap: () => void;
-  formatRelativeDate: (d: string) => string;
 }
 
 export default function ServiceTitleCard({
-  service, favoritesCount, providerListingCount, onOpenMap, formatRelativeDate,
+  service, favoritesCount, providerListingCount, onOpenMap,
 }: Props) {
   const { t, i18n } = useTranslation();
   const displayTitle = resolveListingTitle(service, i18n.language);
@@ -118,8 +117,6 @@ export default function ServiceTitleCard({
               <MapPin className="h-4 w-4 shrink-0" />
               <span className="underline cursor-pointer">{getPublicServiceLocation(service)}</span>
             </button>
-            <span className="hidden md:inline">·</span>
-            <span>{formatRelativeDate(service.created_at)}</span>
             {clientsServed > 0 && (
               <>
                 <span className="hidden md:inline">·</span>

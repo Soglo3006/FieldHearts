@@ -10,7 +10,7 @@ import { Separator } from '@/components/ui/separator';
 import { Star } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
-import { ExternalLink, Grid3x3, MapPin, Settings, X, Clock } from 'lucide-react';
+import { ExternalLink, Grid3x3, MapPin, Settings, X } from 'lucide-react';
 import { Spinner } from "@/components/ui/Spinner";
 import AppImage from '@/components/ui/AppImage';
 import RatingsPage from '@/components/profile/RatingsPage';
@@ -53,26 +53,6 @@ interface ProfileSidebarProps {
   /** When set, listing fetch uses API block rules for the current viewer */
   accessToken?: string | null;
   onLoadingChange?: (loading: boolean) => void;
-}
-
-function formatRelativeDate(
-  dateStr: string,
-  t: (key: string, opts?: Record<string, unknown>) => string,
-): string {
-  try {
-    const diff = Date.now() - new Date(dateStr).getTime();
-    const minutes = Math.floor(diff / 60000);
-    const hours = Math.floor(diff / 3600000);
-    const days = Math.floor(diff / 86400000);
-    if (minutes < 5) return t("home.justNow");
-    if (minutes < 60) return t("home.minutesAgo", { minutes });
-    if (hours < 24) return t("home.hoursAgo", { hours });
-    if (days === 1) return t("home.yesterday");
-    if (days < 7) return t("home.daysAgo", { count: days });
-    return t("home.weeksAgo", { count: Math.floor(days / 7) });
-  } catch {
-    return t("home.recently");
-  }
 }
 
 export function ProfileSidebar({ otherUser, onClose, onOpenSettings, isBlocked, isBlockedByOther, blockCheckLoading, accessToken, onLoadingChange }: ProfileSidebarProps) {
@@ -407,12 +387,6 @@ export function ProfileSidebar({ otherUser, onClose, onOpenSettings, isBlocked, 
                                     </div>
                                   ) : (
                                     <span />
-                                  )}
-                                  {listing.created_at && (
-                                    <div className="ml-2 flex shrink-0 items-center gap-1">
-                                      <Clock className="h-3 w-3" />
-                                      <span>{formatRelativeDate(listing.created_at, t)}</span>
-                                    </div>
                                   )}
                                 </div>
                               </div>

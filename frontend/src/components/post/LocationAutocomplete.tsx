@@ -98,7 +98,6 @@ function PlacesInput({ value, onChange, placeholder, id, required }: Props) {
                       c.types.includes("administrative_area_level_3") ||
                       c.types.includes("administrative_area_level_2")
                   );
-                  // fallback: second part of description (city is after first comma for full addresses)
                   const fallbackCity =
                     descriptionFixed.split(",")[1]?.trim() ?? descriptionFixed.split(",")[0].trim();
                   const city = cityComp?.long_name ?? fallbackCity;

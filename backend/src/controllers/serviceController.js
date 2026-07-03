@@ -32,6 +32,12 @@ import {
   publicTestListingFilter,
   shouldHideTestListingsFromPublic,
 } from "../utils/testListings.js";
+import {
+  ensureListingVisibilitySchema,
+  publicListingFilter,
+  parseIsPublic,
+  canViewService,
+} from "../utils/listingVisibility.js";
 
 function normalizeTagKey(value) {
   return String(value ?? "")
@@ -62,6 +68,7 @@ export const createService = async (req, res) => {
   try {
     await ensureListingTagsSchema(pool);
     await ensureDepositsAndCalendarSchema(pool);
+    await ensureListingVisibilitySchema(pool);
     const translationsSanitized = sanitizeListingTranslations(req.body.translations);
     const canon = canonicalListingTexts(translationsSanitized);
 
@@ -110,7 +117,10 @@ export const createService = async (req, res) => {
       image_urls,
       is_one_time,
       hide_exact_location,
+      is_public,
     } = { ...req.body, ...data };
+
+    const isPublic = parseIsPublic(is_public);
 
     // Resolve canonical image list: prefer image_urls array, fall back to single image_url
     const resolvedImageUrls = Array.isArray(image_urls) && image_urls.length > 0
@@ -143,8 +153,8 @@ export const createService = async (req, res) => {
         language, mobility, duration, urgency, image_url, image_urls, is_one_time, hide_exact_location,
         pricing_mode, price_min, price_max, estimated_hours,
         deposit_enabled, deposit_type, deposit_value,
-        translations
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33::jsonb)
+        translations, is_public
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33::jsonb, $34)
       RETURNING *`,
       [
         req.user.id,
@@ -180,6 +190,7 @@ export const createService = async (req, res) => {
         depositParsed.deposit_type,
         depositParsed.deposit_value,
         translationsSanitized,
+        isPublic,
       ]
     );
 
@@ -194,6 +205,7 @@ export const createService = async (req, res) => {
 
 export const getAllServices = async (req, res) => {
   try {
+    await ensureListingVisibilitySchema(pool);
     const {
       category,
       location,
@@ -239,6 +251,7 @@ export const getAllServices = async (req, res) => {
       LEFT JOIN categories c ON c.id = s.category_id
       WHERE s.is_active = true
       ${publicTestListingFilter("s")}
+      ${publicListingFilter("s")}
     `;
 
     const params = [];
@@ -598,7 +611,9 @@ const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12
 
 export const getServiceById = async (req, res) => {
   try {
+    await ensureListingVisibilitySchema(pool);
     const { id } = req.params;
+    const viewerId = req.user?.id;
 
     if (!UUID_REGEX.test(id)) {
       return res.status(404).json({ message: "Service not found" });
@@ -631,6 +646,16 @@ export const getServiceById = async (req, res) => {
     if (shouldHideTestListingsFromPublic() && isTestListingTitle(row.title)) {
       return res.status(404).json({ message: "Service not found" });
     }
+
+    const isOwner = viewerId && String(row.user_id) === String(viewerId);
+    if (!row.is_active && !isOwner) {
+      return res.status(404).json({ message: "Service not found" });
+    }
+
+    if (!(await canViewService(pool, row, viewerId))) {
+      return res.status(404).json({ message: "Service not found" });
+    }
+
     canonServiceFieldsInPlace(row);
     res.json(row);
   } catch (err) {
@@ -643,12 +668,13 @@ export const updateService = async (req, res) => {
   try {
     await ensureListingTagsSchema(pool);
     await ensureDepositsAndCalendarSchema(pool);
+    await ensureListingVisibilitySchema(pool);
     const { id } = req.params;
     const {
       title, description, category, category_id, subcategory,
       price, location, address, latitude, longitude, city,
       poster_type, availability, language,
-      mobility, duration, urgency, image_url, image_urls, is_one_time, hide_exact_location, translations,
+      mobility, duration, urgency, image_url, image_urls, is_one_time, hide_exact_location, translations, is_public,
     } = req.body;
 
     const check = await pool.query(
@@ -817,8 +843,9 @@ export const updateService = async (req, res) => {
            estimated_hours    = $28,
            deposit_enabled    = $29,
            deposit_type       = $30,
-           deposit_value      = $31
-       WHERE id = $32
+           deposit_value      = $31,
+           is_public          = $32
+       WHERE id = $33
        RETURNING *`,
       [
         mergedTitleFinal,
@@ -852,6 +879,7 @@ export const updateService = async (req, res) => {
         depositEnabled,
         depositType,
         depositValue,
+        is_public !== undefined ? parseIsPublic(is_public) : existing.is_public !== false,
         id,
       ]
     );
@@ -867,8 +895,11 @@ export const updateService = async (req, res) => {
 
 export const getUserServices = async (req, res) => {
   try {
+    await ensureListingVisibilitySchema(pool);
     const { userId } = req.params;
     const viewerId = req.user?.id;
+    const isProfileOwner = viewerId && String(viewerId) === String(userId);
+    const visibilityFilter = isProfileOwner ? "" : publicListingFilter("s");
 
     if (viewerId && viewerId !== userId && supabaseAdmin) {
       const { data: blockedRow } = await supabaseAdmin
@@ -896,6 +927,7 @@ export const getUserServices = async (req, res) => {
       WHERE s.user_id = $1
         AND s.is_active = true
         ${publicTestListingFilter("s")}
+        ${visibilityFilter}
       ORDER BY s.created_at DESC`,
       [userId]
     );
@@ -912,7 +944,9 @@ export const getCategoryCounts = async (req, res) => {
   try {
     await ensureListingTagsSchema(pool);
     await ensureDepositsAndCalendarSchema(pool);
+    await ensureListingVisibilitySchema(pool);
     const testFilter = publicTestListingFilter("s");
+    const visibilityFilter = publicListingFilter("s");
     const result = await pool.query(`
       SELECT category_name, SUM(count)::int AS count
       FROM (
@@ -923,6 +957,7 @@ export const getCategoryCounts = async (req, res) => {
         LEFT JOIN categories c ON c.id = s.category_id
         WHERE s.is_active = true
           ${testFilter}
+          ${visibilityFilter}
           AND COALESCE(c.name, s.category) IS NOT NULL
           AND COALESCE(c.name, s.category) != ''
         GROUP BY COALESCE(c.name, s.category)
@@ -935,6 +970,7 @@ export const getCategoryCounts = async (req, res) => {
         FROM services s
         WHERE s.is_active = true
           ${testFilter}
+          ${visibilityFilter}
           AND s.has_custom_tags = true
       ) grouped
       GROUP BY category_name

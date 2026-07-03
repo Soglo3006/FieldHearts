@@ -241,7 +241,8 @@
     "history": "History",
     "completed": "Completed",
     "offer": "Offering",
-    "looking": "Looking"
+    "looking": "Looking",
+    "private": "Private"
   },
   "bookings": {
     "title": "My Bookings",
@@ -635,7 +636,11 @@
     "postService": "Post Service",
     "postJobRequest": "Post Job Request",
     "servicePublicNote": "Your service will appear publicly after submission.",
+    "servicePrivateNote": "Your service will be private: hidden from search, visible only to you and clients with an active paid booking.",
     "jobPublicNote": "Your job request will appear publicly after submission.",
+    "jobPrivateNote": "Your job request will be private: hidden from search, visible only to you and workers with an active paid booking.",
+    "listingPrivate": "Private listing",
+    "listingPrivateDesc": "The listing won't appear in search or on your public profile. Only you and people with an active paid booking can access it.",
     "confirmTitle": "Confirm your listing",
     "confirmServiceDesc": "You are about to publish this service publicly. Please review the details before confirming.",
     "confirmJobDesc": "You are about to publish this job request publicly. Please review the details before confirming.",

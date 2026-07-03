@@ -144,6 +144,10 @@ export const createBooking = async (req, res) => {
       return res.status(400).json({ message: "This listing is no longer available" });
     }
 
+    if (s.is_public === false) {
+      return res.status(400).json({ message: "This listing is private and not accepting new requests" });
+    }
+
     // Can't apply to your own listing
     if (s.user_id === req.user.id) {
       return res.status(400).json({ message: "You can't request your own service" });

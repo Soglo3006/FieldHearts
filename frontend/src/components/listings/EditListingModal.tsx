@@ -13,6 +13,7 @@ import LocationAutocomplete, {
 } from "@/components/post/LocationAutocomplete";
 import CategorySubcategoryFields from "@/components/post/CategorySubcategoryFields";
 import AvailabilityLanguageMobilityFields from "@/components/post/AvailabilityLanguageMobilityFields";
+import ListingVisibilityCheckbox from "@/components/post/ListingVisibilityCheckbox";
 import PostSelect from "@/components/post/PostSelect";
 import { X, CheckCircle } from "lucide-react";
 import type { ListingTranslationsPayload, ServiceLikeWithI18n } from "@/lib/serviceListingI18n";
@@ -113,6 +114,7 @@ export interface Service {
   image_urls?: string[] | null;
   is_one_time?: boolean;
   hide_exact_location?: boolean;
+  is_public?: boolean;
   deposit_enabled?: boolean;
   deposit_type?: string | null;
   deposit_value?: number | string | null;
@@ -164,6 +166,7 @@ export default function EditListingModal({ service, accessToken, onClose, onSave
   );
   const [isOneTime, setIsOneTime] = useState(service.is_one_time ?? false);
   const [hideExactLocation, setHideExactLocation] = useState(service.hide_exact_location ?? false);
+  const [isPublic, setIsPublic] = useState(service.is_public !== false);
   const [depositEnabled, setDepositEnabled] = useState(service.deposit_enabled ?? false);
   const [depositType, setDepositType] = useState<DepositType>(
     service.deposit_type === "percent" ? "percent" : "fixed",
@@ -276,6 +279,7 @@ export default function EditListingModal({ service, accessToken, onClose, onSave
             image_urls: images,
             is_one_time: isOneTime,
             hide_exact_location: hideExactLocation,
+            is_public: isPublic,
             deposit_enabled: pricingMode === "quote" ? false : depositEnabled,
             deposit_type: pricingMode === "quote" || !depositEnabled ? null : depositType,
             deposit_value: pricingMode === "quote" || !depositEnabled ? null : Number(depositValue),
@@ -568,6 +572,8 @@ export default function EditListingModal({ service, accessToken, onClose, onSave
               <p className="text-xs text-green-700 mt-0.5">{t("post.oneTimeListingDesc")}</p>
             </label>
           </div>
+
+          <ListingVisibilityCheckbox id="editIsPublic" isPublic={isPublic} onChange={setIsPublic} />
         </div>
 
         {/* Footer */}

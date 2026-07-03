@@ -14,6 +14,7 @@ import CategorySubcategoryFields from "@/components/post/CategorySubcategoryFiel
 import { formatListingTagsDisplay } from "@/lib/categories";
 import AvailabilityLanguageMobilityFields from "@/components/post/AvailabilityLanguageMobilityFields";
 import OneTimeCheckbox from "@/components/post/OneTimeCheckbox";
+import ListingVisibilityCheckbox from "@/components/post/ListingVisibilityCheckbox";
 import FormSubmitButton from "@/components/post/FormSubmitButton";
 import PostConfirmModal from "@/components/post/PostConfirmModal";
 import type { ListingTranslationsPayload } from "@/lib/serviceListingI18n";
@@ -65,6 +66,7 @@ export default function OfferServiceForm({ onSuccess }: Props) {
   const [images, setImages] = useState<string[]>([]);
   const [isOneTime, setIsOneTime] = useState(false);
   const [hideExactLocation, setHideExactLocation] = useState(false);
+  const [isPublic, setIsPublic] = useState(true);
   const [depositEnabled, setDepositEnabled] = useState(false);
   const [depositType, setDepositType] = useState<DepositType>("fixed");
   const [depositValue, setDepositValue] = useState("");
@@ -187,6 +189,7 @@ export default function OfferServiceForm({ onSuccess }: Props) {
           image_urls: images,
           is_one_time: isOneTime,
           hide_exact_location: hideExactLocation,
+          is_public: isPublic,
           deposit_enabled: pricingMode === "quote" ? false : depositEnabled,
           deposit_type: pricingMode === "quote" || !depositEnabled ? null : depositType,
           deposit_value: pricingMode === "quote" || !depositEnabled ? null : Number(depositValue),
@@ -434,11 +437,13 @@ export default function OfferServiceForm({ onSuccess }: Props) {
 
       <OneTimeCheckbox id="serviceIsOneTime" checked={isOneTime} onChange={setIsOneTime} />
 
+      <ListingVisibilityCheckbox id="serviceIsPublic" isPublic={isPublic} onChange={setIsPublic} />
+
       <FormSubmitButton
         disabled={!isValid}
         submitting={submitting}
         label={t("post.postService")}
-        note={t("post.servicePublicNote")}
+        note={isPublic ? t("post.servicePublicNote") : t("post.servicePrivateNote")}
       />
     </form>
 

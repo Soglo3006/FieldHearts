@@ -9,7 +9,7 @@ router.get("/", getAllServices);
 router.get("/category-counts", getCategoryCounts);
 router.get("/my-services", protect, getMyServices);
 router.get("/user/:userId", optionalProtect, getUserServices);
-router.get("/:id", getServiceById);
+router.get("/:id", optionalProtect, getServiceById);
 router.put("/:id", protect, updateService);
 router.delete("/:id", protect, deleteService);
 

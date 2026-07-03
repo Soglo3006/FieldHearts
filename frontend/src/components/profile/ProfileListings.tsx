@@ -173,15 +173,22 @@ export default function ProfileListings({
             <h3 className="font-semibold text-gray-900 line-clamp-1 flex-1 group-hover:text-green-700 transition-colors text-sm">
               {resolved}
             </h3>
-            {listing.type === "looking" ? (
-              <Badge className="shrink-0 border-0 bg-blue-100 text-xs text-blue-700">
-                {t("listings.looking")}
-              </Badge>
-            ) : (
-              <Badge className="shrink-0 border-0 bg-green-100 text-xs text-green-700">
-                {t("listings.offering")}
-              </Badge>
-            )}
+            <div className="flex shrink-0 items-center gap-1.5">
+              {isOwner && listing.is_public === false && (
+                <Badge className="border-0 bg-amber-100 text-xs text-amber-800">
+                  {t("myListings.private")}
+                </Badge>
+              )}
+              {listing.type === "looking" ? (
+                <Badge className="shrink-0 border-0 bg-blue-100 text-xs text-blue-700">
+                  {t("listings.looking")}
+                </Badge>
+              ) : (
+                <Badge className="shrink-0 border-0 bg-green-100 text-xs text-green-700">
+                  {t("listings.offering")}
+                </Badge>
+              )}
+            </div>
           </div>
 
           <ListingCardSubtitle

@@ -72,6 +72,7 @@ interface Service {
   favorites_count?: number;
   is_one_time?: boolean;
   hide_exact_location?: boolean;
+  is_public?: boolean;
   deposit_enabled?: boolean;
   deposit_type?: string | null;
   deposit_value?: number | string | null;
@@ -156,7 +157,11 @@ export default function ServiceDetailClient() {
     if (!serviceId) return;
     const fetchAll = async () => {
       try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/services/${serviceId}`);
+        const headers: HeadersInit = {};
+        if (session?.access_token) {
+          headers.Authorization = `Bearer ${session.access_token}`;
+        }
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/services/${serviceId}`, { headers });
         if (!res.ok) { setError(true); return; }
         const data: Service = await res.json();
         setService(data);
@@ -173,8 +178,12 @@ export default function ServiceDetailClient() {
           } catch {}
         }
 
+        const ownerHeaders: HeadersInit = {};
+        if (session?.access_token) {
+          ownerHeaders.Authorization = `Bearer ${session.access_token}`;
+        }
         if (data.owner_id) {
-          fetch(`${process.env.NEXT_PUBLIC_API_URL}/services/user/${data.owner_id}`)
+          fetch(`${process.env.NEXT_PUBLIC_API_URL}/services/user/${data.owner_id}`, { headers: ownerHeaders })
             .then((r) => r.json())
             .then((list) => setProviderListingCount(Array.isArray(list) ? list.length : 0))
             .catch(() => {});
@@ -211,7 +220,7 @@ export default function ServiceDetailClient() {
       }
     };
     fetchAll();
-  }, [serviceId]);
+  }, [serviceId, session?.access_token]);
 
   if (loading) {
     return (

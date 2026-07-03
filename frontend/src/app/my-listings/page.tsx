@@ -52,7 +52,9 @@ interface MyService extends ServiceLikeWithI18n {
   image_urls?: string[] | null;
   created_at: string;
   is_active: boolean;
-  completed_bookings_count?: number | string | null;
+  is_public?: boolean;
+  completed
+200
   review_count?: number | string | null;
   average_rating?: number | string | null;
 }
@@ -210,6 +212,9 @@ function ListingCard({
             <div className="flex items-center gap-1.5 shrink-0">
               {historical && (
                 <Badge className="bg-gray-100 text-gray-500 text-xs border-0">{t("myListings.completed")}</Badge>
+              )}
+              {s.is_public === false && (
+                <Badge className="bg-amber-100 text-amber-800 text-xs border-0">{t("myListings.private")}</Badge>
               )}
               {s.type === "looking" ? (
                 <Badge className="bg-blue-100 text-blue-700 text-xs border-0">{t("myListings.looking")}</Badge>

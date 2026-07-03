@@ -241,7 +241,8 @@
     "history": "Historique",
     "completed": "Complété",
     "offer": "Offre",
-    "looking": "Recherche"
+    "looking": "Recherche",
+    "private": "Privée"
   },
   "bookings": {
     "title": "Mes réservations",
@@ -631,7 +632,11 @@
     "postService": "Publier le service",
     "postJobRequest": "Publier la demande",
     "servicePublicNote": "Votre service apparaîtra publiquement après soumission.",
+    "servicePrivateNote": "Votre service sera privé : invisible dans la recherche, visible uniquement par vous et les clients avec une réservation active payée.",
     "jobPublicNote": "Votre demande apparaîtra publiquement après soumission.",
+    "jobPrivateNote": "Votre demande sera privée : invisible dans la recherche, visible uniquement par vous et les travailleurs avec une réservation active payée.",
+    "listingPrivate": "Annonce privée",
+    "listingPrivateDesc": "L'annonce n'apparaît pas dans la recherche ni sur votre profil public. Seuls vous et les personnes avec une réservation active payée y ont accès.",
     "confirmTitle": "Confirmer votre annonce",
     "confirmServiceDesc": "Vous êtes sur le point de publier ce service publiquement. Vérifiez les détails avant de confirmer.",
     "confirmJobDesc": "Vous êtes sur le point de publier cette demande publiquement. Vérifiez les détails avant de confirmer.",

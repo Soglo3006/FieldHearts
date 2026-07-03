@@ -4,14 +4,14 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useTranslation } from "react-i18next";
-import { MapPin, Grid3x3 } from "lucide-react";
+import { Grid3x3 } from "lucide-react";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import AdBanner from "@/components/AdBanner";
 import { formatListingCategoryLine } from "@/lib/listingTags";
-import { getPublicServiceLocation } from "@/lib/serviceLocation";
+import ListingLocationLine from "@/components/listings/ListingLocationLine";
 import { resolveListingTitle, type ServiceLikeWithI18n } from "@/lib/serviceListingI18n";
 import ListingLangPills from "@/components/ui/ListingLangPills";
 import { ListingsRegionEmptyState } from "@/components/listings/ListingsRegionEmptyState";
@@ -31,6 +31,7 @@ interface ApiService {
   address?: string | null;
   city?: string | null;
   hide_exact_location?: boolean;
+  locations?: Array<{ address?: string; city?: string; lat?: number; lng?: number; location?: string }>;
   created_at: string;
   image_url: string | null;
   image_urls?: string[] | null;
@@ -117,7 +118,19 @@ function gridVacancyPads(count: number) {
   return { padSm, padLg };
 }
 
-function ListingGridCard({ s, globalIndex }: { s: ApiService; globalIndex: number }) {
+function ListingGridCard({
+  s,
+  globalIndex,
+  searchLat,
+  searchLng,
+  searchText,
+}: {
+  s: ApiService;
+  globalIndex: number;
+  searchLat?: number | null;
+  searchLng?: number | null;
+  searchText?: string | null;
+}) {
   const { t, i18n } = useTranslation();
   const router = useRouter();
   const detailHref = `/serviceDetail/${s.id}`;
@@ -177,12 +190,12 @@ function ListingGridCard({ s, globalIndex }: { s: ApiService; globalIndex: numbe
           listingType={s.type === "looking" ? "looking" : s.type === "offer" ? "offer" : undefined}
         />
 
-        <div className="flex items-center text-xs text-gray-500 mt-auto">
-          <div className="flex items-center gap-1 min-w-0">
-            <MapPin className="h-3 w-3 shrink-0" />
-            <span className="line-clamp-1">{getPublicServiceLocation(s)}</span>
-          </div>
-        </div>
+        <ListingLocationLine
+          service={s}
+          searchLat={searchLat}
+          searchLng={searchLng}
+          searchText={searchText}
+        />
       </Link>
     </div>
   );
@@ -332,12 +345,17 @@ export default function ListingsGrid({ filters }: { filters?: ListingsFilters })
   const showMidPageAd = restListings.length > 0;
   const { padSm: padFirstSm, padLg: padFirstLg } = gridVacancyPads(firstListings.length);
   const { padSm: padRestSm, padLg: padRestLg } = gridVacancyPads(restListings.length);
+  const locationSearchProps = {
+    searchLat: filters?.locationLat ?? null,
+    searchLng: filters?.locationLng ?? null,
+    searchText: filters?.location?.trim() || null,
+  };
 
   return (
     <div className="space-y-6 scroll-mt-24" ref={gridTopRef}>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {firstListings.map((s, i) => (
-          <ListingGridCard key={s.id} s={s} globalIndex={i} />
+          <ListingGridCard key={s.id} s={s} globalIndex={i} {...locationSearchProps} />
         ))}
         {Array.from({ length: padFirstSm }).map((_, i) => (
           <div
@@ -364,7 +382,7 @@ export default function ListingsGrid({ filters }: { filters?: ListingsFilters })
       {restListings.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {restListings.map((s, i) => (
-            <ListingGridCard key={s.id} s={s} globalIndex={AD_INTERVAL + i} />
+            <ListingGridCard key={s.id} s={s} globalIndex={AD_INTERVAL + i} {...locationSearchProps} />
           ))}
           {Array.from({ length: padRestSm }).map((_, i) => (
             <div

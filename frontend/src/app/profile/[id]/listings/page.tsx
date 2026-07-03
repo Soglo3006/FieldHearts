@@ -6,14 +6,14 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import { useAuth } from "@/contexts/AuthContext";
 import { Spinner } from "@/components/ui/Spinner";
-import { Grid3x3, MapPin, ArrowLeft, Clock } from "lucide-react";
+import { Grid3x3, ArrowLeft, Clock } from "lucide-react";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { Badge } from "@/components/ui/badge";
 import AppImage from "@/components/ui/AppImage";
 import { useTranslation } from "react-i18next";
 import { resolveListingTitle, type ServiceLikeWithI18n } from "@/lib/serviceListingI18n";
 import ListingLangPills from "@/components/ui/ListingLangPills";
-import { getPublicServiceLocation } from "@/lib/serviceLocation";
+import ListingLocationLine from "@/components/listings/ListingLocationLine";
 import { formatListingPriceLine } from "@/lib/listingPrice";
 import { formatListingCategoryLine } from "@/lib/listingTags";
 import { ListingCardSubtitle, ListingCardPriceRow } from "@/components/listings/ListingTrustLine";
@@ -250,18 +250,13 @@ export default function UserListingsPage() {
                       listingType={s.type === "looking" ? "looking" : s.type === "offer" ? "offer" : undefined}
                     />
 
-                    <div className="flex items-center justify-between text-xs text-gray-500 mt-auto">
-                      <div className="flex items-center gap-1 min-w-0">
-                        <MapPin className="h-3 w-3 shrink-0" />
-                        <span className="line-clamp-1">{getPublicServiceLocation(s)}</span>
+                    <ListingLocationLine service={s} />
+                    {isOwner && s.created_at && (
+                      <div className="mt-1 flex items-center gap-1 text-xs text-gray-500">
+                        <Clock className="h-3 w-3 shrink-0" />
+                        <span>{formatListingCreationDate(s.created_at, i18n.language)}</span>
                       </div>
-                      {isOwner && s.created_at && (
-                        <div className="ml-2 flex shrink-0 items-center gap-1">
-                          <Clock className="h-3 w-3" />
-                          <span>{formatListingCreationDate(s.created_at, i18n.language)}</span>
-                        </div>
-                      )}
-                    </div>
+                    )}
                   </Link>
                 </div>
               );

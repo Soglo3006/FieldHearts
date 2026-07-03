@@ -21,7 +21,7 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import CompleteProfileModal from "@/components/profile/CompleteProfileModal";
 import { useMyProfile } from "@/hooks/useMyProfile";
-import { getPublicServiceLocation, hasApproximateServiceLocation } from "@/lib/serviceLocation";
+import { getServiceLocationEntries, hasApproximateServiceLocation } from "@/lib/serviceLocation";
 import { resolveListingTitle, type ServiceLikeWithI18n } from "@/lib/serviceListingI18n";
 import {
   estimateBaseAmountForTotals,
@@ -73,6 +73,7 @@ interface Service {
   is_one_time?: boolean;
   hide_exact_location?: boolean;
   is_public?: boolean;
+  locations?: Array<{ address?: string; city?: string; lat?: number; lng?: number; location?: string }>;
   deposit_enabled?: boolean;
   deposit_type?: string | null;
   deposit_value?: number | string | null;
@@ -118,6 +119,7 @@ export default function ServiceDetailClient() {
   const [favoritesCount, setFavoritesCount] = useState(0);
   const [faqs, setFaqs] = useState<Array<{ question: string; answer: string }>>([]);
   const [isMapOpen, setIsMapOpen] = useState(false);
+  const [mapLocationIndex, setMapLocationIndex] = useState(0);
 
   const { startConversation, loading: contactLoading, showCompleteProfile: showConvCompleteProfile, setShowCompleteProfile: setShowConvCompleteProfile } = useStartConversation();
   const { user, session } = useAuth();
@@ -344,7 +346,10 @@ export default function ServiceDetailClient() {
               service={service}
               favoritesCount={favoritesCount}
               providerListingCount={providerListingCount}
-              onOpenMap={() => setIsMapOpen(true)}
+              onOpenMap={(index) => {
+                setMapLocationIndex(index ?? 0);
+                setIsMapOpen(true);
+              }}
             />
             <ServiceFaqReviews faqs={faqs} />
           </section>
@@ -431,15 +436,20 @@ export default function ServiceDetailClient() {
         accountType={profile?.account_type}
       />
 
-      {isMapOpen && (
-        <LocationMapModal
-          location={getPublicServiceLocation(service)}
-          lat={service.latitude}
-          lng={service.longitude}
-          isApproximate={hasApproximateServiceLocation(service)}
-          onClose={() => setIsMapOpen(false)}
-        />
-      )}
+      {isMapOpen && service && (() => {
+        const mapEntries = getServiceLocationEntries(service);
+        const active = mapEntries[mapLocationIndex] ?? mapEntries[0];
+        if (!active) return null;
+        return (
+          <LocationMapModal
+            location={active.label}
+            lat={active.lat}
+            lng={active.lng}
+            isApproximate={hasApproximateServiceLocation(service)}
+            onClose={() => setIsMapOpen(false)}
+          />
+        );
+      })()}
     </div>
   );
 }

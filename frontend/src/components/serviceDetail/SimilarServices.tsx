@@ -1,10 +1,10 @@
 "use client";
 import Link from "next/link";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
-import { MapPin, Grid3x3 } from "lucide-react";
+import { Grid3x3 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import AppImage from "@/components/ui/AppImage";
-import { getPublicServiceLocation } from "@/lib/serviceLocation";
+import ListingLocationLine from "@/components/listings/ListingLocationLine";
 import { resolveListingTitle, type ServiceLikeWithI18n } from "@/lib/serviceListingI18n";
 import { formatListingPriceLine } from "@/lib/listingPrice";
 import { formatListingCategoryLine } from "@/lib/listingTags";
@@ -86,14 +86,7 @@ export default function SimilarServices({ services }: Props) {
                     completedBookingsCount={s.completed_bookings_count}
                     listingType={s.type ?? undefined}
                   />
-                  <div className="flex items-center text-xs text-gray-500 mt-auto">
-                    {getPublicServiceLocation(s) ? (
-                      <div className="flex items-center gap-1 min-w-0">
-                        <MapPin className="h-3 w-3 shrink-0" />
-                        <span className="line-clamp-1">{getPublicServiceLocation(s)}</span>
-                      </div>
-                    ) : null}
-                  </div>
+                  <ListingLocationLine service={s} />
                 </div>
               </div>
             </Link>

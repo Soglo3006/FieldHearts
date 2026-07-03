@@ -38,6 +38,14 @@ import {
   parseIsPublic,
   canViewService,
 } from "../utils/listingVisibility.js";
+import {
+  ensureServiceLocationsSchema,
+  normalizeLocationsInput,
+  primaryLocationFields,
+  locationTextMatchClause,
+  minDistanceExpr,
+  withinRadiusClause,
+} from "../utils/serviceLocations.js";
 
 function normalizeTagKey(value) {
   return String(value ?? "")
@@ -69,6 +77,7 @@ export const createService = async (req, res) => {
     await ensureListingTagsSchema(pool);
     await ensureDepositsAndCalendarSchema(pool);
     await ensureListingVisibilitySchema(pool);
+    await ensureServiceLocationsSchema(pool);
     const translationsSanitized = sanitizeListingTranslations(req.body.translations);
     const canon = canonicalListingTexts(translationsSanitized);
 
@@ -143,6 +152,12 @@ export const createService = async (req, res) => {
       return res.status(400).json({ message: depositParsed.error });
     }
 
+    const locationsParsed = normalizeLocationsInput(req.body);
+    if (locationsParsed.error) {
+      return res.status(400).json({ message: locationsParsed.error });
+    }
+    const primaryLoc = primaryLocationFields(locationsParsed.locations);
+
     // Créer le service
     const result = await pool.query(
       `INSERT INTO services (
@@ -153,8 +168,8 @@ export const createService = async (req, res) => {
         language, mobility, duration, urgency, image_url, image_urls, is_one_time, hide_exact_location,
         pricing_mode, price_min, price_max, estimated_hours,
         deposit_enabled, deposit_type, deposit_value,
-        translations, is_public
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33::jsonb, $34)
+        translations, is_public, locations
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33::jsonb, $34, $35::jsonb)
       RETURNING *`,
       [
         req.user.id,
@@ -167,11 +182,11 @@ export const createService = async (req, res) => {
         JSON.stringify(tagFields.tags),
         tagFields.hasCustomTags,
         pricingResolved.price,
-        location,
-        address || location,
-        latitude || null,
-        longitude || null,
-        city || location,
+        primaryLoc.location,
+        primaryLoc.address,
+        primaryLoc.latitude,
+        primaryLoc.longitude,
+        primaryLoc.city,
         poster_type || null,
         normalizeAvailability(availability) || null,
         language || null,
@@ -191,6 +206,7 @@ export const createService = async (req, res) => {
         depositParsed.deposit_value,
         translationsSanitized,
         isPublic,
+        JSON.stringify(locationsParsed.locations),
       ]
     );
 
@@ -206,6 +222,7 @@ export const createService = async (req, res) => {
 export const getAllServices = async (req, res) => {
   try {
     await ensureListingVisibilitySchema(pool);
+    await ensureServiceLocationsSchema(pool);
     const {
       category,
       location,
@@ -363,8 +380,7 @@ export const getAllServices = async (req, res) => {
     if (location) {
       const locPatterns = expandLocationILIKEpatterns(String(location));
       const clauses = locPatterns.map(
-        (_, idx) =>
-          `(s.location ILIKE $${paramCount + idx} OR s.city ILIKE $${paramCount + idx} OR COALESCE(s.address, '') ILIKE $${paramCount + idx})`
+        (_, idx) => locationTextMatchClause(`$${paramCount + idx}`),
       );
       query += ` AND (${clauses.join(" OR ")})`;
       for (const p of locPatterns) {
@@ -457,7 +473,14 @@ export const getAllServices = async (req, res) => {
               WHERE tag.value ILIKE $${paramCount}
             )`,
             `s.city ILIKE $${paramCount}`,
-            `s.location ILIKE $${paramCount}`
+            `s.location ILIKE $${paramCount}`,
+            `EXISTS (
+              SELECT 1
+              FROM jsonb_array_elements(COALESCE(s.locations, '[]'::jsonb)) AS loc(value)
+              WHERE loc.value->>'city' ILIKE $${paramCount}
+                 OR loc.value->>'address' ILIKE $${paramCount}
+                 OR loc.value->>'location' ILIKE $${paramCount}
+            )`
           );
           params.push(p);
           paramCount++;
@@ -488,15 +511,10 @@ export const getAllServices = async (req, res) => {
     }
 
     if (hasGeo) {
-      const distExpr = `(6371 * acos(
-          cos(radians($${paramCount})) * cos(radians(s.latitude)) *
-          cos(radians(s.longitude) - radians($${paramCount + 1})) +
-          sin(radians($${paramCount})) * sin(radians(s.latitude))
-        ))`;
+      const distExpr = minDistanceExpr(`$${paramCount}`, `$${paramCount + 1}`);
 
       query += `
-          AND s.latitude IS NOT NULL AND s.longitude IS NOT NULL
-          AND ${distExpr} <= $${paramCount + 2}
+          AND ${withinRadiusClause(`$${paramCount}`, `$${paramCount + 1}`, `$${paramCount + 2}`)}
           ORDER BY ${hasSearch ? `${relevanceExpr} DESC,` : ""} ${distExpr} ASC
         `;
       params.push(lat, lng, km);
@@ -669,6 +687,7 @@ export const updateService = async (req, res) => {
     await ensureListingTagsSchema(pool);
     await ensureDepositsAndCalendarSchema(pool);
     await ensureListingVisibilitySchema(pool);
+    await ensureServiceLocationsSchema(pool);
     const { id } = req.params;
     const {
       title, description, category, category_id, subcategory,
@@ -811,6 +830,45 @@ export const updateService = async (req, res) => {
       depositValue = depositParsed.deposit_value;
     }
 
+    const touchesLocation =
+      req.body.locations !== undefined ||
+      location !== undefined ||
+      address !== undefined ||
+      latitude !== undefined ||
+      longitude !== undefined ||
+      city !== undefined;
+
+    let mergedLocations = existing.locations ?? [];
+    let mergedLocation = existing.location;
+    let mergedAddress = existing.address;
+    let mergedLatitude = existing.latitude;
+    let mergedLongitude = existing.longitude;
+    let mergedCity = existing.city;
+
+    if (touchesLocation) {
+      const locationsParsed = normalizeLocationsInput(
+        {
+          ...req.body,
+          location: location !== undefined ? location : existing.location,
+          address: address !== undefined ? address : existing.address,
+          latitude: latitude !== undefined ? latitude : existing.latitude,
+          longitude: longitude !== undefined ? longitude : existing.longitude,
+          city: city !== undefined ? city : existing.city,
+        },
+        existing,
+      );
+      if (locationsParsed.error) {
+        return res.status(400).json({ message: locationsParsed.error });
+      }
+      mergedLocations = locationsParsed.locations;
+      const primaryLoc = primaryLocationFields(mergedLocations);
+      mergedLocation = primaryLoc.location;
+      mergedAddress = primaryLoc.address;
+      mergedLatitude = primaryLoc.latitude;
+      mergedLongitude = primaryLoc.longitude;
+      mergedCity = primaryLoc.city;
+    }
+
     const updated = await pool.query(
       `UPDATE services
        SET title        = $1,
@@ -844,8 +902,9 @@ export const updateService = async (req, res) => {
            deposit_enabled    = $29,
            deposit_type       = $30,
            deposit_value      = $31,
-           is_public          = $32
-       WHERE id = $33
+           is_public          = $32,
+           locations          = $33::jsonb
+       WHERE id = $34
        RETURNING *`,
       [
         mergedTitleFinal,
@@ -856,11 +915,11 @@ export const updateService = async (req, res) => {
         tagFields ? JSON.stringify(tagFields.tags) : JSON.stringify(existing.listing_tags ?? []),
         tagFields ? tagFields.hasCustomTags : (existing.has_custom_tags ?? false),
         mergedPrice,
-        location     !== undefined ? location     : existing.location,
-        address      !== undefined ? (address || location || existing.location) : existing.address,
-        latitude     !== undefined ? latitude     : existing.latitude,
-        longitude    !== undefined ? longitude    : existing.longitude,
-        city         !== undefined ? (city || location || existing.location) : existing.city,
+        mergedLocation,
+        mergedAddress,
+        mergedLatitude,
+        mergedLongitude,
+        mergedCity,
         poster_type  !== undefined ? poster_type  : existing.poster_type,
         availability !== undefined ? normalizeAvailability(availability) : existing.availability,
         language     !== undefined ? language     : existing.language,
@@ -880,6 +939,7 @@ export const updateService = async (req, res) => {
         depositType,
         depositValue,
         is_public !== undefined ? parseIsPublic(is_public) : existing.is_public !== false,
+        JSON.stringify(mergedLocations),
         id,
       ]
     );

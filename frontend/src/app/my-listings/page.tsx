@@ -8,13 +8,13 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { PostPublishLink } from "@/components/navigation/PostPublishLink";
-import { Plus, Grid3x3, MapPin, ChevronDown, Clock } from "lucide-react";
+import { Plus, Grid3x3, ChevronDown, Clock } from "lucide-react";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import AppImage from "@/components/ui/AppImage";
 import EditListingModal from "@/components/listings/EditListingModal";
 import BookingSectionPagination from "@/components/bookings/BookingSectionPagination";
 import { Spinner } from "@/components/ui/Spinner";
-import { getPublicServiceLocation } from "@/lib/serviceLocation";
+import ListingLocationLine from "@/components/listings/ListingLocationLine";
 import { resolveListingTitle, type ServiceLikeWithI18n } from "@/lib/serviceListingI18n";
 import ListingLangPills from "@/components/ui/ListingLangPills";
 import { formatListingPriceLine } from "@/lib/listingPrice";
@@ -53,8 +53,7 @@ interface MyService extends ServiceLikeWithI18n {
   created_at: string;
   is_active: boolean;
   is_public?: boolean;
-  completed
-200
+  completed_bookings_count?: number | string | null;
   review_count?: number | string | null;
   average_rating?: number | string | null;
 }
@@ -236,18 +235,13 @@ function ListingCard({
             listingType={s.type === "looking" ? "looking" : s.type === "offer" ? "offer" : undefined}
           />
 
-          <div className="flex items-center justify-between text-xs text-gray-500 mt-auto">
-            <div className="flex items-center gap-1 min-w-0">
-              <MapPin className="h-3 w-3 shrink-0" />
-              <span className="line-clamp-1">{getPublicServiceLocation(s)}</span>
+          <ListingLocationLine service={s} />
+          {s.created_at && (
+            <div className="mt-1 flex items-center gap-1 text-xs text-gray-500">
+              <Clock className="h-3 w-3 shrink-0" />
+              <span>{formatListingCreationDate(s.created_at, i18nLang)}</span>
             </div>
-            {s.created_at && (
-              <div className="ml-2 flex shrink-0 items-center gap-1">
-                <Clock className="h-3 w-3" />
-                <span>{formatListingCreationDate(s.created_at, i18n.language)}</span>
-              </div>
-            )}
-          </div>
+          )}
         </Link>
 
         {!historical && (

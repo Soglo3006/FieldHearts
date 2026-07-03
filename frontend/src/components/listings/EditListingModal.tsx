@@ -7,10 +7,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import MultiImageUploader from "@/components/ui/MultiImageUploader";
-import LocationAutocomplete, {
-  type LocationDetails,
-  isResolvedLocationDetails,
-} from "@/components/post/LocationAutocomplete";
+import MultiLocationFields, {
+  entriesFromServiceLocations,
+  locationsFromEntries,
+  type LocationEntry,
+} from "@/components/post/MultiLocationFields";
 import CategorySubcategoryFields from "@/components/post/CategorySubcategoryFields";
 import AvailabilityLanguageMobilityFields from "@/components/post/AvailabilityLanguageMobilityFields";
 import ListingVisibilityCheckbox from "@/components/post/ListingVisibilityCheckbox";
@@ -115,6 +116,7 @@ export interface Service {
   is_one_time?: boolean;
   hide_exact_location?: boolean;
   is_public?: boolean;
+  locations?: Array<{ address?: string; city?: string; lat?: number; lng?: number; location?: string }>;
   deposit_enabled?: boolean;
   deposit_type?: string | null;
   deposit_value?: number | string | null;
@@ -141,18 +143,15 @@ export default function EditListingModal({ service, accessToken, onClose, onSave
   const [priceMin, setPriceMin] = useState(() => seedPricingFromService(service).min);
   const [priceMax, setPriceMax] = useState(() => seedPricingFromService(service).max);
   const [estimatedHours, setEstimatedHours] = useState(() => seedPricingFromService(service).hours);
-  const [location, setLocation] = useState(service.location);
-  const [locationDetails, setLocationDetails] = useState<LocationDetails | null>(() => {
-    const lat = service.latitude != null ? Number(service.latitude) : NaN;
-    const lng = service.longitude != null ? Number(service.longitude) : NaN;
-    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
-    return {
-      address: service.address ?? service.location,
-      lat,
-      lng,
-      city: service.city ?? service.location,
-    };
-  });
+  const [locationEntries, setLocationEntries] = useState<LocationEntry[]>(() =>
+    entriesFromServiceLocations(service.locations, {
+      location: service.location,
+      address: service.address ?? undefined,
+      city: service.city ?? undefined,
+      latitude: service.latitude,
+      longitude: service.longitude,
+    }),
+  );
   const [category, setCategory] = useState(service.category ?? "");
   const [tags, setTags] = useState<string[]>(() => parseListingTags(service));
   const [availability, setAvailability] = useState(
@@ -222,7 +221,9 @@ export default function EditListingModal({ service, accessToken, onClose, onSave
       Number(priceMin) >= 0.01 &&
       Number(priceMax) >= Number(priceMin));
 
-  const locationOk = location.trim() !== "" && isResolvedLocationDetails(locationDetails);
+  const resolvedLocations = locationsFromEntries(locationEntries);
+  const primaryLocation = resolvedLocations[0];
+  const locationOk = resolvedLocations.length >= 1;
 
   const depositOk = isDepositFormValueValid(
     pricingMode !== "quote" && depositEnabled,
@@ -262,11 +263,12 @@ export default function EditListingModal({ service, accessToken, onClose, onSave
             description: canon.description.trim(),
             translations: finalized,
             ...editPricingFields(),
-            location: location.trim(),
-            address: locationDetails?.address ?? location.trim(),
-            latitude: locationDetails?.lat ?? null,
-            longitude: locationDetails?.lng ?? null,
-            city: locationDetails?.city ?? location.trim(),
+            locations: resolvedLocations,
+            location: primaryLocation?.location ?? primaryLocation?.address,
+            address: primaryLocation?.address,
+            latitude: primaryLocation?.lat ?? null,
+            longitude: primaryLocation?.lng ?? null,
+            city: primaryLocation?.city,
             category: category || null,
             listing_tags: tags,
             subcategory: tags[0] ?? null,
@@ -491,15 +493,12 @@ export default function EditListingModal({ service, accessToken, onClose, onSave
             <Label className="text-base font-medium text-gray-900">
               {t("post.location")} <span className="text-red-500">*</span>
             </Label>
-            <LocationAutocomplete
-              value={location}
-              onChange={(val, details) => { setLocation(val); setLocationDetails(details ?? null); }}
-              placeholder={t("post.locationPlaceholder")}
+            <MultiLocationFields
+              idPrefix="editLocation"
+              entries={locationEntries}
+              onChange={setLocationEntries}
             />
             <p className="text-xs text-gray-500">{t("post.locationPickerHint")}</p>
-            {location.trim() !== "" && !isResolvedLocationDetails(locationDetails) && (
-              <p className="text-sm font-medium text-red-600">{t("post.locationMustSelectSuggestion")}</p>
-            )}
           </div>
 
           {/* Hide exact location */}

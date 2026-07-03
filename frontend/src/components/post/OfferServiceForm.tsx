@@ -6,10 +6,11 @@ import { useTranslation } from "react-i18next";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import MultiImageUploader from "@/components/ui/MultiImageUploader";
-import LocationAutocomplete, {
-  type LocationDetails,
-  isResolvedLocationDetails,
-} from "@/components/post/LocationAutocomplete";
+import MultiLocationFields, {
+  createEmptyLocationEntry,
+  locationsFromEntries,
+  type LocationEntry,
+} from "@/components/post/MultiLocationFields";
 import CategorySubcategoryFields from "@/components/post/CategorySubcategoryFields";
 import { formatListingTagsDisplay } from "@/lib/categories";
 import AvailabilityLanguageMobilityFields from "@/components/post/AvailabilityLanguageMobilityFields";
@@ -58,8 +59,7 @@ export default function OfferServiceForm({ onSuccess }: Props) {
   const [priceMin, setPriceMin] = useState("");
   const [priceMax, setPriceMax] = useState("");
   const [estimatedHours, setEstimatedHours] = useState("");
-  const [location, setLocation] = useState("");
-  const [locationDetails, setLocationDetails] = useState<LocationDetails | null>(null);
+  const [locationEntries, setLocationEntries] = useState<LocationEntry[]>([createEmptyLocationEntry()]);
   const [availability, setAvailability] = useState("");
   const [language, setLanguage] = useState("");
   const [mobility, setMobility] = useState("");
@@ -119,7 +119,9 @@ export default function OfferServiceForm({ onSuccess }: Props) {
       ? t("post.pricingModeQuote")
       : formatListingPriceLine(t, offerPricingFields());
 
-  const locationOk = location.trim() !== "" && isResolvedLocationDetails(locationDetails);
+  const resolvedLocations = locationsFromEntries(locationEntries);
+  const primaryLocation = resolvedLocations[0];
+  const locationOk = resolvedLocations.length >= 1;
 
   const confirmCategoryLine = category
     ? formatListingTagsDisplay(category, tags, null, t, " · ")
@@ -176,11 +178,12 @@ export default function OfferServiceForm({ onSuccess }: Props) {
           listing_tags: tags,
           subcategory: tags[0] ?? null,
           ...offerPricingFields(),
-          location,
-          address: locationDetails?.address ?? location,
-          latitude: locationDetails?.lat ?? null,
-          longitude: locationDetails?.lng ?? null,
-          city: locationDetails?.city ?? location,
+          locations: resolvedLocations,
+          location: primaryLocation?.location ?? primaryLocation?.address,
+          address: primaryLocation?.address,
+          latitude: primaryLocation?.lat ?? null,
+          longitude: primaryLocation?.lng ?? null,
+          city: primaryLocation?.city,
           availability,
           language,
           mobility,
@@ -374,17 +377,13 @@ export default function OfferServiceForm({ onSuccess }: Props) {
         </Label>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
           <div className="flex-1 min-w-0 space-y-1">
-            <LocationAutocomplete
-              id="serviceLocation"
-              value={location}
-              onChange={(val, details) => { setLocation(val); setLocationDetails(details ?? null); }}
-              placeholder={t("post.locationPlaceholder")}
+            <MultiLocationFields
+              idPrefix="serviceLocation"
+              entries={locationEntries}
+              onChange={setLocationEntries}
               required
             />
             <p className="text-xs text-gray-500">{t("post.locationPickerHint")}</p>
-            {location.trim() !== "" && !isResolvedLocationDetails(locationDetails) && (
-              <p className="text-sm font-medium text-red-600">{t("post.locationMustSelectSuggestion")}</p>
-            )}
           </div>
           <div className="flex w-full items-center gap-3 px-4 h-10 bg-white border border-gray-200 rounded-lg sm:w-56 sm:shrink-0">
             <input
@@ -453,7 +452,11 @@ export default function OfferServiceForm({ onSuccess }: Props) {
       titlesByLang={finalized.title ?? {}}
       descriptionsByLang={finalized.description ?? {}}
       priceSummary={confirmPriceSummary}
-      location={location}
+      location={
+        resolvedLocations.length > 1
+          ? `${primaryLocation?.location ?? primaryLocation?.address ?? ""} (+${resolvedLocations.length - 1})`
+          : (locationEntries[0]?.value ?? primaryLocation?.location ?? primaryLocation?.address ?? "")
+      }
       hideExactLocation={hideExactLocation}
       categoryLine={confirmCategoryLine}
       availabilityLabel={labelAvailability(t, availability)}

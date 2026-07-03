@@ -10,11 +10,11 @@ import { AspectRatio } from "@/components/ui/aspect-ratio";
 import {
   Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious,
 } from "@/components/ui/carousel";
-import { Grid3x3, MapPin, ChevronLeft, ChevronRight, Clock } from "lucide-react";
+import { Grid3x3, ChevronLeft, ChevronRight, Clock } from "lucide-react";
 import AppImage from "@/components/ui/AppImage";
 import EditListingModal, { type Service as Listing } from "@/components/listings/EditListingModal";
 import { Spinner } from "@/components/ui/Spinner";
-import { getPublicServiceLocation } from "@/lib/serviceLocation";
+import ListingLocationLine from "@/components/listings/ListingLocationLine";
 import { resolveListingTitle } from "@/lib/serviceListingI18n";
 import ListingLangPills from "@/components/ui/ListingLangPills";
 import { formatListingPriceLine } from "@/lib/listingPrice";
@@ -203,18 +203,13 @@ export default function ProfileListings({
             listingType={listing.type === "looking" ? "looking" : listing.type === "offer" ? "offer" : undefined}
           />
 
-          <div className="flex items-center justify-between text-xs text-gray-500 mt-auto">
-            <div className="flex items-center gap-1 min-w-0">
-              <MapPin className="h-3 w-3 shrink-0" />
-              <span className="line-clamp-1">{getPublicServiceLocation(listing)}</span>
+          <ListingLocationLine service={listing} />
+          {isOwner && listing.created_at && (
+            <div className="mt-1 flex items-center gap-1 text-xs text-gray-500">
+              <Clock className="h-3 w-3 shrink-0" />
+              <span>{formatListingCreationDate(listing.created_at, i18n.language)}</span>
             </div>
-            {isOwner && listing.created_at && (
-              <div className="ml-2 flex shrink-0 items-center gap-1">
-                <Clock className="h-3 w-3" />
-                <span>{formatListingCreationDate(listing.created_at, i18n.language)}</span>
-              </div>
-            )}
-          </div>
+          )}
         </Link>
 
         {isOwner && (

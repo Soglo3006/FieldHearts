@@ -8,7 +8,7 @@ import { needsOnboardingSetup } from "@/lib/onboarding";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useCallback } from "react";
-import { Grid3x3, MapPin } from "lucide-react";
+import { Grid3x3 } from "lucide-react";
 import { useJsApiLoader } from "@react-google-maps/api";
 import { GOOGLE_MAPS_LIBRARIES } from "@/lib/googleMapsConfig";
 import { geocodeCanadianLocation, LOCATION_SEARCH_RADIUS_KM } from "@/lib/geocodeCanadianLocation";
@@ -16,7 +16,7 @@ import { ListingsRegionEmptyState } from "@/components/listings/ListingsRegionEm
 import AppImage from "@/components/ui/AppImage";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
-import { getPublicServiceLocation } from "@/lib/serviceLocation";
+import ListingLocationLine from "@/components/listings/ListingLocationLine";
 import { resolveListingTitle, type ServiceLikeWithI18n } from "@/lib/serviceListingI18n";
 import ListingLangPills from "@/components/ui/ListingLangPills";
 import dynamic from "next/dynamic";
@@ -45,6 +45,7 @@ export interface HomeListing extends ServiceLikeWithI18n {
   address?: string | null;
   city?: string | null;
   hide_exact_location?: boolean;
+  locations?: Array<{ address?: string; city?: string; lat?: number; lng?: number; location?: string }>;
   image_url?: string;
   image_urls?: string[] | null;
   created_at: string;
@@ -68,11 +69,17 @@ function ListingCard({
   t,
   i18nLang,
   priority = false,
+  searchLat,
+  searchLng,
+  searchText,
 }: {
   listing: HomeListing;
   t: (key: string, opts?: Record<string, unknown>) => string;
   i18nLang: string | undefined;
   priority?: boolean;
+  searchLat?: number | null;
+  searchLng?: number | null;
+  searchText?: string | null;
 }) {
   const router = useRouter();
   const galleryUrls = getListingGalleryUrls(listing.image_urls, listing.image_url);
@@ -130,12 +137,12 @@ function ListingCard({
           listingType={listing.type}
           priceClassName="font-semibold"
         />
-        <div className="flex items-center text-xs text-gray-500 mt-auto">
-          <div className="flex items-center gap-1 min-w-0">
-            <MapPin className="h-3 w-3 shrink-0" />
-            <span className="line-clamp-1">{getPublicServiceLocation(listing)}</span>
-          </div>
-        </div>
+        <ListingLocationLine
+          service={listing}
+          searchLat={searchLat}
+          searchLng={searchLng}
+          searchText={searchText}
+        />
       </Link>
     </div>
   );
@@ -382,7 +389,16 @@ export default function HomePageClient({
                 <ListingsRegionEmptyState locationLabel={debouncedLocation} className="col-span-full" />
               ) : (
                 listings.slice(0, 9).map((listing, i) => (
-                  <ListingCard key={listing.id} listing={listing} t={t} i18nLang={i18n.language} priority={i < 3} />
+                  <ListingCard
+                    key={listing.id}
+                    listing={listing}
+                    t={t}
+                    i18nLang={i18n.language}
+                    priority={i < 3}
+                    searchLat={resolvedLocationCoords?.lat}
+                    searchLng={resolvedLocationCoords?.lng}
+                    searchText={debouncedLocation.trim() || null}
+                  />
                 ))
               )}
 
@@ -462,7 +478,14 @@ export default function HomePageClient({
                       <p className="text-gray-500 col-span-full">{t("home.noListingsNearYou")}</p>
                     ) : (
                       nearbyListings.map((listing) => (
-                        <ListingCard key={listing.id} listing={listing} t={t} i18nLang={i18n.language} />
+                        <ListingCard
+                          key={listing.id}
+                          listing={listing}
+                          t={t}
+                          i18nLang={i18n.language}
+                          searchLat={userCoords?.lat}
+                          searchLng={userCoords?.lng}
+                        />
                       ))
                     )}
                   </div>

@@ -63,7 +63,6 @@ export default function LocationMapModal({ location, lat, lng, isApproximate = f
   const mapSrc = isApproximate && hasCoords
     ? `https://www.google.com/maps/embed/v1/view?key=${apiKey}&center=${encodeURIComponent(coordQuery)}&zoom=12`
     : `https://www.google.com/maps/embed/v1/place?key=${apiKey}&q=${encodeURIComponent(mapQuery)}&zoom=${isApproximate ? 12 : 16}`;
-  const mapsHref = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapQuery)}`;
   const headerTitle =
     addressQuery ||
     (isApproximate ? t("serviceDetail.approximateLocation") : t("serviceDetail.exactLocation"));
@@ -83,16 +82,8 @@ export default function LocationMapModal({ location, lat, lng, isApproximate = f
           </button>
         </div>
         <MapEmbedPanel key={mapSrc} mapSrc={mapSrc} isApproximate={isApproximate} />
-        <div className="px-4 py-3 text-xs text-gray-600 flex items-center justify-between border-t">
+        <div className="px-4 py-3 text-xs text-gray-600 border-t">
           <span>{isApproximate ? t("serviceDetail.approximateLocationDesc") : t("serviceDetail.exactLocationDesc")}</span>
-          <a
-            href={mapsHref}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="underline text-green-700 hover:text-green-800"
-          >
-            {t("serviceDetail.openInGoogleMaps")}
-          </a>
         </div>
       </div>
     </div>

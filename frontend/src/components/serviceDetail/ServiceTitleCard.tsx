@@ -4,7 +4,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { MapPin, Calendar, Globe, Truck, Zap, Tag, Users } from "lucide-react";
 import SaveShareActions from "@/components/serviceDetail/SaveShareActions";
 import { useTranslation } from "react-i18next";
-import { getPublicServiceLocation } from "@/lib/serviceLocation";
+import { getServiceLocationEntries } from "@/lib/serviceLocation";
 import { resolveListingDescription, resolveListingTitle, type ServiceLikeWithI18n } from "@/lib/serviceListingI18n";
 import { formatListingPriceLine, normalizePricingMode, parseListingPriceNum } from "@/lib/listingPrice";
 import { formatDepositLabel, resolveDepositBaseAmount } from "@/lib/deposit";
@@ -36,6 +36,9 @@ interface Service {
   address?: string | null;
   city?: string | null;
   hide_exact_location?: boolean;
+  locations?: Array<{ address?: string; city?: string; lat?: number; lng?: number; location?: string }>;
+  latitude?: number | string | null;
+  longitude?: number | string | null;
   /** Présent dans l’API ; non affiché (durée approximative masquée produit). */
   duration?: string | null;
   availability: string | null;
@@ -57,7 +60,7 @@ interface Props {
   service: Service;
   favoritesCount: number;
   providerListingCount: number;
-  onOpenMap: () => void;
+  onOpenMap: (index?: number) => void;
 }
 
 export default function ServiceTitleCard({
@@ -82,6 +85,7 @@ export default function ServiceTitleCard({
     const n = typeof v === "number" ? v : parseInt(String(v), 10);
     return Number.isFinite(n) ? n : 0;
   })();
+  const locationEntries = getServiceLocationEntries(service);
 
   return (
     <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
@@ -108,18 +112,25 @@ export default function ServiceTitleCard({
             <p className="mt-2 text-sm text-gray-500 line-clamp-2">{categoryLine}</p>
           )}
 
-          <div className="mt-4 flex flex-col gap-2 text-sm text-gray-600 md:flex-row md:flex-wrap md:items-center md:gap-3">
-            <button
-              type="button"
-              onClick={onOpenMap}
-              className="cursor-pointer flex items-center gap-1 hover:text-green-700 text-left"
-            >
-              <MapPin className="h-4 w-4 shrink-0" />
-              <span className="underline cursor-pointer">{getPublicServiceLocation(service)}</span>
-            </button>
+          <div className="mt-4 flex flex-col gap-2 text-sm text-gray-600">
+            {locationEntries.length > 0 ? (
+              <ul className="flex flex-col gap-1.5">
+                {locationEntries.map((entry, index) => (
+                  <li key={`${entry.label}-${index}`} className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                    <MapPin className="h-4 w-4 shrink-0" aria-hidden />
+                    <button
+                      type="button"
+                      onClick={() => onOpenMap(index)}
+                      className="cursor-pointer text-left underline hover:text-green-700"
+                    >
+                      {entry.label}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
             {clientsServed > 0 && (
-              <>
-                <span className="hidden md:inline">·</span>
+              <div className="flex flex-wrap items-center gap-3">
                 <span
                   className="inline-flex items-center gap-1"
                   title={t(getListingCompletedBookingsTitleKey(service.type))}
@@ -127,7 +138,7 @@ export default function ServiceTitleCard({
                   <Users className="h-3.5 w-3.5 shrink-0" aria-hidden />
                   {t(getListingCompletedBookingsLabelKey(service.type), { count: clientsServed })}
                 </span>
-              </>
+              </div>
             )}
           </div>
 

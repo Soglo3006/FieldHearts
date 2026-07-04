@@ -47,6 +47,10 @@ function staysInActiveBookingsList(b: ReceivedBooking | SentBooking): boolean {
   return hasUnpaidBalanceDue(b, bookingDepositConfig(b));
 }
 
+function staysInCompletedBookingsList(b: ReceivedBooking | SentBooking): boolean {
+  return b.status === "completed" && !hasUnpaidBalanceDue(b, bookingDepositConfig(b));
+}
+
 function LoadingSkeleton() {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -301,7 +305,7 @@ function BookingsContent() {
     const openReceipt = (booking: ReceivedBooking | SentBooking) => {
       const role = booking.worker_id === uid ? "worker" : "client";
       setDetailBooking({ booking: booking as BookingDetail, role });
-      if (booking.status === "completed") {
+      if (staysInCompletedBookingsList(booking)) {
         setTab("done");
       } else if (received.some((b) => b.id === booking.id)) {
         setTab("received");
@@ -399,7 +403,7 @@ function BookingsContent() {
   };
 
   // Merge all completed bookings (deduplicated) then split by actual role
-  const allCompleted = [...received, ...sent].filter((b) => b.status === "completed");
+  const allCompleted = [...received, ...sent].filter(staysInCompletedBookingsList);
   const seenIds = new Set<string>();
   const uniqueCompleted = allCompleted.filter((b) => {
     if (seenIds.has(b.id)) return false;
@@ -685,36 +689,54 @@ function BookingsContent() {
                         return (
                           <div
                             key={b.id}
-                            className="bg-white border border-gray-200 rounded-xl p-4 flex items-center gap-4 cursor-pointer hover:border-gray-300 transition-colors"
+                            className="bg-white border border-gray-200 rounded-xl p-4 cursor-pointer hover:border-gray-300 transition-colors"
                             onClick={() => setDetailBooking({ booking: b as BookingDetail, role: "worker" })}
                           >
-                            {b.image_url && (
-                              <AppImage src={b.image_url} alt={b.title} width={56} height={56} className="h-14 w-14 rounded-lg object-cover shrink-0" />
-                            )}
-                            <div className="flex-1 min-w-0">
-                              <p className="font-medium text-gray-900 truncate">{b.title}</p>
-                              <p className="text-sm text-gray-500">{t("bookings.clientLabel")} : {("client_name" in b ? (b as ReceivedBooking).client_name : (b as SentBooking).worker_name)}</p>
-                              <p className="text-xs text-gray-400">{new Date(b.completed_at ?? b.created_at).toLocaleDateString(bookingDateLocale, { year: "numeric", month: "long", day: "numeric" })}</p>
-                            </div>
-                            <div className="text-right shrink-0">
-                              <p className="font-semibold text-green-700">+{finalAmount.toFixed(2)} $</p>
-                              {outcome.hasFinancialAdjustment && outcome.finalWorkerReceives !== null && (
-                                <>
-                                  <p className="text-xs text-gray-400 line-through">+{outcome.workerReceivesOriginal.toFixed(2)} $</p>
-                                  <p className="text-xs text-amber-700">{t("bookings.finalAfterDispute")}</p>
-                                </>
+                            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+                              {b.image_url && (
+                                <AppImage
+                                  src={b.image_url}
+                                  alt={b.title}
+                                  width={96}
+                                  height={56}
+                                  className="h-14 w-24 rounded-lg object-cover shrink-0"
+                                />
                               )}
-                              <span className="inline-block mt-1 text-xs bg-green-100 text-green-800 border border-green-200 rounded-full px-2 py-0.5">{t("bookings.done")}</span>
-                              {!b.has_reviewed && (
+                              <div className="flex flex-1 flex-col gap-3 min-w-0 sm:flex-row sm:items-center sm:justify-between">
+                                <div className="min-w-0">
+                                  <p className="font-medium text-gray-900 line-clamp-2 sm:truncate">{b.title}</p>
+                                  <p className="text-sm text-gray-500">
+                                    {t("bookings.clientLabel")} : {("client_name" in b ? (b as ReceivedBooking).client_name : (b as SentBooking).worker_name)}
+                                  </p>
+                                  <p className="text-xs text-gray-400">
+                                    {new Date(b.completed_at ?? b.created_at).toLocaleDateString(bookingDateLocale, { year: "numeric", month: "long", day: "numeric" })}
+                                  </p>
+                                </div>
+                                <div className="flex flex-col items-start gap-1 text-left shrink-0 sm:items-end sm:text-right">
+                                  <p className="font-semibold text-green-700">+{finalAmount.toFixed(2)} $</p>
+                                  {outcome.hasFinancialAdjustment && outcome.finalWorkerReceives !== null && (
+                                    <>
+                                      <p className="text-xs text-gray-400 line-through">+{outcome.workerReceivesOriginal.toFixed(2)} $</p>
+                                      <p className="text-xs text-amber-700">{t("bookings.finalAfterDispute")}</p>
+                                    </>
+                                  )}
+                                  <span className="inline-flex w-fit text-xs bg-green-100 text-green-800 border border-green-200 rounded-full px-2 py-0.5">
+                                    {t("bookings.done")}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                            {!b.has_reviewed && (
+                              <div className="mt-3 border-t border-gray-100 pt-3" onClick={(e) => e.stopPropagation()}>
                                 <button
                                   type="button"
-                                  onClick={(e) => { e.stopPropagation(); setReviewBooking({ id: b.id, targetName: (b as ReceivedBooking).client_name }); }}
-                                  className="block mt-1 text-xs text-green-700 hover:underline"
+                                  onClick={() => { setReviewBooking({ id: b.id, targetName: (b as ReceivedBooking).client_name }); }}
+                                  className="inline-flex text-xs font-medium text-green-700 hover:underline sm:ml-auto"
                                 >
                                   {t("bookings.leaveReview")}
                                 </button>
-                              )}
-                            </div>
+                              </div>
+                            )}
                           </div>
                         );
                       })
@@ -778,55 +800,78 @@ function BookingsContent() {
                         return (
                           <div
                             key={b.id}
-                            className="bg-white border border-gray-200 rounded-xl p-4 flex items-center gap-4 cursor-pointer hover:border-gray-300 transition-colors"
+                            className="bg-white border border-gray-200 rounded-xl p-4 cursor-pointer hover:border-gray-300 transition-colors"
                             onClick={() => setDetailBooking({ booking: b as BookingDetail, role: "client" })}
                           >
-                            {b.image_url && (
-                              <AppImage src={b.image_url} alt={b.title} width={56} height={56} className="h-14 w-14 rounded-lg object-cover shrink-0" />
-                            )}
-                            <div className="flex-1 min-w-0">
-                              <p className="font-medium text-gray-900 truncate">{b.title}</p>
-                              <p className="text-sm text-gray-500">{t("bookings.providerLabel")} : {("worker_name" in b ? (b as SentBooking).worker_name : (b as ReceivedBooking).client_name)}</p>
-                              <p className="text-xs text-gray-400">{new Date(b.completed_at ?? b.created_at).toLocaleDateString(bookingDateLocale, { year: "numeric", month: "long", day: "numeric" })}</p>
-                            </div>
-                            <div className="text-right shrink-0">
-                              <p className="font-semibold text-red-600">-{finalAmount.toFixed(2)} $</p>
-                              {outcome.hasFinancialAdjustment && outcome.finalClientPaid !== null && (
-                                <>
-                                  <p className="text-xs text-gray-400 line-through">-{outcome.totalPaidOriginal.toFixed(2)} $</p>
-                                  <p className="text-xs text-amber-700">{t("bookings.finalAfterDispute")}</p>
-                                </>
+                            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+                              {b.image_url && (
+                                <AppImage
+                                  src={b.image_url}
+                                  alt={b.title}
+                                  width={96}
+                                  height={56}
+                                  className="h-14 w-24 rounded-lg object-cover shrink-0"
+                                />
                               )}
-                              <span className="inline-block mt-1 text-xs bg-green-100 text-green-800 border border-green-200 rounded-full px-2 py-0.5">{t("bookings.done")}</span>
-                              {balancePayment && session?.access_token && (
-                                <div className="mt-2" onClick={(e) => e.stopPropagation()}>
-                                  <PayNowButton
-                                    bookingId={b.id}
-                                    accessToken={session.access_token}
-                                    bookingTitle={b.title}
-                                    price={resolveCheckoutPrice(b, depositConfig)}
-                                    clientProvince={b.client_province ?? null}
-                                    taxRateStored={b.tax_rate ? Number(b.tax_rate) : null}
-                                    checkoutKind={checkoutKind}
-                                    depositConfig={depositConfig}
-                                    depositAmountCents={b.deposit_amount_cents}
-                                    fullServiceBase={
-                                      resolveBalanceFullServiceBase(b) ?? resolveBookingCheckoutBase(b)
-                                    }
-                                    pricingMode={b.pricing_mode}
-                                  />
+                              <div className="flex flex-1 flex-col gap-3 min-w-0 sm:flex-row sm:items-center sm:justify-between">
+                                <div className="min-w-0">
+                                  <p className="font-medium text-gray-900 line-clamp-2 sm:truncate">{b.title}</p>
+                                  <p className="text-sm text-gray-500">
+                                    {t("bookings.providerLabel")} : {("worker_name" in b ? (b as SentBooking).worker_name : (b as ReceivedBooking).client_name)}
+                                  </p>
+                                  <p className="text-xs text-gray-400">
+                                    {new Date(b.completed_at ?? b.created_at).toLocaleDateString(bookingDateLocale, { year: "numeric", month: "long", day: "numeric" })}
+                                  </p>
                                 </div>
-                              )}
-                              {!b.has_reviewed && (
-                                <button
-                                  type="button"
-                                  onClick={(e) => { e.stopPropagation(); setReviewBooking({ id: b.id, targetName: ("worker_name" in b ? (b as SentBooking).worker_name : (b as ReceivedBooking).client_name) }); }}
-                                  className="block mt-1 text-xs text-green-700 hover:underline"
-                                >
-                                  {t("bookings.leaveReview")}
-                                </button>
-                              )}
+                                <div className="flex flex-col items-start gap-1 text-left shrink-0 sm:items-end sm:text-right">
+                                  <p className="font-semibold text-red-600">-{finalAmount.toFixed(2)} $</p>
+                                  {outcome.hasFinancialAdjustment && outcome.finalClientPaid !== null && (
+                                    <>
+                                      <p className="text-xs text-gray-400 line-through">-{outcome.totalPaidOriginal.toFixed(2)} $</p>
+                                      <p className="text-xs text-amber-700">{t("bookings.finalAfterDispute")}</p>
+                                    </>
+                                  )}
+                                  <span className="inline-flex w-fit text-xs bg-green-100 text-green-800 border border-green-200 rounded-full px-2 py-0.5">
+                                    {t("bookings.done")}
+                                  </span>
+                                </div>
+                              </div>
                             </div>
+                            {(balancePayment || !b.has_reviewed) && (
+                              <div className="mt-3 border-t border-gray-100 pt-3" onClick={(e) => e.stopPropagation()}>
+                                <div className="flex flex-col gap-2">
+                                  {balancePayment && session?.access_token && (
+                                    <div className="mx-auto w-full max-w-sm">
+                                      <PayNowButton
+                                        bookingId={b.id}
+                                        accessToken={session.access_token}
+                                        showAgreementText={false}
+                                        bookingTitle={b.title}
+                                        price={resolveCheckoutPrice(b, depositConfig)}
+                                        clientProvince={b.client_province ?? null}
+                                        taxRateStored={b.tax_rate ? Number(b.tax_rate) : null}
+                                        checkoutKind={checkoutKind}
+                                        depositConfig={depositConfig}
+                                        depositAmountCents={b.deposit_amount_cents}
+                                        fullServiceBase={
+                                          resolveBalanceFullServiceBase(b) ?? resolveBookingCheckoutBase(b)
+                                        }
+                                        pricingMode={b.pricing_mode}
+                                      />
+                                    </div>
+                                  )}
+                                  {!b.has_reviewed && (
+                                    <button
+                                      type="button"
+                                      onClick={() => { setReviewBooking({ id: b.id, targetName: ("worker_name" in b ? (b as SentBooking).worker_name : (b as ReceivedBooking).client_name) }); }}
+                                      className="inline-flex text-xs font-medium text-green-700 hover:underline sm:ml-auto"
+                                    >
+                                      {t("bookings.leaveReview")}
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            )}
                           </div>
                         );
                       })

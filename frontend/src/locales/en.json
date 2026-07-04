@@ -308,6 +308,7 @@
     "paid": "Paid",
     "depositPaid": "Deposit paid",
     "balanceDue": "Balance due",
+    "waitingBalanceShort": "Awaiting balance",
     "waitingForBalance": "Waiting for the client to pay the balance.",
     "refunded": "Refunded",
     "requestFrom": "Request from",

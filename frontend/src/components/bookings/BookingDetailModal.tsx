@@ -432,6 +432,9 @@ export default function BookingDetailModal({
   const needsPayment = paymentNeed.needed;
   const checkoutKind = paymentNeed.kind;
   const balanceDueCents = computeHourlyBalanceDueCents(booking);
+  const showBalanceDueStatusBadge =
+    booking.status === "completed" && needsPayment && checkoutKind === "balance";
+  const hasPendingFinalBalance = booking.status === "completed" && checkoutKind === "balance";
   const hasMarkedDone = userRole === "worker" ? booking.completed_by_worker : booking.completed_by_client;
   const otherHasMarkedDone = userRole === "worker" ? booking.completed_by_client : booking.completed_by_worker;
   const panelOrders = layoutMode === "dispute"
@@ -455,6 +458,14 @@ export default function BookingDetailModal({
   const disputeIsClosed = disputeStatus === "resolved" || disputeStatus === "rejected";
   const disputeFinancialOutcome = getBookingDisputeFinancialOutcome(booking);
   const displayStatusBadge = (() => {
+    if (showBalanceDueStatusBadge) {
+      return {
+        label: userRole === "worker" ? t("bookings.waitingBalanceShort") : t("bookings.balanceDue"),
+        className: userRole === "worker"
+          ? "bg-gray-100 text-gray-600 border-gray-200"
+          : "bg-amber-100 text-amber-800 border-amber-200",
+      };
+    }
     if (booking.status === "completed" && disputeIsClosed) {
       if (disputeFinancialOutcome.refundType === "full") {
         return { label: t("bookings.refundedFull"), className: "bg-green-100 text-green-800 border-green-200" };
@@ -1109,6 +1120,62 @@ export default function BookingDetailModal({
                 // Completed: worker sees client summary + payout, client sees total paid only
                 if (booking.status === "completed") {
                   if (userRole === "worker") {
+                    if (hasPendingFinalBalance) {
+                      return (
+                        <div className="space-y-3">
+                          <div className="rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-xs text-green-700">
+                            {t("bookings.waitingForBalance")}
+                          </div>
+                          <Card className="overflow-hidden shadow-none">
+                            <div className="flex items-center gap-2 bg-white px-4 py-2.5 border-b border-gray-100">
+                              <TrendingDown className="h-3.5 w-3.5 text-gray-500" />
+                              <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                                {t("bookings.clientPaid")}
+                              </span>
+                            </div>
+                            <CardContent className="px-4 pt-0 pb-4 space-y-2 text-sm">
+                              {splitPaymentSummary.variant === "split_deposit_paid" ? (
+                                <>
+                                  <div className="flex justify-between text-green-700 bg-green-50 -mx-1 px-2 py-1.5 rounded-lg">
+                                    <span className="font-medium">{t("payment.depositPaidLine")}</span>
+                                    <span className="font-semibold">{fmt(splitPaymentSummary.depositPaid)} $</span>
+                                  </div>
+                                  <HourlyDepositReceiptBreakdown
+                                    depositPaid={splitPaymentSummary.depositPaid}
+                                    serviceBase={splitPaymentSummary.serviceBase}
+                                    hourlyRate={splitPaymentSummary.hourlyRate}
+                                    hoursLabel={splitPaymentSummary.hoursLabel}
+                                    hoursIsApproved={splitPaymentSummary.hoursIsApproved}
+                                    estimatedTotalWithFees={splitPaymentSummary.estimatedTotalWithFees}
+                                    remainingBase={splitPaymentSummary.remainingBase}
+                                    remainingCommission={splitPaymentSummary.remainingCommission}
+                                    remainingTaxes={splitPaymentSummary.remainingTaxes}
+                                    remainingTotal={splitPaymentSummary.remainingTotal}
+                                    taxRate={taxRate}
+                                    taxLabel={taxLabel}
+                                    pricingMode={booking.pricing_mode}
+                                    fmt={fmt}
+                                  />
+                                </>
+                              ) : (
+                                <>
+                                  <div className="flex justify-between text-gray-600">
+                                    <span>{t("serviceDetail.total")}</span>
+                                    <span className="font-medium">{fmt(totalPaid)} $</span>
+                                  </div>
+                                  <div className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-3">
+                                    <div className="flex justify-between text-sm font-semibold text-gray-900">
+                                      <span>{t("bookings.remainingToPay")}</span>
+                                      <span>{fmt(balanceDueCents / 100)} $</span>
+                                    </div>
+                                  </div>
+                                </>
+                              )}
+                            </CardContent>
+                          </Card>
+                        </div>
+                      );
+                    }
                     return (
                       <div className="space-y-3">
                         {/* What the client paid */}
@@ -1199,6 +1266,57 @@ export default function BookingDetailModal({
                     );
                   }
                   // Client completed view
+                  if (hasPendingFinalBalance) {
+                    return (
+                      <Card className="overflow-hidden shadow-none">
+                        <div className="flex items-center gap-2 bg-white px-4 py-2.5 border-b border-gray-100">
+                          <TrendingDown className="h-3.5 w-3.5 text-gray-500" />
+                          <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                            {t("bookings.paymentSummary")}
+                          </span>
+                        </div>
+                        <CardContent className="px-4 pt-0 pb-4 space-y-2 text-sm">
+                          {splitPaymentSummary.variant === "split_deposit_paid" ? (
+                            <>
+                              <div className="flex justify-between text-green-700 bg-green-50 -mx-1 px-2 py-1.5 rounded-lg">
+                                <span className="font-medium">{t("payment.depositPaidLine")}</span>
+                                <span className="font-semibold">{fmt(splitPaymentSummary.depositPaid)} $</span>
+                              </div>
+                              <HourlyDepositReceiptBreakdown
+                                depositPaid={splitPaymentSummary.depositPaid}
+                                serviceBase={splitPaymentSummary.serviceBase}
+                                hourlyRate={splitPaymentSummary.hourlyRate}
+                                hoursLabel={splitPaymentSummary.hoursLabel}
+                                hoursIsApproved={splitPaymentSummary.hoursIsApproved}
+                                estimatedTotalWithFees={splitPaymentSummary.estimatedTotalWithFees}
+                                remainingBase={splitPaymentSummary.remainingBase}
+                                remainingCommission={splitPaymentSummary.remainingCommission}
+                                remainingTaxes={splitPaymentSummary.remainingTaxes}
+                                remainingTotal={splitPaymentSummary.remainingTotal}
+                                taxRate={taxRate}
+                                taxLabel={taxLabel}
+                                pricingMode={booking.pricing_mode}
+                                fmt={fmt}
+                              />
+                            </>
+                          ) : (
+                            <>
+                              <div className="flex justify-between text-gray-600">
+                                <span>{t("serviceDetail.total")}</span>
+                                <span className="font-medium">{fmt(totalPaid)} $</span>
+                              </div>
+                              <div className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-3">
+                                <div className="flex justify-between text-sm font-semibold text-gray-900">
+                                  <span>{t("bookings.remainingToPay")}</span>
+                                  <span>{fmt(balanceDueCents / 100)} $</span>
+                                </div>
+                              </div>
+                            </>
+                          )}
+                        </CardContent>
+                      </Card>
+                    );
+                  }
                   return (
                     <div className="space-y-3">
                       <Card className="overflow-hidden shadow-none">
@@ -1696,7 +1814,7 @@ export default function BookingDetailModal({
               </div>
             )}
 
-            {booking.status === "completed" && !booking.has_dispute && (() => {
+            {booking.status === "completed" && !hasPendingFinalBalance && !booking.has_dispute && (() => {
               const DISPUTE_DAYS = 3;
               if (!booking.completed_at) return null;
               const completedMs = new Date(booking.completed_at).getTime();

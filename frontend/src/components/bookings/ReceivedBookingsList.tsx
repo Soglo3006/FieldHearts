@@ -20,12 +20,20 @@ import ListingLocationLine from "@/components/listings/ListingLocationLine";
 
 const RECEIVED_PAGE_SIZE = 4;
 
-function StatusBadge({ status }: { status: BookingStatus }) {
+function StatusBadge({
+  status,
+  label,
+  className,
+}: {
+  status: BookingStatus;
+  label?: string;
+  className?: string;
+}) {
   const { t } = useTranslation();
   const c = STATUS_CONFIG[status] ?? STATUS_CONFIG.pending;
   return (
-    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${c.badge}`}>
-      {t(c.labelKey)}
+    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${className ?? c.badge}`}>
+      {label ?? t(c.labelKey)}
     </span>
   );
 }
@@ -35,6 +43,7 @@ function PaymentBadge({ status }: { status: string | null }) {
   if (!status || status === "unpaid") return null;
   const cfg: Record<string, string> = {
     paid: "bg-green-100 text-green-700 border-green-200",
+    deposit_paid: "bg-green-100 text-green-700 border-green-200",
     transferred: "bg-blue-100 text-blue-700 border-blue-200",
     refunded: "bg-gray-100 text-gray-600 border-gray-200",
   };
@@ -69,6 +78,19 @@ export default function ReceivedBookingsList({
   onUpdateStatus, onMarkCompleted, onMessage, onReview, onDispute, onCardClick,
 }: Props) {
   const { t } = useTranslation();
+  const getDisplayStatus = (booking: ReceivedBooking): BookingStatus => {
+    const depositConfig = booking.deposit_enabled
+      ? {
+          deposit_enabled: true,
+          deposit_type: booking.deposit_type,
+          deposit_value: booking.deposit_value,
+        }
+      : null;
+    const paymentNeed = needsBookingPayment(booking, depositConfig);
+    return booking.status === "completed" && paymentNeed.kind === "balance"
+      ? "active"
+      : booking.status;
+  };
   const [groupOpen, setGroupOpen] = useState<Record<string, boolean>>(() =>
     Object.fromEntries(BOOKING_GROUPS.map((g) => [g.labelKey, true])),
   );
@@ -80,7 +102,7 @@ export default function ReceivedBookingsList({
   );
 
   const visibleGroups = BOOKING_GROUPS.filter(({ statuses }) =>
-    bookings.some((b) => statuses.includes(b.status)),
+    bookings.some((b) => statuses.includes(getDisplayStatus(b))),
   );
 
   const changeGroupPage = (labelKey: string, next: number) => {
@@ -95,7 +117,7 @@ export default function ReceivedBookingsList({
   return (
     <div className="space-y-8">
       {visibleGroups.map(({ labelKey, statuses }, index) => {
-        const groupBookings = bookings.filter((b) => statuses.includes(b.status));
+        const groupBookings = bookings.filter((b) => statuses.includes(getDisplayStatus(b)));
         const totalPages = Math.max(1, Math.ceil(groupBookings.length / RECEIVED_PAGE_SIZE));
         const page = Math.min(groupPage[labelKey] ?? 1, totalPages);
         const start = (page - 1) * RECEIVED_PAGE_SIZE;
@@ -140,7 +162,6 @@ export default function ReceivedBookingsList({
                   >
               {pagedBookings.map((b) => {
                 const isLooking = b.service_type === "looking";
-                const statusBar = STATUS_CONFIG[b.status]?.bar ?? "bg-gray-400";
                 const disputeWindow = getDisputeWindowState(b.completed_at);
                 // For offer: other person is the client (b.client_id)
                 // For looking: other person is the worker/applicant (b.worker_id)
@@ -154,8 +175,15 @@ export default function ReceivedBookingsList({
                       deposit_value: b.deposit_value,
                     }
                   : null;
-                const needsPayment = isLooking && needsBookingPayment(b, depositConfig).needed;
-                const checkoutKind = needsBookingPayment(b, depositConfig).kind;
+                const paymentNeed = needsBookingPayment(b, depositConfig);
+                const currentUserPaysBalance = isLooking;
+                const needsPayment = currentUserPaysBalance && paymentNeed.needed;
+                const checkoutKind = paymentNeed.kind;
+                const hasPendingFinalBalance = b.status === "completed" && checkoutKind === "balance";
+                const displayStatus = getDisplayStatus(b);
+                const showBalanceDueStatus = b.status === "completed" && currentUserPaysBalance && checkoutKind === "balance";
+                const showWaitingBalanceStatus = b.status === "completed" && !currentUserPaysBalance && checkoutKind === "balance";
+                const statusBar = STATUS_CONFIG[displayStatus]?.bar ?? "bg-gray-400";
 
                 const cardPriceLabel = formatBookingCheckoutTotalDisplay(t, b, cardTaxRate);
 
@@ -183,7 +211,11 @@ export default function ReceivedBookingsList({
                           {b.title}
                         </h3>
                         <div className="flex items-center gap-1.5 shrink-0">
-                          <StatusBadge status={b.status} />
+                          <StatusBadge
+                            status={displayStatus}
+                            label={showBalanceDueStatus ? t("bookings.balanceDue") : showWaitingBalanceStatus ? t("bookings.waitingBalanceShort") : undefined}
+                            className={showBalanceDueStatus ? "bg-amber-100 text-amber-800 border-amber-200" : showWaitingBalanceStatus ? "bg-gray-100 text-gray-600 border-gray-200" : undefined}
+                          />
                           <PaymentBadge status={b.payment_status} />
                         </div>
                       </div>
@@ -211,6 +243,12 @@ export default function ReceivedBookingsList({
                       {needsPayment && (
                         <div className="bg-green-50 border border-green-200 rounded-lg px-3 py-2 mb-3 text-xs text-green-700">
                           {t("bookings.bookingAcceptedPayment")}
+                        </div>
+                      )}
+
+                      {showWaitingBalanceStatus && (
+                        <div className="bg-green-50 border border-green-200 rounded-lg px-3 py-2 mb-3 text-xs text-green-700">
+                          {t("bookings.waitingForBalance")}
                         </div>
                       )}
 
@@ -356,13 +394,13 @@ export default function ReceivedBookingsList({
                                 <Star className="h-3.5 w-3.5 fill-yellow-400 text-yellow-400" /> {t("bookings.reviewed")}
                               </span>
                             )}
-                            {!b.has_dispute && disputeWindow.isOpen && (
+                            {!hasPendingFinalBalance && !b.has_dispute && disputeWindow.isOpen && (
                               <Button type="button" size="sm" variant="outline" className="w-full justify-center text-red-600 border-red-200 hover:bg-red-50 gap-1.5"
                                 onClick={() => onDispute(b.id, b.title)}>
                                 {t("bookings.dispute")}
                               </Button>
                             )}
-                            {!b.has_dispute && disputeWindow.isExpired && (
+                            {!hasPendingFinalBalance && !b.has_dispute && disputeWindow.isExpired && (
                               <Button type="button" size="sm" variant="outline" className="w-full justify-center text-gray-400 border-gray-200 bg-gray-50 gap-1.5" disabled>
                                 {t("bookings.disputeExpiredButton")}
                               </Button>

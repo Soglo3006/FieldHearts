@@ -309,6 +309,7 @@
     "paid": "Payé",
     "depositPaid": "Dépôt payé",
     "balanceDue": "Solde à payer",
+    "waitingBalanceShort": "Attente solde",
     "waitingForBalance": "En attente du paiement du solde par le client.",
     "refunded": "Remboursé",
     "requestFrom": "Demande de",

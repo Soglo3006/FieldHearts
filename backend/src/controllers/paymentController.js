@@ -1,5 +1,6 @@
 import pool from "../config/db.js";
 import stripe from "../config/stripe.js";
+import { finalizeCompletion } from "./bookingController.js";
 import { notifyPaymentReceipt } from "../services/emailService.js";
 import { processBookingRefund } from "../services/refundService.js";
 import { calculateDepositAmount, ensureDepositsAndCalendarSchema, resolveBookingDepositMeta, resolveCheckoutBaseAmount } from "../utils/depositSchema.js";
@@ -393,13 +394,15 @@ async function loadVerifyBookingSnapshot(bookingId) {
 
 async function loadBookingForHourlyPayment(bookingId) {
   const result = await pool.query(
-    `SELECT b.*, s.price AS service_price, s.pricing_mode AS service_pricing_mode,
+    `SELECT b.*, s.title, s.price AS service_price, s.pricing_mode AS service_pricing_mode,
             s.price_max, s.estimated_hours AS service_estimated_hours,
             s.deposit_enabled AS service_deposit_enabled,
             s.deposit_type AS service_deposit_type,
-            s.deposit_value AS service_deposit_value
+            s.deposit_value AS service_deposit_value,
+            CASE WHEN uc.account_type = 'company' THEN uc.company_name ELSE uc.full_name END AS client_name
      FROM bookings b
      JOIN services s ON s.id = b.service_id
+     JOIN users uc ON uc.id = b.client_id
      WHERE b.id = $1`,
     [bookingId],
   );
@@ -498,6 +501,13 @@ async function completeCheckoutPayment(session) {
            balance_due_cents = 0
        WHERE id = $1 AND status = 'accepted'`,
       [bookingId, paidServiceCents],
+    );
+  }
+
+  const payoutBooking = await loadBookingForHourlyPayment(bookingId);
+  if (payoutBooking?.status === "completed" && payoutBooking.payment_status === "paid") {
+    await finalizeCompletion(payoutBooking).catch((err) =>
+      console.error("Finalize completion after payment failed for booking", bookingId, err.message),
     );
   }
 

@@ -1463,7 +1463,10 @@ async function autoRejectOtherRequests(serviceId, acceptedBookingId) {
   );
 }
 
-async function finalizeCompletion(booking) {
+export async function finalizeCompletion(booking) {
+  if (booking.payment_status !== "paid") {
+    return false;
+  }
   const listingTitle = (booking.title || "").trim();
   const effectivePrice = getEffectiveBookingPrice(booking);
   // Worker receives 80% (platform keeps 20% commission)
@@ -1493,6 +1496,10 @@ async function finalizeCompletion(booking) {
        WHERE user_id = $2`,
       [workerReceives, booking.worker_id]
     );
+  }
+
+  if (existingCredit.rows.length > 0) {
+    return false;
   }
 
   // Notify worker: payment received
@@ -1550,5 +1557,7 @@ async function finalizeCompletion(booking) {
         : "Votre réservation a été marquée comme terminée.",
     },
   });
+
+  return true;
 }
 

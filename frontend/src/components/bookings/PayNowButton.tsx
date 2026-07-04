@@ -15,6 +15,7 @@ interface Props {
   bookingId: string;
   accessToken: string;
   fullWidth?: boolean;
+  showAgreementText?: boolean;
   bookingTitle?: string;
   price?: number;
   clientProvince?: string | null;
@@ -29,6 +30,7 @@ interface Props {
 
 export default function PayNowButton({
   bookingId, accessToken, fullWidth,
+  showAgreementText = true,
   bookingTitle = "", price = 0, clientProvince = null,
   checkoutKind = "full",
   depositConfig = null,
@@ -77,10 +79,12 @@ export default function PayNowButton({
       >
         {buttonLabel}
       </Button>
-      <p className="text-center text-xs text-gray-400">
-        {t("payNowButton.agreement")}{" "}
-        <Link href="/payment-terms" className="text-green-700 hover:underline">{t("footer.paymentTerms")}</Link>
-      </p>
+      {showAgreementText && (
+        <p className="text-center text-xs text-gray-400">
+          {t("payNowButton.agreement")}{" "}
+          <Link href="/payment-terms" className="text-green-700 hover:underline">{t("footer.paymentTerms")}</Link>
+        </p>
+      )}
 
       {/* Standalone cards open the same centered modal used by booking details. */}
       {!onPayNow && (

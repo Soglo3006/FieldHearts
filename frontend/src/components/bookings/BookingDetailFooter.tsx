@@ -88,6 +88,7 @@ export default function BookingDetailFooter({
     : null;
   const { kind: checkoutKind } = needsBookingPayment(booking, depositConfig);
   const clientMustPayBalance = userRole === "client" && checkoutKind === "balance";
+  const hasPendingFinalBalance = booking.status === "completed" && checkoutKind === "balance";
   const awaitingHours = hourlyAwaitingApprovedHours(booking);
   const awaitingWork = fixedAwaitingWorkForBalance(booking, depositConfig);
 
@@ -337,7 +338,7 @@ export default function BookingDetailFooter({
 
       {/* Dispute */}
 
-      {booking.status === "completed" && !booking.has_dispute && disputeWindow.isOpen && (
+      {booking.status === "completed" && !hasPendingFinalBalance && !booking.has_dispute && disputeWindow.isOpen && (
 
         <Button variant="outline" className="w-full text-red-600 border-red-200 hover:bg-red-50 h-10"
 
@@ -349,7 +350,7 @@ export default function BookingDetailFooter({
 
       )}
 
-      {booking.status === "completed" && !booking.has_dispute && disputeWindow.isExpired && (
+      {booking.status === "completed" && !hasPendingFinalBalance && !booking.has_dispute && disputeWindow.isExpired && (
 
         <Button variant="outline" className="w-full text-gray-400 border-gray-200 bg-gray-50 h-10" disabled>
 
@@ -363,7 +364,7 @@ export default function BookingDetailFooter({
 
       {/* Review */}
 
-      {booking.status === "completed" && !booking.has_reviewed && (
+      {booking.status === "completed" && !hasPendingFinalBalance && !booking.has_reviewed && (
 
         <Button className="w-full bg-yellow-500 hover:bg-yellow-600 text-white h-10 gap-2"
 
@@ -375,7 +376,7 @@ export default function BookingDetailFooter({
 
       )}
 
-      {booking.status === "completed" && booking.has_reviewed && (
+      {booking.status === "completed" && !hasPendingFinalBalance && booking.has_reviewed && (
 
         <div className="flex items-center justify-center gap-1.5 text-sm text-gray-400 py-1">
 

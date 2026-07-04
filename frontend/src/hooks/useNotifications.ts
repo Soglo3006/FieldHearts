@@ -9,6 +9,10 @@ export interface AppNotification {
   link: string | null;
   read_at: string | null;
   created_at: string;
+  service_title?: string | null;
+  service_image_url?: string | null;
+  sender_name?: string | null;
+  sender_avatar?: string | null;
 }
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "";

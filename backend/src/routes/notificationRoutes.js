@@ -54,8 +54,11 @@ router.get("/", protect, async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT n.id, n.type, n.title, n.body, n.link, n.read_at, n.created_at,
-              COALESCE(s.title, fix.service_title) AS service_title,
-              COALESCE(b.id, fix.booking_id) AS resolved_booking_id
+              COALESCE(s.title, fix.service_title, title_match.service_title) AS service_title,
+              COALESCE(b.id, fix.booking_id, title_match.booking_id) AS resolved_booking_id,
+              COALESCE(s.image_urls[1], s.image_url, fix.service_image_url, title_match.service_image_url) AS service_image_url,
+              msg.sender_name,
+              msg.sender_avatar
        FROM notifications n
        LEFT JOIN bookings b
          ON n.link ~ 'booking='
@@ -63,7 +66,9 @@ router.get("/", protect, async (req, res) => {
         AND (b.client_id = n.user_id OR b.worker_id = n.user_id)
        LEFT JOIN services s ON s.id = b.service_id
        LEFT JOIN LATERAL (
-         SELECT bk.id AS booking_id, sv.title AS service_title
+         SELECT bk.id AS booking_id,
+                sv.title AS service_title,
+                COALESCE(sv.image_urls[1], sv.image_url) AS service_image_url
          FROM bookings bk
          JOIN services sv ON sv.id = bk.service_id
          WHERE n.type = 'booking_completed'
@@ -74,6 +79,31 @@ router.get("/", protect, async (req, res) => {
          ORDER BY ABS(EXTRACT(EPOCH FROM (n.created_at - COALESCE(bk.completed_at, bk.created_at))))
          LIMIT 1
        ) fix ON true
+       LEFT JOIN LATERAL (
+         SELECT bk.id AS booking_id,
+                sv.title AS service_title,
+                COALESCE(sv.image_urls[1], sv.image_url) AS service_image_url
+         FROM bookings bk
+         JOIN services sv ON sv.id = bk.service_id
+         WHERE b.id IS NULL
+           AND n.type IN ('booking_request', 'booking_accepted', 'booking_rejected', 'booking_completed')
+           AND (bk.client_id = n.user_id OR bk.worker_id = n.user_id)
+           AND n.body ILIKE '%' || sv.title || '%'
+         ORDER BY LENGTH(sv.title) DESC,
+                  ABS(EXTRACT(EPOCH FROM (n.created_at - bk.created_at)))
+         LIMIT 1
+       ) title_match ON true
+       LEFT JOIN LATERAL (
+         SELECT COALESCE(NULLIF(u.company_name, ''), u.full_name) AS sender_name,
+                u.avatar AS sender_avatar
+         FROM chat_room_member crm
+         JOIN users u ON u.id = crm.user_id
+         WHERE n.type = 'message'
+           AND n.link ~ 'chat='
+           AND crm.chat_room_id = (substring(n.link from 'chat=([^&]+)'))::uuid
+           AND crm.user_id <> n.user_id
+         LIMIT 1
+       ) msg ON true
        WHERE n.user_id = $1
        ORDER BY n.created_at DESC
        LIMIT 50`,

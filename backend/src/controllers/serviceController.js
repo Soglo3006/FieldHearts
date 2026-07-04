@@ -610,7 +610,13 @@ export const getMyServices = async (req, res) => {
       `SELECT
         s.*,
         COALESCE(c.name, s.category) AS category_name,
-        (SELECT COUNT(*)::int FROM bookings b WHERE b.service_id = s.id AND b.status = 'completed') AS completed_bookings_count
+        (SELECT COUNT(*)::int FROM bookings b WHERE b.service_id = s.id AND b.status = 'completed') AS completed_bookings_count,
+        EXISTS (
+          SELECT 1
+          FROM bookings b
+          WHERE b.service_id = s.id
+            AND b.status NOT IN ('completed', 'cancelled', 'rejected')
+        ) AS has_open_booking_flow
       FROM services s
       LEFT JOIN categories c ON c.id = s.category_id
       WHERE s.user_id = $1

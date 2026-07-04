@@ -3,12 +3,6 @@
 import { useState } from "react";
 import {
   Bell,
-  MessageCircle,
-  CalendarDays,
-  CheckCircle,
-  XCircle,
-  AlertTriangle,
-  Wallet,
   Trash2,
   Check,
   Loader2,
@@ -24,50 +18,9 @@ import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
 import { getIntlLocale, getLanguageCode } from "@/lib/locale";
-import { displayNotificationBody, displayNotificationLink } from "@/lib/notificationDisplay";
-
+import { displayNotificationBody, displayNotificationLink, displayNotificationTitle } from "@/lib/notificationDisplay";
+import NotificationVisual from "@/components/notifications/NotificationVisual";
 type NotifHookData = ReturnType<typeof useNotifications>;
-
-const TYPE_CONFIG: Record<
-  string,
-  { icon: React.ReactNode; color: string; bg: string }
-> = {
-  message: {
-    icon: <MessageCircle className="h-4 w-4" />,
-    color: "text-green-700",
-    bg: "bg-green-100",
-  },
-  booking_request: {
-    icon: <CalendarDays className="h-4 w-4" />,
-    color: "text-green-700",
-    bg: "bg-green-100",
-  },
-  booking_accepted: {
-    icon: <CheckCircle className="h-4 w-4" />,
-    color: "text-green-700",
-    bg: "bg-green-100",
-  },
-  booking_rejected: {
-    icon: <XCircle className="h-4 w-4" />,
-    color: "text-gray-500",
-    bg: "bg-gray-100",
-  },
-  booking_completed: {
-    icon: <CheckCircle className="h-4 w-4" />,
-    color: "text-green-700",
-    bg: "bg-green-100",
-  },
-  dispute: {
-    icon: <AlertTriangle className="h-4 w-4" />,
-    color: "text-gray-500",
-    bg: "bg-gray-100",
-  },
-  payment: {
-    icon: <Wallet className="h-4 w-4" />,
-    color: "text-green-700",
-    bg: "bg-green-100",
-  },
-};
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function formatTime(dateString: string, t: (key: string, opts?: any) => string, lang: string) {
@@ -92,7 +45,6 @@ function NotifRow({
 }) {
   const { t, i18n } = useTranslation();
   const lang = getLanguageCode(i18n.language);
-  const cfg = TYPE_CONFIG[notif.type] ?? TYPE_CONFIG.booking_request;
   const isUnread = !notif.read_at;
 
   return (
@@ -103,22 +55,13 @@ function NotifRow({
         isUnread ? "bg-green-50/50 hover:bg-green-100/40" : "hover:bg-gray-50"
       )}
     >
-      {/* Type icon */}
-      <div
-        className={cn(
-          "shrink-0 mt-0.5 h-8 w-8 rounded-full flex items-center justify-center",
-          cfg.bg,
-          cfg.color
-        )}
-      >
-        {cfg.icon}
-      </div>
+      <NotificationVisual notif={notif} className="mt-0.5" />
 
       {/* Content */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between gap-2">
           <p className={cn("text-sm truncate", isUnread ? "font-semibold text-gray-900" : "font-medium text-gray-700")}>
-            {notif.title}
+            {displayNotificationTitle(notif, t)}
           </p>
           <span className="text-[11px] text-gray-400 shrink-0">{formatTime(notif.created_at, t, lang)}</span>
         </div>

@@ -218,7 +218,7 @@ export const createBooking = async (req, res) => {
     createLocalizedNotification({
       userId: s.user_id,
       type: "booking_request",
-      link: "/bookings",
+      link: `/bookings?booking=${booking.id}`,
       en: { title: "New booking request", body: `${clientName} applied to your listing "${s.title}"` },
       fr: { title: "Nouvelle demande", body: `${clientName} a postulé pour votre annonce « ${s.title} »` },
     });
@@ -446,7 +446,7 @@ export const updateBookingStatus = async (req, res) => {
       createLocalizedNotification({
         userId: notifyId,
         type: status === "accepted" ? "booking_accepted" : "booking_rejected",
-        link: "/bookings",
+        link: `/bookings?booking=${id}`,
         en: {
           title: status === "accepted"
             ? (nextStatus === "negotiating" ? "Match confirmed — agree on price" : "Booking accepted")
@@ -1002,7 +1002,7 @@ export const confirmBookingPrice = async (req, res) => {
       createLocalizedNotification({
         userId: b.client_id,
         type: "booking_request",
-        link: "/bookings",
+        link: `/bookings?booking=${id}`,
         en: {
           title: "Price agreed — proceed to payment",
           body: `You agreed on ${agreedLabel} for "${b.title}". Complete payment to start the job.`,
@@ -1015,7 +1015,7 @@ export const confirmBookingPrice = async (req, res) => {
       createLocalizedNotification({
         userId: b.worker_id,
         type: "booking_request",
-        link: "/bookings",
+        link: `/bookings?booking=${id}`,
         en: {
           title: "Price agreed — awaiting payment",
           body: `The client agreed on ${agreedLabel} for "${b.title}". Waiting for payment.`,
@@ -1045,7 +1045,7 @@ export const confirmBookingPrice = async (req, res) => {
     createLocalizedNotification({
       userId: notifyId,
       type: "booking_request",
-      link: "/bookings",
+      link: `/bookings?booking=${id}`,
       en: {
         title: "Price confirmation received",
         body: `The other party confirmed the price for "${b.title}". Confirm on your side to finalize.`,

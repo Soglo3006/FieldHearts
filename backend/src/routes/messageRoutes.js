@@ -2,7 +2,7 @@ import express from 'express';
 import pool from '../config/db.js';
 import { notifyNewMessage } from '../services/emailService.js';
 import { pushNewMessage } from '../services/pushService.js';
-import { createNotification, shouldSendEmail } from '../services/notificationService.js';
+import { createLocalizedNotification, shouldSendEmail } from '../services/notificationService.js';
 import { protect } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
@@ -145,12 +145,18 @@ router.post('/notify', protect, async (req, res) => {
     }
 
     // In-app notification
-    createNotification({
+    createLocalizedNotification({
       userId: receiverId,
-      type:   'message',
-      title:  `New message from ${senderName}`,
-      body:   messagePreview ? messagePreview.substring(0, 100) : 'You have a new message',
-      link:   `/messages?chat=${chatRoomId}`,
+      type: 'message',
+      link: `/messages?chat=${chatRoomId}`,
+      en: {
+        title: `New message from ${senderName}`,
+        body: messagePreview ? messagePreview.substring(0, 100) : "You have a new message",
+      },
+      fr: {
+        title: `Nouveau message de ${senderName}`,
+        body: messagePreview ? messagePreview.substring(0, 100) : "Vous avez un nouveau message",
+      },
     });
 
     // Email only on first message

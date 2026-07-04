@@ -17,6 +17,16 @@ function toRating(v: unknown): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+function formatSubtitlePreview(text: string, maxChars = 46): string {
+  const normalized = text.replace(/\s+/g, " ").trim();
+  if (normalized.length <= maxChars) return normalized;
+
+  const shortened = normalized.slice(0, Math.max(1, maxChars - 4)).trimEnd();
+  const boundary = shortened.lastIndexOf(" ");
+  const preview = boundary > 0 ? shortened.slice(0, boundary).trimEnd() : shortened;
+  return `${preview} ...`;
+}
+
 type TrustFields = {
   reviewCount?: unknown;
   averageRating?: unknown;
@@ -78,10 +88,15 @@ export function ListingCardSubtitle({
     reviewCount,
     averageRating,
   });
+  const fullText = segments.join(" · ");
+  const subtitleText = fullText ? formatSubtitlePreview(fullText) : "\u00A0";
 
   return (
-    <p className={cn("text-xs text-gray-400 line-clamp-1 min-h-4 leading-4 mb-1", className)}>
-      {segments.length > 0 ? segments.join(" · ") : "\u00A0"}
+    <p
+      className={cn("text-xs text-gray-400 truncate min-h-4 leading-4 mb-1", className)}
+      title={fullText || undefined}
+    >
+      {subtitleText}
     </p>
   );
 }

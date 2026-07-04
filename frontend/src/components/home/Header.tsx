@@ -47,9 +47,10 @@ import { useWalletBadge } from "@/hooks/useWalletBadge";
 import { formatTranslatedCategoryTrail } from "@/lib/categories";
 import { formatListingPriceLine } from "@/lib/listingPrice";
 import { getLanguageCode, getLanguageToggleValue } from "@/lib/locale";
-import { displayNotificationBody, displayNotificationLink } from "@/lib/notificationDisplay";
+import { displayNotificationBody, displayNotificationLink, displayNotificationTitle } from "@/lib/notificationDisplay";
 import { cn } from "@/lib/utils";
 import AppImage from "@/components/ui/AppImage";
+import NotificationVisual from "@/components/notifications/NotificationVisual";
 
 /** Hauteur commune : barre de recherche, menus, langue, connexion, publier */
 const HEADER_CONTROL_H = "h-9";
@@ -879,9 +880,10 @@ export default function Header() {
                           }}
                           className={`flex items-start gap-3 px-4 py-3 cursor-pointer border-b border-gray-100 last:border-b-0 transition-colors ${isUnread ? "bg-green-50/50 hover:bg-green-100/40" : "hover:bg-gray-50"}`}
                         >
+                          <NotificationVisual notif={n} className="mt-0.5" />
                           <div className="flex-1 min-w-0">
                             <p className={`text-sm truncate ${isUnread ? "font-semibold text-gray-900" : "font-medium text-gray-700"}`}>
-                              {n.title}
+                              {displayNotificationTitle(n, t)}
                             </p>
                             <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{displayNotificationBody(n, t)}</p>
                             <p className="text-[11px] text-gray-400 mt-1">{timeStr}</p>

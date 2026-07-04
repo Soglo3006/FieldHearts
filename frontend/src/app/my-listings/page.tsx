@@ -53,6 +53,7 @@ interface MyService extends ServiceLikeWithI18n {
   created_at: string;
   is_active: boolean;
   is_public?: boolean;
+  has_open_booking_flow?: boolean;
   completed_bookings_count?: number | string | null;
   review_count?: number | string | null;
   average_rating?: number | string | null;
@@ -351,8 +352,8 @@ export default function MyListingsPage() {
     }
   };
 
-  const activeListings = listings.filter((s) => s.is_active);
-  const historyListings = listings.filter((s) => !s.is_active);
+  const activeListings = listings.filter((s) => s.is_active || s.has_open_booking_flow);
+  const historyListings = listings.filter((s) => !s.is_active && !s.has_open_booking_flow);
 
   const activeTotalPages = Math.max(1, Math.ceil(activeListings.length / SECTION_PAGE_SIZE));
   const historyTotalPages = Math.max(1, Math.ceil(historyListings.length / SECTION_PAGE_SIZE));

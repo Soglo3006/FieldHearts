@@ -48,6 +48,7 @@ import {
 import { normalizePricingMode, resolveBookingCheckoutBase, getEffectiveBookingPrice, getBookingPriceRangeBounds, formatBookingServiceBaseDisplay, formatBookingCheckoutTotalDisplay, formatBookingFeeComponentRange, shouldShowListingOriginalPriceStrike } from "@/lib/listingPrice";
 import { isAwaitingPriceAgreement, canAccessPriceNegotiation, isPriceAgreementComplete } from "@/lib/priceNegotiation";
 import { buildClientPaymentSummary, buildSplitDepositFullReceipt } from "@/lib/paymentSuccessSummary";
+import { getServiceLocationEntries } from "@/lib/serviceLocation";
 import {
   Carousel,
   CarouselContent,
@@ -74,6 +75,13 @@ export interface BookingDetail {
   image_urls?: string[] | null;
   category: string | null;
   service_location: string | null;
+  hide_exact_location?: boolean;
+  location?: string | null;
+  address?: string | null;
+  city?: string | null;
+  latitude?: number | string | null;
+  longitude?: number | string | null;
+  locations?: Array<{ address?: string; city?: string; lat?: number; lng?: number; location?: string }> | null;
   client_description: string | null;
   has_reviewed: boolean;
   has_dispute: boolean;
@@ -117,6 +125,8 @@ export interface BookingDetail {
   worker_proposed_price?: number | string | null;
   price_selected_by_client?: number | string | null;
   price_selected_by_worker?: number | string | null;
+  price_selected_source_by_client?: "client" | "worker" | null;
+  price_selected_source_by_worker?: "client" | "worker" | null;
 }
 
 interface Props {
@@ -417,6 +427,7 @@ export default function BookingDetailModal({
         deposit_value: booking.deposit_value,
       }
     : null;
+  const bookingLocationEntries = getServiceLocationEntries(booking);
   const paymentNeed = needsBookingPayment(booking, depositConfig);
   const needsPayment = paymentNeed.needed;
   const checkoutKind = paymentNeed.kind;
@@ -818,7 +829,7 @@ export default function BookingDetailModal({
           <div className="px-5 py-4 space-y-4">
             {/* Modification banner */}
             {userRole === "client" && booking.last_modified_at && (() => {
-              const modifiedLabels = getModifiedFieldLabels(booking.modified_fields, t);
+              const modifiedLabels = getModifiedFieldLabels(booking, t, i18n.language);
               if (modifiedLabels.length === 0) return null;
               return (
                 <div className={`${negotiationCardClass} space-y-2`}>
@@ -1476,12 +1487,28 @@ export default function BookingDetailModal({
               })()}
 
             {/* Service info */}
-            {(booking.category || booking.service_location) && (
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-gray-500">
-                {booking.category && <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full text-xs">{booking.category}</span>}
-                {booking.service_location && (
-                  <span className="flex items-center gap-1"><MapPin className="h-3.5 w-3.5" />{booking.service_location}</span>
+            {(booking.category || bookingLocationEntries.length > 0 || booking.service_location) && (
+              <div className="space-y-2">
+                {booking.category && (
+                  <span className="inline-flex bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full text-xs">
+                    {booking.category}
+                  </span>
                 )}
+                {bookingLocationEntries.length > 0 ? (
+                  <div className="space-y-1 text-sm text-gray-500">
+                    {bookingLocationEntries.map((entry, index) => (
+                      <div key={`${entry.label}-${index}`} className="flex items-start gap-1.5">
+                        <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                        <span className="leading-snug">{entry.label}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : booking.service_location ? (
+                  <div className="flex items-start gap-1.5 text-sm text-gray-500">
+                    <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                    <span className="leading-snug">{booking.service_location}</span>
+                  </div>
+                ) : null}
               </div>
             )}
 

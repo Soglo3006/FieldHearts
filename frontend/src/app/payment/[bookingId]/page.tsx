@@ -23,6 +23,7 @@ import {
   resolveBalanceFullServiceBase,
   resolveCheckoutKind,
   resolveCheckoutPrice,
+  usesFullUpfrontDepositPayment,
 } from "@/lib/hourlyPayment";
 import { isNegotiablePricingMode, isPriceAgreementComplete } from "@/lib/priceNegotiation";
 
@@ -140,6 +141,10 @@ export default function PaymentPage() {
   const taxLabel = getTaxLabel(billingProvince, i18n.language ?? "fr");
   const isDepositCheckout = checkoutKind === "deposit";
   const isBalanceCheckout = checkoutKind === "balance";
+  const isFullDepositCheckout =
+    checkoutKind === "full" &&
+    booking != null &&
+    usesFullUpfrontDepositPayment(booking, depositConfig);
   const pricingMode = normalizePricingMode(booking?.pricing_mode);
   const feeBase = isBalanceCheckout && fullServiceBase != null ? fullServiceBase : checkoutPrice;
   const buyerCommission = isDepositCheckout ? 0 : feeBase * 0.05;
@@ -166,7 +171,7 @@ export default function PaymentPage() {
         ? "payment.balanceAmountFixed"
         : "payment.balanceAmount";
 
-  const servicePriceLabel = isDepositCheckout
+  const servicePriceLabel = isDepositCheckout || isFullDepositCheckout
     ? t("payment.depositAmount")
     : isBalanceCheckout
       ? t(balanceLabelKey)
@@ -174,6 +179,8 @@ export default function PaymentPage() {
 
   const payButtonLabel = isDepositCheckout
     ? t("payment.payDepositLabel")
+    : isFullDepositCheckout
+      ? t("payment.payDepositLabel")
     : isBalanceCheckout
       ? t("payment.payBalanceLabel")
       : t("payment.payAmount", { amount: fmt(total) });
@@ -355,7 +362,11 @@ export default function PaymentPage() {
           {t("payment.backToBookings")}
         </button>
 
-        <h1 className="text-2xl font-bold text-gray-900 mb-6">{t("payment.completePayment")}</h1>
+        <h1 className="text-2xl font-bold text-gray-900 mb-6">
+          {isDepositCheckout || isFullDepositCheckout
+            ? t("payment.payDepositLabel")
+            : t("payment.completePayment")}
+        </h1>
 
         {wasCancelled && (
           <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 mb-6 text-sm">
@@ -414,7 +425,7 @@ export default function PaymentPage() {
                       <span>{servicePriceLabel}</span>
                       <span className="font-medium text-gray-900">{fmt(checkoutPrice)} $</span>
                     </div>
-                    {!isDepositCheckout && !isBalanceCheckout && (
+                    {!isDepositCheckout && !isBalanceCheckout && !isFullDepositCheckout && (
                       <PaymentDepositRows
                         price={checkoutPrice}
                         depositConfig={depositConfig}
@@ -426,6 +437,11 @@ export default function PaymentPage() {
                         <p className="text-xs text-gray-500 leading-relaxed">{t(depositNoticeKey)}</p>
                         <p className="text-xs text-gray-500 leading-relaxed">{t("payment.depositFeesDeferredNotice")}</p>
                       </>
+                    )}
+                    {isFullDepositCheckout && (
+                      <p className="text-xs text-gray-500 leading-relaxed">
+                        {t("payment.fullDepositCoversServiceNotice")}
+                      </p>
                     )}
                     {!isDepositCheckout && (
                       <>

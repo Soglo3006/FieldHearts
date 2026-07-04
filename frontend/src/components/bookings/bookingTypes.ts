@@ -13,6 +13,13 @@ interface BookingBase {
   image_urls?: string[] | null;
   category: string | null;
   service_location: string | null;
+  hide_exact_location?: boolean;
+  location?: string | null;
+  address?: string | null;
+  city?: string | null;
+  latitude?: number | string | null;
+  longitude?: number | string | null;
+  locations?: Array<{ address?: string; city?: string; lat?: number; lng?: number; location?: string }> | null;
   has_reviewed: boolean;
   has_dispute: boolean;
   payment_status: string | null;
@@ -51,6 +58,8 @@ interface BookingBase {
   worker_proposed_price?: number | string | null;
   price_selected_by_client?: number | string | null;
   price_selected_by_worker?: number | string | null;
+  price_selected_source_by_client?: "client" | "worker" | null;
+  price_selected_source_by_worker?: "client" | "worker" | null;
 }
 
 export interface ReceivedBooking extends BookingBase {

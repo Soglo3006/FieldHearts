@@ -37,16 +37,18 @@ interface Props {
   descriptionsByLang: PostConfirmLangStrings;
   /** Preformatted listing price summary (fixed, range, or quote). */
   priceSummary: string;
-  location: string;
+  locations: string[];
   hideExactLocation: boolean;
   /** Localised category line, e.g. "Maison · Ménage profond". */
   categoryLine: string;
+  subcategoryLine?: string | null;
   availabilityLabel: string | null;
   spokenLanguageLabel: string | null;
   mobilityLabel: string | null;
   urgencyLabel?: string | null;
   /** Annexe « annonce unique » cochée sur le formulaire */
   isOneTime?: boolean;
+  isPublic?: boolean;
   imageUrls: string[];
   submitting: boolean;
   onConfirm: () => void;
@@ -125,14 +127,16 @@ export default function PostConfirmModal({
   titlesByLang,
   descriptionsByLang,
   priceSummary,
-  location,
+  locations,
   hideExactLocation,
   categoryLine,
+  subcategoryLine,
   availabilityLabel,
   spokenLanguageLabel,
   mobilityLabel,
   urgencyLabel,
   isOneTime = false,
+  isPublic = true,
   imageUrls,
   submitting,
   onConfirm,
@@ -179,14 +183,15 @@ export default function PostConfirmModal({
     value: priceSummary,
   });
 
-  const locationPrivacy = hideExactLocation
-    ? t("post.confirmLocationPrivacyHidden")
-    : t("post.confirmLocationPrivacyVisible");
+  const locationValue = locations
+    .map((value) => value.trim())
+    .filter(Boolean)
+    .join("\n");
 
   rows.push({
     key: "location",
     label: t("post.confirmLabelLocation"),
-    value: `${location.trim()}\n${locationPrivacy}`,
+    value: locationValue,
     multiline: true,
     showAddressHiddenBadge: hideExactLocation,
   });
@@ -196,6 +201,15 @@ export default function PostConfirmModal({
     label: t("post.confirmLabelCategory"),
     value: categoryLine.trim() || "—",
   });
+
+  if (subcategoryLine?.trim()) {
+    rows.push({
+      key: "subcategory",
+      label: t("post.confirmLabelSubcategory"),
+      value: subcategoryLine.trim(),
+      multiline: true,
+    });
+  }
 
   const optionalRows: SummaryRow[] = [];
 
@@ -228,6 +242,14 @@ export default function PostConfirmModal({
     });
   }
 
+  optionalRows.push({
+    key: "visibility",
+    label: t("post.confirmLabelVisibility"),
+    value: isPublic ? t("post.listingPublicDesc") : t("post.listingPrivateDesc"),
+    multiline: true,
+    valueDanger: !isPublic,
+  });
+
   if (isOneTime) {
     optionalRows.push({
       key: "one-time",
@@ -253,7 +275,9 @@ export default function PostConfirmModal({
         <div className="px-6 pb-4 pt-6 text-center">
           <h2 className="text-lg font-bold text-gray-900">{t("post.confirmTitle")}</h2>
           <p className="mt-1 text-sm text-gray-500">
-            {isOffer ? t("post.confirmServiceDesc") : t("post.confirmJobDesc")}
+            {isOffer
+              ? (isPublic ? t("post.confirmServiceDesc") : t("post.confirmServicePrivateDesc"))
+              : (isPublic ? t("post.confirmJobDesc") : t("post.confirmJobPrivateDesc"))}
           </p>
         </div>
 

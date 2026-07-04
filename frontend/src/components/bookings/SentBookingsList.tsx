@@ -16,6 +16,7 @@ import { getDisputeWindowState } from "@/lib/disputes";
 import { formatBookingCheckoutTotalDisplay, resolveBookingCheckoutBase } from "@/lib/listingPrice";
 import { resolveCheckoutPrice, needsBookingPayment, hourlyAwaitingApprovedHours, fixedAwaitingWorkForBalance, resolveBalanceFullServiceBase } from "@/lib/hourlyPayment";
 import { cn } from "@/lib/utils";
+import ListingLocationLine from "@/components/listings/ListingLocationLine";
 
 const SENT_PAGE_SIZE = 4;
 
@@ -203,12 +204,10 @@ export default function SentBookingsList({
                         {cardPriceLabel}
                       </p>
 
-                      {b.service_location && (
-                        <div className="flex items-center text-xs text-gray-500 mb-1">
-                          <MapPin className="h-3.5 w-3.5 mr-1 shrink-0" />
-                          <span className="line-clamp-1">{b.service_location}</span>
-                        </div>
-                      )}
+                      <ListingLocationLine
+                        service={b}
+                        className="mb-1 flex items-center justify-between text-xs text-gray-500"
+                      />
 
                       {b.category && <p className="text-xs text-gray-400 mb-3">{b.category}</p>}
                       <p className="text-xs text-gray-400 mb-3">{formatDate(b.created_at)}</p>

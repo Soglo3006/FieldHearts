@@ -16,7 +16,7 @@ export function PaymentDepositRows({ price, depositConfig, depositAmountCents }:
       ? depositAmountCents / 100
       : calculateDepositAmount(price, depositConfig);
 
-  if (deposit <= 0) return null;
+  if (deposit <= 0 || deposit >= price - 0.005) return null;
 
   return (
     <>

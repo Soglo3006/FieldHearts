@@ -29,6 +29,8 @@ export async function ensureDepositsAndCalendarSchema(pool) {
     ALTER TABLE bookings ADD COLUMN IF NOT EXISTS worker_proposed_price numeric(10, 2);
     ALTER TABLE bookings ADD COLUMN IF NOT EXISTS price_selected_by_client numeric(10, 2);
     ALTER TABLE bookings ADD COLUMN IF NOT EXISTS price_selected_by_worker numeric(10, 2);
+    ALTER TABLE bookings ADD COLUMN IF NOT EXISTS price_selected_source_by_client varchar(16);
+    ALTER TABLE bookings ADD COLUMN IF NOT EXISTS price_selected_source_by_worker varchar(16);
     ALTER TABLE bookings ADD COLUMN IF NOT EXISTS custom_price_min numeric(10, 2);
     ALTER TABLE bookings ADD COLUMN IF NOT EXISTS custom_price_max numeric(10, 2);
     ALTER TABLE bookings ADD COLUMN IF NOT EXISTS client_province varchar(16);
@@ -193,14 +195,14 @@ export function resolveCheckoutBaseAmount(service, booking = null) {
 export function calculateDepositAmount(servicePrice, service) {
   if (!service?.deposit_enabled) return 0;
   const price = Number(servicePrice);
-  if (!Number.isFinite(price) || price < 0.02) return 0;
+  if (!Number.isFinite(price) || price < 0.01) return 0;
 
   const type = service.deposit_type;
   const raw = Number(service.deposit_value);
   if (!type || !Number.isFinite(raw) || raw <= 0) return 0;
 
   let deposit = type === "percent" ? price * (raw / 100) : raw;
-  deposit = Math.min(deposit, price - 0.01);
+  deposit = Math.min(deposit, price);
   deposit = Math.max(0, deposit);
   return Math.round(deposit * 100) / 100;
 }

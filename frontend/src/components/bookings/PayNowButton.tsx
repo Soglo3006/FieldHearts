@@ -5,7 +5,10 @@ import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import PaymentModal from "@/components/payment/PaymentModal";
-import type { CheckoutKind } from "@/lib/hourlyPayment";
+import {
+  type CheckoutKind,
+  usesFullUpfrontDepositPayment,
+} from "@/lib/hourlyPayment";
 import type { DepositConfig } from "@/lib/deposit";
 
 interface Props {
@@ -36,9 +39,22 @@ export default function PayNowButton({
 }: Props) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
+  const showsFullDepositCopy =
+    checkoutKind === "full" &&
+    usesFullUpfrontDepositPayment(
+      {
+        status: "accepted",
+        pricing_mode: pricingMode,
+        price,
+        deposit_enabled: depositConfig?.deposit_enabled,
+        deposit_type: depositConfig?.deposit_type,
+        deposit_value: depositConfig?.deposit_value,
+      },
+      depositConfig,
+    );
 
   const buttonLabel =
-    checkoutKind === "deposit"
+    checkoutKind === "deposit" || showsFullDepositCopy
       ? t("payment.payDepositLabel")
       : checkoutKind === "balance"
         ? t("payment.payBalanceLabel")

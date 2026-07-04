@@ -20,7 +20,7 @@ export function isWorkBasedBooking(booking) {
   return isWorkBasedPricingMode(booking?.pricing_mode);
 }
 
-/** Hourly or work-based listing with a configured deposit smaller than the full price. */
+/** Hourly or work-based listing with any configured upfront deposit. */
 export function usesSplitDepositPayment(booking, service = null) {
   const meta = service ?? booking;
   if (!meta.deposit_enabled) return false;
@@ -32,7 +32,7 @@ export function usesSplitDepositPayment(booking, service = null) {
   if (base == null || base < 0.02) return false;
 
   const deposit = calculateDepositAmount(base, meta);
-  return deposit >= 0.01 && deposit < base - 0.005;
+  return deposit >= 0.01;
 }
 
 /**
@@ -151,7 +151,13 @@ export function hasUnpaidBalanceDue(booking, service = null) {
   if (!usesSplitDepositPayment(booking, meta)) return false;
   if (!isBalanceCheckoutReady(booking)) return false;
   const balanceDue = computeBalanceDueCents(booking, meta);
-  if (balanceDue <= 0) return false;
+  const fullServiceCents = getFullServiceBaseCents(booking, meta);
+  const paidBaseCents = Number(booking.paid_service_base_cents || 0);
+  const feesOnlyStillDue =
+    booking.payment_status === "deposit_paid" &&
+    fullServiceCents > 0 &&
+    paidBaseCents >= fullServiceCents;
+  if (balanceDue <= 0 && !feesOnlyStillDue) return false;
   if (booking.payment_status === "deposit_paid") return true;
   // Hourly: more approved hours after the client already paid the balance in full.
   return booking.payment_status === "paid" && isHourlyBooking(booking);

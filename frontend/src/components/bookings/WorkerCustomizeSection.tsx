@@ -16,9 +16,12 @@ import RangePriceFields, {
 import { NegotiationCard, NegotiationRow } from "./NegotiationCard";
 import {
   getInitialDepositFormState,
+  getDepositValueInputMax,
   hasActiveDepositConfig,
+  isDepositFormValueValid,
   type DepositType,
 } from "@/lib/deposit";
+import type { ListingPricingFields } from "@/lib/listingPrice";
 
 interface Booking {
   id: string;
@@ -113,28 +116,122 @@ export default function WorkerCustomizeSection({ booking, accessToken, onSaved }
     booking.custom_price != null &&
     Number(booking.custom_price) >= 0.01;
   const showDepositFields = !isQuote || agreedQuotePrice;
+  const customizePricingFields = useMemo<ListingPricingFields | undefined>(() => {
+    if (isRange) {
+      const min = parsePriceInput(editPriceMin) ?? Number(booking.custom_price_min ?? booking.price);
+      const max = parsePriceInput(editPriceMax) ?? Number(booking.custom_price_max ?? booking.price_max);
+      if (!Number.isFinite(min) || !Number.isFinite(max)) return undefined;
+      return {
+        pricing_mode: "range",
+        price: min,
+        price_min: min,
+        price_max: max,
+      };
+    }
+
+    if (isHourly) {
+      const rate = Number(booking.custom_price ?? booking.price);
+      const hours = Number(editHours || booking.estimated_hours || 1);
+      if (!Number.isFinite(rate) || rate < 0.01 || !Number.isFinite(hours) || hours <= 0) {
+        return undefined;
+      }
+      return {
+        pricing_mode: "hourly",
+        price: rate,
+        estimated_hours: hours,
+      };
+    }
+
+    if (isQuote) {
+      const agreed = Number(booking.custom_price);
+      if (!Number.isFinite(agreed) || agreed < 0.01) return undefined;
+      return { pricing_mode: "quote", price: agreed };
+    }
+
+    const fixedPriceSource =
+      editPrice.trim() !== "" ? editPrice : (booking.custom_price ?? booking.price);
+    const fixedPrice = Number(fixedPriceSource);
+    if (!Number.isFinite(fixedPrice) || fixedPrice < 0.01) return undefined;
+    return { pricing_mode: "fixed", price: fixedPrice };
+  }, [
+    booking.custom_price,
+    booking.custom_price_max,
+    booking.custom_price_min,
+    booking.estimated_hours,
+    booking.price,
+    booking.price_max,
+    editHours,
+    editPrice,
+    editPriceMax,
+    editPriceMin,
+    isHourly,
+    isQuote,
+    isRange,
+  ]);
+  const depositInputMax = customizePricingFields
+    ? getDepositValueInputMax(editDepositType, customizePricingFields)
+    : undefined;
+  const isDepositValid =
+    !editDepositValue.trim() ||
+    (customizePricingFields != null &&
+      isDepositFormValueValid(true, editDepositType, editDepositValue, customizePricingFields));
+  const showDepositError = showDepositFields && editDepositValue.trim() !== "" && !isDepositValid;
 
   const save = async () => {
     setSaving(true);
     try {
-      const body: Record<string, unknown> = { worker_note: editNote };
+      const body: Record<string, unknown> = {};
+      const currentNote = (booking.worker_note ?? "").trim();
+      const nextNote = editNote.trim();
+      if (nextNote !== currentNote) {
+        body.worker_note = nextNote;
+      }
+
       if (isHourly) {
         const hours = Number(editHours);
-        if (Number.isFinite(hours) && hours > 0) body.estimated_hours = hours;
+        const currentHours = Number(booking.estimated_hours ?? 0);
+        if (Number.isFinite(hours) && hours > 0 && hours !== currentHours) {
+          body.estimated_hours = hours;
+        }
       } else if (isRange) {
         if (isRangeInputValid(editPriceMin, editPriceMax, rangeBounds)) {
-          body.custom_price_min = parsePriceInput(editPriceMin);
-          body.custom_price_max = parsePriceInput(editPriceMax);
+          const nextMin = parsePriceInput(editPriceMin);
+          const nextMax = parsePriceInput(editPriceMax);
+          const currentMin = parsePriceInput(getInitialRangeMin(booking, rangeBounds));
+          const currentMax = parsePriceInput(getInitialRangeMax(booking, rangeBounds));
+          if (nextMin !== currentMin || nextMax !== currentMax) {
+            body.custom_price_min = nextMin;
+            body.custom_price_max = nextMax;
+          }
         }
       } else if (!isQuote && editPrice.trim() !== "") {
-        body.custom_price = Number(editPrice);
+        const nextPrice = Number(editPrice);
+        const currentPrice = Number(booking.custom_price ?? booking.price);
+        if (Number.isFinite(nextPrice) && nextPrice !== currentPrice) {
+          body.custom_price = nextPrice;
+        }
       }
+      const currentDepositActive = hasActiveDepositConfig(booking);
+      const currentDepositType = initialDeposit.type;
+      const currentDepositValue = initialDeposit.value;
       if (editDepositValue.trim() !== "") {
-        body.deposit_type = editDepositType;
-        body.deposit_value = Number(editDepositValue);
-      } else if (hasActiveDepositConfig(booking) || isQuote) {
+        const nextDepositValue = Number(editDepositValue);
+        if (
+          !currentDepositActive ||
+          editDepositType !== currentDepositType ||
+          String(nextDepositValue) !== String(Number(currentDepositValue || 0))
+        ) {
+          body.deposit_type = editDepositType;
+          body.deposit_value = nextDepositValue;
+        }
+      } else if (currentDepositActive) {
         body.deposit_type = null;
         body.deposit_value = 0;
+      }
+
+      if (Object.keys(body).length === 0) {
+        setEditing(false);
+        return;
       }
 
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/bookings/${booking.id}/customize`, {
@@ -247,15 +344,22 @@ export default function WorkerCustomizeSection({ booking, accessToken, onSaved }
               </select>
               <input
                 type="number"
-                min="0"
+                min={editDepositType === "percent" ? "1" : "0.01"}
                 step={editDepositType === "percent" ? "1" : "0.01"}
-                max={editDepositType === "percent" ? "100" : undefined}
+                max={depositInputMax}
                 value={editDepositValue}
                 onChange={(e) => setEditDepositValue(e.target.value)}
                 placeholder={editDepositType === "percent" ? "0" : "0.00"}
-                className="flex-1 border rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-600"
+                className={`flex-1 border rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-600 ${showDepositError ? "border-red-500 focus:ring-red-500" : ""}`}
               />
             </div>
+            {showDepositError && (
+              <p className="text-xs text-red-500 mt-1">
+                {editDepositType === "percent"
+                  ? t("deposit.percentMaxError")
+                  : t("deposit.exceedsPriceError", { max: depositInputMax?.toFixed?.(2) ?? "0.00" })}
+              </p>
+            )}
             {isQuote && (
               <p className="text-xs text-gray-400 mt-1">{t("customizeBooking.quoteDepositHint")}</p>
             )}
@@ -278,7 +382,7 @@ export default function WorkerCustomizeSection({ booking, accessToken, onSaved }
               size="sm"
               className="bg-green-700 hover:bg-green-800 text-white"
               onClick={save}
-              disabled={saving || (isRange && !isRangeInputValid(editPriceMin, editPriceMax, rangeBounds))}
+              disabled={saving || (isRange && !isRangeInputValid(editPriceMin, editPriceMax, rangeBounds)) || !isDepositValid}
             >
               {saving ? t("customizeBooking.saving") : t("common.save")}
             </Button>

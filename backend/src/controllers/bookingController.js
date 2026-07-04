@@ -245,13 +245,15 @@ export const getMyBookings = async (req, res) => {
     //   looking listing → you are the worker (you applied to someone's search)
     const result = await pool.query(
       `SELECT b.*, s.title, s.price, s.image_url, s.image_urls, s.category,
+              s.hide_exact_location,
+              s.location, s.address, s.city, s.latitude, s.longitude, s.locations,
               d.dispute_id,
               d.dispute_status,
               d.dispute_resolution,
               d.dispute_created_at,
               d.dispute_refund_percentage,
               CASE
-                WHEN s.hide_exact_location = true AND s.user_id <> $1
+                WHEN s.hide_exact_location = true
                   THEN COALESCE(NULLIF(TRIM(s.city), ''), NULLIF(TRIM(s.location), ''), NULLIF(TRIM(s.address), ''))
                 ELSE COALESCE(NULLIF(TRIM(s.address), ''), NULLIF(TRIM(s.location), ''), NULLIF(TRIM(s.city), ''))
               END AS service_location,
@@ -305,13 +307,15 @@ export const getReceivedBookings = async (req, res) => {
     //   looking listing → you are the client (someone applied to your search)
     const result = await pool.query(
       `SELECT b.*, s.title, s.price, s.image_url, s.image_urls, s.category,
+              s.hide_exact_location,
+              s.location, s.address, s.city, s.latitude, s.longitude, s.locations,
               d.dispute_id,
               d.dispute_status,
               d.dispute_resolution,
               d.dispute_created_at,
               d.dispute_refund_percentage,
               CASE
-                WHEN s.hide_exact_location = true AND s.user_id <> $1
+                WHEN s.hide_exact_location = true
                   THEN COALESCE(NULLIF(TRIM(s.city), ''), NULLIF(TRIM(s.location), ''), NULLIF(TRIM(s.address), ''))
                 ELSE COALESCE(NULLIF(TRIM(s.address), ''), NULLIF(TRIM(s.location), ''), NULLIF(TRIM(s.city), ''))
               END AS service_location,
@@ -626,13 +630,16 @@ export const customizeBooking = async (req, res) => {
     const { custom_price } = req.body;
     const custom_price_min = req.body.custom_price_min ?? req.body.customPriceMin;
     const custom_price_max = req.body.custom_price_max ?? req.body.customPriceMax;
-    const worker_note = sanitizeText(req.body.worker_note);
+    const worker_note = req.body.worker_note === undefined
+      ? undefined
+      : (sanitizeText(req.body.worker_note) || null);
     const estimatedHoursRaw = req.body.estimated_hours ?? req.body.estimatedHours;
     const depositType = req.body.deposit_type ?? undefined;
     const depositValue = req.body.deposit_value ?? undefined;
 
     const booking = await pool.query(
       `SELECT b.*, s.title, s.price AS service_price, s.price_min, s.price_max,
+              s.estimated_hours AS service_estimated_hours,
               COALESCE(b.pricing_mode, s.pricing_mode) AS pricing_mode,
               s.deposit_enabled AS service_deposit_enabled,
               s.deposit_type AS service_deposit_type,
@@ -704,20 +711,10 @@ export const customizeBooking = async (req, res) => {
       estimatedHours = parsed;
     }
 
-    // Track which fields changed
-    const modifiedFields = [];
-    if (pricingMode === "range" && (custom_price_min !== undefined || custom_price_max !== undefined)) {
-      modifiedFields.push("price_range");
-    } else if (custom_price !== undefined && Number(custom_price) !== Number(b.price)) {
-      modifiedFields.push("price");
-    }
-    if (estimatedHoursRaw !== undefined && Number(estimatedHours) !== Number(b.estimated_hours)) {
-      modifiedFields.push("estimated_hours");
-    }
-    if (worker_note !== undefined && worker_note !== b.worker_note) modifiedFields.push("description");
-    if (depositType !== undefined || depositValue !== undefined) modifiedFields.push("deposit");
-
-    const uniqueModifiedFields = [...new Set(modifiedFields)];
+    const currentEffectivePrice = Number(b.custom_price ?? b.service_price ?? b.price);
+    const currentEffectiveMin = Number(b.custom_price_min ?? listingBounds.price);
+    const currentEffectiveMax = Number(b.custom_price_max ?? listingBounds.price_max);
+    const currentEstimatedHours = Number(b.estimated_hours ?? b.service_estimated_hours);
 
     // Validate deposit fields if provided
     if (depositType !== undefined && !["fixed", "percent"].includes(depositType)) {
@@ -742,14 +739,80 @@ export const customizeBooking = async (req, res) => {
           ? Number(depositValue)
           : b.deposit_value;
     const finalDepositEnabled = Boolean(finalDepositType && finalDepositValue > 0);
+    const depositValidationBase = resolveDepositBaseAmount(
+      {
+        pricing_mode: pricingMode,
+        price:
+          pricingMode === "range"
+            ? Number(finalCustomMin ?? listingBounds.price)
+            : pricingMode === "quote"
+              ? Number(finalCustomPrice ?? b.custom_price ?? b.service_price ?? b.price)
+              : Number(finalCustomPrice ?? b.custom_price ?? b.service_price ?? b.price),
+        price_max:
+          pricingMode === "range"
+            ? Number(finalCustomMax ?? listingBounds.price_max ?? listingBounds.price)
+            : Number(b.price_max ?? listingBounds.price_max ?? null),
+        estimated_hours:
+          pricingMode === "hourly"
+            ? Number(estimatedHours ?? b.service_estimated_hours ?? 1)
+            : undefined,
+      },
+      null,
+    );
+    if (finalDepositEnabled) {
+      const depositCheck = validateDepositAgainstPrice(
+        depositValidationBase,
+        finalDepositType,
+        finalDepositValue,
+      );
+      if (depositCheck.error) {
+        return res.status(400).json({ message: depositCheck.error });
+      }
+    }
+    const currentDeposit = resolveBookingDepositMeta(b);
+    const depositChanged =
+      (finalDepositType ?? null) !== (currentDeposit.deposit_type ?? null) ||
+      Number(finalDepositValue ?? 0) !== Number(currentDeposit.deposit_value ?? 0) ||
+      Boolean(finalDepositEnabled) !== Boolean(currentDeposit.deposit_enabled);
+
+    // Track which fields changed
+    const modifiedFields = [];
+    if (
+      pricingMode === "range" &&
+      (custom_price_min !== undefined || custom_price_max !== undefined) &&
+      (
+        Number(finalCustomMin) !== currentEffectiveMin ||
+        Number(finalCustomMax) !== currentEffectiveMax
+      )
+    ) {
+      modifiedFields.push("price_range");
+    } else if (
+      custom_price !== undefined &&
+      Number(finalCustomPrice) !== currentEffectivePrice
+    ) {
+      modifiedFields.push("price");
+    }
+    if (
+      estimatedHoursRaw !== undefined &&
+      Number(estimatedHours) !== currentEstimatedHours
+    ) {
+      modifiedFields.push("estimated_hours");
+    }
+    if (worker_note !== undefined && worker_note !== (b.worker_note ?? null)) {
+      modifiedFields.push("description");
+    }
+    if ((depositType !== undefined || depositValue !== undefined) && depositChanged) {
+      modifiedFields.push("deposit");
+    }
+
+    const uniqueModifiedFields = [...new Set(modifiedFields)];
 
     const priceChanged =
       (pricingMode === "range" && (custom_price_min !== undefined || custom_price_max !== undefined) && (
-        Number(finalCustomMin) !== Number(b.custom_price_min ?? "") ||
-        Number(finalCustomMax) !== Number(b.custom_price_max ?? "") ||
-        finalCustomPrice !== b.custom_price
+        Number(finalCustomMin) !== currentEffectiveMin ||
+        Number(finalCustomMax) !== currentEffectiveMax
       )) ||
-      (custom_price !== undefined && Number(custom_price) !== Number(b.custom_price ?? b.price));
+      (custom_price !== undefined && Number(finalCustomPrice) !== currentEffectivePrice);
 
     const result = await pool.query(
       `UPDATE bookings
@@ -761,7 +824,7 @@ export const customizeBooking = async (req, res) => {
            price_confirmed_by_worker_at = CASE WHEN $11 THEN NULL ELSE price_confirmed_by_worker_at END
        WHERE id = $10 RETURNING *`,
       [
-        worker_note ?? b.worker_note,
+        worker_note !== undefined ? worker_note : b.worker_note,
         finalCustomPrice,
         finalCustomMin,
         finalCustomMax,
@@ -870,6 +933,8 @@ export const negotiateBookingPrice = async (req, res) => {
       `price_confirmed_by_worker_at = NULL`,
       `price_selected_by_client = NULL`,
       `price_selected_by_worker = NULL`,
+      `price_selected_source_by_client = NULL`,
+      `price_selected_source_by_worker = NULL`,
     ];
     const updateParams = [parsed, id, isClient];
     appendDepositSets(sets, updateParams, depositOverride, 4);
@@ -941,6 +1006,11 @@ export const confirmBookingPrice = async (req, res) => {
     const proposals = getPartyProposals(b);
     const allowed = [proposals.client, proposals.worker].filter((p) => p != null);
     const selectedPrice = Number(req.body.selected_price ?? req.body.selectedPrice);
+    const requestedSelectedSource = req.body.selected_source ?? req.body.selectedSource ?? null;
+    const normalizedSelectedSource =
+      requestedSelectedSource === "client" || requestedSelectedSource === "worker"
+        ? requestedSelectedSource
+        : null;
 
     if (allowed.length === 0) {
       if (b.custom_price != null && Number(b.custom_price) >= 0.01) {
@@ -955,6 +1025,26 @@ export const confirmBookingPrice = async (req, res) => {
     }
     if (!allowed.some((p) => pricesMatch(p, selectedPrice))) {
       return res.status(400).json({ message: "You must select one of the active proposals" });
+    }
+
+    const clientMatches = proposals.client != null && pricesMatch(proposals.client, selectedPrice);
+    const workerMatches = proposals.worker != null && pricesMatch(proposals.worker, selectedPrice);
+    let selectedSource = normalizedSelectedSource;
+    if (!selectedSource) {
+      if (clientMatches && !workerMatches) selectedSource = "client";
+      else if (workerMatches && !clientMatches) selectedSource = "worker";
+      else if (clientMatches && workerMatches) {
+        return res.status(400).json({ message: "Select which proposal you want to confirm" });
+      }
+    }
+    if (!selectedSource) {
+      return res.status(400).json({ message: "The selected proposal is no longer available" });
+    }
+    if (selectedSource === "client" && !clientMatches) {
+      return res.status(400).json({ message: "The selected client proposal does not match the chosen amount" });
+    }
+    if (selectedSource === "worker" && !workerMatches) {
+      return res.status(400).json({ message: "The selected provider proposal does not match the chosen amount" });
     }
 
     const check = validateNegotiatedPrice(selectedPrice, b, pricingMode);
@@ -980,10 +1070,11 @@ export const confirmBookingPrice = async (req, res) => {
     }
     const confirmCol = isClient ? "price_confirmed_by_client_at" : "price_confirmed_by_worker_at";
     const selectCol = isClient ? "price_selected_by_client" : "price_selected_by_worker";
+    const selectSourceCol = isClient ? "price_selected_source_by_client" : "price_selected_source_by_worker";
 
-    const confirmSets = [`${confirmCol} = NOW()`, `${selectCol} = $2`];
-    const confirmParams = [id, selectedPrice];
-    appendDepositSets(confirmSets, confirmParams, depositOverride, 3);
+    const confirmSets = [`${confirmCol} = NOW()`, `${selectCol} = $2`, `${selectSourceCol} = $3`];
+    const confirmParams = [id, selectedPrice, selectedSource];
+    appendDepositSets(confirmSets, confirmParams, depositOverride, 4);
 
     let result = await pool.query(
       `UPDATE bookings SET ${confirmSets.join(", ")} WHERE id = $1 RETURNING *`,
@@ -1140,13 +1231,15 @@ export const getBookingById = async (req, res) => {
     const { id } = req.params;
     const result = await pool.query(
       `SELECT b.*, s.title, s.price, s.image_url, s.image_urls, s.category,
+              s.hide_exact_location,
+              s.location, s.address, s.city, s.latitude, s.longitude, s.locations,
               d.dispute_id,
               d.dispute_status,
               d.dispute_resolution,
               d.dispute_created_at,
               d.dispute_refund_percentage,
               CASE
-                WHEN s.hide_exact_location = true AND s.user_id <> $2
+                WHEN s.hide_exact_location = true
                   THEN COALESCE(NULLIF(TRIM(s.city), ''), NULLIF(TRIM(s.location), ''), NULLIF(TRIM(s.address), ''))
                 ELSE COALESCE(NULLIF(TRIM(s.address), ''), NULLIF(TRIM(s.location), ''), NULLIF(TRIM(s.city), ''))
               END AS service_location,

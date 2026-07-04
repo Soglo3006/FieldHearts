@@ -1,26 +1,126 @@
-/** Labels for booking.modified_fields — deduped for display */
-const FIELD_LABEL_KEYS: Record<string, string> = {
-  price: "bookings.modifiedFieldPrice",
-  price_range: "bookings.modifiedFieldPriceRange",
-  description: "bookings.modifiedFieldDescription",
-  deposit: "bookings.modifiedFieldDeposit",
-  estimated_hours: "bookings.modifiedFieldHours",
+type ModifiedBookingSnapshot = {
+  modified_fields?: string[] | null;
+  pricing_mode?: string | null;
+  price?: number | string | null;
+  price_max?: number | string | null;
+  custom_price?: number | string | null;
+  custom_price_min?: number | string | null;
+  custom_price_max?: number | string | null;
+  deposit_enabled?: boolean | null;
+  deposit_type?: string | null;
+  deposit_value?: number | string | null;
+  estimated_hours?: number | string | null;
 };
 
+function getLocale(language?: string | null) {
+  return language?.toLowerCase().startsWith("fr") ? "fr-CA" : "en-CA";
+}
+
+function formatMoney(value: unknown, language?: string | null): string | null {
+  const amount = Number(value);
+  if (!Number.isFinite(amount)) return null;
+  return `${new Intl.NumberFormat(getLocale(language), {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(amount)} $`;
+}
+
+function formatHours(value: unknown): string | null {
+  const hours = Number(value);
+  if (!Number.isFinite(hours) || hours <= 0) return null;
+  return Number.isInteger(hours) ? String(hours) : hours.toFixed(2).replace(/\.?0+$/, "");
+}
+
+function normalizePricingMode(raw: unknown): "fixed" | "range" | "quote" | "hourly" {
+  const value = String(raw ?? "fixed").toLowerCase().trim();
+  if (value === "range" || value === "quote" || value === "hourly") return value;
+  return "fixed";
+}
+
 export function getModifiedFieldLabels(
-  fields: string[] | null | undefined,
-  t: (key: string) => string,
+  booking: ModifiedBookingSnapshot,
+  t: (key: string, opts?: Record<string, unknown>) => string,
+  language?: string | null,
 ): string[] {
+  const fields = booking.modified_fields;
   if (!fields?.length) return [];
+
   const seen = new Set<string>();
   const labels: string[] = [];
+  const pricingMode = normalizePricingMode(booking.pricing_mode);
+
   for (const field of fields) {
     const key = field.trim();
     if (!key || seen.has(key)) continue;
     seen.add(key);
-    const labelKey = FIELD_LABEL_KEYS[key];
-    labels.push(labelKey ? t(labelKey) : key);
+
+    if (key === "price_range") {
+      const min = formatMoney(booking.custom_price_min ?? booking.price, language);
+      const max = formatMoney(booking.custom_price_max ?? booking.price_max, language);
+      labels.push(
+        min && max
+          ? t("bookings.modifiedFieldPriceRangeCurrent", { min, max })
+          : t("bookings.modifiedFieldPriceRange"),
+      );
+      continue;
+    }
+
+    if (key === "price") {
+      const amount = formatMoney(booking.custom_price ?? booking.price, language);
+      if (pricingMode === "hourly") {
+        labels.push(
+          amount
+            ? t("bookings.modifiedFieldHourlyRateCurrent", { amount })
+            : t("bookings.modifiedFieldPrice"),
+        );
+      } else {
+        labels.push(
+          amount
+            ? t("bookings.modifiedFieldPriceCurrent", { amount })
+            : t("bookings.modifiedFieldPrice"),
+        );
+      }
+      continue;
+    }
+
+    if (key === "deposit") {
+      if (!booking.deposit_enabled || !booking.deposit_type || Number(booking.deposit_value) <= 0) {
+        labels.push(t("bookings.modifiedFieldDepositRemoved"));
+      } else if (booking.deposit_type === "percent") {
+        labels.push(
+          t("bookings.modifiedFieldDepositPercentCurrent", {
+            percent: Number(booking.deposit_value),
+          }),
+        );
+      } else {
+        const amount = formatMoney(booking.deposit_value, language);
+        labels.push(
+          amount
+            ? t("bookings.modifiedFieldDepositFixedCurrent", { amount })
+            : t("bookings.modifiedFieldDeposit"),
+        );
+      }
+      continue;
+    }
+
+    if (key === "estimated_hours") {
+      const hours = formatHours(booking.estimated_hours);
+      labels.push(
+        hours
+          ? t("bookings.modifiedFieldHoursCurrent", { hours })
+          : t("bookings.modifiedFieldHours"),
+      );
+      continue;
+    }
+
+    if (key === "description") {
+      labels.push(t("bookings.modifiedFieldDescriptionUpdated"));
+      continue;
+    }
+
+    labels.push(key);
   }
+
   return labels;
 }
 

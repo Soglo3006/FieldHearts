@@ -139,14 +139,14 @@ export function calculateDepositAmount(
 ): number {
   if (!config?.deposit_enabled) return 0;
   const price = Number(servicePrice);
-  if (!Number.isFinite(price) || price < 0.02) return 0;
+  if (!Number.isFinite(price) || price < 0.01) return 0;
 
   const type = config.deposit_type;
   const raw = Number(config.deposit_value);
   if ((type !== "fixed" && type !== "percent") || !Number.isFinite(raw) || raw <= 0) return 0;
 
   let deposit = type === "percent" ? price * (raw / 100) : raw;
-  deposit = Math.min(deposit, price - 0.01);
+  deposit = Math.min(deposit, price);
   return Math.round(Math.max(0, deposit) * 100) / 100;
 }
 

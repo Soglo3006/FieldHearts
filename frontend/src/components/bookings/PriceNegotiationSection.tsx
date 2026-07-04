@@ -43,6 +43,8 @@ interface Booking {
   worker_proposed_price?: number | string | null;
   price_selected_by_client?: number | string | null;
   price_selected_by_worker?: number | string | null;
+  price_selected_source_by_client?: "client" | "worker" | null;
+  price_selected_source_by_worker?: "client" | "worker" | null;
 }
 
 interface Props {
@@ -172,6 +174,7 @@ export default function PriceNegotiationSection({ booking, userRole, accessToken
   const [depositType, setDepositType] = useState<DepositType>(() => initialDeposit.type);
   const [depositValue, setDepositValue] = useState(() => initialDeposit.value);
   const [selectedPrice, setSelectedPrice] = useState<number | null>(null);
+  const [selectedProposalSide, setSelectedProposalSide] = useState<"client" | "worker" | null>(null);
   const [saving, setSaving] = useState(false);
   const [confirming, setConfirming] = useState(false);
 
@@ -200,15 +203,40 @@ export default function PriceNegotiationSection({ booking, userRole, accessToken
       userRole === "client"
         ? booking.price_selected_by_client
         : booking.price_selected_by_worker;
+    const mySelectionSource =
+      userRole === "client"
+        ? booking.price_selected_source_by_client
+        : booking.price_selected_source_by_worker;
     if (mySelection != null && Number(mySelection) >= 0.01) {
-      setSelectedPrice(Number(mySelection));
+      const selected = Number(mySelection);
+      setSelectedPrice(selected);
+      if (mySelectionSource === "client" || mySelectionSource === "worker") {
+        setSelectedProposalSide(mySelectionSource);
+      } else {
+        const clientMatches =
+          proposals.client != null && pricesMatch(selected, proposals.client);
+        const workerMatches =
+          proposals.worker != null && pricesMatch(selected, proposals.worker);
+        if (clientMatches && !workerMatches) {
+          setSelectedProposalSide("client");
+        } else if (workerMatches && !clientMatches) {
+          setSelectedProposalSide("worker");
+        } else {
+          setSelectedProposalSide(null);
+        }
+      }
       return;
     }
     setSelectedPrice(null);
+    setSelectedProposalSide(null);
   }, [
     booking.price_selected_by_client,
+    booking.price_selected_source_by_client,
     booking.price_selected_by_worker,
+    booking.price_selected_source_by_worker,
     booking.id,
+    proposals.client,
+    proposals.worker,
     userRole,
   ]);
 
@@ -349,7 +377,7 @@ export default function PriceNegotiationSection({ booking, userRole, accessToken
   };
 
   const confirmPrice = async () => {
-    if (selectedPrice == null || !isConfirmDepositValid) return;
+    if (selectedPrice == null || selectedProposalSide == null || !isConfirmDepositValid) return;
     setConfirming(true);
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/bookings/${booking.id}/confirm-price`, {
@@ -360,6 +388,7 @@ export default function PriceNegotiationSection({ booking, userRole, accessToken
         },
         body: JSON.stringify({
           selected_price: selectedPrice,
+          selected_source: selectedProposalSide,
           ...buildDepositPayload(),
         }),
       });
@@ -466,9 +495,13 @@ export default function PriceNegotiationSection({ booking, userRole, accessToken
                 label={t("priceNegotiation.clientProposal")}
                 amount={proposals.client}
                 isMine={userRole === "client"}
-                isSelected={selectedPrice != null && proposals.client != null && pricesMatch(selectedPrice, proposals.client)}
+                isSelected={selectedProposalSide === "client"}
                 selectable={canSelectProposal && proposals.client != null}
-                onSelect={() => proposals.client != null && setSelectedPrice(proposals.client)}
+                onSelect={() => {
+                  if (proposals.client == null) return;
+                  setSelectedPrice(proposals.client);
+                  setSelectedProposalSide("client");
+                }}
                 youBadge={t("priceNegotiation.youBadge")}
                 noProposalLabel={t("priceNegotiation.noProposalYet")}
                 selectLabel={t("priceNegotiation.selectProposal")}
@@ -479,9 +512,13 @@ export default function PriceNegotiationSection({ booking, userRole, accessToken
                 amount={proposals.worker}
                 depositLine={providerDepositLine}
                 isMine={userRole === "worker"}
-                isSelected={selectedPrice != null && proposals.worker != null && pricesMatch(selectedPrice, proposals.worker)}
+                isSelected={selectedProposalSide === "worker"}
                 selectable={canSelectProposal && proposals.worker != null}
-                onSelect={() => proposals.worker != null && setSelectedPrice(proposals.worker)}
+                onSelect={() => {
+                  if (proposals.worker == null) return;
+                  setSelectedPrice(proposals.worker);
+                  setSelectedProposalSide("worker");
+                }}
                 youBadge={t("priceNegotiation.youBadge")}
                 noProposalLabel={t("priceNegotiation.noProposalYet")}
                 selectLabel={t("priceNegotiation.selectProposal")}
@@ -529,7 +566,7 @@ export default function PriceNegotiationSection({ booking, userRole, accessToken
               size="sm"
               className={negotiationActionButtonClass}
               onClick={confirmPrice}
-              disabled={confirming || selectedPrice == null || !isConfirmDepositValid}
+              disabled={confirming || selectedPrice == null || selectedProposalSide == null || !isConfirmDepositValid}
             >
               {confirming ? "…" : t("priceNegotiation.confirmSelected")}
             </Button>

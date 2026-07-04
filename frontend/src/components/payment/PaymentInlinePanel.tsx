@@ -9,8 +9,11 @@ import { getTaxRate, getTaxLabel, formatTaxRate } from "@/lib/taxes";
 import { getIntlLocale } from "@/lib/locale";
 import { PaymentDepositRows } from "@/components/payment/PaymentDepositRows";
 import type { DepositConfig } from "@/lib/deposit";
-import type { CheckoutKind } from "@/lib/hourlyPayment";
-import { isWorkBasedPricingMode } from "@/lib/hourlyPayment";
+import {
+  isWorkBasedPricingMode,
+  usesFullUpfrontDepositPayment,
+  type CheckoutKind,
+} from "@/lib/hourlyPayment";
 import { normalizePricingMode } from "@/lib/listingPrice";
 
 interface Props {
@@ -142,6 +145,19 @@ export default function PaymentInlinePanel({
   const taxLabel = getTaxLabel(billingProvince, i18n.language ?? "fr");
   const isDepositCheckout = checkoutKind === "deposit";
   const isBalanceCheckout = checkoutKind === "balance";
+  const isFullDepositCheckout =
+    checkoutKind === "full" &&
+    usesFullUpfrontDepositPayment(
+      {
+        status: "accepted",
+        pricing_mode: pricingMode,
+        price,
+        deposit_enabled: depositConfig?.deposit_enabled,
+        deposit_type: depositConfig?.deposit_type,
+        deposit_value: depositConfig?.deposit_value,
+      },
+      depositConfig,
+    );
   const feeBase = isBalanceCheckout && fullServiceBase != null ? fullServiceBase : price;
   const commission = isDepositCheckout ? 0 : feeBase * 0.05;
   const taxes = isDepositCheckout ? 0 : feeBase * taxRate;
@@ -167,7 +183,7 @@ export default function PaymentInlinePanel({
         ? "payment.balanceAmountFixed"
         : "payment.balanceAmount";
 
-  const servicePriceLabel = isDepositCheckout
+  const servicePriceLabel = isDepositCheckout || isFullDepositCheckout
     ? t("payment.depositAmount")
     : isBalanceCheckout
       ? t("payment.balanceAmount")
@@ -189,7 +205,7 @@ export default function PaymentInlinePanel({
             <span className="font-medium text-gray-900">{fmt(price)} $</span>
           </div>
           <hr className="border-gray-100 my-1" />
-          {!isDepositCheckout && !isBalanceCheckout && (
+          {!isDepositCheckout && !isBalanceCheckout && !isFullDepositCheckout && (
             <PaymentDepositRows
               price={price}
               depositConfig={depositConfig}
@@ -198,6 +214,9 @@ export default function PaymentInlinePanel({
           )}
           {isDepositCheckout && (
             <p className="text-xs text-gray-500">{t(depositNoticeKey)}</p>
+          )}
+          {isFullDepositCheckout && (
+            <p className="text-xs text-gray-500">{t("payment.fullDepositCoversServiceNotice")}</p>
           )}
           {isDepositCheckout && (
             <p className="text-xs text-gray-500">{t("payment.depositFeesDeferredNotice")}</p>
@@ -283,6 +302,8 @@ export default function PaymentInlinePanel({
             <span>
               {isDepositCheckout
                 ? t("payment.payDepositLabel")
+                : isFullDepositCheckout
+                  ? t("payment.payDepositLabel")
                 : isBalanceCheckout
                   ? t("payment.payBalanceLabel")
                   : t("payment.payNowLabel")}

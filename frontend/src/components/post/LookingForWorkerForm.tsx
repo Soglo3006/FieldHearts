@@ -13,7 +13,7 @@ import MultiLocationFields, {
   type LocationEntry,
 } from "@/components/post/MultiLocationFields";
 import CategorySubcategoryFields from "@/components/post/CategorySubcategoryFields";
-import { formatListingTagsDisplay } from "@/lib/categories";
+import { toCategoryKey } from "@/lib/categories";
 import AvailabilityLanguageMobilityFields from "@/components/post/AvailabilityLanguageMobilityFields";
 import OneTimeCheckbox from "@/components/post/OneTimeCheckbox";
 import ListingVisibilityCheckbox from "@/components/post/ListingVisibilityCheckbox";
@@ -138,8 +138,15 @@ export default function LookingForWorkerForm({ onSuccess }: Props) {
   const locationOk = resolvedLocations.length >= 1;
 
   const confirmCategoryLine = category
-    ? formatListingTagsDisplay(category, tags, null, t, " · ")
+    ? t(`categories.${toCategoryKey(category)}`, { defaultValue: category })
     : "";
+  const confirmSubcategoryLine = tags
+    .map((tag) =>
+      category
+        ? t(`categories.${toCategoryKey(category)}_${toCategoryKey(tag)}`, { defaultValue: tag })
+        : tag,
+    )
+    .join(" · ");
 
   const isValid =
     hasRequiredBilingualFields(translations) &&
@@ -460,18 +467,16 @@ export default function LookingForWorkerForm({ onSuccess }: Props) {
       titlesByLang={finalized.title ?? {}}
       descriptionsByLang={finalized.description ?? {}}
       priceSummary={confirmPriceSummary}
-      location={
-        resolvedLocations.length > 1
-          ? `${primaryLocation?.location ?? primaryLocation?.address ?? ""} (+${resolvedLocations.length - 1})`
-          : (locationEntries[0]?.value ?? primaryLocation?.location ?? primaryLocation?.address ?? "")
-      }
+      locations={resolvedLocations.map((entry) => entry.location ?? entry.address ?? "").filter(Boolean)}
       hideExactLocation={hideExactLocation}
       categoryLine={confirmCategoryLine}
+      subcategoryLine={confirmSubcategoryLine}
       availabilityLabel={labelAvailability(t, availability)}
       spokenLanguageLabel={labelSpokenLanguage(t, language)}
       mobilityLabel={labelMobility(t, mobility)}
       urgencyLabel={labelUrgency(t, urgency)}
       isOneTime={isOneTime}
+      isPublic={isPublic}
       imageUrls={images}
       submitting={submitting}
       onConfirm={doSubmit}

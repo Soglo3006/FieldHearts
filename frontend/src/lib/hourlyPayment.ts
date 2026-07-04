@@ -67,7 +67,32 @@ export function usesSplitDepositPayment(
   if (base == null || base < 0.02) return false;
 
   const deposit = calculateDepositAmount(base, meta);
-  return deposit >= 0.01 && deposit < base - 0.005;
+  return deposit >= 0.01;
+}
+
+export function usesFullUpfrontDepositPayment(
+  booking: BookingPaymentFields,
+  depositConfig?: DepositConfig | null,
+): boolean {
+  const meta = depositConfig ?? booking;
+  if (!meta.deposit_enabled) return false;
+
+  const mode = normalizePricingMode(booking.pricing_mode);
+  if (mode !== "hourly" && !isWorkBasedPricingMode(mode)) return false;
+
+  const base = resolveDepositBaseAmount(
+    {
+      pricing_mode: booking.pricing_mode,
+      price: booking.price,
+      price_max: booking.price_max,
+      estimated_hours: booking.estimated_hours,
+    },
+    booking,
+  );
+  if (base == null || base < 0.02) return false;
+
+  const deposit = calculateDepositAmount(base, meta);
+  return deposit >= base - 0.005;
 }
 
 function getApprovedHoursBaseCents(booking: BookingPaymentFields): number {
@@ -185,7 +210,13 @@ export function hasUnpaidBalanceDue(
   if (!usesSplitDepositPayment(booking, meta)) return false;
   if (!isBalanceCheckoutReady(booking)) return false;
   const balanceDue = computeBalanceDueCents(booking, meta);
-  if (balanceDue <= 0) return false;
+  const fullServiceCents = getFullServiceBaseCents(booking, meta);
+  const paidBaseCents = Number(booking.paid_service_base_cents || 0);
+  const feesOnlyStillDue =
+    booking.payment_status === "deposit_paid" &&
+    fullServiceCents > 0 &&
+    paidBaseCents >= fullServiceCents;
+  if (balanceDue <= 0 && !feesOnlyStillDue) return false;
   if (booking.payment_status === "deposit_paid") return true;
   return booking.payment_status === "paid" && isHourlyBooking(booking);
 }

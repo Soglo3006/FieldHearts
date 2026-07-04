@@ -1,5 +1,6 @@
 import pool from "../config/db.js";
 import { createClient } from "@supabase/supabase-js";
+import { sanitizeText, validateInput } from "../utils/validate.js";
 
 const supabaseAdmin =
   process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY

@@ -10,7 +10,7 @@ interface Props {
 export default function OneTimeCheckbox({ id, checked, onChange }: Props) {
   const { t } = useTranslation();
   return (
-    <div className="flex items-start gap-3 p-4 bg-green-50 border border-green-200 rounded-lg">
+    <div className="flex h-full items-start gap-3 p-4 bg-green-50 border border-green-200 rounded-lg">
       <input
         type="checkbox"
         id={id}

@@ -434,9 +434,10 @@ export default function OfferServiceForm({ onSuccess }: Props) {
         <MultiImageUploader images={images} onChange={setImages} aspectRatio={16 / 9} />
       </div>
 
-      <OneTimeCheckbox id="serviceIsOneTime" checked={isOneTime} onChange={setIsOneTime} />
-
-      <ListingVisibilityCheckbox id="serviceIsPublic" isPublic={isPublic} onChange={setIsPublic} />
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <OneTimeCheckbox id="serviceIsOneTime" checked={isOneTime} onChange={setIsOneTime} />
+        <ListingVisibilityCheckbox id="serviceIsPublic" isPublic={isPublic} onChange={setIsPublic} />
+      </div>
 
       <FormSubmitButton
         disabled={!isValid}

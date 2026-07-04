@@ -10,7 +10,7 @@ interface Props {
 export default function ListingVisibilityCheckbox({ id, isPublic, onChange }: Props) {
   const { t } = useTranslation();
   return (
-    <div className="flex items-start gap-3 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+    <div className="flex h-full items-start gap-3 p-4 bg-gray-50 border border-gray-200 rounded-lg">
       <input
         type="checkbox"
         id={id}

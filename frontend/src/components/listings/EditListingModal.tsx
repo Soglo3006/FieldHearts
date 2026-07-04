@@ -15,6 +15,7 @@ import MultiLocationFields, {
 import CategorySubcategoryFields from "@/components/post/CategorySubcategoryFields";
 import AvailabilityLanguageMobilityFields from "@/components/post/AvailabilityLanguageMobilityFields";
 import ListingVisibilityCheckbox from "@/components/post/ListingVisibilityCheckbox";
+import OneTimeCheckbox from "@/components/post/OneTimeCheckbox";
 import PostSelect from "@/components/post/PostSelect";
 import { X, CheckCircle } from "lucide-react";
 import type { ListingTranslationsPayload, ServiceLikeWithI18n } from "@/lib/serviceListingI18n";
@@ -557,22 +558,10 @@ export default function EditListingModal({ service, accessToken, onClose, onSave
             </div>
           </div>
 
-          {/* One-time listing */}
-          <div className="flex items-start gap-3 p-4 bg-green-50 border border-green-200 rounded-lg">
-            <input
-              type="checkbox"
-              id="editIsOneTime"
-              checked={isOneTime}
-              onChange={(e) => setIsOneTime(e.target.checked)}
-              className="mt-0.5 h-4 w-4 rounded border-gray-300 text-green-600 cursor-pointer"
-            />
-            <label htmlFor="editIsOneTime" className="cursor-pointer">
-              <span className="text-sm font-medium text-green-800">{t("post.oneTimeListing")}</span>
-              <p className="text-xs text-green-700 mt-0.5">{t("post.oneTimeListingDesc")}</p>
-            </label>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <OneTimeCheckbox id="editIsOneTime" checked={isOneTime} onChange={setIsOneTime} />
+            <ListingVisibilityCheckbox id="editIsPublic" isPublic={isPublic} onChange={setIsPublic} />
           </div>
-
-          <ListingVisibilityCheckbox id="editIsPublic" isPublic={isPublic} onChange={setIsPublic} />
         </div>
 
         {/* Footer */}

@@ -1,6 +1,7 @@
 import pool from "../config/db.js";
 import bcrypt from "bcryptjs";
 import { notifyPasswordChanged, notifyWaitlistConfirmation } from "../services/emailService.js";
+import { getUserLang } from "../services/notificationService.js";
 import { supabaseAdmin } from "../lib/supabase.js";
 
 export const joinWaitlist = async (req, res) => {
@@ -122,8 +123,9 @@ export const changePassword = async (req, res) => {
 
         // Notify user by email
         const displayName = user.account_type === "company" ? user.company_name : user.full_name;
-        notifyPasswordChanged(user.email, displayName || user.email)
-          .catch((err) => console.error("Password changed email failed:", err.message));
+        getUserLang(userId).then((lang) =>
+          notifyPasswordChanged(user.email, displayName || user.email, lang)
+        ).catch((err) => console.error("Password changed email failed:", err.message));
 
         res.json({
             message: "Password changed successfully"

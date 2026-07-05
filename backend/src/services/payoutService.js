@@ -1,7 +1,7 @@
 import pool from "../config/db.js";
 import stripe from "../config/stripe.js";
 import { notifyPayoutReceived } from "./emailService.js";
-import { createNotification } from "./notificationService.js";
+import { createNotification, getUserLang } from "./notificationService.js";
 
 const MIN_BUSINESS_DAYS = 5;             // money must sit 5 business days before payout
 
@@ -194,11 +194,15 @@ export async function processUserPayout(userId) {
   const transferredDollars = totalTransferredDollars.toFixed(2);
   const grossDollars = (totalTransferredDollars / 0.80).toFixed(2);
   const commissionDollars = (Number(grossDollars) - totalTransferredDollars).toFixed(2);
-  const nextPayout = getNextPayoutDate(new Date()).toLocaleDateString("fr-CA", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
+  const nextPayout = getNextPayoutDate(new Date()).toLocaleDateString(
+    (await getUserLang(userId)) === "en" ? "en-CA" : "fr-CA",
+    { weekday: "long", year: "numeric", month: "long", day: "numeric" },
+  );
 
 
   if (workerEmail) {
-    notifyPayoutReceived(workerEmail, workerName, transferredDollars, commissionDollars, grossDollars, processedBookings.length, nextPayout)
+    const lang = await getUserLang(userId);
+    notifyPayoutReceived(workerEmail, workerName, transferredDollars, commissionDollars, grossDollars, processedBookings.length, nextPayout, lang)
       .catch((err) => console.error("[Payout] Email failed:", err.message));
   }
 

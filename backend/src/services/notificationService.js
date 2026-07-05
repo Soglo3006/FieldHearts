@@ -20,7 +20,7 @@ export async function createNotification({ userId, type, title, body, link = nul
  * Look up a user's preferred language from their settings.
  * Defaults to "fr" if not set.
  */
-async function getUserLang(userId) {
+export async function getUserLang(userId) {
   try {
     const result = await pool.query(
       `SELECT settings->>'language' AS lang FROM users WHERE id = $1`,

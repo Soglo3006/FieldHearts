@@ -2,7 +2,7 @@ import express from 'express';
 import pool from '../config/db.js';
 import { notifyNewMessage } from '../services/emailService.js';
 import { pushNewMessage } from '../services/pushService.js';
-import { createLocalizedNotification, shouldSendEmail } from '../services/notificationService.js';
+import { createLocalizedNotification, getUserLang, shouldSendEmail } from '../services/notificationService.js';
 import { protect } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
@@ -174,12 +174,14 @@ router.post('/notify', protect, async (req, res) => {
 
     const canEmail = await shouldSendEmail(receiverId, 'message');
     if (canEmail) {
+      const lang = await getUserLang(receiverId);
       await notifyNewMessage(
         receiver.email,
         receiver.display_name || 'là',
         senderName,
         (messagePreview || '').substring(0, 100),
-        chatRoomId
+        chatRoomId,
+        lang,
       );
     }
 

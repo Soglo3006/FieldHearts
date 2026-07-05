@@ -2,7 +2,7 @@ import pool from "../config/db.js";
 import { notifyBookingCreated, notifyBookingStatusUpdated, sendEmail } from "../services/emailService.js";
 import { pushNewBooking, pushBookingStatus, pushPriceProposed, pushPriceConfirmRequest, pushPriceAgreed } from "../services/pushService.js";
 import stripe from "../config/stripe.js";
-import { createLocalizedNotification, shouldSendEmail } from "../services/notificationService.js";
+import { createLocalizedNotification, getUserLang, shouldSendEmail } from "../services/notificationService.js";
 import { validateInput, sanitizeText } from "../utils/validate.js";
 import { processDepositCancellationRefund } from "../services/depositRefundService.js";
 import { assertHourlyReadyForCompletion } from "../services/hourlyCompletionGuard.js";
@@ -210,9 +210,12 @@ export const createBooking = async (req, res) => {
     );
 
     // Always notify the listing poster (s.user_id), regardless of type
-    shouldSendEmail(s.user_id, "listing").then((ok) => {
-      if (ok) notifyBookingCreated(s.worker_email, s.worker_name, clientName, s.title, booking.id, s.image_url)
-        .catch((err) => console.error("Booking email notification failed:", err.message));
+    shouldSendEmail(s.user_id, "listing").then(async (ok) => {
+      if (ok) {
+        const lang = await getUserLang(s.user_id);
+        notifyBookingCreated(s.worker_email, s.worker_name, clientName, s.title, booking.id, s.image_url, lang)
+          .catch((err) => console.error("Booking email notification failed:", err.message));
+      }
     }).catch((err) => console.error("shouldSendEmail error:", err.message));
     pushNewBooking(s.user_id, clientName, s.title).catch(() => {});
     createLocalizedNotification({
@@ -442,9 +445,12 @@ export const updateBookingStatus = async (req, res) => {
       const notifyId = b.service_type === "looking" ? b.worker_id : b.client_id;
       const notifyEmail = b.service_type === "looking" ? b.worker_email : b.client_email;
       const notifyName = b.service_type === "looking" ? b.worker_name : b.client_name;
-      shouldSendEmail(notifyId, "listing").then((ok) => {
-        if (ok) notifyBookingStatusUpdated(notifyEmail, notifyName, b.title, status, b.id)
-          .catch((err) => console.error("Status email notification failed:", err.message));
+      shouldSendEmail(notifyId, "listing").then(async (ok) => {
+        if (ok) {
+          const lang = await getUserLang(notifyId);
+          notifyBookingStatusUpdated(notifyEmail, notifyName, b.title, status, b.id, lang)
+            .catch((err) => console.error("Status email notification failed:", err.message));
+        }
       }).catch((err) => console.error("shouldSendEmail error:", err.message));
       pushBookingStatus(notifyId, nextStatus === "negotiating" ? "negotiating" : status, b.title).catch(() => {});
       createLocalizedNotification({
@@ -551,13 +557,16 @@ export const markCompleted = async (req, res) => {
 
     await refreshHourlyBalanceDue(id, { notifyClient: true }).catch(() => {});
 
+    const [clientLang, workerLang] = await Promise.all([
+      getUserLang(b.client_id),
+      getUserLang(b.worker_id),
+    ]);
+
     // Notify the other party that this person marked the job done
     if (isWorker) {
-      // Notify client: worker says job is done, waiting for client confirmation
-      sendEmail(b.client_email, "jobMarkedDone", [b.client_name, b.worker_name, b.title, id]);
+      sendEmail(b.client_email, "jobMarkedDone", [b.client_name, b.worker_name, b.title, id], clientLang);
     } else {
-      // Notify worker: client says job is done, waiting for worker confirmation
-      sendEmail(b.worker_email, "jobMarkedDone", [b.worker_name, b.client_name, b.title, id]);
+      sendEmail(b.worker_email, "jobMarkedDone", [b.worker_name, b.client_name, b.title, id], workerLang);
     }
 
     // Atomic UPDATE: only succeeds if BOTH flags are true AND status is still 'active'
@@ -610,8 +619,8 @@ export const markCompleted = async (req, res) => {
       const taxRate = b.tax_rate ? Number(b.tax_rate) : getTaxRateForProvince(b.client_province);
       const totalPaid = (effectivePrice * (1 + 0.05 + taxRate)).toFixed(2);
       const workerReceives = (effectivePrice * 0.80).toFixed(2);
-      sendEmail(b.client_email, "jobCompleted", [b.client_name, b.title, b.worker_name, totalPaid, id, "client"]);
-      sendEmail(b.worker_email, "jobCompleted", [b.worker_name, b.title, b.client_name, workerReceives, id, "worker"]);
+      sendEmail(b.client_email, "jobCompleted", [b.client_name, b.title, b.worker_name, totalPaid, id, "client"], clientLang);
+      sendEmail(b.worker_email, "jobCompleted", [b.worker_name, b.title, b.client_name, workerReceives, id, "worker"], workerLang);
 
       return res.json({ ...u, status: "completed" });
     }
@@ -1416,8 +1425,9 @@ export const undoMarkCompleted = async (req, res) => {
       fr: { title: "Confirmation annulée", body: `${markerName} a annulé sa confirmation de fin de travail pour « ${b.title} ». Le travail est toujours en cours.` },
     }).catch(() => {});
 
-    sendEmail(otherEmail, "jobMarkUndone", [otherName, markerName, b.title, id])
-      .catch((err) => console.error("[undoMarkCompleted] Email failed:", err.message));
+    getUserLang(otherUserId).then((lang) =>
+      sendEmail(otherEmail, "jobMarkUndone", [otherName, markerName, b.title, id], lang)
+    ).catch((err) => console.error("[undoMarkCompleted] Email failed:", err.message));
 
     res.json(result.rows[0]);
   } catch (err) {

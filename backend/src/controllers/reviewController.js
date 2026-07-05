@@ -1,5 +1,6 @@
 import pool from "../config/db.js";
 import { notifyNewReview } from "../services/emailService.js";
+import { getUserLang } from "../services/notificationService.js";
 import { sanitizeText } from "../utils/validate.js";
 
 export const createReview = async (req, res) => {
@@ -51,7 +52,8 @@ export const createReview = async (req, res) => {
 
     if (users.rows.length > 0) {
       const { target_email, target_name, reviewer_name } = users.rows[0];
-      await notifyNewReview(target_email, target_name, reviewer_name, rating, comment);
+      const lang = await getUserLang(target_id);
+      await notifyNewReview(target_email, target_name, reviewer_name, rating, comment, lang);
     }
 
     res.status(201).json(result.rows[0]);

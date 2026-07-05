@@ -2,6 +2,7 @@ import pool from "../config/db.js";
 import stripe from "../config/stripe.js";
 import { finalizeCompletion } from "./bookingController.js";
 import { notifyPaymentReceipt } from "../services/emailService.js";
+import { getUserLang } from "../services/notificationService.js";
 import { processBookingRefund } from "../services/refundService.js";
 import { calculateDepositAmount, ensureDepositsAndCalendarSchema, resolveBookingDepositMeta, resolveCheckoutBaseAmount } from "../utils/depositSchema.js";
 import {
@@ -559,7 +560,8 @@ async function completeCheckoutPayment(session) {
        SET total_spent = wallets.total_spent + $2`,
       [client_id, amountDollars],
     );
-    notifyPaymentReceipt(client_email, client_name, title, amountDollars, worker_name, bookingId, image_url);
+    const clientLang = await getUserLang(client_id);
+    notifyPaymentReceipt(client_email, client_name, title, amountDollars, worker_name, bookingId, image_url, clientLang);
   }
 
   const servicePriceCents = Number(session.metadata?.service_price_cents ?? 0);

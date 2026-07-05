@@ -1,7 +1,7 @@
 import pool from "../config/db.js";
 import { supabaseAdmin } from "../lib/supabase.js";
 import { notifyDisputeCreated, notifyDisputeOutcome } from "../services/emailService.js";
-import { createLocalizedNotification, shouldSendEmail } from "../services/notificationService.js";
+import { createLocalizedNotification, getUserLang, shouldSendEmail } from "../services/notificationService.js";
 import { buildRefundSummary, processBookingRefund } from "../services/refundService.js";
 import { logAdminAction } from "../services/auditService.js";
 import { sanitizeText } from "../utils/validate.js";
@@ -118,10 +118,14 @@ export const CreateDispute = async (req, res) => {
 
         if (users.rows.length > 0) {
             const { client_email, client_name, worker_email, worker_name } = users.rows[0];
+            const [clientLang, workerLang] = await Promise.all([
+              getUserLang(b.client_id),
+              getUserLang(b.worker_id),
+            ]);
             if (await shouldSendEmail(b.client_id, "complaint"))
-              await notifyDisputeCreated(client_email, client_name, booking_id, description);
+              await notifyDisputeCreated(client_email, client_name, booking_id, description, clientLang);
             if (await shouldSendEmail(b.worker_id, "complaint"))
-              await notifyDisputeCreated(worker_email, worker_name, booking_id, description);
+              await notifyDisputeCreated(worker_email, worker_name, booking_id, description, workerLang);
 
             // Notify the other party in-app
             const otherPartyId = raised_by === b.client_id ? b.worker_id : b.client_id;
@@ -578,6 +582,11 @@ export const AdminUpdateDispute = async (req, res) => {
                 fr: { title: status === "resolved" ? "Litige résolu" : "Litige rejeté", body: normalizedResolution || "Une décision a été ajoutée à votre litige." },
             });
 
+            const [clientLang, workerLang] = await Promise.all([
+              getUserLang(currentDispute.client_id),
+              getUserLang(currentDispute.worker_id),
+            ]);
+
             if (await shouldSendEmail(currentDispute.client_id, "complaint")) {
                 await notifyDisputeOutcome(
                     currentDispute.client_email,
@@ -585,7 +594,8 @@ export const AdminUpdateDispute = async (req, res) => {
                     currentDispute.booking_id,
                     status,
                     normalizedResolution,
-                    refundedAmount
+                    refundedAmount,
+                    clientLang,
                 );
             }
 
@@ -596,7 +606,8 @@ export const AdminUpdateDispute = async (req, res) => {
                     currentDispute.booking_id,
                     status,
                     normalizedResolution,
-                    refundedAmount
+                    refundedAmount,
+                    workerLang,
                 );
             }
         }

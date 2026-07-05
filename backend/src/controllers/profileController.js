@@ -2,6 +2,7 @@ import pool from "../config/db.js";
 import { sanitizeText } from "../utils/validate.js";
 import { createClient } from '@supabase/supabase-js';
 import { notifyWelcome } from '../services/emailService.js';
+import { getUserLang } from '../services/notificationService.js';
 import { invalidateSuspendedCache } from "../middleware/authMiddleware.js";
 import { logAdminAction } from "../services/auditService.js";
 
@@ -331,8 +332,9 @@ export const completeProfile = async (req, res) => {
 
         const u = result.rows[0];
         const displayName = u.account_type === "company" ? u.company_name : u.full_name;
-        notifyWelcome(u.email, displayName || u.email)
-          .catch((err) => console.error("Welcome email failed:", err.message));
+        getUserLang(userId).then((lang) =>
+          notifyWelcome(u.email, displayName || u.email, lang)
+        ).catch((err) => console.error("Welcome email failed:", err.message));
 
         res.json({
             message: "Profile completed successfully",

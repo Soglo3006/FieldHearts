@@ -1,6 +1,7 @@
 import cron from "node-cron";
 import pool from "../config/db.js";
 import { notifyUnreadReminder } from "../services/emailService.js";
+import { getUserLang } from "../services/notificationService.js";
 
 /**
  * Runs every hour.
@@ -56,7 +57,8 @@ const runReminders = async () => {
 
     for (const row of rows) {
       const senderName = senderNames[row.sender_id] || "Quelqu'un";
-      await notifyUnreadReminder(row.email, row.display_name, senderName, Number(row.unread_count));
+      const lang = await getUserLang(row.user_id);
+      await notifyUnreadReminder(row.email, row.display_name, senderName, Number(row.unread_count), lang);
 
       await pool.query(
         `UPDATE chat_room_member SET last_reminder_sent_at = NOW()

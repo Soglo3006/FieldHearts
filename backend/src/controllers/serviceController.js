@@ -46,7 +46,13 @@ import {
   locationTextMatchClause,
   minDistanceExpr,
   withinRadiusClause,
+  resolveListingLocationForSearch,
 } from "../utils/serviceLocations.js";
+import {
+  normalizedLocationKeySql,
+  normalizedLocationMatchClause,
+  rankLocationSearchMatch,
+} from "../utils/locationSearchNormalize.js";
 
 function normalizeTagKey(value) {
   return String(value ?? "")
@@ -377,17 +383,43 @@ export const getAllServices = async (req, res) => {
     const lng = parseFloat(userLng);
     const km  = parseFloat(radius) || 50;
     const hasGeo = !isNaN(lat) && !isNaN(lng);
+    const locRaw = location ? String(location).trim() : "";
+    const hasLocText = Boolean(locRaw);
+    let geoLatIdx = null;
+    let geoLngIdx = null;
 
-    if (location) {
-      const locPatterns = expandLocationILIKEpatterns(String(location));
-      const clauses = locPatterns.map(
-        (_, idx) => locationTextMatchClause(`$${paramCount + idx}`),
+    const buildLocationTextSql = () => {
+      const clauses = [locationTextMatchClause(`$${paramCount}`)];
+      params.push(locRaw);
+      let next = paramCount + 1;
+
+      const extraPatterns = expandLocationILIKEpatterns(locRaw).filter(
+        (pattern) => pattern !== `%${locRaw}%`,
       );
-      query += ` AND (${clauses.join(" OR ")})`;
-      for (const p of locPatterns) {
-        params.push(p);
+      for (const pattern of extraPatterns) {
+        clauses.push(`(
+          s.location ILIKE $${next}
+          OR s.city ILIKE $${next}
+          OR COALESCE(s.address, '') ILIKE $${next}
+        )`);
+        params.push(pattern);
+        next++;
       }
-      paramCount += locPatterns.length;
+
+      paramCount = next;
+      return `(${clauses.join(" OR ")})`;
+    };
+
+    if (hasLocText && hasGeo) {
+      const textSql = buildLocationTextSql();
+      geoLatIdx = paramCount;
+      geoLngIdx = paramCount + 1;
+      const radiusIdx = paramCount + 2;
+      query += ` AND (${textSql} OR ${withinRadiusClause(`$${geoLatIdx}`, `$${geoLngIdx}`, `$${radiusIdx}`)})`;
+      params.push(lat, lng, km);
+      paramCount += 3;
+    } else if (hasLocText) {
+      query += ` AND ${buildLocationTextSql()}`;
     }
 
     /** Filtre prix : listings « quote » inclus·es ; sinon borne basse / haute. */
@@ -512,14 +544,21 @@ export const getAllServices = async (req, res) => {
     }
 
     if (hasGeo) {
-      const distExpr = minDistanceExpr(`$${paramCount}`, `$${paramCount + 1}`);
+      if (!hasLocText) {
+        geoLatIdx = paramCount;
+        geoLngIdx = paramCount + 1;
+        query += `
+          AND ${withinRadiusClause(`$${paramCount}`, `$${paramCount + 1}`, `$${paramCount + 2}`)}
+        `;
+        params.push(lat, lng, km);
+        paramCount += 3;
+      }
+
+      const distExpr = minDistanceExpr(`$${geoLatIdx}`, `$${geoLngIdx}`);
 
       query += `
-          AND ${withinRadiusClause(`$${paramCount}`, `$${paramCount + 1}`, `$${paramCount + 2}`)}
           ORDER BY ${hasSearch ? `${relevanceExpr} DESC,` : ""} ${distExpr} ASC
         `;
-      params.push(lat, lng, km);
-      paramCount += 3;
     } else {
       query += hasSearch
         ? ` ORDER BY ${relevanceExpr} DESC, s.created_at DESC`
@@ -540,6 +579,20 @@ export const getAllServices = async (req, res) => {
     const result = await pool.query(query, params);
     result.rows.forEach((row) => canonServiceFieldsInPlace(row));
 
+    const searchLocationText = location ? String(location).trim() : "";
+    const hasLocationSearchContext = hasGeo || Boolean(searchLocationText);
+    if (hasLocationSearchContext) {
+      result.rows.forEach((row) => {
+        const { label, extraCount } = resolveListingLocationForSearch(row, {
+          searchLat: hasGeo ? lat : undefined,
+          searchLng: hasGeo ? lng : undefined,
+          searchText: searchLocationText || undefined,
+        });
+        row.display_location_label = label;
+        row.display_location_extra_count = extraCount;
+      });
+    }
+
     if (isPaginated) {
       const total = parseInt(result.rows[0]?.total_count ?? "0", 10);
       return res.json({
@@ -554,6 +607,86 @@ export const getAllServices = async (req, res) => {
   } catch (err) {
     console.error("[getAllServices] error:", err.message, err.stack);
     return res.status(500).json({ message: "Server error while fetching services" });
+  }
+};
+
+export const suggestServiceLocations = async (req, res) => {
+  try {
+    await ensureListingVisibilitySchema(pool);
+    await ensureServiceLocationsSchema(pool);
+
+    const q = String(req.query.q ?? req.query.search ?? "").trim();
+    const limit = Math.min(12, Math.max(1, parseInt(req.query.limit, 10) || 8));
+    if (!q) return res.json([]);
+
+    const fetchLimit = Math.min(60, limit * 6);
+
+    const result = await pool.query(
+      `
+      WITH raw_locations AS (
+        SELECT
+          COALESCE(NULLIF(trim(s.city), ''), NULLIF(trim(s.location), ''), NULLIF(trim(s.address), '')) AS label,
+          s.latitude::double precision AS lat,
+          s.longitude::double precision AS lng
+        FROM services s
+        WHERE s.is_active = true
+        ${publicTestListingFilter("s")}
+        ${publicListingFilter("s")}
+        UNION ALL
+        SELECT
+          COALESCE(
+            NULLIF(trim(loc.value->>'city'), ''),
+            NULLIF(trim(loc.value->>'location'), ''),
+            NULLIF(trim(loc.value->>'address'), '')
+          ) AS label,
+          NULLIF(trim(loc.value->>'lat'), '')::double precision AS lat,
+          NULLIF(trim(loc.value->>'lng'), '')::double precision AS lng
+        FROM services s
+        CROSS JOIN LATERAL jsonb_array_elements(COALESCE(s.locations, '[]'::jsonb)) AS loc(value)
+        WHERE s.is_active = true
+        ${publicTestListingFilter("s")}
+        ${publicListingFilter("s")}
+      ),
+      filtered AS (
+        SELECT
+          label,
+          lat,
+          lng,
+          ${normalizedLocationKeySql("label")} AS search_key
+        FROM raw_locations
+        WHERE label IS NOT NULL AND trim(label) <> ''
+      )
+      SELECT DISTINCT ON (search_key)
+        label,
+        lat,
+        lng
+      FROM filtered
+      WHERE ${normalizedLocationMatchClause("label", "$1")}
+      ORDER BY search_key, length(label), label
+      LIMIT $2
+      `,
+      [q, fetchLimit],
+    );
+
+    const ranked = result.rows
+      .map((row) => ({
+        ...row,
+        score: rankLocationSearchMatch(row.label, q),
+      }))
+      .filter((row) => row.score > 0)
+      .sort((a, b) => b.score - a.score || a.label.length - b.label.length || a.label.localeCompare(b.label))
+      .slice(0, limit);
+
+    res.json(
+      ranked.map((row) => ({
+        label: row.label,
+        lat: row.lat,
+        lng: row.lng,
+      })),
+    );
+  } catch (err) {
+    console.error("[suggestServiceLocations] error:", err.message);
+    return res.status(500).json({ message: "Server error while fetching location suggestions" });
   }
 };
 

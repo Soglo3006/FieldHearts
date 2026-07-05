@@ -1,7 +1,15 @@
 /** Rayon par défaut pour la recherche d'annonces autour d'une ville (km). */
 export const LOCATION_SEARCH_RADIUS_KM = 50;
 
+/** Auto-geocode only for longer typed queries; short partials use text token matching. */
+export const MIN_AUTO_GEOCODE_LENGTH = 4;
+
 export type LatLng = { lat: number; lng: number };
+
+export function shouldAutoGeocodeLocation(query: string, hasExplicitCoords: boolean): boolean {
+  if (hasExplicitCoords) return true;
+  return query.trim().length >= MIN_AUTO_GEOCODE_LENGTH;
+}
 
 export async function geocodeCanadianLocation(label: string): Promise<LatLng | null> {
   const trimmed = label.trim();

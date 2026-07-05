@@ -92,6 +92,8 @@
     "cityOrArea": "City or area...",
     "locationRegions": "Regions",
     "locationCities": "Cities",
+    "locationPlatform": "On the platform",
+    "locationSearching": "Searching…",
     "locationRegionBadge": "Region",
     "price": "Price",
     "pricingTypeFilter": "Price type",

@@ -1,3 +1,5 @@
+import { rankLocationSearchMatch } from "./locationSearchNormalize";
+
 export interface StoredLocation {
   address?: string;
   city?: string;
@@ -42,9 +44,10 @@ type ResolvedLocation = {
 
 export function getServiceLocations(service: ServiceLocationFields): ResolvedLocation[] {
   const resolved: ResolvedLocation[] = [];
+  const locationsList = parseLocationsField(service.locations);
 
-  if (Array.isArray(service.locations) && service.locations.length > 0) {
-    for (const loc of service.locations) {
+  if (locationsList && locationsList.length > 0) {
+    for (const loc of locationsList) {
       const lat = toFiniteNumber(loc.lat);
       const lng = toFiniteNumber(loc.lng);
       if (lat == null || lng == null) continue;
@@ -103,27 +106,21 @@ function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): nu
   return 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-function normalizeSearchText(value: string): string {
-  return value
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .trim();
-}
-
 function textMatchScore(loc: ResolvedLocation, searchText: string): number {
-  const needle = normalizeSearchText(searchText);
-  if (!needle) return 0;
-
-  const haystacks = [loc.city, loc.address, loc.location].map((v) => normalizeSearchText(v ?? ""));
+  const values = [loc.city, loc.address, loc.location].filter(Boolean) as string[];
   let best = 0;
-  for (const hay of haystacks) {
-    if (!hay) continue;
-    if (hay === needle) best = Math.max(best, 100);
-    else if (hay.startsWith(needle) || needle.startsWith(hay)) best = Math.max(best, 80);
-    else if (hay.includes(needle) || needle.includes(hay)) best = Math.max(best, 60);
+  for (const value of values) {
+    best = Math.max(best, rankLocationSearchMatch(value, searchText));
   }
   return best;
+}
+
+function distanceScoreKm(distKm: number): number {
+  if (distKm <= 5) return 50;
+  if (distKm <= 25) return 45 - distKm * 0.4;
+  if (distKm <= 50) return 30 - (distKm - 25) * 0.4;
+  if (distKm <= 150) return Math.max(0, 15 - (distKm - 50) / 10);
+  return 0;
 }
 
 function pickLocationIndex(
@@ -134,40 +131,66 @@ function pickLocationIndex(
 
   const searchLat = toFiniteNumber(options?.searchLat);
   const searchLng = toFiniteNumber(options?.searchLng);
-  if (searchLat != null && searchLng != null) {
-    let bestIdx = 0;
-    let bestDist = Infinity;
-    locations.forEach((loc, idx) => {
-      const dist = haversineKm(searchLat, searchLng, loc.lat, loc.lng);
-      if (dist < bestDist) {
-        bestDist = dist;
-        bestIdx = idx;
-      }
-    });
-    return bestIdx;
-  }
-
   const searchText = options?.searchText?.trim();
-  if (searchText) {
-    let bestIdx = 0;
-    let bestScore = -1;
-    locations.forEach((loc, idx) => {
-      const score = textMatchScore(loc, searchText);
-      if (score > bestScore) {
-        bestScore = score;
-        bestIdx = idx;
-      }
-    });
-    if (bestScore > 0) return bestIdx;
-  }
+  const hasCoords = searchLat != null && searchLng != null;
+  const hasText = Boolean(searchText);
 
-  return 0;
+  if (!hasCoords && !hasText) return 0;
+
+  let bestIdx = 0;
+  let bestScore = -1;
+
+  locations.forEach((loc, idx) => {
+    let score = 0;
+    if (hasText && searchText) {
+      score += textMatchScore(loc, searchText) * 2;
+    }
+    if (hasCoords && searchLat != null && searchLng != null) {
+      score += distanceScoreKm(haversineKm(searchLat, searchLng, loc.lat, loc.lng));
+    }
+    if (score > bestScore) {
+      bestScore = score;
+      bestIdx = idx;
+    }
+  });
+
+  return bestScore > 0 ? bestIdx : 0;
+}
+
+function parseLocationsField(raw: unknown): StoredLocation[] | null {
+  if (!raw) return null;
+  if (typeof raw === "string") {
+    try {
+      const parsed = JSON.parse(raw) as unknown;
+      return Array.isArray(parsed) ? (parsed as StoredLocation[]) : null;
+    } catch {
+      return null;
+    }
+  }
+  return Array.isArray(raw) ? raw : null;
+}
+
+export interface ListingLocationDisplayResult {
+  label: string;
+  extraCount: number;
 }
 
 export function resolveListingLocationDisplay(
-  service: ServiceLocationFields,
+  service: ServiceLocationFields & {
+    display_location_label?: string | null;
+    display_location_extra_count?: number | string | null;
+  },
   options?: ListingLocationDisplayOptions,
-): { label: string; extraCount: number } {
+): ListingLocationDisplayResult {
+  const apiLabel = service.display_location_label?.trim();
+  if (apiLabel) {
+    const extraRaw = Number(service.display_location_extra_count ?? 0);
+    return {
+      label: apiLabel,
+      extraCount: Number.isFinite(extraRaw) ? Math.max(0, extraRaw) : 0,
+    };
+  }
+
   const locations = getServiceLocations(service);
   const hideExact = Boolean(service.hide_exact_location);
 

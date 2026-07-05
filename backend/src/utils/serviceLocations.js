@@ -1,3 +1,5 @@
+import { normalizedLocationMatchClause, rankLocationSearchMatch } from "./locationSearchNormalize.js";
+
 const MAX_LISTING_LOCATIONS = 5;
 
 let schemaReady = false;
@@ -120,16 +122,20 @@ export function primaryLocationFields(locations) {
 
 /** SQL fragment: text match on flat columns OR any entry in locations jsonb. */
 export function locationTextMatchClause(paramRef) {
+  const jsonCity = `loc.value->>'city'`;
+  const jsonAddress = `loc.value->>'address'`;
+  const jsonLocation = `loc.value->>'location'`;
+
   return `(
-    s.location ILIKE ${paramRef}
-    OR s.city ILIKE ${paramRef}
-    OR COALESCE(s.address, '') ILIKE ${paramRef}
+    ${normalizedLocationMatchClause("s.location", paramRef)}
+    OR ${normalizedLocationMatchClause("s.city", paramRef)}
+    OR ${normalizedLocationMatchClause("COALESCE(s.address, '')", paramRef)}
     OR EXISTS (
       SELECT 1
       FROM jsonb_array_elements(COALESCE(s.locations, '[]'::jsonb)) AS loc(value)
-      WHERE loc.value->>'city' ILIKE ${paramRef}
-         OR loc.value->>'address' ILIKE ${paramRef}
-         OR loc.value->>'location' ILIKE ${paramRef}
+      WHERE ${normalizedLocationMatchClause(jsonCity, paramRef)}
+         OR ${normalizedLocationMatchClause(jsonAddress, paramRef)}
+         OR ${normalizedLocationMatchClause(jsonLocation, paramRef)}
     )
   )`;
 }
@@ -187,4 +193,121 @@ export function withinRadiusClause(userLatParam, userLngParam, radiusParam) {
   )`;
 
   return `(${flatMatch} OR ${jsonMatch})`;
+}
+
+function textMatchScore(loc, searchText) {
+  const values = [loc.city, loc.address, loc.location].filter(Boolean);
+  let best = 0;
+  for (const value of values) {
+    best = Math.max(best, rankLocationSearchMatch(value, searchText));
+  }
+  return best;
+}
+
+function haversineKm(lat1, lng1, lat2, lng2) {
+  const toRad = (deg) => (deg * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function distanceScoreKm(distKm) {
+  if (distKm <= 5) return 50;
+  if (distKm <= 25) return 45 - distKm * 0.4;
+  if (distKm <= 50) return 30 - (distKm - 25) * 0.4;
+  if (distKm <= 150) return Math.max(0, 15 - (distKm - 50) / 10);
+  return 0;
+}
+
+function getServiceLocationsFromRow(service) {
+  const resolved = [];
+  const rawList = Array.isArray(service.locations)
+    ? service.locations
+    : typeof service.locations === "string"
+      ? (() => {
+          try {
+            const parsed = JSON.parse(service.locations);
+            return Array.isArray(parsed) ? parsed : [];
+          } catch {
+            return [];
+          }
+        })()
+      : [];
+
+  if (rawList.length > 0) {
+    for (const loc of rawList) {
+      const normalized = normalizeOneLocation(loc);
+      if (normalized) resolved.push(normalized);
+    }
+    if (resolved.length > 0) return resolved;
+  }
+
+  const single = normalizeOneLocation(
+    {
+      address: service.address,
+      city: service.city,
+      lat: service.latitude,
+      lng: service.longitude,
+      location: service.location,
+    },
+    String(service.location ?? ""),
+  );
+
+  return single ? [single] : [];
+}
+
+function publicLabelForLocation(loc, hideExact) {
+  if (hideExact) {
+    return String(loc.city ?? loc.location ?? loc.address ?? "").trim();
+  }
+  return String(loc.address ?? loc.location ?? loc.city ?? "").trim();
+}
+
+function pickLocationIndex(locations, options = {}) {
+  if (locations.length <= 1) return 0;
+
+  const searchLat = toFiniteNumber(options.searchLat);
+  const searchLng = toFiniteNumber(options.searchLng);
+  const searchText = String(options.searchText ?? "").trim();
+  const hasCoords = searchLat != null && searchLng != null;
+  const hasText = Boolean(searchText);
+
+  if (!hasCoords && !hasText) return 0;
+
+  let bestIdx = 0;
+  let bestScore = -1;
+
+  locations.forEach((loc, idx) => {
+    let score = 0;
+    if (hasText) score += textMatchScore(loc, searchText) * 2;
+    if (hasCoords) score += distanceScoreKm(haversineKm(searchLat, searchLng, loc.lat, loc.lng));
+    if (score > bestScore) {
+      bestScore = score;
+      bestIdx = idx;
+    }
+  });
+
+  return bestScore > 0 ? bestIdx : 0;
+}
+
+/** Pick the listing location label closest to a search query (text and/or coordinates). */
+export function resolveListingLocationForSearch(service, options = {}) {
+  const locations = getServiceLocationsFromRow(service);
+  const hideExact = Boolean(service.hide_exact_location);
+
+  if (locations.length === 0) {
+    const fallback = hideExact
+      ? String(service.city ?? service.location ?? service.address ?? "").trim()
+      : String(service.address ?? service.location ?? service.city ?? "").trim();
+    return { label: fallback, extraCount: 0 };
+  }
+
+  const idx = pickLocationIndex(locations, options);
+  return {
+    label: publicLabelForLocation(locations[idx], hideExact),
+    extraCount: Math.max(0, locations.length - 1),
+  };
 }

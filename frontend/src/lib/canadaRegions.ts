@@ -10,13 +10,7 @@ export type CanadaRegion = {
   search: string[];
 };
 
-function stripDiacritics(s: string): string {
-  return s.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-}
-
-function normalizeSearch(s: string): string {
-  return stripDiacritics(s.toLowerCase().trim());
-}
+import { locationSearchMatches } from "@/lib/locationSearchNormalize";
 
 /** Ordre : est → ouest, régions administratives usuelles */
 export const CANADA_REGIONS: readonly CanadaRegion[] = [
@@ -43,13 +37,13 @@ export function getRegionDisplayLabel(region: CanadaRegion, langIsEnglish: boole
  * Sans requête : toutes les régions. Avec requête : sous-ensemble pertinent (FR ou EN).
  */
 export function filterCanadaRegions(rawQuery: string): CanadaRegion[] {
-  const q = normalizeSearch(rawQuery);
+  const q = rawQuery.trim();
   if (!q) return [...CANADA_REGIONS];
 
   return CANADA_REGIONS.filter((region) => {
-    const fr = normalizeSearch(region.labels.fr);
-    const en = normalizeSearch(region.labels.en);
-    if (fr.includes(q) || en.includes(q)) return true;
-    return region.search.some((term) => normalizeSearch(term).startsWith(q) || normalizeSearch(term).includes(q));
+    const fr = getRegionDisplayLabel(region, false);
+    const en = getRegionDisplayLabel(region, true);
+    if (locationSearchMatches(fr, q) || locationSearchMatches(en, q)) return true;
+    return region.search.some((term) => locationSearchMatches(term, q));
   });
 }

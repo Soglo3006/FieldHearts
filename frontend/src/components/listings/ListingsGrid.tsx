@@ -32,6 +32,8 @@ interface ApiService {
   city?: string | null;
   hide_exact_location?: boolean;
   locations?: Array<{ address?: string; city?: string; lat?: number; lng?: number; location?: string }>;
+  display_location_label?: string | null;
+  display_location_extra_count?: number | string | null;
   created_at: string;
   image_url: string | null;
   image_urls?: string[] | null;
@@ -246,6 +248,7 @@ export default function ListingsGrid({ filters }: { filters?: ListingsFilters })
           params.set("userLat", String(filters.locationLat));
           params.set("userLng", String(filters.locationLng));
           params.set("radius", String(filters.locationRadius ?? LOCATION_SEARCH_RADIUS_KM));
+          if (filters?.location?.trim()) params.set("location", filters.location.trim());
         } else if (filters?.location) {
           params.set("location", filters.location);
         }

@@ -16,6 +16,7 @@ import AdBanner from "@/components/AdBanner";
 import {
   geocodeCanadianLocation,
   LOCATION_SEARCH_RADIUS_KM,
+  shouldAutoGeocodeLocation,
   type LatLng,
 } from "@/lib/geocodeCanadianLocation";
 
@@ -215,7 +216,12 @@ function ListingsContent({ username }: { username?: string }) {
       setResolvedLocationCoords(locationCoords);
       return;
     }
-    if (!mapsReady) return;
+
+    setResolvedLocationCoords(null);
+
+    if (!mapsReady || !shouldAutoGeocodeLocation(trimmed, false)) {
+      return;
+    }
 
     let cancelled = false;
     geocodeCanadianLocation(trimmed).then((coords) => {

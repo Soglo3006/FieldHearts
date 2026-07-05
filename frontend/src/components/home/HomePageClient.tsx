@@ -11,7 +11,7 @@ import { useEffect, useState, useCallback } from "react";
 import { Grid3x3 } from "lucide-react";
 import { useJsApiLoader } from "@react-google-maps/api";
 import { GOOGLE_MAPS_LIBRARIES } from "@/lib/googleMapsConfig";
-import { geocodeCanadianLocation, LOCATION_SEARCH_RADIUS_KM } from "@/lib/geocodeCanadianLocation";
+import { geocodeCanadianLocation, LOCATION_SEARCH_RADIUS_KM, shouldAutoGeocodeLocation } from "@/lib/geocodeCanadianLocation";
 import { ListingsRegionEmptyState } from "@/components/listings/ListingsRegionEmptyState";
 import AppImage from "@/components/ui/AppImage";
 import { useTranslation } from "react-i18next";
@@ -46,6 +46,8 @@ export interface HomeListing extends ServiceLikeWithI18n {
   city?: string | null;
   hide_exact_location?: boolean;
   locations?: Array<{ address?: string; city?: string; lat?: number; lng?: number; location?: string }>;
+  display_location_label?: string | null;
+  display_location_extra_count?: number | string | null;
   image_url?: string;
   image_urls?: string[] | null;
   created_at: string;
@@ -238,7 +240,7 @@ export default function HomePageClient({
       setDataLoading(true);
       try {
         let coords = locationCoords;
-        if (!coords && mapsReady) {
+        if (!coords && mapsReady && shouldAutoGeocodeLocation(debouncedLocation.trim(), Boolean(locationCoords))) {
           coords = await geocodeCanadianLocation(debouncedLocation.trim());
         }
         if (!cancelled) {
@@ -246,13 +248,15 @@ export default function HomePageClient({
         }
 
         const params = new URLSearchParams({ limit: "12" });
+        const trimmedLocation = debouncedLocation.trim();
+        if (trimmedLocation) {
+          params.set("location", trimmedLocation);
+        }
         if (coords) {
           params.set("userLat", String(coords.lat));
           params.set("userLng", String(coords.lng));
           params.set("radius", String(LOCATION_SEARCH_RADIUS_KM));
-        } else if (mapsReady) {
-          params.set("location", debouncedLocation.trim());
-        } else {
+        } else if (!mapsReady) {
           return;
         }
 
@@ -483,8 +487,17 @@ export default function HomePageClient({
                           listing={listing}
                           t={t}
                           i18nLang={i18n.language}
-                          searchLat={userCoords?.lat}
-                          searchLng={userCoords?.lng}
+                          searchLat={
+                            debouncedLocation.trim()
+                              ? (resolvedLocationCoords ?? locationCoords)?.lat
+                              : userCoords?.lat
+                          }
+                          searchLng={
+                            debouncedLocation.trim()
+                              ? (resolvedLocationCoords ?? locationCoords)?.lng
+                              : userCoords?.lng
+                          }
+                          searchText={debouncedLocation.trim() || null}
                         />
                       ))
                     )}

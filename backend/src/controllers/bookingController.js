@@ -213,7 +213,7 @@ export const createBooking = async (req, res) => {
     shouldSendEmail(s.user_id, "listing").then(async (ok) => {
       if (ok) {
         const lang = await getUserLang(s.user_id);
-        notifyBookingCreated(s.worker_email, s.worker_name, clientName, s.title, booking.id, s.image_url, lang)
+        notifyBookingCreated(s.worker_email, s.worker_name, clientName, s.title, booking.id, s.image_url, s.image_urls, lang)
           .catch((err) => console.error("Booking email notification failed:", err.message));
       }
     }).catch((err) => console.error("shouldSendEmail error:", err.message));

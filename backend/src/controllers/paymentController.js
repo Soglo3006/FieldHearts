@@ -520,7 +520,7 @@ async function completeCheckoutPayment(session) {
   }
 
   const booking = await pool.query(
-    `SELECT b.client_id, b.worker_id, p.amount, p.payment_kind, s.title, s.image_url,
+    `SELECT b.client_id, b.worker_id, p.amount, p.payment_kind, s.title, s.image_url, s.image_urls,
             CASE WHEN uw.account_type = 'company' THEN uw.company_name ELSE uw.full_name END AS worker_name,
             CASE WHEN uc.account_type = 'company' THEN uc.company_name ELSE uc.full_name END AS client_name,
             uc.email AS client_email
@@ -541,6 +541,7 @@ async function completeCheckoutPayment(session) {
     payment_kind: dbPaymentKind,
     title,
     image_url,
+    image_urls,
     worker_name,
     client_name,
     client_email,
@@ -568,7 +569,7 @@ async function completeCheckoutPayment(session) {
       [client_id, amountDollars],
     );
     const clientLang = await getUserLang(client_id);
-    notifyPaymentReceipt(client_email, client_name, title, amountDollars, worker_name, bookingId, image_url, clientLang);
+    notifyPaymentReceipt(client_email, client_name, title, amountDollars, worker_name, bookingId, image_url, image_urls, clientLang);
   }
 
   const servicePriceCents = Number(session.metadata?.service_price_cents ?? 0);

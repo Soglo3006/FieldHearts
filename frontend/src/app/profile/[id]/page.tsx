@@ -372,7 +372,12 @@ export default function UserProfilePage() {
       </main>
 
       {showSettings && (
-        <OverlayModal open={showSettings} onClose={() => setShowSettings(false)} scrollRef={settingsScrollRef}>
+        <OverlayModal
+          open={showSettings}
+          onClose={() => setShowSettings(false)}
+          scrollRef={settingsScrollRef}
+          maxWidthClassName="max-w-full sm:max-w-3xl lg:max-w-4xl"
+        >
           <SettingsPage onClose={() => setShowSettings(false)} scrollRef={settingsScrollRef} />
         </OverlayModal>
       )}

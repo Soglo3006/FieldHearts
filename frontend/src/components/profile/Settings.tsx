@@ -3,7 +3,8 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
-import ProfilePictureUploader from "@/components/profile/ProfilePicture";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { resolveUnedenAvatarUrl } from "@/lib/userDisplay";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
@@ -23,6 +24,7 @@ import LogoutPage from "./settings/LogoutPage";
 import DeleteAccountPage from "./settings/DeleteAccountPage";
 import { useTranslation } from "react-i18next";
 import { Spinner } from "@/components/ui/Spinner";
+import { cn } from "@/lib/utils";
 
 type Screen = "default" | "changePassword" | "blockedUsers" | "paymentMethods" | "billingHistory" | "logout" | "deleteAccount";
 
@@ -60,6 +62,7 @@ export default function SettingsPage({ onClose, scrollRef }: { onClose: () => vo
   const [profileData, setProfileData] = useState<Record<string, string> | null>(null);
   const [loading, setLoading] = useState(true);
   const [screen, setScreen] = useState<Screen>("default");
+  const [isExitingSub, setIsExitingSub] = useState(false);
   const [scrollPosition, setScrollPosition] = useState(0);
   const [settingsSaved, setSettingsSaved] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
@@ -80,14 +83,22 @@ export default function SettingsPage({ onClose, scrollRef }: { onClose: () => vo
 
   const goToScreen = (screenName: Screen) => {
     if (scrollRef?.current) setScrollPosition(scrollRef.current.scrollTop);
+    setIsExitingSub(false);
     setScreen(screenName);
   };
 
   const goBack = () => {
-    setScreen("default");
-    setTimeout(() => {
-      if (scrollRef?.current) scrollRef.current.scrollTop = scrollPosition;
-    }, 0);
+    setIsExitingSub(true);
+    window.setTimeout(() => {
+      setScreen("default");
+      setIsExitingSub(false);
+      // Restore scroll after main content is visible again (double rAF for layout)
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          if (scrollRef?.current) scrollRef.current.scrollTop = scrollPosition;
+        });
+      });
+    }, 300);
   };
 
   useEffect(() => {
@@ -160,9 +171,12 @@ export default function SettingsPage({ onClose, scrollRef }: { onClose: () => vo
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session?.access_token]);
 
+  // Scroll to top only when opening a sub-screen (not when returning to default)
   useEffect(() => {
-    if (scrollRef?.current) scrollRef.current.scrollTop = 0;
-  }, [screen]);
+    if (screen !== "default" && scrollRef?.current) {
+      scrollRef.current.scrollTop = 0;
+    }
+  }, [screen, scrollRef]);
 
   const saveSettings = async () => {
     if (!session?.access_token) return;
@@ -207,16 +221,31 @@ export default function SettingsPage({ onClose, scrollRef }: { onClose: () => vo
     }
   };
 
-  if (screen === "changePassword") return <ChangePasswordPage onBack={goBack} onClose={onClose} />;
-  if (screen === "blockedUsers") return <BlockedUsersPage onBack={goBack} onClose={onClose} />;
-  if (screen === "paymentMethods") return <PaymentMethodsPage onBack={goBack} onClose={onClose} />;
   if (screen === "billingHistory") return <BillingHistoryPage onBack={goBack} onClose={onClose} />;
-  if (screen === "logout") return <LogoutPage onBack={goBack} onClose={onClose} />;
-  if (screen === "deleteAccount") return <DeleteAccountPage onBack={goBack} onClose={onClose} />;
+
+  const renderSubScreen = () => {
+    switch (screen) {
+      case "changePassword":
+        return <ChangePasswordPage onBack={goBack} onClose={onClose} />;
+      case "blockedUsers":
+        return <BlockedUsersPage onBack={goBack} onClose={onClose} />;
+      case "paymentMethods":
+        return <PaymentMethodsPage onBack={goBack} onClose={onClose} />;
+      case "logout":
+        return <LogoutPage onBack={goBack} onClose={onClose} />;
+      case "deleteAccount":
+        return <DeleteAccountPage onBack={goBack} onClose={onClose} />;
+      default:
+        return null;
+    }
+  };
+
+  const isSubScreen = screen !== "default";
 
   const isPerson = profileData?.account_type === "person";
   const isCompany = profileData?.account_type === "company";
   const displayName = isPerson ? profileData?.full_name : profileData?.company_name;
+  const avatarUrl = resolveUnedenAvatarUrl(userProfilePicture);
   const isGoogleConnected = connectedAccounts.some(a => a.provider === "google");
   const isFacebookConnected = connectedAccounts.some(a => a.provider === "facebook");
   const isEmailConnected = connectedAccounts.some(a => a.provider === "email");
@@ -232,7 +261,9 @@ export default function SettingsPage({ onClose, scrollRef }: { onClose: () => vo
   }
 
   return (
-    <div className="min-h-full w-full max-w-full overflow-x-hidden bg-white">
+    <div className="relative w-full min-w-0 max-w-full shrink-0 bg-white">
+      <div className={cn(isSubScreen && "hidden")}>
+      <div className="w-full min-w-0 max-w-full bg-white">
       {/* Header */}
       <div className="bg-white border-b relative">
         {/* Bottom-sheet handle (mobile only) */}
@@ -253,8 +284,8 @@ export default function SettingsPage({ onClose, scrollRef }: { onClose: () => vo
       <div className="w-full min-w-0 max-w-full px-4 py-4 sm:px-8 sm:py-8">
         <div className="grid min-w-0 gap-4 sm:gap-6">
 
-          {/* Profile Information */}
-          <Card className="min-w-0 overflow-hidden p-4 sm:p-6">
+          {/* Profile Information — avatar/layout aligned with ProfileHeader */}
+          <Card className="min-w-0 overflow-hidden p-4 sm:p-8">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between mb-4 sm:mb-6">
               <div className="flex items-start gap-3 min-w-0 flex-1">
                 {isPerson ? <User className="h-5 w-5 sm:h-6 sm:w-6 text-green-700 shrink-0" /> : <Building2 className="h-5 w-5 sm:h-6 sm:w-6 text-green-700 shrink-0" />}
@@ -273,18 +304,14 @@ export default function SettingsPage({ onClose, scrollRef }: { onClose: () => vo
                 </Button>
               </Link>
             </div>
-            <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 items-center sm:items-start min-w-0">
-              <div className="flex justify-center sm:justify-start shrink-0">
-                <ProfilePictureUploader
-                  currentProfilePicture={userProfilePicture}
-                  userName={displayName || "User"}
-                  onProfileChange={(newPic) => setUserProfilePicture(newPic)}
-                  size="xl"
-                  showLabel={false}
-                  readOnly={true}
-                />
-              </div>
-              <div className="flex-1 space-y-2 sm:space-y-3 w-full min-w-0">
+            <div className="flex flex-col md:flex-row gap-4 sm:gap-6 items-center md:items-start min-w-0">
+              <Avatar className="w-24 h-24 sm:w-32 sm:h-32 border-4 border-white shadow-lg shrink-0">
+                {avatarUrl ? <AvatarImage src={avatarUrl} alt={displayName || "User"} /> : null}
+                <AvatarFallback className="text-2xl bg-green-100 text-green-800 font-semibold">
+                  {(displayName || "U").charAt(0)}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex-1 space-y-2 sm:space-y-3 w-full min-w-0 text-center md:text-left">
                 <div className="flex items-start gap-3 text-gray-700 min-w-0">
                   {isPerson ? <User className="h-4 w-4 text-gray-400 shrink-0 mt-0.5" /> : <Building2 className="h-4 w-4 text-gray-400 shrink-0 mt-0.5" />}
                   <span className="font-medium text-sm sm:text-base min-w-0 break-words">
@@ -589,6 +616,23 @@ export default function SettingsPage({ onClose, scrollRef }: { onClose: () => vo
 
         </div>
       </div>
+      </div>
+      </div>
+
+    {isSubScreen && (
+      <div
+        key={screen}
+        className={cn(
+          "flex min-h-[min(75dvh,calc(100dvh-3rem))] flex-col bg-white",
+          "motion-reduce:animate-none",
+          isExitingSub
+            ? "animate-out fade-out-0 slide-out-to-right duration-300"
+            : "animate-in fade-in-0 slide-in-from-right duration-300",
+        )}
+      >
+        {renderSubScreen()}
+      </div>
+    )}
     </div>
   );
 }

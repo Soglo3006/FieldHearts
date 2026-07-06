@@ -22,7 +22,7 @@ import ListingLangPills from "@/components/ui/ListingLangPills";
 import dynamic from "next/dynamic";
 import { ListingCardImageCarousel, getListingGalleryUrls } from "@/components/listings/ListingCardImageCarousel";
 const AdBanner = dynamic(() => import("@/components/AdBanner"), { ssr: false });
-import { ListingCardSubtitle, ListingCardPriceRow } from "@/components/listings/ListingTrustLine";
+import { ListingCardSubtitle, ListingCardPriceRow, ListingCardTitle } from "@/components/listings/ListingTrustLine";
 import { formatListingCategoryLine } from "@/lib/listingTags";
 import { formatListingPriceLine } from "@/lib/listingPrice";
 
@@ -121,7 +121,10 @@ function ListingCard({
       </AspectRatio>
       <Link href={detailHref} className="flex flex-1 flex-col gap-1 p-3 text-left outline-none">
         <div className="flex items-start gap-2">
-          <h3 className="flex-1 line-clamp-1 text-sm font-semibold transition-colors group-hover:text-green-700">{resolvedTitle}</h3>
+          <ListingCardTitle
+            title={resolvedTitle}
+            className="transition-colors group-hover:text-green-700"
+          />
           {listing.type === "looking" ? (
             <span className="bg-blue-100 text-blue-700 text-xs font-semibold px-2 py-0.5 rounded-full shrink-0">{t("listings.looking")}</span>
           ) : (

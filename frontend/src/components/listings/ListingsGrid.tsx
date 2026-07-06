@@ -16,7 +16,7 @@ import { resolveListingTitle, type ServiceLikeWithI18n } from "@/lib/serviceList
 import ListingLangPills from "@/components/ui/ListingLangPills";
 import { ListingsRegionEmptyState } from "@/components/listings/ListingsRegionEmptyState";
 import { ListingCardImageCarousel, getListingGalleryUrls } from "@/components/listings/ListingCardImageCarousel";
-import { ListingCardSubtitle, ListingCardPriceRow } from "@/components/listings/ListingTrustLine";
+import { ListingCardSubtitle, ListingCardPriceRow, ListingCardTitle } from "@/components/listings/ListingTrustLine";
 import { formatListingPriceLine } from "@/lib/listingPrice";
 import { LOCATION_SEARCH_RADIUS_KM } from "@/lib/geocodeCanadianLocation";
 
@@ -172,9 +172,10 @@ function ListingGridCard({
 
       <Link href={detailHref} className="flex flex-col flex-1 p-3 text-left outline-none">
         <div className="flex items-start gap-2 mb-1">
-          <h3 className="font-semibold text-gray-900 line-clamp-1 flex-1 group-hover:text-green-700 transition-colors text-sm">
-            {resolveListingTitle(s, i18n.language)}
-          </h3>
+          <ListingCardTitle
+            title={resolveListingTitle(s, i18n.language)}
+            className="group-hover:text-green-700 transition-colors"
+          />
           {s.type === "looking" ? (
             <Badge className="shrink-0 border-0 bg-blue-100 text-xs text-blue-700">{t("listings.looking")}</Badge>
           ) : (

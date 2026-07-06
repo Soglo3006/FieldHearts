@@ -814,6 +814,25 @@ export const getServiceById = async (req, res) => {
       return res.status(404).json({ message: "Service not found" });
     }
 
+    if (isOwner) {
+      const completion = await pool.query(
+        `SELECT
+            b.completed_at,
+            b.completed_by_worker,
+            b.completed_by_client,
+            CASE WHEN uc.account_type = 'company' THEN uc.company_name ELSE uc.full_name END AS client_name,
+            CASE WHEN uw.account_type = 'company' THEN uw.company_name ELSE uw.full_name END AS worker_name
+         FROM bookings b
+         JOIN users uc ON uc.id = b.client_id
+         JOIN users uw ON uw.id = b.worker_id
+         WHERE b.service_id = $1 AND b.status = 'completed'
+         ORDER BY b.completed_at DESC NULLS LAST, b.created_at DESC
+         LIMIT 1`,
+        [id],
+      );
+      row.completion_summary = completion.rows[0] || null;
+    }
+
     canonServiceFieldsInPlace(row);
     res.json(row);
   } catch (err) {

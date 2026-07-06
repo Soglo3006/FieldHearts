@@ -19,7 +19,7 @@ import { resolveListingTitle, type ServiceLikeWithI18n } from "@/lib/serviceList
 import ListingLangPills from "@/components/ui/ListingLangPills";
 import { formatListingPriceLine } from "@/lib/listingPrice";
 import { formatListingCategoryLine } from "@/lib/listingTags";
-import { ListingCardSubtitle, ListingCardPriceRow } from "@/components/listings/ListingTrustLine";
+import { ListingCardSubtitle, ListingCardPriceRow, ListingCardTitle } from "@/components/listings/ListingTrustLine";
 import { formatListingCreationDate } from "@/lib/listingDate";
 import { cn } from "@/lib/utils";
 
@@ -206,9 +206,7 @@ function ListingCard({
       <div className="flex flex-col flex-1 p-3">
         <Link href={`/serviceDetail/${s.id}`} className="flex flex-col flex-1 text-left outline-none">
           <div className="flex items-start gap-2 mb-1">
-            <h3 className="font-semibold text-gray-900 line-clamp-1 flex-1 group-hover:text-green-700 transition-colors text-sm">
-              {displayTitle}
-            </h3>
+            <ListingCardTitle title={displayTitle} className="group-hover:text-green-700 transition-colors" />
             <div className="flex items-center gap-1.5 shrink-0">
               {historical && (
                 <Badge className="bg-gray-100 text-gray-500 text-xs border-0">{t("myListings.completed")}</Badge>

@@ -16,7 +16,7 @@ import ListingLangPills from "@/components/ui/ListingLangPills";
 import ListingLocationLine from "@/components/listings/ListingLocationLine";
 import { formatListingPriceLine } from "@/lib/listingPrice";
 import { formatListingCategoryLine } from "@/lib/listingTags";
-import { ListingCardSubtitle, ListingCardPriceRow } from "@/components/listings/ListingTrustLine";
+import { ListingCardSubtitle, ListingCardPriceRow, ListingCardTitle } from "@/components/listings/ListingTrustLine";
 import { formatListingCreationDate } from "@/lib/listingDate";
 
 interface Service extends ServiceLikeWithI18n {
@@ -224,9 +224,7 @@ export default function UserListingsPage() {
 
                   <Link href={`/serviceDetail/${s.id}`} className="flex flex-col flex-1 p-3 text-left outline-none">
                     <div className="flex items-start gap-2 mb-1">
-                      <h3 className="font-semibold text-gray-900 line-clamp-1 flex-1 group-hover:text-green-700 transition-colors text-sm">
-                        {resolved}
-                      </h3>
+                      <ListingCardTitle title={resolved} className="group-hover:text-green-700 transition-colors" />
                       {s.type === "looking" ? (
                         <Badge className="shrink-0 border-0 bg-blue-100 text-xs text-blue-700">
                           {t("listings.looking")}

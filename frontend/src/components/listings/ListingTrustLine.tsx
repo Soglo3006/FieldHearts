@@ -17,14 +17,28 @@ function toRating(v: unknown): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
-function formatSubtitlePreview(text: string, maxChars = 46): string {
+export function formatListingCardPreview(text: string, maxChars = 46): string {
   const normalized = text.replace(/\s+/g, " ").trim();
   if (normalized.length <= maxChars) return normalized;
 
   const shortened = normalized.slice(0, Math.max(1, maxChars - 4)).trimEnd();
   const boundary = shortened.lastIndexOf(" ");
   const preview = boundary > 0 ? shortened.slice(0, boundary).trimEnd() : shortened;
-  return `${preview} ...`;
+  return `${preview}\u00A0...`;
+}
+
+export function ListingCardTitle({
+  title,
+  className,
+}: {
+  title: string;
+  className?: string;
+}) {
+  return (
+    <h3 className={cn("min-w-0 flex-1 truncate text-sm font-semibold text-gray-900", className)} title={title}>
+      {title}
+    </h3>
+  );
 }
 
 type TrustFields = {
@@ -89,7 +103,7 @@ export function ListingCardSubtitle({
     averageRating,
   });
   const fullText = segments.join(" · ");
-  const subtitleText = fullText ? formatSubtitlePreview(fullText) : "\u00A0";
+  const subtitleText = fullText ? formatListingCardPreview(fullText) : "\u00A0";
 
   return (
     <p

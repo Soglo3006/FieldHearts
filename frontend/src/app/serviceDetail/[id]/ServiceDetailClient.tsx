@@ -78,6 +78,14 @@ interface Service {
   deposit_type?: string | null;
   deposit_value?: number | string | null;
   completed_bookings_count?: number | string | null;
+  is_active?: boolean;
+  completion_summary?: {
+    completed_at?: string | null;
+    completed_by_worker?: boolean;
+    completed_by_client?: boolean;
+    client_name?: string | null;
+    worker_name?: string | null;
+  } | null;
 }
 
 interface SimilarService {
@@ -363,6 +371,9 @@ export default function ServiceDetailClient() {
                 onEdit={() => setShowEditModal(true)}
                 onDelete={handleOwnerDelete}
                 onCancelDelete={() => setConfirmDelete(false)}
+                completionSummary={
+                  service.is_active === false ? service.completion_summary ?? null : null
+                }
               />
             ) : (
               <BookingSidebar

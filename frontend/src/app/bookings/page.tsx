@@ -42,6 +42,18 @@ function bookingDepositConfig(b: {
     : null;
 }
 
+function getBookingListingThumb(b: { image_url?: string | null; image_urls?: string[] | null }) {
+  return b.image_urls?.[0] ?? b.image_url ?? null;
+}
+
+function CompletedBookingThumb({ src, alt }: { src: string; alt: string }) {
+  return (
+    <div className="relative w-32 shrink-0 self-stretch min-h-20 overflow-hidden bg-gray-100">
+      <AppImage src={src} alt={alt} fill sizes="128px" className="object-cover" />
+    </div>
+  );
+}
+
 function staysInActiveBookingsList(b: ReceivedBooking | SentBooking): boolean {
   if (b.status !== "completed") return true;
   return hasUnpaidBalanceDue(b, bookingDepositConfig(b));
@@ -685,24 +697,22 @@ function BookingsContent() {
                       pagedCompletedReceived.map((b) => {
                         const outcome = getBookingDisputeFinancialOutcome(b);
                         const finalAmount = outcome.finalWorkerReceives ?? outcome.workerReceivesOriginal;
+                        const thumb = getBookingListingThumb(b);
 
                         return (
                           <div
                             key={b.id}
-                            className="bg-white border border-gray-200 rounded-xl p-4 cursor-pointer hover:border-gray-300 transition-colors"
+                            className="bg-white border border-gray-200 rounded-xl overflow-hidden cursor-pointer hover:border-gray-300 transition-colors"
                             onClick={() => setDetailBooking({ booking: b as BookingDetail, role: "worker" })}
                           >
-                            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
-                              {b.image_url && (
-                                <AppImage
-                                  src={b.image_url}
-                                  alt={b.title}
-                                  width={96}
-                                  height={56}
-                                  className="h-14 w-24 rounded-lg object-cover shrink-0"
-                                />
-                              )}
-                              <div className="flex flex-1 flex-col gap-3 min-w-0 sm:flex-row sm:items-center sm:justify-between">
+                            <div className={cn("flex flex-row items-stretch", !thumb && "p-4")}>
+                              {thumb && <CompletedBookingThumb src={thumb} alt={b.title} />}
+                              <div
+                                className={cn(
+                                  "flex flex-1 flex-col gap-3 min-w-0 sm:flex-row sm:items-center sm:justify-between",
+                                  thumb && "p-4 pl-3",
+                                )}
+                              >
                                 <div className="min-w-0">
                                   <p className="font-medium text-gray-900 line-clamp-2 sm:truncate">{b.title}</p>
                                   <p className="text-sm text-gray-500">
@@ -727,14 +737,16 @@ function BookingsContent() {
                               </div>
                             </div>
                             {!b.has_reviewed && (
-                              <div className="mt-3 border-t border-gray-100 pt-3" onClick={(e) => e.stopPropagation()}>
-                                <button
-                                  type="button"
-                                  onClick={() => { setReviewBooking({ id: b.id, targetName: (b as ReceivedBooking).client_name }); }}
-                                  className="inline-flex text-xs font-medium text-green-700 hover:underline sm:ml-auto"
-                                >
-                                  {t("bookings.leaveReview")}
-                                </button>
+                              <div className="mx-4 mb-4 mt-0 border-t border-gray-100 pt-3" onClick={(e) => e.stopPropagation()}>
+                                <div className="flex flex-col items-end gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => { setReviewBooking({ id: b.id, targetName: (b as ReceivedBooking).client_name }); }}
+                                    className="inline-flex text-xs font-medium text-green-700 hover:underline"
+                                  >
+                                    {t("bookings.leaveReview")}
+                                  </button>
+                                </div>
                               </div>
                             )}
                           </div>
@@ -796,24 +808,22 @@ function BookingsContent() {
                         const depositConfig = bookingDepositConfig(b);
                         const balancePayment = hasUnpaidBalanceDue(b, depositConfig);
                         const checkoutKind = balancePayment ? "balance" as const : null;
+                        const thumb = getBookingListingThumb(b);
 
                         return (
                           <div
                             key={b.id}
-                            className="bg-white border border-gray-200 rounded-xl p-4 cursor-pointer hover:border-gray-300 transition-colors"
+                            className="bg-white border border-gray-200 rounded-xl overflow-hidden cursor-pointer hover:border-gray-300 transition-colors"
                             onClick={() => setDetailBooking({ booking: b as BookingDetail, role: "client" })}
                           >
-                            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
-                              {b.image_url && (
-                                <AppImage
-                                  src={b.image_url}
-                                  alt={b.title}
-                                  width={96}
-                                  height={56}
-                                  className="h-14 w-24 rounded-lg object-cover shrink-0"
-                                />
-                              )}
-                              <div className="flex flex-1 flex-col gap-3 min-w-0 sm:flex-row sm:items-center sm:justify-between">
+                            <div className={cn("flex flex-row items-stretch", !thumb && "p-4")}>
+                              {thumb && <CompletedBookingThumb src={thumb} alt={b.title} />}
+                              <div
+                                className={cn(
+                                  "flex flex-1 flex-col gap-3 min-w-0 sm:flex-row sm:items-center sm:justify-between",
+                                  thumb && "p-4 pl-3",
+                                )}
+                              >
                                 <div className="min-w-0">
                                   <p className="font-medium text-gray-900 line-clamp-2 sm:truncate">{b.title}</p>
                                   <p className="text-sm text-gray-500">
@@ -838,10 +848,10 @@ function BookingsContent() {
                               </div>
                             </div>
                             {(balancePayment || !b.has_reviewed) && (
-                              <div className="mt-3 border-t border-gray-100 pt-3" onClick={(e) => e.stopPropagation()}>
-                                <div className="flex flex-col gap-2">
+                              <div className="mx-4 mb-4 mt-0 border-t border-gray-100 pt-3" onClick={(e) => e.stopPropagation()}>
+                                <div className="flex flex-col items-end gap-2">
                                   {balancePayment && session?.access_token && (
-                                    <div className="mx-auto w-full max-w-sm">
+                                    <div className="w-full">
                                       <PayNowButton
                                         bookingId={b.id}
                                         accessToken={session.access_token}
@@ -864,7 +874,7 @@ function BookingsContent() {
                                     <button
                                       type="button"
                                       onClick={() => { setReviewBooking({ id: b.id, targetName: ("worker_name" in b ? (b as SentBooking).worker_name : (b as ReceivedBooking).client_name) }); }}
-                                      className="inline-flex text-xs font-medium text-green-700 hover:underline sm:ml-auto"
+                                      className="inline-flex text-xs font-medium text-green-700 hover:underline"
                                     >
                                       {t("bookings.leaveReview")}
                                     </button>

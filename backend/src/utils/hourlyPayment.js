@@ -146,17 +146,25 @@ export function computeHourlyBalanceCheckoutAmounts(
 /**
  * @returns {'full' | 'deposit' | 'balance' | null}
  */
+/** Service base fully covered by deposit; commission + taxes still owed at balance checkout. */
+export function isFeesOnlyBalanceDue(booking, service = null) {
+  const meta = service ?? booking;
+  if (!usesSplitDepositPayment(booking, meta)) return false;
+  if (!isBalanceCheckoutReady(booking)) return false;
+  if (booking.payment_status !== "deposit_paid") return false;
+  const balanceDue = computeBalanceDueCents(booking, meta);
+  if (balanceDue > 0) return false;
+  const fullServiceCents = getFullServiceBaseCents(booking, meta);
+  const paidBaseCents = Number(booking.paid_service_base_cents || 0);
+  return fullServiceCents > 0 && paidBaseCents >= fullServiceCents;
+}
+
 export function hasUnpaidBalanceDue(booking, service = null) {
   const meta = service ?? booking;
   if (!usesSplitDepositPayment(booking, meta)) return false;
   if (!isBalanceCheckoutReady(booking)) return false;
   const balanceDue = computeBalanceDueCents(booking, meta);
-  const fullServiceCents = getFullServiceBaseCents(booking, meta);
-  const paidBaseCents = Number(booking.paid_service_base_cents || 0);
-  const feesOnlyStillDue =
-    booking.payment_status === "deposit_paid" &&
-    fullServiceCents > 0 &&
-    paidBaseCents >= fullServiceCents;
+  const feesOnlyStillDue = isFeesOnlyBalanceDue(booking, meta);
   if (balanceDue <= 0 && !feesOnlyStillDue) return false;
   if (booking.payment_status === "deposit_paid") return true;
   // Hourly: more approved hours after the client already paid the balance in full.

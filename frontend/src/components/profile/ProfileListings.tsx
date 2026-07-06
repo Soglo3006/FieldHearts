@@ -19,7 +19,7 @@ import { resolveListingTitle } from "@/lib/serviceListingI18n";
 import ListingLangPills from "@/components/ui/ListingLangPills";
 import { formatListingPriceLine } from "@/lib/listingPrice";
 import { formatListingCategoryLine } from "@/lib/listingTags";
-import { ListingCardSubtitle, ListingCardPriceRow } from "@/components/listings/ListingTrustLine";
+import { ListingCardSubtitle, ListingCardPriceRow, ListingCardTitle } from "@/components/listings/ListingTrustLine";
 import { formatListingCreationDate } from "@/lib/listingDate";
 
 const PAGE_SIZE = 9;
@@ -170,9 +170,7 @@ export default function ProfileListings({
       <div className="flex flex-col flex-1 p-3">
         <Link href={`/serviceDetail/${listing.id}`} className="flex flex-col flex-1 text-left outline-none">
           <div className="flex items-start gap-2 mb-1">
-            <h3 className="font-semibold text-gray-900 line-clamp-1 flex-1 group-hover:text-green-700 transition-colors text-sm">
-              {resolved}
-            </h3>
+            <ListingCardTitle title={resolved} className="group-hover:text-green-700 transition-colors" />
             <div className="flex shrink-0 items-center gap-1.5">
               {isOwner && listing.is_public === false && (
                 <Badge className="border-0 bg-amber-100 text-xs text-amber-800">

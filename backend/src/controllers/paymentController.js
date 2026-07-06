@@ -12,6 +12,7 @@ import {
   getFullServiceBaseCents,
   getHourlyInitialChargeBaseDollars,
   computeHourlyBalanceCheckoutAmounts,
+  hasUnpaidBalanceDue,
   resolveCheckoutKind,
   usesSplitDepositPayment,
 } from "../utils/hourlyPayment.js";
@@ -448,12 +449,18 @@ async function completeCheckoutPayment(session) {
   );
   const paymentKind =
     session.metadata?.payment_kind || paymentRow.rows[0]?.payment_kind || "full";
-  let paidServiceCents = Number(session.metadata?.service_price_cents) || 0;
-  if (paidServiceCents <= 0 && paymentRow.rows[0]) {
+  const metaServiceCents = session.metadata?.service_price_cents;
+  let paidServiceCents =
+    metaServiceCents != null && metaServiceCents !== ""
+      ? Number(metaServiceCents)
+      : NaN;
+  if (!Number.isFinite(paidServiceCents) && paymentRow.rows[0]) {
     paidServiceCents =
       Number(paymentRow.rows[0].deposit_amount_cents) ||
       Number(paymentRow.rows[0].amount) ||
       0;
+  } else if (!Number.isFinite(paidServiceCents)) {
+    paidServiceCents = 0;
   }
 
   await pool.query(
@@ -655,10 +662,10 @@ export const createCheckoutSession = async (req, res) => {
     if (checkoutKind === "deposit") {
       effectivePrice = getHourlyInitialChargeBaseDollars(b, serviceMeta);
     } else if (checkoutKind === "balance") {
-      const balanceCents = computeBalanceDueCents(b, serviceMeta);
-      if (balanceCents < 1) {
+      if (!hasUnpaidBalanceDue(b, serviceMeta)) {
         return res.status(400).json({ message: "No balance due for this booking" });
       }
+      const balanceCents = computeBalanceDueCents(b, serviceMeta);
       const fullServiceDollars = getFullServiceBaseCents(b, serviceMeta) / 100;
       const taxRatePreview = getTaxRate(
         normalizeProvince(billing_province ?? b.client_province ?? "QC"),
@@ -691,7 +698,14 @@ export const createCheckoutSession = async (req, res) => {
 
     // normalizeProvince ensures we always store a 2-letter code (e.g. "QC" not "Quebec")
     const effectiveProvince    = normalizeProvince(billingAddress?.province ?? billing_province ?? b.client_province ?? "QC");
-    if (effectivePrice == null || !Number.isFinite(effectivePrice) || effectivePrice < 0.01) {
+    const isBalanceFeesOnlyCheckout =
+      checkoutKind === "balance" &&
+      balanceCheckoutAmounts != null &&
+      balanceCheckoutAmounts.totalCents >= 1 &&
+      balanceCheckoutAmounts.balanceBaseCents < 1;
+    if (isBalanceFeesOnlyCheckout) {
+      // Service base already covered by deposit; only commission + taxes remain.
+    } else if (effectivePrice == null || !Number.isFinite(effectivePrice) || effectivePrice < 0.01) {
       return res.status(400).json({
         message:
           req.lang === "en"
@@ -773,8 +787,9 @@ export const createCheckoutSession = async (req, res) => {
           : "Service";
 
     // Create Checkout Session — funds go directly to platform account
-    const lineItems = [
-      {
+    const lineItems = [];
+    if (servicePriceCents > 0) {
+      lineItems.push({
         price_data: {
           currency: "cad",
           product_data: {
@@ -785,8 +800,8 @@ export const createCheckoutSession = async (req, res) => {
           unit_amount: servicePriceCents,
         },
         quantity: 1,
-      },
-    ];
+      });
+    }
     if (!isDepositOnly) {
       lineItems.push(
         {

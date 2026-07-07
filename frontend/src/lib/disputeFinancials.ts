@@ -1,5 +1,6 @@
 import { getTaxRate } from "@/lib/taxes";
 import { getEffectiveBookingPrice } from "@/lib/listingPrice";
+import { workerNetFromGross } from "@/lib/commissionRates";
 
 type BookingFinancialInput = {
   price: string | number;
@@ -39,7 +40,7 @@ export function getBookingDisputeFinancialOutcome(booking: BookingFinancialInput
   const taxes = roundMoney(basePrice * taxRate);
   const totalPaidOriginal = roundMoney(basePrice + buyerCommission + taxes);
   const refundableBase = basePrice; // only base is refundable (taxes proportional, buyer fee never)
-  const workerReceivesOriginal = roundMoney(basePrice * 0.8);
+  const workerReceivesOriginal = workerNetFromGross(basePrice);
 
   const noAdjustment = (): DisputeFinancialOutcome => ({
     totalPaidOriginal,
@@ -66,7 +67,7 @@ export function getBookingDisputeFinancialOutcome(booking: BookingFinancialInput
   const refundedTaxes = roundMoney(refundedBase * taxRate);
   const refundedAmount = roundMoney(refundedBase + refundedTaxes); // total back to client
   const finalClientPaid = roundMoney(totalPaidOriginal - refundedAmount);
-  const finalWorkerReceives = roundMoney(workerReceivesOriginal - refundedBase * 0.8);
+  const finalWorkerReceives = roundMoney(workerReceivesOriginal - workerNetFromGross(refundedBase));
 
   return {
     totalPaidOriginal,

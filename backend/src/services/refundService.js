@@ -1,4 +1,8 @@
 import pool from "../config/db.js";
+import {
+  WORKER_COMMISSION_RATE,
+  workerNetFromGross,
+} from "../utils/commissionRates.js";
 import stripe from "../config/stripe.js";
 
 function createRefundError(statusCode, message, extra = {}) {
@@ -40,8 +44,8 @@ export function buildRefundSummary(paymentRow, servicePrice) {
  * Process a booking refund based on a percentage of the base price.
  * - refundPercentage: 50–100 (% of base price to refund)
  * - Client receives: base × % + taxes × %
- * - Worker loses: base × % × 80%
- * - Platform loses: base × % × 20% + taxes × %
+ * - Worker loses: base × % × worker net share
+ * - Platform loses: base × % × worker commission rate + taxes × %
  * - Buyer fee (5%): always kept by platform
  */
 export async function processBookingRefund({ bookingId, refundPercentage, cancelBooking = false }) {
@@ -86,8 +90,8 @@ export async function processBookingRefund({ bookingId, refundPercentage, cancel
   const refundTaxesCents = roundCents(refundBaseCents * taxRate);
   const totalClientRefundCents = refundBaseCents + refundTaxesCents;
 
-  const workerReversalCents = roundCents(refundBaseCents * 0.8);
-  const platformCommissionLossCents = roundCents(refundBaseCents * 0.2);
+  const workerReversalCents = roundCents(workerNetFromGross(refundBaseCents / 100) * 100);
+  const platformCommissionLossCents = roundCents(refundBaseCents * WORKER_COMMISSION_RATE);
 
   // 1. Reverse part of worker's transfer if it exists
   if (payment.stripe_transfer_id && workerReversalCents > 0) {

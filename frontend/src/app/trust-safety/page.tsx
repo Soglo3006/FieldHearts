@@ -70,6 +70,9 @@ export default function TrustSafetyPage() {
               <li key={item}>{item}</li>
             ))}
           </ul>
+          <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-950/90">
+            {t("wallet.commissionPromoNotice")}
+          </p>
           <p className="mt-4 text-sm font-bold text-gray-900">
             {t("trustSafetyPage.sections.payments.warning")}
           </p>

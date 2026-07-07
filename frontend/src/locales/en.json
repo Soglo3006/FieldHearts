@@ -337,6 +337,7 @@
     "totalPaid": "Total paid",
     "workerPayout": "Provider payout",
     "platformCommission20": "Platform commission (20%)",
+    "platformCommissionPromo": "Platform commission (5%)*",
     "youWillReceive": "You will receive",
     "payoutDelay": "Credited to your wallet after both parties confirm completion.",
     "jobInProgress": "Job in progress — both parties must confirm completion.",
@@ -494,6 +495,8 @@
     "nextPayout": "Next Payout",
     "availableForPayout": "Available for payout",
     "platformCommission20": "Platform commission (20%)",
+    "platformCommissionPromo": "Platform commission (5%)*",
+    "commissionPromoNotice": "* Commissions are normally 20%, but have been reduced to 5% for a limited time to mainly cover transfer fees and encourage our first users on the platform.",
     "youWillReceive": "You will receive",
     "pendingInfo": "${{amount}} pending — these funds can still be disputed within 3 days of service completion.",
     "nextPayoutDate": "Next payout date",
@@ -2475,7 +2478,7 @@
       "payments": {
         "title": "2. Secure Payments",
         "intro": "All payments are processed through the platform and held securely until the service is completed or a resolution is reached.",
-        "items": ["Payments are made in advance and held in escrow", "Funds are released once the service is completed or after dispute resolution"],
+        "items": ["Payments are made in advance and held in escrow", "Funds are released once the service is completed or after dispute resolution", "Providers currently pay a 5%* platform commission on payouts (standard rate: 20%)"],
         "warning": "We strongly advise users not to make payments outside the platform."
       },
       "disputes": {
@@ -2560,7 +2563,10 @@
         "buyerFeesTitle": "a. Buyer Fees",
         "buyerFeeItem": "A <strong>5%</strong> fee is generally added to each transaction",
         "buyerFeeNote": "Applicable taxes and certain third-party processing costs may also apply depending on the transaction context.",
-        "escrowTitle": "b. Escrow System",
+        "providerFeesTitle": "b. Provider Fees",
+        "providerFeeItem": "A <strong>5%</strong>* platform commission is currently deducted from provider earnings at payout.",
+        "providerFeeNote": "The standard platform rate is 20%; a promotional 5% rate applies for a limited time for early users.",
+        "escrowTitle": "c. Escrow System",
         "escrowItems": [
           "Payments are generally held until service completion, another booking resolution, or dispute handling.",
           "Users must not move platform-originated transactions outside Uneden to avoid fees, protections, or platform review."
@@ -2580,7 +2586,7 @@
         "title": "5. Withdrawals",
         "itemOne": "Only approved balances are generally eligible for withdrawal.",
         "itemTwo": "Withdrawals are generally available every <strong>14 days</strong>, and new accounts may be subject to an initial waiting period.",
-        "itemThree": "A <strong>20%</strong> withdrawal commission may apply, in addition to banking, payout, or compliance costs where they must be deducted."
+        "itemThree": "A <strong>5%</strong> withdrawal commission currently applies (promotional rate; the standard rate is 20%), in addition to banking, payout, or compliance costs where they must be deducted."
       },
       "disputes": {
         "title": "6. Disputes & Refunds",
@@ -2685,6 +2691,11 @@
         ],
         "note": "Users are strictly prohibited from moving a platform-originated transaction off-platform to avoid fees, protections, or review."
       },
+      "providerFees": {
+        "title": "Provider commission",
+        "itemOne": "A <strong>5%</strong>* platform commission is currently deducted from provider earnings at payout.",
+        "itemTwo": "The standard rate is 20%; the reduced 5% rate is a limited-time offer for early users."
+      },
       "buyerFees": {
         "title": "3. Buyer Fees",
         "intro": "In addition to the service price:",
@@ -2739,15 +2750,16 @@
       },
       "withdrawalFees": {
         "title": "9. Withdrawal Fees",
-        "itemOne": "A <strong>20%</strong> commission may be applied to withdrawals",
+        "itemOne": "A <strong>5%</strong> commission is currently applied to withdrawals (promotional rate for early users; the standard rate is 20%)",
         "itemTwo": "Banking, payout, verification, or compliance-related costs may also be deducted where applicable.",
         "exampleTitle": "Withdrawal example",
         "exampleApprovedLabel": "Approved balance",
-        "exampleCommissionLabel": "Uneden commission (20%)",
+        "exampleCommissionLabel": "Uneden commission (5%)*",
         "exampleOtherFeesLabel": "Other possible charges",
         "exampleVariableLabel": "Variable",
         "exampleReceiveLabel": "You receive",
-        "exampleReceiveValue": "$80.00 less variable charges"
+        "exampleReceiveValue": "$95.00 less variable charges",
+        "examplePromoNotice": "* Promotional 5% rate (standard rate: 20%). Limited-time offer for early users."
       },
       "paymentMethods": {
         "title": "10. Payment Methods",

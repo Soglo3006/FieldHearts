@@ -30,9 +30,10 @@ pool.query(`
   )
 `).catch((err) => console.error("[DB] Failed to create platform_earnings table:", err.message));
 
-// Fee rates
-const BUYER_COMMISSION_RATE = 0.05; // 5% buyer commission
-const WORKER_COMMISSION_RATE = 0.20; // 20% kept when worker is paid out
+import {
+  BUYER_COMMISSION_RATE,
+  WORKER_PAYOUT_SHARE,
+} from "../utils/commissionRates.js";
 const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:3000";
 
 // Tax rates by Canadian province
@@ -943,10 +944,10 @@ export const releasePayment = async (req, res) => {
       return res.status(400).json({ message: "Worker's Stripe account is not fully set up yet" });
     }
 
-    // Transfer 80% of service price to worker (20% kept as platform commission)
+    // Transfer worker net share to worker (platform commission already deducted from credits)
     const effectivePrice = Number(b.custom_price ?? b.price);
     const servicePriceCents = Math.round(effectivePrice * 100);
-    const transferAmount = Math.round(servicePriceCents * 0.80);
+    const transferAmount = Math.round(servicePriceCents * WORKER_PAYOUT_SHARE);
 
     // source_transaction requires a charge ID (ch_xxx), not a payment intent ID (pi_xxx)
     let sourceTransaction = p.stripe_payment_intent_id;

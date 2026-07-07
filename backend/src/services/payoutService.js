@@ -1,4 +1,10 @@
 import pool from "../config/db.js";
+import {
+  WORKER_COMMISSION_RATE,
+  WORKER_PAYOUT_SHARE,
+  workerCommissionFromNet,
+  grossFromWorkerNet,
+} from "../utils/commissionRates.js";
 import stripe from "../config/stripe.js";
 import { notifyPayoutReceived } from "./emailService.js";
 import { createNotification, getUserLang } from "./notificationService.js";
@@ -55,7 +61,7 @@ export function isPayoutDay(date = new Date()) {
 
 /**
  * Process bi-weekly payout for one user.
- * Transfers 80% of eligible service earnings to their Stripe Connect account.
+ * Transfers the worker's net share of eligible service earnings to their Stripe Connect account.
  */
 export async function processUserPayout(userId) {
   // Get Stripe Connect account + worker info
@@ -119,7 +125,7 @@ export async function processUserPayout(userId) {
   const processedBookings = [];
 
   for (const row of creditsResult.rows) {
-    // Credit amount is already net (price * 0.80) — transfer it as-is
+    // Credit amount is already net (gross × WORKER_PAYOUT_SHARE) — transfer it as-is
     const transferCents = Math.round(Number(row.amount) * 100);
 
     // source_transaction requires a charge ID (ch_xxx), not a payment intent ID (pi_xxx).
@@ -156,13 +162,11 @@ export async function processUserPayout(userId) {
         [row.booking_id]
       );
 
-      // ── Record platform's 20% worker commission ──────────────────────────
-      // transferCents = 80% → gross was transferCents / 0.80, commission = gross * 0.20
-      const workerCommission = ((transferCents / 0.80) * 0.20 / 100).toFixed(2);
+      const workerCommission = workerCommissionFromNet(transferCents / 100).toFixed(2);
       await pool.query(
         `INSERT INTO platform_earnings (booking_id, type, amount, description)
-         VALUES ($1, 'worker_commission', $2, 'Commission vendeur 20% au versement')`,
-        [row.booking_id, workerCommission]
+         VALUES ($1, 'worker_commission', $2, $3)`,
+        [row.booking_id, workerCommission, `Commission vendeur ${WORKER_COMMISSION_RATE * 100}% au versement`]
       );
 
       totalTransferredCents += transferCents;
@@ -192,7 +196,7 @@ export async function processUserPayout(userId) {
   );
 
   const transferredDollars = totalTransferredDollars.toFixed(2);
-  const grossDollars = (totalTransferredDollars / 0.80).toFixed(2);
+  const grossDollars = grossFromWorkerNet(totalTransferredDollars).toFixed(2);
   const commissionDollars = (Number(grossDollars) - totalTransferredDollars).toFixed(2);
   const nextPayout = getNextPayoutDate(new Date()).toLocaleDateString(
     (await getUserLang(userId)) === "en" ? "en-CA" : "fr-CA",
@@ -222,7 +226,7 @@ async function recoverMissingCredits() {
   // Find completed+paid bookings with no credit transaction and insert them
   const missing = await pool.query(
     `SELECT b.id, b.worker_id, b.client_id,
-            COALESCE(b.custom_price, s.price) * 0.80 AS worker_receives,
+            COALESCE(b.custom_price, s.price) * ${WORKER_PAYOUT_SHARE} AS worker_receives,
             s.title,
             CASE WHEN uc.account_type = 'company' THEN uc.company_name ELSE uc.full_name END AS client_name
      FROM bookings b

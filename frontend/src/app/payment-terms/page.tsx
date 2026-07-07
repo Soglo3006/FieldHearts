@@ -10,6 +10,7 @@ export default function PaymentTermsPage() {
     { id: "nature", label: t("paymentTermsPage.sections.nature.title") },
     { id: "process", label: t("paymentTermsPage.sections.process.title") },
     { id: "buyer-fees", label: t("paymentTermsPage.sections.buyerFees.title") },
+    { id: "provider-fees", label: t("paymentTermsPage.sections.providerFees.title") },
     { id: "wallet", label: t("paymentTermsPage.sections.wallet.title") },
     { id: "dispute-period", label: t("paymentTermsPage.sections.disputePeriod.title") },
     { id: "disputes", label: t("paymentTermsPage.sections.disputes.title") },
@@ -110,6 +111,19 @@ export default function PaymentTermsPage() {
               </div>
             </section>
 
+            <section id="provider-fees">
+              <h2 className="mb-4 text-xl font-bold text-gray-900">{t("paymentTermsPage.sections.providerFees.title")}</h2>
+              <ul className="ml-2 list-inside list-disc space-y-2 text-gray-600">
+                <li>
+                  <Trans i18nKey="paymentTermsPage.sections.providerFees.itemOne" components={{ strong: <span className="font-semibold text-gray-900" /> }} />
+                </li>
+                <li>{t("paymentTermsPage.sections.providerFees.itemTwo")}</li>
+              </ul>
+              <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-950/90">
+                {t("wallet.commissionPromoNotice")}
+              </p>
+            </section>
+
             <section id="wallet">
               <h2 className="mb-4 text-xl font-bold text-gray-900">{t("paymentTermsPage.sections.wallet.title")}</h2>
               <p className="mb-3">{t("paymentTermsPage.sections.wallet.intro")}</p>
@@ -194,7 +208,7 @@ export default function PaymentTermsPage() {
                   </div>
                   <div className="flex items-center justify-between gap-4">
                     <span className="font-semibold">{t("paymentTermsPage.sections.withdrawalFees.exampleCommissionLabel")}</span>
-                    <span className="font-semibold">-$20.00</span>
+                    <span className="font-semibold">-$5.00</span>
                   </div>
                   <div className="flex items-center justify-between gap-4">
                     <span>{t("paymentTermsPage.sections.withdrawalFees.exampleOtherFeesLabel")}</span>
@@ -207,6 +221,9 @@ export default function PaymentTermsPage() {
                     </div>
                   </div>
                 </div>
+                <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-950/90">
+                  {t("paymentTermsPage.sections.withdrawalFees.examplePromoNotice")}
+                </p>
               </div>
             </section>
 

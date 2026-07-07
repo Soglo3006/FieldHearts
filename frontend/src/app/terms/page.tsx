@@ -84,6 +84,18 @@ export default function TermsOfServicePage() {
                   </ul>
                 </div>
                 <div>
+                  <h3 className="mb-2 font-semibold text-gray-800">{t("termsPage.sections.payments.providerFeesTitle")}</h3>
+                  <ul className="ml-2 list-inside list-disc space-y-2 text-gray-600">
+                    <li>
+                      <Trans i18nKey="termsPage.sections.payments.providerFeeItem" components={{ strong: <span className="font-semibold text-gray-900" /> }} />
+                    </li>
+                    <li>{t("termsPage.sections.payments.providerFeeNote")}</li>
+                  </ul>
+                  <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-950/90">
+                    {t("wallet.commissionPromoNotice")}
+                  </p>
+                </div>
+                <div>
                   <h3 className="mb-2 font-semibold text-gray-800">{t("termsPage.sections.payments.escrowTitle")}</h3>
                   <ul className="ml-2 list-inside list-disc space-y-2 text-gray-600">
                     {(t("termsPage.sections.payments.escrowItems", { returnObjects: true }) as string[]).map((item) => (
@@ -121,6 +133,9 @@ export default function TermsOfServicePage() {
                   <Trans i18nKey="termsPage.sections.withdrawals.itemThree" components={{ strong: <span className="font-semibold text-gray-900" /> }} />
                 </li>
               </ul>
+              <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-950/90">
+                {t("wallet.commissionPromoNotice")}
+              </p>
             </section>
 
             <section id="disputes">

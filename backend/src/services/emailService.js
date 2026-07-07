@@ -344,7 +344,7 @@ const emailTemplates = {
             <td style="color:#111827;text-align:right;padding-bottom:8px;">$${esc(String(grossAmount))} CAD</td>
           </tr>
           <tr>
-            <td style="color:#6b7280;font-size:13px;padding-bottom:8px;">${t(lang, "Commission plateforme (20%)", "Platform commission (20%)")}</td>
+            <td style="color:#6b7280;font-size:13px;padding-bottom:8px;">${t(lang, "Commission plateforme (5%)", "Platform commission (5%)")}</td>
             <td style="color:#dc2626;text-align:right;padding-bottom:8px;">−$${esc(String(commissionAmount))} CAD</td>
           </tr>
           <tr style="border-top:1px solid #bbf7d0;">

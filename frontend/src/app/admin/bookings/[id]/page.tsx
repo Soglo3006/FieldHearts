@@ -20,6 +20,10 @@ import { Spinner } from "@/components/ui/Spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/contexts/AuthContext";
 import { getBookingDisputeFinancialOutcome } from "@/lib/disputeFinancials";
+import {
+  workerCommissionFromGross,
+  workerNetFromGross,
+} from "@/lib/commissionRates";
 import { canAccessAdminPortal } from "@/lib/auth";
 import { adminApiHeaders } from "@/lib/adminStepUp";
 import { getIntlLocale } from "@/lib/locale";
@@ -389,13 +393,13 @@ export default function AdminBookingDetailPage() {
                           <span>{formatMoney(Number(booking.custom_price ?? booking.price ?? 0))}</span>
                         </div>
                         <div className="flex items-center justify-between text-red-500">
-                          <span>{t("admin.bookings.platformFee", { defaultValue: "Commission plateforme (20%)" })}</span>
-                          <span>- {formatMoney(Number(booking.custom_price ?? booking.price ?? 0) * 0.2)}</span>
+                          <span>{t("admin.bookings.platformFee", { defaultValue: "Commission plateforme (5%)" })}</span>
+                          <span>- {formatMoney(workerCommissionFromGross(Number(booking.custom_price ?? booking.price ?? 0)))}</span>
                         </div>
                         {financials.hasFinancialAdjustment && financials.refundedBase !== null && (
                           <div className="flex items-center justify-between text-orange-500">
                             <span>{t("admin.disputes.workerAdjustment", { defaultValue: "Ajustement litige" })}</span>
-                            <span>- {formatMoney(financials.refundedBase * 0.8)}</span>
+                            <span>- {formatMoney(workerNetFromGross(financials.refundedBase))}</span>
                           </div>
                         )}
                         <div className="border-t pt-2 flex items-center justify-between font-bold text-gray-900">
@@ -471,7 +475,7 @@ export default function AdminBookingDetailPage() {
                           {financials.finalWorkerReceives !== null ? formatMoney(financials.finalWorkerReceives) : formatMoney(financials.workerReceivesOriginal)}
                         </p>
                         {financials.refundedBase !== null && (
-                          <p className="text-xs text-orange-500">- {formatMoney(financials.refundedBase * 0.8)} {t("admin.disputes.adjustment", { defaultValue: "adjustment" })}</p>
+                          <p className="text-xs text-orange-500">- {formatMoney(workerNetFromGross(financials.refundedBase ?? 0))} {t("admin.disputes.adjustment", { defaultValue: "adjustment" })}</p>
                         )}
                       </div>
                       <div className="px-5 py-3 text-sm space-y-0.5">
@@ -640,7 +644,7 @@ export default function AdminBookingDetailPage() {
                       const refundBase = base * (refundPercentage / 100);
                       const refundTaxes = refundBase * taxRate;
                       const totalToClient = refundBase + refundTaxes;
-                      const workerLoss = refundBase * 0.8;
+                      const workerLoss = workerNetFromGross(refundBase);
                       return (
                         <div className="space-y-2">
                           <div className="flex items-center justify-between">
@@ -680,12 +684,12 @@ export default function AdminBookingDetailPage() {
                                     <span className="font-semibold text-gray-800">{formatMoney(base)}</span>
                                   </div>
                                   <div className="flex justify-between text-red-500 font-medium">
-                                    <span>{t("admin.bookings.platformFee", { defaultValue: "Commission (20%)" })}</span>
-                                    <span>- {formatMoney(base * 0.2)}</span>
+                                    <span>{t("admin.bookings.platformFee", { defaultValue: "Commission (5%)" })}</span>
+                                    <span>- {formatMoney(workerCommissionFromGross(base))}</span>
                                   </div>
                                   <div className="flex justify-between font-bold text-gray-900 border-t pt-1.5">
                                     <span>{t("admin.bookings.workerReceived", { defaultValue: "Reçu initialement" })}</span>
-                                    <span>{formatMoney(base * 0.8)}</span>
+                                    <span>{formatMoney(workerNetFromGross(base))}</span>
                                   </div>
                                   <div className="border-t border-dashed border-gray-300 pt-1.5 flex justify-between text-red-500 font-medium">
                                     <span>{t("admin.disputes.adjustment", { defaultValue: "Ajustement litige" })}</span>
@@ -693,7 +697,7 @@ export default function AdminBookingDetailPage() {
                                   </div>
                                   <div className="flex justify-between font-bold text-gray-900 border-t pt-1.5">
                                     <span>{t("admin.bookings.workerReceived", { defaultValue: "Vous recevrez" })}</span>
-                                    <span className="text-green-700">{formatMoney(base * 0.8 - workerLoss)}</span>
+                                    <span className="text-green-700">{formatMoney(workerNetFromGross(base) - workerLoss)}</span>
                                   </div>
                                 </div>
                               </div>

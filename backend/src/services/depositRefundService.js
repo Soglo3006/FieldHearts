@@ -1,5 +1,6 @@
 import pool from "../config/db.js";
 import stripe from "../config/stripe.js";
+import { workerNetFromGross } from "../utils/commissionRates.js";
 import { createLocalizedNotification } from "../services/notificationService.js";
 
 import { resolveDepositBaseAmount } from "../utils/depositSchema.js";
@@ -15,7 +16,7 @@ function roundDollars(value) {
 /**
  * Client cancels a paid active booking when listing had a deposit.
  * Client refund = (service price - deposit) + proportional taxes.
- * Worker keeps 80% of deposit base; platform keeps 20% + buyer fee.
+ * Worker keeps their net share of deposit base; platform keeps commission + buyer fee.
  */
 export async function processDepositCancellationRefund({ bookingId, cancelledByUserId }) {
   const result = await pool.query(
@@ -82,10 +83,10 @@ export async function processDepositCancellationRefund({ bookingId, cancelledByU
 
   if (isDepositOnly) {
     refundBaseCents = 0;
-    workerDepositCents = roundCents(paidBaseCents * 0.8);
+    workerDepositCents = roundCents(workerNetFromGross(paidBaseCents / 100) * 100);
   } else {
     refundBaseCents = Math.max(0, servicePriceCents - depositCents);
-    workerDepositCents = roundCents(depositCents * 0.8);
+    workerDepositCents = roundCents(workerNetFromGross(depositCents / 100) * 100);
   }
 
   const totalTaxesCents = isDepositOnly

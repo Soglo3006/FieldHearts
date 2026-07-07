@@ -337,6 +337,7 @@
     "totalPaid": "Total payé",
     "workerPayout": "Versement prestataire",
     "platformCommission20": "Commission plateforme (20%)",
+    "platformCommissionPromo": "Commission plateforme (5%)*",
     "youWillReceive": "Vous recevrez",
     "payoutDelay": "Versé dans votre portefeuille après confirmation des deux parties.",
     "jobInProgress": "Travail en cours — les deux parties doivent confirmer la fin.",
@@ -490,6 +491,8 @@
     "nextPayout": "Prochain versement",
     "availableForPayout": "Disponible pour versement",
     "platformCommission20": "Commission plateforme (20%)",
+    "platformCommissionPromo": "Commission plateforme (5%)*",
+    "commissionPromoNotice": "* Les commissions sont normalement de 20 %, mais ont été réduites à 5 % pour une durée limitée afin de couvrir principalement les frais de transfert et d'encourager nos premiers utilisateurs sur la plateforme.",
     "youWillReceive": "Vous recevrez",
     "pendingInfo": "${{amount}} en attente — ces fonds peuvent encore faire l'objet d'un litige dans les 3 jours suivant la complétion du service.",
     "nextPayoutDate": "Date du prochain versement",
@@ -2253,7 +2256,7 @@
       "payments": {
         "title": "2. Paiements sécurisés",
         "intro": "Tous les paiements sont traités via la plateforme et conservés en sécurité jusqu'à la réalisation du service ou la résolution d'un litige.",
-        "items": ["Les paiements sont effectués à l'avance et conservés en séquestre", "Les fonds sont libérés une fois le service terminé ou après résolution d'un litige"],
+        "items": ["Les paiements sont effectués à l'avance et conservés en séquestre", "Les fonds sont libérés une fois le service terminé ou après résolution d'un litige", "Les prestataires paient actuellement une commission plateforme de 5 %* sur les versements (taux standard : 20 %)"],
         "warning": "Nous déconseillons fortement aux utilisateurs d'effectuer des paiements en dehors de la plateforme."
       },
       "disputes": {
@@ -2338,7 +2341,10 @@
         "buyerFeesTitle": "a. Frais acheteur",
         "buyerFeeItem": "Une commission de <strong>5 %</strong> est généralement ajoutée à chaque transaction",
         "buyerFeeNote": "Des taxes applicables ainsi que certains frais de traitement tiers peuvent aussi s'appliquer selon le contexte de la transaction.",
-        "escrowTitle": "b. Système de séquestre (escrow)",
+        "providerFeesTitle": "b. Frais prestataire",
+        "providerFeeItem": "Une commission plateforme de <strong>5 %</strong>* est actuellement prélevée sur les gains des prestataires lors du versement.",
+        "providerFeeNote": "Le taux standard de la plateforme est de 20 % ; un taux promotionnel de 5 % s'applique pour une durée limitée aux premiers utilisateurs.",
+        "escrowTitle": "c. Système de séquestre (escrow)",
         "escrowItems": [
           "Les paiements sont généralement retenus jusqu'à la réalisation du service, à une autre résolution de la réservation ou au traitement d'un litige.",
           "Les utilisateurs ne doivent pas détourner hors de la plateforme une transaction initiée sur Uneden pour éviter les frais, protections ou vérifications de la plateforme."
@@ -2358,7 +2364,7 @@
         "title": "5. Retraits",
         "itemOne": "Seuls les soldes approuvés sont généralement admissibles au retrait.",
         "itemTwo": "Les retraits sont généralement disponibles tous les <strong>14 jours</strong>, et de nouveaux comptes peuvent être soumis à une période d'attente initiale.",
-        "itemThree": "Une commission de retrait de <strong>20 %</strong> peut s'appliquer, en plus de certains frais bancaires, de versement ou de conformité lorsqu'ils doivent être déduits."
+        "itemThree": "Une commission de retrait de <strong>5 %</strong> s'applique actuellement (taux promotionnel ; le taux standard est de 20 %), en plus de certains frais bancaires, de versement ou de conformité lorsqu'ils doivent être déduits."
       },
       "disputes": {
         "title": "6. Litiges et remboursements",
@@ -2463,6 +2469,11 @@
         ],
         "note": "Il est strictement interdit de détourner hors plateforme une transaction initiée sur Uneden pour éviter les frais, protections ou vérifications."
       },
+      "providerFees": {
+        "title": "Commission prestataire",
+        "itemOne": "Une commission plateforme de <strong>5 %</strong>* est actuellement prélevée sur les gains des prestataires lors du versement.",
+        "itemTwo": "Le taux standard est de 20 % ; le taux réduit de 5 % est une offre limitée pour les premiers utilisateurs."
+      },
       "buyerFees": {
         "title": "3. Frais acheteur",
         "intro": "En plus du prix du service :",
@@ -2517,15 +2528,16 @@
       },
       "withdrawalFees": {
         "title": "9. Frais de retrait",
-        "itemOne": "Une commission de <strong>20 %</strong> peut être appliquée sur les retraits",
+        "itemOne": "Une commission de <strong>5 %</strong> est actuellement appliquée sur les retraits (taux promotionnel pour les premiers utilisateurs ; le taux standard est de 20 %)",
         "itemTwo": "Des frais bancaires, de versement, de vérification ou de conformité peuvent aussi être déduits lorsqu'ils s'appliquent.",
         "exampleTitle": "Exemple de retrait",
         "exampleApprovedLabel": "Solde approuvé",
-        "exampleCommissionLabel": "Commission Uneden (20 %)",
+        "exampleCommissionLabel": "Commission Uneden (5 %)*",
         "exampleOtherFeesLabel": "Autres frais possibles",
         "exampleVariableLabel": "Variables",
         "exampleReceiveLabel": "Vous recevez",
-        "exampleReceiveValue": "$80.00 moins frais variables"
+        "exampleReceiveValue": "$95.00 moins frais variables",
+        "examplePromoNotice": "* Taux promotionnel de 5 % (taux standard : 20 %). Offre limitée pour les premiers utilisateurs."
       },
       "paymentMethods": {
         "title": "10. Méthodes de paiement",

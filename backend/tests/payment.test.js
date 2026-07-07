@@ -9,7 +9,8 @@ import { describe, it, expect } from 'vitest';
 
 // ── Constants (mirrors paymentController.js) ─────────────────────────────────
 const BUYER_COMMISSION_RATE  = 0.05;
-const WORKER_COMMISSION_RATE = 0.20;
+const WORKER_COMMISSION_RATE = 0.05;
+const WORKER_PAYOUT_SHARE = 1 - WORKER_COMMISSION_RATE;
 
 // ── Helpers (mirrors paymentController.js) ───────────────────────────────────
 const PROVINCE_TAX_RATES = {
@@ -39,14 +40,13 @@ function calcRefund(totalCents, platformFeeCents, refundAmountCents = null) {
 
 function calcWorkerEarning(servicePriceDollars) {
   const gross      = Math.round(servicePriceDollars * 100);
-  const netCents   = Math.round(gross * (1 - WORKER_COMMISSION_RATE)); // 80%
-  const commission = gross - netCents;                                  // 20%
+  const netCents   = Math.round(gross * WORKER_PAYOUT_SHARE);
+  const commission = gross - netCents;
   return { gross, netCents, commission };
 }
 
 function calcPlatformEarningAtPayout(transferCents) {
-  // transferCents = 80% of gross → gross = transferCents / 0.80
-  return ((transferCents / 0.80) * 0.20 / 100).toFixed(2);
+  return ((transferCents / WORKER_PAYOUT_SHARE) * WORKER_COMMISSION_RATE / 100).toFixed(2);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -139,17 +139,17 @@ describe('Remboursement — logique de montant', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// 3. WORKER EARNING — 80/20 split
+// 3. WORKER EARNING — 95/5 split (promotional early-user rate)
 // ═══════════════════════════════════════════════════════════════════════════════
-describe('Worker earning — split 80/20', () => {
-  it('worker reçoit 80% du prix du service', () => {
+describe('Worker earning — split 95/5', () => {
+  it('worker reçoit 95% du prix du service', () => {
     const { netCents } = calcWorkerEarning(100);
-    expect(netCents).toBe(8000);
+    expect(netCents).toBe(9500);
   });
 
-  it('plateforme garde 20% du prix du service', () => {
+  it('plateforme garde 5% du prix du service', () => {
     const { commission } = calcWorkerEarning(100);
-    expect(commission).toBe(2000); // 20$ en cents
+    expect(commission).toBe(500);
   });
 
   it('gross = net + commission', () => {
@@ -159,8 +159,8 @@ describe('Worker earning — split 80/20', () => {
 
   it('prix à 50$', () => {
     const { netCents, commission } = calcWorkerEarning(50);
-    expect(netCents).toBe(4000);
-    expect(commission).toBe(1000);
+    expect(netCents).toBe(4750);
+    expect(commission).toBe(250);
   });
 });
 
@@ -168,31 +168,31 @@ describe('Worker earning — split 80/20', () => {
 // 4. PLATFORM EARNINGS — tracking
 // ═══════════════════════════════════════════════════════════════════════════════
 describe('Platform earnings — calcul commission au versement', () => {
-  it('commission plateforme = 20% du gross (service 100$)', () => {
-    const transferCents = 8000; // 80% of 100$
+  it('commission plateforme = 5% du gross (service 100$)', () => {
+    const transferCents = 9500;
     const commission = calcPlatformEarningAtPayout(transferCents);
-    expect(Number(commission)).toBeCloseTo(20.00, 2);
+    expect(Number(commission)).toBeCloseTo(5.00, 2);
   });
 
-  it('commission plateforme = 20% du gross (service 50$)', () => {
-    const transferCents = 4000; // 80% of 50$
+  it('commission plateforme = 5% du gross (service 50$)', () => {
+    const transferCents = 4750;
     const commission = calcPlatformEarningAtPayout(transferCents);
-    expect(Number(commission)).toBeCloseTo(10.00, 2);
+    expect(Number(commission)).toBeCloseTo(2.50, 2);
   });
 
-  it('buyer commission (5%) + worker commission (20%) = 25% du service price', () => {
+  it('buyer commission (5%) + worker commission (5%) = 10% du service price', () => {
     const priceD = 100;
     const { buyerCommissionCents } = calcCheckout(priceD);
     const { commission } = calcWorkerEarning(priceD);
     const totalPlatformCents = buyerCommissionCents + commission;
-    expect(totalPlatformCents).toBe(2500); // 25% of 10000 cents
+    expect(totalPlatformCents).toBe(1000);
   });
 
-  it('sur un service de 200$ — total plateforme = 50$', () => {
+  it('sur un service de 200$ — total plateforme = 20$', () => {
     const { buyerCommissionCents } = calcCheckout(200);
     const { commission } = calcWorkerEarning(200);
     const totalPlatformCents = buyerCommissionCents + commission;
-    expect(totalPlatformCents).toBe(5000); // 50$
+    expect(totalPlatformCents).toBe(2000);
   });
 });
 
@@ -215,7 +215,7 @@ describe('Remboursement — impact sur les gains plateforme', () => {
     expect(platformKept).toBeGreaterThan(buyerCommissionCents);
   });
 
-  it('le 20% worker commission n\'est jamais généré si booking remboursé', () => {
+  it('le 5% worker commission n\'est jamais généré si booking remboursé', () => {
     // Remboursement supprime le credit du worker → pas de payout → pas de worker_commission
     // Ce test vérifie la logique : si credit est supprimé, pas de worker_commission générée
     const workerCredits = []; // Simulé vide après DELETE

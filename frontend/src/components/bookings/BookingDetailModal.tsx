@@ -21,6 +21,12 @@ import PriceNegotiationSection from "./PriceNegotiationSection";
 import BookingDetailFooter from "./BookingDetailFooter";
 import { useTranslation } from "react-i18next";
 import { getTaxRate, getTaxLabel, formatTaxRate } from "@/lib/taxes";
+import {
+  WORKER_COMMISSION_RATE,
+  WORKER_PAYOUT_SHARE,
+  workerNetFromGross,
+  workerCommissionFromGross,
+} from "@/lib/commissionRates";
 import { uploadDisputeAttachments, type DisputeAttachment } from "@/lib/disputeAttachments";
 import { getBookingDisputeFinancialOutcome } from "@/lib/disputeFinancials";
 import { bookingLiveFingerprint, getModifiedFieldLabels } from "@/lib/bookingModifiedFields";
@@ -887,8 +893,8 @@ export default function BookingDetailModal({
                 const buyerCommission = base * 0.05;
                 const taxes           = base * taxRate;
                 const totalPaid       = base + buyerCommission + taxes;
-                const commission20    = base * 0.20;
-                const workerReceives  = base * 0.80;
+                const platformCommission = workerCommissionFromGross(base);
+                const workerReceives  = workerNetFromGross(base);
                 const isHourlyMode    = normalizePricingMode(booking.pricing_mode) === "hourly";
                 const hourlyRate      = isHourlyMode ? Number(booking.price) : null;
                 const billingHours    = isHourlyMode ? resolveBillingHours(booking) : null;
@@ -906,10 +912,10 @@ export default function BookingDetailModal({
                     ? t("listingPrice.rangeCurrency", { min: fmt(range.min), max: fmt(range.max) })
                     : `${fmt(single)} $`;
                 const workerReceivesRange = priceRangeBounds
-                  ? { min: Math.round(priceRangeBounds.min * 0.8 * 100) / 100, max: Math.round(priceRangeBounds.max * 0.8 * 100) / 100 }
+                  ? { min: Math.round(priceRangeBounds.min * WORKER_PAYOUT_SHARE * 100) / 100, max: Math.round(priceRangeBounds.max * WORKER_PAYOUT_SHARE * 100) / 100 }
                   : null;
                 const platformCommissionRange = priceRangeBounds
-                  ? { min: Math.round(priceRangeBounds.min * 0.2 * 100) / 100, max: Math.round(priceRangeBounds.max * 0.2 * 100) / 100 }
+                  ? { min: Math.round(priceRangeBounds.min * WORKER_COMMISSION_RATE * 100) / 100, max: Math.round(priceRangeBounds.max * WORKER_COMMISSION_RATE * 100) / 100 }
                   : null;
                 const splitPaymentSummary = buildClientPaymentSummary(booking);
                 const splitFullReceipt = buildSplitDepositFullReceipt(booking);
@@ -956,10 +962,10 @@ export default function BookingDetailModal({
                       ? totalPaid
                       : null;
                   const workerDepositPayout = hasDepositCancellation
-                    ? Math.round(depositDollars * 0.8 * 100) / 100
+                    ? workerNetFromGross(depositDollars)
                     : null;
                   const platformDepositCommission = hasDepositCancellation
-                    ? Math.round(depositDollars * 0.2 * 100) / 100
+                    ? workerCommissionFromGross(depositDollars)
                     : null;
 
                   if (userRole === "worker") {
@@ -1011,7 +1017,7 @@ export default function BookingDetailModal({
                                 <span className="font-medium">{fmt(depositDollars)} $</span>
                               </div>
                               <div className="flex justify-between text-red-500">
-                                <span>{t("bookings.platformCommission20")}</span>
+                                <span>{t("bookings.platformCommissionPromo")}</span>
                                 <span>−{fmt(platformDepositCommission)} $</span>
                               </div>
                               <Separator />
@@ -1243,8 +1249,8 @@ export default function BookingDetailModal({
                               <span className="font-medium">{fmt(base)} $</span>
                             </div>
                             <div className="flex justify-between text-red-500">
-                              <span>{t("bookings.platformCommission20")}</span>
-                              <span>−{fmt(commission20)} $</span>
+                              <span>{t("bookings.platformCommissionPromo")}</span>
+                              <span>−{fmt(platformCommission)} $</span>
                             </div>
                             <Separator />
                             <div className="flex justify-between font-bold text-base">
@@ -1503,8 +1509,8 @@ export default function BookingDetailModal({
                             <span className="font-medium">{servicePriceLine}</span>
                           </div>
                           <div className="flex justify-between text-red-500">
-                            <span>{t("bookings.platformCommission20")}</span>
-                            <span>−{fmtMoneyLine(commission20, platformCommissionRange)}</span>
+                            <span>{t("bookings.platformCommissionPromo")}</span>
+                            <span>−{fmtMoneyLine(platformCommission, platformCommissionRange)}</span>
                           </div>
                           <Separator />
                           <div className="flex justify-between font-bold text-base">

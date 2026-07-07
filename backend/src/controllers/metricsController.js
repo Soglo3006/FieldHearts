@@ -80,7 +80,7 @@ export const getMetrics = async (_req, res) => {
       pool.query(`SELECT status, COUNT(*) AS count FROM disputes GROUP BY status`),
 
       // 13. Transaction volume (total money moved + platform revenue)
-      // debit = client payments, credit = worker earnings (80% of service price)
+      // debit = client payments, credit = worker earnings (net share of service price)
       // platform revenue = debit total - credit total (buyer commission + seller commission - taxes remitted)
       pool.query(`
         SELECT

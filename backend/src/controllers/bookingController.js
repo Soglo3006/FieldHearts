@@ -1,4 +1,5 @@
 import pool from "../config/db.js";
+import { workerNetFromGross } from "../utils/commissionRates.js";
 import { notifyBookingCreated, notifyBookingStatusUpdated, sendEmail } from "../services/emailService.js";
 import { pushNewBooking, pushBookingStatus, pushPriceProposed, pushPriceConfirmRequest, pushPriceAgreed } from "../services/pushService.js";
 import stripe from "../config/stripe.js";
@@ -618,7 +619,7 @@ export const markCompleted = async (req, res) => {
       const effectivePrice = getEffectiveBookingPrice(payoutBooking);
       const taxRate = b.tax_rate ? Number(b.tax_rate) : getTaxRateForProvince(b.client_province);
       const totalPaid = (effectivePrice * (1 + 0.05 + taxRate)).toFixed(2);
-      const workerReceives = (effectivePrice * 0.80).toFixed(2);
+      const workerReceives = workerNetFromGross(effectivePrice).toFixed(2);
       sendEmail(b.client_email, "jobCompleted", [b.client_name, b.title, b.worker_name, totalPaid, id, "client"], clientLang);
       sendEmail(b.worker_email, "jobCompleted", [b.worker_name, b.title, b.client_name, workerReceives, id, "worker"], workerLang);
 
@@ -1479,8 +1480,8 @@ export async function finalizeCompletion(booking) {
   }
   const listingTitle = (booking.title || "").trim();
   const effectivePrice = getEffectiveBookingPrice(booking);
-  // Worker receives 80% (platform keeps 20% commission)
-  const workerReceives = effectivePrice * 0.80;
+  // Worker receives net share (platform keeps WORKER_COMMISSION_RATE)
+  const workerReceives = workerNetFromGross(effectivePrice);
 
   // Ensure worker wallet exists
   await pool.query(

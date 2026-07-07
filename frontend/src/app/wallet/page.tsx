@@ -1329,6 +1329,17 @@ export default function WalletPage() {
                   </div>
                 </>
               )}
+              <Separator />
+              <div className="space-y-2">
+                <p className="text-sm text-gray-700">
+                  <span className="font-medium">{t("wallet.platformCommissionPromo")}</span>
+                </p>
+                <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5">
+                  <p className="text-xs text-amber-950/90 leading-relaxed">
+                    {t("wallet.commissionPromoNotice")}
+                  </p>
+                </div>
+              </div>
             </CardContent>
           </Card>
         )}

@@ -1,4 +1,5 @@
 import pool from "../config/db.js";
+import { WORKER_COMMISSION_RATE, WORKER_PAYOUT_SHARE } from "../utils/commissionRates.js";
 import { getNextPayoutDate, subtractBusinessDays, processAllPayouts } from "../services/payoutService.js";
 import ExcelJS from "exceljs";
 import { logAdminAction } from "../services/auditService.js";
@@ -117,7 +118,7 @@ export const getWallet = async (req, res) => {
 
     const availableForPayout = Number(availableResult.rows[0]?.total ?? 0);
     const pendingAmount      = Number(pendingResult.rows[0]?.total ?? 0);
-    // Credit transactions are already recorded at price * 0.80 (commission already deducted)
+    // Credit transactions are already recorded at gross × WORKER_PAYOUT_SHARE (commission already deducted)
     // so net_payout = availableForPayout with no further deduction
     const nextPayoutDate     = getNextPayoutDate();
 
@@ -388,8 +389,8 @@ export const exportTransactions = async (req, res) => {
          COALESCE(b.tax_rate, 0.14975) * 100                              AS "Taux de taxes (%)",
          ROUND(COALESCE(b.custom_price, b.price) * COALESCE(b.tax_rate, 0.14975), 2) AS "Total taxes (CAD)",
          ROUND(COALESCE(b.custom_price, b.price) * (1 + 0.05 + COALESCE(b.tax_rate, 0.14975)), 2) AS "Total facturé au client (CAD)",
-         ROUND(COALESCE(b.custom_price, b.price) * 0.20, 2)              AS "Commission plateforme 20% (CAD)",
-         ROUND(COALESCE(b.custom_price, b.price) * 0.80, 2)              AS "Versement prestataire 80% (CAD)",
+         ROUND(COALESCE(b.custom_price, b.price) * ${WORKER_COMMISSION_RATE}, 2)              AS "Commission plateforme ${WORKER_COMMISSION_RATE * 100}% (CAD)",
+         ROUND(COALESCE(b.custom_price, b.price) * ${WORKER_PAYOUT_SHARE}, 2)              AS "Versement prestataire ${WORKER_PAYOUT_SHARE * 100}% (CAD)",
          t.amount                                                          AS "Montant transaction (CAD)",
          COALESCE(b.status, '—')                                          AS "Statut réservation"
        FROM transactions t

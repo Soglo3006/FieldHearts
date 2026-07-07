@@ -3,7 +3,7 @@
 import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useStartConversation } from "@/hooks/useStartConversation";
 import { useAuth } from "@/contexts/AuthContext";
 import { useServiceDetailBooking } from "@/hooks/useServiceDetailBooking";
@@ -19,8 +19,6 @@ import BookingModal from "@/components/serviceDetail/BookingModal";
 import LocationMapModal from "@/components/serviceDetail/LocationMapModal";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
-import CompleteProfileModal from "@/components/profile/CompleteProfileModal";
-import { useMyProfile } from "@/hooks/useMyProfile";
 import { getServiceLocationEntries, hasApproximateServiceLocation } from "@/lib/serviceLocation";
 import { resolveListingTitle, type ServiceLikeWithI18n } from "@/lib/serviceListingI18n";
 import {
@@ -129,17 +127,11 @@ export default function ServiceDetailClient() {
   const [isMapOpen, setIsMapOpen] = useState(false);
   const [mapLocationIndex, setMapLocationIndex] = useState(0);
 
-  const { startConversation, loading: contactLoading, showCompleteProfile: showConvCompleteProfile, setShowCompleteProfile: setShowConvCompleteProfile } = useStartConversation();
+  const { startConversation, loading: contactLoading } = useStartConversation();
   const { user, session } = useAuth();
-  const { profile, loading: profileLoading } = useMyProfile();
   const router = useRouter();
 
-  const [showCompleteProfileModal, setShowCompleteProfileModal] = useState(false);
   const [existingBookingStatus, setExistingBookingStatus] = useState<string | null>(null);
-
-  const onProfileIncomplete = useCallback(() => {
-    setShowCompleteProfileModal(true);
-  }, []);
 
   const {
     showBookingModal,
@@ -153,9 +145,6 @@ export default function ServiceDetailClient() {
     handleBookingRequest,
   } = useServiceDetailBooking({
     serviceId,
-    profile,
-    profileLoading,
-    onProfileIncomplete,
   });
 
   const [showEditModal, setShowEditModal] = useState(false);
@@ -440,12 +429,6 @@ export default function ServiceDetailClient() {
           }}
         />
       )}
-
-      <CompleteProfileModal
-        open={showCompleteProfileModal || showConvCompleteProfile}
-        onClose={() => { setShowCompleteProfileModal(false); setShowConvCompleteProfile(false); }}
-        accountType={profile?.account_type}
-      />
 
       {isMapOpen && service && (() => {
         const mapEntries = getServiceLocationEntries(service);

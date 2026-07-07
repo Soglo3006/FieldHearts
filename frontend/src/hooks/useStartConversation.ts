@@ -4,8 +4,6 @@ import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAuthGate } from "@/hooks/useAuthGate";
 import { useAuthResumeAction } from "@/hooks/useAuthResumeAction";
-import { useMyProfile } from "@/hooks/useMyProfile";
-import { isProfileDetailsIncomplete } from "@/lib/onboardingSteps";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 
@@ -14,9 +12,7 @@ export function useStartConversation() {
   const { t } = useTranslation();
   const { user, loading: authLoading } = useAuth();
   const { requireAuth, notifyAuthActionReady } = useAuthGate();
-  const { profile, loading: profileLoading } = useMyProfile();
   const [loading, setLoading] = useState(false);
-  const [showCompleteProfile, setShowCompleteProfile] = useState(false);
   const [pendingContact, setPendingContact] = useState<{
     otherUserId: string;
     redirectBack?: string;
@@ -24,15 +20,9 @@ export function useStartConversation() {
 
   const continueConversation = useCallback(
     async (otherUserId: string) => {
-      if (authLoading || profileLoading || !user) return;
+      if (authLoading || !user) return;
 
       notifyAuthActionReady();
-
-      if (isProfileDetailsIncomplete(profile)) {
-        setLoading(false);
-        setShowCompleteProfile(true);
-        return;
-      }
 
       if (user.id === otherUserId) {
         setLoading(false);
@@ -67,7 +57,7 @@ export function useStartConversation() {
         setLoading(false);
       }
     },
-    [authLoading, profileLoading, user, profile, router, t, notifyAuthActionReady],
+    [authLoading, user, router, t, notifyAuthActionReady],
   );
 
   useAuthResumeAction(
@@ -82,15 +72,14 @@ export function useStartConversation() {
           typeof payload.redirectBack === "string" ? payload.redirectBack : undefined,
       });
     },
-    { waitForProfile: true },
   );
 
   useEffect(() => {
-    if (!pendingContact || authLoading || profileLoading || !user) return;
+    if (!pendingContact || authLoading || !user) return;
     const { otherUserId } = pendingContact;
     setPendingContact(null);
     void continueConversation(otherUserId);
-  }, [pendingContact, authLoading, profileLoading, user, continueConversation]);
+  }, [pendingContact, authLoading, user, continueConversation]);
 
   const startConversation = async (otherUserId: string, redirectBack?: string) => {
     if (authLoading) return;
@@ -116,5 +105,5 @@ export function useStartConversation() {
     await continueConversation(otherUserId);
   };
 
-  return { startConversation, loading, showCompleteProfile, setShowCompleteProfile };
+  return { startConversation, loading };
 }

@@ -16,14 +16,10 @@ export function useProfileCompletionGate() {
   const guardProfileAction = useCallback(
     (action?: () => void | Promise<void>) => {
       if (loading) return false;
-      if (profileDetailsIncomplete) {
-        setShowCompleteProfile(true);
-        return false;
-      }
       void action?.();
       return true;
     },
-    [loading, profileDetailsIncomplete]
+    [loading]
   );
 
   return {

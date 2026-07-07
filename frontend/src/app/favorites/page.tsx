@@ -11,9 +11,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { getPublicServiceLocation } from "@/lib/serviceLocation";
 import { type ServiceLikeWithI18n } from "@/lib/serviceListingI18n";
 import { formatListingPriceLine } from "@/lib/listingPrice";
-import ProfileCompletionRequiredScreen from "@/components/profile/ProfileCompletionRequiredScreen";
-import { useMyProfile } from "@/hooks/useMyProfile";
-import { isProfileDetailsIncomplete } from "@/lib/onboardingSteps";
 import BookingSectionPagination from "@/components/bookings/BookingSectionPagination";
 import { cn } from "@/lib/utils";
 
@@ -39,7 +36,6 @@ interface FavoriteService extends Pick<ServiceLikeWithI18n, "language" | "transl
 export default function FavoritesPage() {
   const { t } = useTranslation();
   const { user, session } = useAuth();
-  const { profile, loading: profileLoading } = useMyProfile();
   const [items, setItems] = useState<FavoriteService[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -142,16 +138,12 @@ export default function FavoritesPage() {
     }
   };
 
-  if (user && profileLoading) {
+  if (loading) {
     return (
       <div className="min-h-[50vh] flex items-center justify-center bg-white">
         <p className="text-gray-500">{t("favorites.loading")}</p>
       </div>
     );
-  }
-
-  if (user && isProfileDetailsIncomplete(profile)) {
-    return <ProfileCompletionRequiredScreen />;
   }
 
   return (

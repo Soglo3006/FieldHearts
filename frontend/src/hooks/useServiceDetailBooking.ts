@@ -3,24 +3,14 @@
 import { useCallback, useEffect, useState } from "react";
 import { useAuthGate } from "@/hooks/useAuthGate";
 import { useAuthResumeAction } from "@/hooks/useAuthResumeAction";
-import { isProfileDetailsIncomplete } from "@/lib/onboardingSteps";
-import type { ProfileForCompletion } from "@/lib/onboardingSteps";
 
 type BookingState = "idle" | "loading" | "success" | "error";
 
 type Options = {
   serviceId: string;
-  profile: ProfileForCompletion | null;
-  profileLoading: boolean;
-  onProfileIncomplete: () => void;
 };
 
-export function useServiceDetailBooking({
-  serviceId,
-  profile,
-  profileLoading,
-  onProfileIncomplete,
-}: Options) {
+export function useServiceDetailBooking({ serviceId }: Options) {
   const { requireAuth, notifyAuthActionReady } = useAuthGate();
   const [showBookingModal, setShowBookingModal] = useState(false);
   const [bookingState, setBookingState] = useState<BookingState>("idle");
@@ -29,26 +19,21 @@ export function useServiceDetailBooking({
   const [pendingBooking, setPendingBooking] = useState(false);
 
   const openBookingFlow = useCallback(() => {
-    if (isProfileDetailsIncomplete(profile)) {
-      onProfileIncomplete();
-      notifyAuthActionReady();
-      return;
-    }
     setBookingState("idle");
     setBookingNote("");
     setShowBookingModal(true);
     notifyAuthActionReady();
-  }, [profile, onProfileIncomplete, notifyAuthActionReady]);
+  }, [notifyAuthActionReady]);
 
   const queueBookingFlow = useCallback(() => {
     setPendingBooking(true);
   }, []);
 
   useEffect(() => {
-    if (!pendingBooking || profileLoading) return;
+    if (!pendingBooking) return;
     setPendingBooking(false);
     openBookingFlow();
-  }, [pendingBooking, profileLoading, openBookingFlow]);
+  }, [pendingBooking, openBookingFlow]);
 
   useAuthResumeAction(
     "booking",
@@ -57,7 +42,6 @@ export function useServiceDetailBooking({
         queueBookingFlow();
       }
     },
-    { waitForProfile: true },
   );
 
   const handleBookingRequest = useCallback(() => {

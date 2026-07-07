@@ -37,7 +37,6 @@ import { Spinner } from "@/components/ui/Spinner";
 import MessageNotifications from "@/components/messages/MessageNotifications";
 import NotificationBell from "@/components/notifications/NotificationBell";
 import SupportModal from "@/components/support/SupportModal";
-import CompleteProfileModal from "@/components/profile/CompleteProfileModal";
 import { OverlayModal } from "@/components/ui/OverlayModal";
 import { useUnreadBookings } from "@/hooks/useUnreadBookings";
 import { useUnreadMessages } from "@/hooks/useUnreadMessages";
@@ -103,81 +102,74 @@ function UserDropdown({ avatarUrl, displayName, fallbackInitial, unseenCount, pr
         </div>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-64">
-        {!profileDetailsIncomplete && (
-          <>
-            <div className="px-2 py-2">
-              <p className="text-sm font-medium">{displayName || user?.email}</p>
-              <p className="text-xs text-gray-500">{user?.email}</p>
-              {profileSubtitle && (
-                <p className="text-xs text-gray-400 mt-1">
-                  <span>{profileSubtitle}</span>
-                </p>
-              )}
-            </div>
-            <DropdownMenuSeparator />
-          </>
-        )}
-        {profileDetailsIncomplete ? (
+        <div className="px-2 py-2">
+          <p className="text-sm font-medium">{displayName || user?.email}</p>
+          <p className="text-xs text-gray-500">{user?.email}</p>
+          {profileSubtitle && (
+            <p className="text-xs text-gray-400 mt-1">
+              <span>{profileSubtitle}</span>
+            </p>
+          )}
+        </div>
+        <DropdownMenuSeparator />
+        {profileDetailsIncomplete && (
           <DropdownMenuItem asChild>
-            <Link href={completeProfileHref} className="cursor-pointer flex items-center">
+            <Link href={completeProfileHref} className="cursor-pointer flex items-center text-green-700">
               {isCompany ? <Building2 className="mr-2 h-4 w-4" /> : <User className="mr-2 h-4 w-4" />}
               <span>{t("header.completeProfile")}</span>
             </Link>
           </DropdownMenuItem>
-        ) : (
-          <>
-            <DropdownMenuItem asChild>
-              <Link href="/wallet" className="cursor-pointer flex items-center">
-                <Wallet className="mr-2 h-4 w-4" />
-                <span>{t("header.wallet")}</span>
-              </Link>
-            </DropdownMenuItem>
-            <DropdownMenuItem asChild>
-              <Link href="/my-listings" className="cursor-pointer flex items-center">
-                <List className="mr-2 h-4 w-4" />
-                <span>{t("header.listings")}</span>
-              </Link>
-            </DropdownMenuItem>
-            <DropdownMenuItem asChild>
-              <Link href="/bookings" className="cursor-pointer flex items-center">
-                <ClipboardList className="mr-2 h-4 w-4" />
-                <span>{t("header.bookings")}</span>
-                {unseenCount > 0 && (
-                  <span className="ml-auto h-5 min-w-5 px-1 bg-red-500 rounded-full flex items-center justify-center text-[10px] font-bold text-white">
-                    {unseenCount > 9 ? "9+" : unseenCount}
-                  </span>
-                )}
-              </Link>
-            </DropdownMenuItem>
-            <DropdownMenuItem asChild>
-              <Link href="/calendar" className="cursor-pointer flex items-center">
-                <CalendarDays className="mr-2 h-4 w-4" />
-                <span>{t("header.calendar")}</span>
-              </Link>
-            </DropdownMenuItem>
-            <DropdownMenuItem asChild>
-              <Link href={`/profile/${user?.id}`} className="cursor-pointer flex items-center">
-                {isPerson ? <User className="mr-2 h-4 w-4" /> : <Building2 className="mr-2 h-4 w-4" />}
-                <span>{t("header.profile")}</span>
-              </Link>
-            </DropdownMenuItem>
-            <DropdownMenuItem asChild>
-              <div className="cursor-pointer flex items-center" onClick={() => setShowSettings(true)}>
-                <Settings className="mr-2 h-4 w-4" />
-                <span>{t("header.settings")}</span>
-              </div>
-            </DropdownMenuItem>
-            {isAdminUser(user as Parameters<typeof isAdminUser>[0]) && (
-              <>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                  <Link href="/admin" className="cursor-pointer flex items-center text-green-700">
-                    <ShieldCheck className="mr-2 h-4 w-4" />
-                    <span>Admin</span>
-                  </Link>
-                </DropdownMenuItem>
-              </>
+        )}
+        <DropdownMenuItem asChild>
+          <Link href="/wallet" className="cursor-pointer flex items-center">
+            <Wallet className="mr-2 h-4 w-4" />
+            <span>{t("header.wallet")}</span>
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link href="/my-listings" className="cursor-pointer flex items-center">
+            <List className="mr-2 h-4 w-4" />
+            <span>{t("header.listings")}</span>
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link href="/bookings" className="cursor-pointer flex items-center">
+            <ClipboardList className="mr-2 h-4 w-4" />
+            <span>{t("header.bookings")}</span>
+            {unseenCount > 0 && (
+              <span className="ml-auto h-5 min-w-5 px-1 bg-red-500 rounded-full flex items-center justify-center text-[10px] font-bold text-white">
+                {unseenCount > 9 ? "9+" : unseenCount}
+              </span>
             )}
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link href="/calendar" className="cursor-pointer flex items-center">
+            <CalendarDays className="mr-2 h-4 w-4" />
+            <span>{t("header.calendar")}</span>
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link href={`/profile/${user?.id}`} className="cursor-pointer flex items-center">
+            {isPerson ? <User className="mr-2 h-4 w-4" /> : <Building2 className="mr-2 h-4 w-4" />}
+            <span>{t("header.profile")}</span>
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <div className="cursor-pointer flex items-center" onClick={() => setShowSettings(true)}>
+            <Settings className="mr-2 h-4 w-4" />
+            <span>{t("header.settings")}</span>
+          </div>
+        </DropdownMenuItem>
+        {isAdminUser(user as Parameters<typeof isAdminUser>[0]) && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem asChild>
+              <Link href="/admin" className="cursor-pointer flex items-center text-green-700">
+                <ShieldCheck className="mr-2 h-4 w-4" />
+                <span>Admin</span>
+              </Link>
+            </DropdownMenuItem>
           </>
         )}
         <DropdownMenuSeparator />
@@ -235,7 +227,6 @@ export default function Header() {
     }
     openSupportModal();
   };
-  const [showCompleteProfileModal, setShowCompleteProfileModal] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mobileView, setMobileView] = useState<"menu" | "notifications">("menu");
@@ -535,26 +526,12 @@ export default function Header() {
               {/* md+: icônes individuelles */}
               {mounted && !authLoading && user && (
                 <div className="hidden md:flex items-center gap-2">
-                  {profileDetailsIncomplete ? (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="cursor-pointer hover:bg-gray-100"
-                      onClick={() => setShowCompleteProfileModal(true)}
-                    >
+                  <Link href="/favorites">
+                    <Button variant="ghost" size="icon" className="cursor-pointer hover:bg-gray-100">
                       <Heart className="h-5 w-5 text-gray-700" />
                     </Button>
-                  ) : (
-                    <Link href="/favorites">
-                      <Button variant="ghost" size="icon" className="cursor-pointer hover:bg-gray-100">
-                        <Heart className="h-5 w-5 text-gray-700" />
-                      </Button>
-                    </Link>
-                  )}
-                  <MessageNotifications
-                    profileDetailsIncomplete={profileDetailsIncomplete}
-                    onRequireCompleteProfile={() => setShowCompleteProfileModal(true)}
-                  />
+                  </Link>
+                  <MessageNotifications />
                   <NotificationBell data={notifData} />
                 </div>
               )}
@@ -698,20 +675,16 @@ export default function Header() {
                 <SheetHeader className="px-4 py-4 border-b border-gray-100">
                   <SheetTitle asChild>
                     {user ? (
-                      profileDetailsIncomplete ? (
-                        <span className="text-sm font-semibold text-gray-900">{t("header.completeProfile")}</span>
-                      ) : (
-                        <div className="flex items-center gap-3">
-                          <Avatar className="h-10 w-10 border-2 border-white shadow">
-                            {avatarUrl ? <AvatarImage src={avatarUrl} alt={displayName || "User"} /> : null}
-                            <AvatarFallback className="text-sm bg-green-100 text-green-800 font-semibold">{fallbackInitial}</AvatarFallback>
-                          </Avatar>
-                          <div className="text-left">
-                            <p className="text-sm font-semibold text-gray-900 truncate max-w-[160px]">{displayName || user?.email}</p>
-                            <p className="text-xs text-gray-400 truncate max-w-[160px]">{user?.email}</p>
-                          </div>
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-10 w-10 border-2 border-white shadow">
+                          {avatarUrl ? <AvatarImage src={avatarUrl} alt={displayName || "User"} /> : null}
+                          <AvatarFallback className="text-sm bg-green-100 text-green-800 font-semibold">{fallbackInitial}</AvatarFallback>
+                        </Avatar>
+                        <div className="text-left">
+                          <p className="text-sm font-semibold text-gray-900 truncate max-w-[160px]">{displayName || user?.email}</p>
+                          <p className="text-xs text-gray-400 truncate max-w-[160px]">{user?.email}</p>
                         </div>
-                      )
+                      </div>
                     ) : (
                       <span className="text-sm font-semibold text-gray-900">Menu</span>
                     )}
@@ -721,77 +694,74 @@ export default function Header() {
                 <nav className="flex-1 overflow-y-auto py-2">
                   {user ? (
                     <>
-                      {profileDetailsIncomplete ? (
+                      {profileDetailsIncomplete && (
                         <Link
                           href={completeProfileHref}
                           onClick={() => setMobileMenuOpen(false)}
-                          className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                          className="flex items-center gap-3 px-4 py-3 text-sm text-green-700 font-medium hover:bg-green-50 transition-colors"
                         >
-                          {isCompany ? <Building2 className="h-5 w-5 text-gray-400" /> : <User className="h-5 w-5 text-gray-400" />}
+                          {isCompany ? <Building2 className="h-5 w-5 text-green-600" /> : <User className="h-5 w-5 text-green-600" />}
                           {t("header.completeProfile")}
                         </Link>
-                      ) : (
-                        <>
-                          <Link href="/favorites" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
-                            <Heart className="h-5 w-5 text-gray-400" /> {t("header.favorites")}
-                          </Link>
-                          <Link href="/messages" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
-                            <MessageCircle className="h-5 w-5 text-gray-400" />
-                            <span className="flex-1">{t("header.messages")}</span>
-                            {unreadMessages > 0 && (
-                              <span className="h-5 min-w-5 px-1 bg-red-500 rounded-full flex items-center justify-center text-[10px] font-bold text-white">
-                                {unreadMessages > 9 ? "9+" : unreadMessages}
-                              </span>
-                            )}
-                          </Link>
-                          <button
-                            type="button"
-                            onClick={() => setMobileView("notifications")}
-                            className="cursor-pointer w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors text-left"
-                          >
-                            <Bell className="h-5 w-5 text-gray-400" />
-                            <span className="flex-1">{t("header.notifications")}</span>
-                            {unreadNotifs > 0 && (
-                              <span className="h-5 min-w-5 px-1 bg-red-500 rounded-full flex items-center justify-center text-[10px] font-bold text-white">
-                                {unreadNotifs > 9 ? "9+" : unreadNotifs}
-                              </span>
-                            )}
-                            <ChevronLeft className="h-4 w-4 text-gray-300 rotate-180" />
-                          </button>
-                          <Link href="/wallet" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
-                            <Wallet className="h-5 w-5 text-gray-400" />
-                            <span className="flex-1">{t("header.wallet")}</span>
-                            {walletBadge && <span className="h-2.5 w-2.5 bg-red-500 rounded-full" />}
-                          </Link>
-                          <Link href="/my-listings" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
-                            <List className="h-5 w-5 text-gray-400" /> {t("header.listings")}
-                          </Link>
-                          <Link href="/bookings" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
-                            <ClipboardList className="h-5 w-5 text-gray-400" />
-                            {t("header.bookings")}
-                            {unseenCount > 0 && (
-                              <span className="ml-auto h-5 min-w-5 px-1 bg-red-500 rounded-full flex items-center justify-center text-[10px] font-bold text-white">
-                                {unseenCount > 9 ? "9+" : unseenCount}
-                              </span>
-                            )}
-                          </Link>
-                          <Link href="/calendar" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
-                            <CalendarDays className="h-5 w-5 text-gray-400" />
-                            {t("header.calendar")}
-                          </Link>
-                          <Link href={`/profile/${user?.id}`} onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
-                            {isPerson ? <User className="h-5 w-5 text-gray-400" /> : <Building2 className="h-5 w-5 text-gray-400" />}
-                            {t("header.profile")}
-                          </Link>
-                          <button type="button" onClick={() => { setMobileMenuOpen(false); setShowSettings(true); }} className="cursor-pointer w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors text-left">
-                            <Settings className="h-5 w-5 text-gray-400" /> {t("header.settings")}
-                          </button>
-                          {isAdminUser(user) && (
-                            <Link href="/admin" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm text-green-700 font-medium hover:bg-green-50 transition-colors">
-                              <ShieldCheck className="h-5 w-5" /> Admin
-                            </Link>
-                          )}
-                        </>
+                      )}
+                      <Link href="/favorites" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                        <Heart className="h-5 w-5 text-gray-400" /> {t("header.favorites")}
+                      </Link>
+                      <Link href="/messages" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                        <MessageCircle className="h-5 w-5 text-gray-400" />
+                        <span className="flex-1">{t("header.messages")}</span>
+                        {unreadMessages > 0 && (
+                          <span className="h-5 min-w-5 px-1 bg-red-500 rounded-full flex items-center justify-center text-[10px] font-bold text-white">
+                            {unreadMessages > 9 ? "9+" : unreadMessages}
+                          </span>
+                        )}
+                      </Link>
+                      <button
+                        type="button"
+                        onClick={() => setMobileView("notifications")}
+                        className="cursor-pointer w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors text-left"
+                      >
+                        <Bell className="h-5 w-5 text-gray-400" />
+                        <span className="flex-1">{t("header.notifications")}</span>
+                        {unreadNotifs > 0 && (
+                          <span className="h-5 min-w-5 px-1 bg-red-500 rounded-full flex items-center justify-center text-[10px] font-bold text-white">
+                            {unreadNotifs > 9 ? "9+" : unreadNotifs}
+                          </span>
+                        )}
+                        <ChevronLeft className="h-4 w-4 text-gray-300 rotate-180" />
+                      </button>
+                      <Link href="/wallet" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                        <Wallet className="h-5 w-5 text-gray-400" />
+                        <span className="flex-1">{t("header.wallet")}</span>
+                        {walletBadge && <span className="h-2.5 w-2.5 bg-red-500 rounded-full" />}
+                      </Link>
+                      <Link href="/my-listings" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                        <List className="h-5 w-5 text-gray-400" /> {t("header.listings")}
+                      </Link>
+                      <Link href="/bookings" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                        <ClipboardList className="h-5 w-5 text-gray-400" />
+                        {t("header.bookings")}
+                        {unseenCount > 0 && (
+                          <span className="ml-auto h-5 min-w-5 px-1 bg-red-500 rounded-full flex items-center justify-center text-[10px] font-bold text-white">
+                            {unseenCount > 9 ? "9+" : unseenCount}
+                          </span>
+                        )}
+                      </Link>
+                      <Link href="/calendar" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                        <CalendarDays className="h-5 w-5 text-gray-400" />
+                        {t("header.calendar")}
+                      </Link>
+                      <Link href={`/profile/${user?.id}`} onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                        {isPerson ? <User className="h-5 w-5 text-gray-400" /> : <Building2 className="h-5 w-5 text-gray-400" />}
+                        {t("header.profile")}
+                      </Link>
+                      <button type="button" onClick={() => { setMobileMenuOpen(false); setShowSettings(true); }} className="cursor-pointer w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors text-left">
+                        <Settings className="h-5 w-5 text-gray-400" /> {t("header.settings")}
+                      </button>
+                      {isAdminUser(user) && (
+                        <Link href="/admin" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm text-green-700 font-medium hover:bg-green-50 transition-colors">
+                          <ShieldCheck className="h-5 w-5" /> Admin
+                        </Link>
                       )}
                       <div className="border-t border-gray-100 mt-1 pt-1">
                         <button onClick={() => { setMobileMenuOpen(false); openSupport(); }} className="cursor-pointer w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
@@ -943,11 +913,6 @@ export default function Header() {
         )}
 
         <SupportModal open={showSupport} onClose={() => setShowSupport(false)} />
-        <CompleteProfileModal
-          open={showCompleteProfileModal}
-          onClose={() => setShowCompleteProfileModal(false)}
-          accountType={profileData?.account_type}
-        />
       </div>
       {typeof document !== "undefined" && showSearchDrop && searchDropdownStyle && createPortal(
         <div

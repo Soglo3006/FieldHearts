@@ -23,8 +23,6 @@ import { toast } from "sonner";
 import { type Service as Listing } from "@/components/listings/EditListingModal";
 import { Skeleton } from "@/components/ui/skeleton";
 import { OverlayModal } from "@/components/ui/OverlayModal";
-import CompleteProfileModal from "@/components/profile/CompleteProfileModal";
-
 interface ProfileUser {
   account_type?: string;
   full_name?: string;
@@ -70,7 +68,7 @@ export default function UserProfilePage() {
 
   const settingsScrollRef = useRef<HTMLDivElement>(null);
   const isOwner = user?.id === profileId;
-  const { startConversation, loading: sendMessageLoading, showCompleteProfile: showConvComplete, setShowCompleteProfile: setShowConvComplete } = useStartConversation();
+  const { startConversation, loading: sendMessageLoading } = useStartConversation();
   const { t, i18n } = useTranslation();
 
   const openProfileOptionsMenu = () => {
@@ -394,7 +392,6 @@ export default function UserProfilePage() {
         </OverlayModal>
       )}
 
-      <CompleteProfileModal open={showConvComplete} onClose={() => setShowConvComplete(false)} />
     </div>
   );
 }

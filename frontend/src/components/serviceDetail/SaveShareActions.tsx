@@ -7,7 +7,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useAuthGate } from "@/hooks/useAuthGate";
 import { useAuthResumeAction } from "@/hooks/useAuthResumeAction";
 import { toast } from "sonner";
-import CompleteProfileModal from "@/components/profile/CompleteProfileModal";
 
 interface Props {
   serviceId: string;
@@ -19,7 +18,7 @@ export default function SaveShareActions({ serviceId, title, ownerId }: Props) {
   const { t } = useTranslation();
   const { user, loading: authLoading } = useAuth();
   const { requireAuth, notifyAuthActionReady } = useAuthGate();
-  const { isSaved, toggle, showCompleteProfile, setShowCompleteProfile } = useFavorites();
+  const { isSaved, toggle } = useFavorites();
   const saved = Boolean(user) && isSaved(serviceId);
   const isOwner = !!user && !!ownerId && user.id === ownerId;
 
@@ -72,23 +71,17 @@ export default function SaveShareActions({ serviceId, title, ownerId }: Props) {
   };
 
   return (
-    <>
-      <div className="flex items-center gap-2 mt-3">
-        {!isOwner && (
-          <Button variant="outline" className="gap-2" onClick={handleSave}>
-            <Bookmark className={`h-4 w-4 ${saved ? "fill-green-700 text-green-700" : ""}`} />
-            {saved ? t("serviceDetail.saved") : t("serviceDetail.save")}
-          </Button>
-        )}
-        <Button variant="outline" className="gap-2" onClick={handleShare}>
-          <Share2 className="h-4 w-4" />
-          {t("serviceDetail.share")}
+    <div className="flex items-center gap-2 mt-3">
+      {!isOwner && (
+        <Button variant="outline" className="gap-2" onClick={handleSave}>
+          <Bookmark className={`h-4 w-4 ${saved ? "fill-green-700 text-green-700" : ""}`} />
+          {saved ? t("serviceDetail.saved") : t("serviceDetail.save")}
         </Button>
-      </div>
-      <CompleteProfileModal
-        open={showCompleteProfile}
-        onClose={() => setShowCompleteProfile(false)}
-      />
-    </>
+      )}
+      <Button variant="outline" className="gap-2" onClick={handleShare}>
+        <Share2 className="h-4 w-4" />
+        {t("serviceDetail.share")}
+      </Button>
+    </div>
   );
 }

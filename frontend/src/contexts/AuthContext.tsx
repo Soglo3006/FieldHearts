@@ -160,11 +160,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       router.push("/choose_type");
       return;
     }
-    if (!data.user.user_metadata?.profile_completed) {
-      const accountType = data.user.user_metadata?.account_type || "person";
-      router.push(`/profile/complete_profil?type=${accountType}`);
-      return;
-    }
 
     if (!options?.stayOnPage) {
       const dest = safeInternalPath(options?.redirectTo ?? "", "/");

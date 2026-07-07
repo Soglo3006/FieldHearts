@@ -32,9 +32,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
 import { DraftMessagePreparationError, prepareDraftMessageTarget } from '@/lib/draftMessage';
-import ProfileCompletionRequiredScreen from '@/components/profile/ProfileCompletionRequiredScreen';
-import { useMyProfile } from '@/hooks/useMyProfile';
-import { isProfileDetailsIncomplete } from '@/lib/onboardingSteps';
 import { cn } from '@/lib/utils';
 
 function MessagesThreeColumnSkeleton() {
@@ -130,7 +127,7 @@ function MessagesThreeColumnSkeleton() {
 
 function MessagesContent() {
   const { t } = useTranslation();
-  const { user } = useProtectedRoute({ requireAuth: true, requireProfileCompleted: true });
+  const { user } = useProtectedRoute({ requireAuth: true });
   const { session } = useAuth();
 
   const searchParams = useSearchParams();
@@ -1313,13 +1310,7 @@ function MessagesContent() {
 }
 
 function MessagesProfileGate() {
-  useProtectedRoute({ requireAuth: true, requireProfileCompleted: true });
-  const { profile, loading: profileLoading } = useMyProfile();
-
-  if (!profileLoading && isProfileDetailsIncomplete(profile)) {
-    return <ProfileCompletionRequiredScreen />;
-  }
-
+  useProtectedRoute({ requireAuth: true });
   return <MessagesContent />;
 }
 

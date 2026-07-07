@@ -9,17 +9,6 @@ import OfferServiceForm from "@/components/post/OfferServiceForm";
 import LookingForWorkerForm from "@/components/post/LookingForWorkerForm";
 import SuccessPopup from "@/components/post/SuccessPopup";
 import { needsOnboardingSetup } from "@/lib/onboarding";
-import { isProfileDetailsIncomplete } from "@/lib/onboardingSteps";
-import ProfileCompletionRequiredScreen from "@/components/profile/ProfileCompletionRequiredScreen";
-import { useMyProfile } from "@/hooks/useMyProfile";
-import { MapPin } from "lucide-react";
-
-const CANADIAN_PROVINCES = [
-  "AB", "BC", "MB", "NB", "NL", "NS", "NT", "NU", "ON", "PE", "QC", "SK", "YT",
-  "Alberta", "British Columbia", "Manitoba", "New Brunswick", "Newfoundland and Labrador",
-  "Nova Scotia", "Northwest Territories", "Nunavut", "Ontario", "Prince Edward Island",
-  "Quebec", "Québec", "Saskatchewan", "Yukon",
-];
 
 type PostMode = "offer" | "looking";
 
@@ -28,19 +17,9 @@ type AccessGate = "checking" | "denied" | "allowed";
 export default function PostServicePage() {
   const router = useRouter();
   const { t } = useTranslation();
-  const { profile, loading: profileLoading } = useMyProfile();
   const [access, setAccess] = useState<AccessGate>("checking");
   const [mode, setMode] = useState<PostMode>("offer");
   const [success, setSuccess] = useState<{ type: PostMode; id: string } | null>(null);
-
-  // Derive location-allowed from the profile already fetched by useMyProfile (no extra API call)
-  const locationAllowed: boolean | null = profileLoading
-    ? null
-    : (() => {
-        const province = (profile?.province || "").trim();
-        if (!province) return false;
-        return CANADIAN_PROVINCES.some((p) => p.toLowerCase() === province.toLowerCase());
-      })();
 
   useLayoutEffect(() => {
     let alive = true;
@@ -75,30 +54,11 @@ export default function PostServicePage() {
     return () => subscription.unsubscribe();
   }, [router]);
 
-
   if (access === "checking") {
     return <div className="min-h-screen bg-white" aria-busy="true" />;
   }
   if (access === "denied") {
     return null;
-  }
-
-  if (!profileLoading && isProfileDetailsIncomplete(profile)) {
-    return <ProfileCompletionRequiredScreen />;
-  }
-
-  if (!profileLoading && locationAllowed === false) {
-    return (
-      <div className="min-h-screen bg-white flex items-center justify-center p-4">
-        <div className="bg-white rounded-xl shadow-md p-8 max-w-md w-full text-center">
-          <div className="flex items-center justify-center w-16 h-16 bg-red-100 rounded-full mx-auto mb-4">
-            <MapPin className="h-8 w-8 text-red-600" />
-          </div>
-          <h2 className="text-xl font-bold text-gray-900 mb-2">{t("post.canadaOnly")}</h2>
-          <p className="text-gray-600 text-sm">{t("post.canadaOnlyDesc")}</p>
-        </div>
-      </div>
-    );
   }
 
   return (

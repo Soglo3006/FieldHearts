@@ -2,15 +2,11 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { useMyProfile } from "@/hooks/useMyProfile";
-import { isProfileDetailsIncomplete } from "@/lib/onboardingSteps";
 
 export function useFavorites() {
   const { user, session } = useAuth();
-  const { profile, loading: profileLoading } = useMyProfile();
   const [ids, setIds] = useState<Set<string>>(new Set());
   const [loaded, setLoaded] = useState(false);
-  const [showCompleteProfile, setShowCompleteProfile] = useState(false);
 
   const token = session?.access_token;
 
@@ -46,12 +42,6 @@ export function useFavorites() {
 
   const toggle = useCallback(
     async (serviceId: string) => {
-      if (profileLoading) return;
-      if (user && isProfileDetailsIncomplete(profile)) {
-        setShowCompleteProfile(true);
-        return;
-      }
-
       const wasSaved = ids.has(serviceId);
       setIds((prev) => {
         const next = new Set(prev);
@@ -85,8 +75,8 @@ export function useFavorites() {
         } catch {}
       }
     },
-    [ids, user, token, profile, profileLoading] // eslint-disable-line react-hooks/exhaustive-deps
+    [ids, user, token] // eslint-disable-line react-hooks/exhaustive-deps
   );
 
-  return { ids, isSaved, toggle, loaded, showCompleteProfile, setShowCompleteProfile };
+  return { ids, isSaved, toggle, loaded };
 }

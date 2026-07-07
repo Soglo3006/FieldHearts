@@ -15,26 +15,13 @@ import { cn } from '@/lib/utils';
 import { useTranslation } from 'react-i18next';
 import { Spinner } from "@/components/ui/Spinner";
 
-interface MessageNotificationsProps {
-  profileDetailsIncomplete?: boolean;
-  onRequireCompleteProfile?: () => void;
-}
-
-export default function MessageNotifications({
-  profileDetailsIncomplete = false,
-  onRequireCompleteProfile,
-}: MessageNotificationsProps) {
+export default function MessageNotifications() {
   const { t, i18n } = useTranslation();
   const { unreadChats, unreadCount, loading, markAsRead } = useUnreadMessages();
   const router = useRouter();
   const [open, setOpen] = useState(false);
 
   const handleMessageClick = (chatRoomId: string) => {
-    if (profileDetailsIncomplete) {
-      setOpen(false);
-      onRequireCompleteProfile?.();
-      return;
-    }
     markAsRead(chatRoomId);
     setOpen(false);
     router.push(`/messages?chat=${chatRoomId}`);
@@ -63,33 +50,19 @@ export default function MessageNotifications({
   };
 
   const handleOpenMessages = () => {
-    if (profileDetailsIncomplete) {
-      setOpen(false);
-      onRequireCompleteProfile?.();
-      return;
-    }
     setOpen(false);
     router.push("/messages");
   };
 
-  const handleTriggerClick = () => {
-    if (profileDetailsIncomplete) {
-      onRequireCompleteProfile?.();
-      return;
-    }
-  };
-
   return (
-    <DropdownMenu open={profileDetailsIncomplete ? false : open} onOpenChange={(v) => { if (!profileDetailsIncomplete) setOpen(v); }} modal={false}>
+    <DropdownMenu open={open} onOpenChange={setOpen} modal={false}>
       <DropdownMenuTrigger asChild>
         <Button
           variant="ghost"
           size="icon"
           className="relative cursor-pointer hover:bg-gray-100"
-          onClick={handleTriggerClick}
         >
           <MessageCircle className="h-6 w-6 text-gray-700" />
-          {/* Red dot indicator — no number, just a dot */}
           {unreadCount > 0 && (
             <span className="absolute top-1 right-1 h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-white" />
           )}
@@ -100,7 +73,6 @@ export default function MessageNotifications({
         align="end"
         className="w-[380px] p-0 rounded-xl shadow-lg border border-gray-200"
       >
-        {/* Header */}
         <div className="border-b border-gray-200 px-4 py-3">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-semibold text-gray-900">
@@ -114,7 +86,6 @@ export default function MessageNotifications({
           </div>
         </div>
 
-        {/* Conversations List — scrollable */}
         <div className="max-h-[400px] overflow-y-auto overscroll-contain">
           {loading ? (
             <div className="flex items-center justify-center py-10">
@@ -138,7 +109,6 @@ export default function MessageNotifications({
                       : "bg-gray-50/50 hover:bg-gray-100/60"
                   )}
                 >
-                  {/* Avatar */}
                   <Avatar className="h-11 w-11 shrink-0">
                     {chat.sender_avatar ? (
                       <AvatarImage src={chat.sender_avatar} alt={chat.sender_name} />
@@ -148,7 +118,6 @@ export default function MessageNotifications({
                     </AvatarFallback>
                   </Avatar>
 
-                  {/* Content */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2">
                       <p
@@ -175,14 +144,12 @@ export default function MessageNotifications({
                     </p>
                   </div>
 
-                  {/* Unread indicator dot + mark as read */}
                   {!chat.is_read ? (
                     <button
                       onClick={(e) => handleMarkAsRead(e, chat.chat_room_id)}
                       className="cursor-pointer shrink-0 group flex items-center justify-center h-8 w-8 rounded-full hover:bg-blue-100 transition-colors"
                       title={t("messages.markAsRead")}
                     >
-                      {/* Blue dot that becomes a check on hover */}
                       <span className="block group-hover:hidden h-2.5 w-2.5 rounded-full bg-blue-500" />
                       <Check className="hidden group-hover:block h-4 w-4 text-blue-600" />
                     </button>
@@ -195,7 +162,6 @@ export default function MessageNotifications({
           )}
         </div>
 
-        {/* Footer — See All in Inbox */}
         <div className="border-t border-gray-200 px-4 py-3">
           <button
             onClick={handleOpenMessages}

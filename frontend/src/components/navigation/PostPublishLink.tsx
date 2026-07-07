@@ -4,8 +4,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { POST_PATH } from "@/lib/postRoutes";
-import CompleteProfileModal from "@/components/profile/CompleteProfileModal";
-import { useProfileCompletionGate } from "@/hooks/useProfileCompletionGate";
 import { useAuthGate } from "@/hooks/useAuthGate";
 import { useAuthResumeAction } from "@/hooks/useAuthResumeAction";
 
@@ -19,13 +17,6 @@ export function PostPublishLink({ children, className, prefetch = false }: PostP
   const { user, loading } = useAuth();
   const router = useRouter();
   const { requireAuth, notifyAuthActionReady } = useAuthGate();
-  const {
-    profileDetailsIncomplete,
-    guardProfileAction,
-    showCompleteProfile,
-    setShowCompleteProfile,
-    profile,
-  } = useProfileCompletionGate();
 
   const goToPublish = () => {
     router.push(POST_PATH);
@@ -68,23 +59,9 @@ export function PostPublishLink({ children, className, prefetch = false }: PostP
     );
   }
 
-  const handleClick = (e: React.MouseEvent) => {
-    if (profileDetailsIncomplete) {
-      e.preventDefault();
-      guardProfileAction();
-    }
-  };
-
   return (
-    <>
-      <Link href={POST_PATH} className={className} prefetch={prefetch} onClick={handleClick}>
-        {children}
-      </Link>
-      <CompleteProfileModal
-        open={showCompleteProfile}
-        onClose={() => setShowCompleteProfile(false)}
-        accountType={profile?.account_type}
-      />
-    </>
+    <Link href={POST_PATH} className={className} prefetch={prefetch}>
+      {children}
+    </Link>
   );
 }

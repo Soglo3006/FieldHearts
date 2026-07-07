@@ -520,6 +520,7 @@
     "connectBankDesc": "Connectez votre compte bancaire pour recevoir vos versements directement, de façon sécurisée via Stripe.",
     "completeFile": "Compléter mon dossier",
     "connectAccount": "Connecter mon compte",
+    "connecting": "Connexion…",
     "securedByStripe": "Sécurisé par Stripe",
     "payoutsWillActivate": "Vos versements seront activés dès la validation de votre compte.",
     "bankAccountConnected": "Compte bancaire connecté",

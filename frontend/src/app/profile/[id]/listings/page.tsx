@@ -5,7 +5,8 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import { useAuth } from "@/contexts/AuthContext";
-import { Spinner } from "@/components/ui/Spinner";
+import { ProfileListingsPageSkeleton } from "@/components/profile/ProfileSkeleton";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Grid3x3, ArrowLeft, Clock } from "lucide-react";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { Badge } from "@/components/ui/badge";
@@ -145,11 +146,7 @@ export default function UserListingsPage() {
   const isOwner = user?.id === id;
 
   if (authLoading || blockPending || redirecting) {
-    return (
-      <div className="min-h-[60vh] bg-white flex items-center justify-center">
-        <Spinner size="xl" />
-      </div>
-    );
+    return <ProfileListingsPageSkeleton />;
   }
 
   return (
@@ -160,7 +157,7 @@ export default function UserListingsPage() {
             <ArrowLeft className="h-5 w-5" />
           </Link>
           {loading && !ownerName ? (
-            <div className="h-8 w-56 bg-gray-200 rounded animate-pulse" />
+            <Skeleton className="h-8 w-56 rounded" />
           ) : (
             <h1 className="text-2xl font-bold text-gray-900">
               {ownerName ? `${ownerName} · ${t("profile.listings")}` : t("profile.listings")}
@@ -170,12 +167,12 @@ export default function UserListingsPage() {
 
         {loading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {[...Array(6)].map((_, i) => (
-              <div key={i} className="border rounded-xl shadow-sm bg-white animate-pulse overflow-hidden">
-                <div className="w-full aspect-video bg-gray-200" />
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="border rounded-xl shadow-sm bg-white overflow-hidden">
+                <Skeleton className="aspect-video w-full rounded-none" />
                 <div className="p-4 space-y-2">
-                  <div className="h-4 bg-gray-200 rounded w-3/4" />
-                  <div className="h-4 bg-gray-100 rounded w-1/2" />
+                  <Skeleton className="h-4 w-3/4 rounded" />
+                  <Skeleton className="h-4 w-1/2 rounded" />
                 </div>
               </div>
             ))}

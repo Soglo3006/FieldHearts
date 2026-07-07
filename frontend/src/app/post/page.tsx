@@ -9,6 +9,7 @@ import OfferServiceForm from "@/components/post/OfferServiceForm";
 import LookingForWorkerForm from "@/components/post/LookingForWorkerForm";
 import SuccessPopup from "@/components/post/SuccessPopup";
 import { needsOnboardingSetup } from "@/lib/onboarding";
+import PostSkeleton from "@/components/post/PostSkeleton";
 
 type PostMode = "offer" | "looking";
 
@@ -55,7 +56,7 @@ export default function PostServicePage() {
   }, [router]);
 
   if (access === "checking") {
-    return <div className="min-h-screen bg-white" aria-busy="true" />;
+    return <PostSkeleton />;
   }
   if (access === "denied") {
     return null;

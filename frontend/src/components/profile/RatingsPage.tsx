@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Star, X } from "lucide-react";
-import { Spinner } from "@/components/ui/Spinner";
+import { ProfileReviewsSkeleton } from "@/components/profile/ProfileSkeleton";
 import { useTranslation } from "react-i18next";
 
 interface Review {
@@ -88,8 +88,8 @@ export default function RatingsPage({ onClose, profileId, displayName }: Ratings
 
       {/* Body */}
       {loading ? (
-        <div className="flex items-center justify-center py-16">
-          <Spinner size="lg" />
+        <div className="px-6 py-6">
+          <ProfileReviewsSkeleton rows={5} />
         </div>
       ) : reviews.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 px-6 text-center">

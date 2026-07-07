@@ -44,6 +44,18 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 }
 
-export default function ServiceDetailPage() {
-  return <ServiceDetailClient />;
+async function fetchService(id: string) {
+  try {
+    const res = await fetch(`${API_URL}/services/${id}`, { next: { revalidate: 60 } });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
+export default async function ServiceDetailPage({ params }: Props) {
+  const { id } = await params;
+  const initialService = await fetchService(id);
+  return <ServiceDetailClient initialService={initialService} />;
 }

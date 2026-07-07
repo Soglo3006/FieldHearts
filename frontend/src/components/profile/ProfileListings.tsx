@@ -13,7 +13,7 @@ import {
 import { Grid3x3, ChevronLeft, ChevronRight, Clock } from "lucide-react";
 import AppImage from "@/components/ui/AppImage";
 import EditListingModal, { type Service as Listing } from "@/components/listings/EditListingModal";
-import { Spinner } from "@/components/ui/Spinner";
+import { ProfileListingsGridSkeleton } from "@/components/profile/ProfileSkeleton";
 import ListingLocationLine from "@/components/listings/ListingLocationLine";
 import { resolveListingTitle } from "@/lib/serviceListingI18n";
 import ListingLangPills from "@/components/ui/ListingLangPills";
@@ -261,9 +261,7 @@ export default function ProfileListings({
         </div>
 
         {listingsLoading ? (
-          <div className="flex items-center justify-center py-12">
-            <Spinner size="xl" />
-          </div>
+          <ProfileListingsGridSkeleton count={6} embedded />
         ) : userListings.length > 0 ? (
           <>
             {usePagination ? (

@@ -33,7 +33,6 @@ import { Label } from "@/components/ui/label";
 import { getLanguageCode } from "@/lib/locale";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Spinner } from "@/components/ui/Spinner";
 import { createStripeConnectLink } from "@/lib/stripeConnect";
 import {
   groupWalletTransactions,
@@ -211,9 +210,7 @@ function WalletSummaryModal({
 
             <div className="min-h-0 overflow-y-auto overscroll-contain">
               {loading ? (
-                <div className="px-5 py-10 flex justify-center">
-                  <Spinner size="sm" />
-                </div>
+                <WalletSummaryListSkeleton />
               ) : items.length === 0 ? (
                 <p className="px-5 py-10 text-center text-sm text-gray-400">{t("wallet.noSummaryItems")}</p>
               ) : (
@@ -290,7 +287,7 @@ function WalletSummaryModal({
                               </span>
                               {clickable && (
                                 itemLoadingId === tx.id
-                                  ? <div className="h-4 w-4 rounded-full border-2 border-gray-300 border-t-gray-500 animate-spin" />
+                                  ? <Skeleton className="h-4 w-4 rounded-full shrink-0" />
                                   : <ChevronRight className="h-4 w-4 text-gray-400" />
                               )}
                             </div>
@@ -411,6 +408,40 @@ function formatPayoutDate(dateStr: string, lang: string) {
   } catch { return dateStr; }
 }
 
+function WalletSummaryListSkeleton() {
+  return (
+    <div className="px-5 py-4 space-y-0">
+      {[...Array(4)].map((_, i) => (
+        <div key={i} className="flex items-center gap-3 py-3 border-b border-gray-100 last:border-0">
+          <Skeleton className="h-9 w-9 rounded-full shrink-0" />
+          <div className="flex-1 space-y-1.5">
+            <Skeleton className="h-4 w-3/4" />
+            <Skeleton className="h-3 w-1/2" />
+          </div>
+          <Skeleton className="h-5 w-16 shrink-0" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function WalletModalListSkeleton({ rows = 4 }: { rows?: number }) {
+  return (
+    <div className="px-5 py-4 space-y-2">
+      {[...Array(rows)].map((_, i) => (
+        <div key={i} className="flex items-center gap-3 rounded-lg border border-gray-100 px-3 py-3">
+          <div className="min-w-0 flex-1 space-y-2">
+            <Skeleton className="h-4 w-3/4" />
+            <Skeleton className="h-3 w-1/2" />
+            <Skeleton className="h-3 w-2/5" />
+          </div>
+          <Skeleton className="h-5 w-14 shrink-0" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function WalletDetailLoadingPanel({
   onBack,
   backLabel,
@@ -430,8 +461,19 @@ function WalletDetailLoadingPanel({
           {backLabel}
         </button>
       </div>
-      <div className="flex flex-1 items-center justify-center">
-        <Spinner size="sm" />
+      <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+        <Skeleton className="h-6 w-2/3" />
+        <Skeleton className="h-4 w-full" />
+        <Skeleton className="h-4 w-5/6" />
+        <div className="rounded-xl border border-gray-100 p-4 space-y-3">
+          <Skeleton className="h-4 w-1/3" />
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-4 w-4/5" />
+        </div>
+        <div className="rounded-xl border border-gray-100 p-4 space-y-3">
+          <Skeleton className="h-4 w-1/4" />
+          <Skeleton className="h-10 w-full rounded-lg" />
+        </div>
       </div>
     </div>
   );
@@ -1134,10 +1176,9 @@ export default function WalletPage() {
                   <Button
                     onClick={handleConnectStripe}
                     disabled={connectLoading}
-                    className="bg-green-700 hover:bg-green-800 text-white gap-2 px-6 h-11 rounded-xl text-sm"
+                    className="bg-green-700 hover:bg-green-800 text-white gap-2 px-6 h-11 rounded-xl text-sm disabled:opacity-70"
                   >
-                    {connectLoading ? <Spinner size="sm" /> : null}
-                    {t("wallet.completeFile")}
+                    {connectLoading ? t("wallet.connecting") : t("wallet.completeFile")}
                   </Button>
                 </>
               ) : (
@@ -1149,10 +1190,9 @@ export default function WalletPage() {
                   <Button
                     onClick={handleConnectStripe}
                     disabled={connectLoading}
-                    className="bg-green-700 hover:bg-green-800 text-white gap-2 px-6 h-11 rounded-xl text-sm"
+                    className="bg-green-700 hover:bg-green-800 text-white gap-2 px-6 h-11 rounded-xl text-sm disabled:opacity-70"
                   >
-                    {connectLoading ? <Spinner size="sm" /> : null}
-                    {t("wallet.connectAccount")}
+                    {connectLoading ? t("wallet.connecting") : t("wallet.connectAccount")}
                   </Button>
                   <p className="text-xs text-gray-400 flex items-center gap-1 -mt-1">
                     <CheckCircle2 className="h-3.5 w-3.5 text-gray-300" />
@@ -1541,7 +1581,7 @@ export default function WalletPage() {
                     </span>
                     {isClickable && (
                       (detailLoading === tx.id || payoutLoading === tx.id)
-                        ? <div className="h-4 w-4 rounded-full border-2 border-gray-300 border-t-gray-500 animate-spin" />
+                        ? <Skeleton className="h-4 w-4 rounded-full shrink-0" />
                         : <ChevronRight className="h-4 w-4 text-gray-400" />
                     )}
                   </div>
@@ -1614,9 +1654,7 @@ export default function WalletPage() {
                 </div>
                 <div className="overflow-y-auto flex-1 divide-y divide-gray-100">
                   {pendingDetailsLoading ? (
-                    <div className="px-5 py-10 flex justify-center">
-                      <Spinner size="sm" />
-                    </div>
+                    <WalletModalListSkeleton />
                   ) : workerHolds.length === 0 && disputeEligible.length === 0 ? (
                     <p className="px-5 py-10 text-center text-sm text-gray-400">{t("wallet.noPendingItems")}</p>
                   ) : (
@@ -1651,7 +1689,7 @@ export default function WalletPage() {
                                   </div>
                                   <span className="text-sm font-bold text-amber-600 shrink-0">+{fmt(item.amount)} $</span>
                                   {detailLoading === item.booking_id
-                                    ? <div className="h-4 w-4 rounded-full border-2 border-gray-300 border-t-gray-500 animate-spin shrink-0" />
+                                    ? <Skeleton className="h-4 w-4 rounded-full shrink-0" />
                                     : <ChevronRight className="h-4 w-4 text-gray-400 shrink-0" />
                                   }
                                 </button>
@@ -1688,7 +1726,7 @@ export default function WalletPage() {
                                     <span className="text-[10px] text-gray-400">{t("wallet.amountPaid")}</span>
                                   </div>
                                   {detailLoading === item.booking_id
-                                    ? <div className="h-4 w-4 rounded-full border-2 border-gray-300 border-t-gray-500 animate-spin shrink-0" />
+                                    ? <Skeleton className="h-4 w-4 rounded-full shrink-0" />
                                     : <ChevronRight className="h-4 w-4 text-gray-400 shrink-0" />
                                   }
                                 </button>
@@ -1769,9 +1807,7 @@ export default function WalletPage() {
                 </div>
                 <div className="overflow-y-auto flex-1 divide-y divide-gray-100">
                   {approvedDetailsLoading ? (
-                    <div className="px-5 py-10 flex justify-center">
-                      <Spinner size="sm" />
-                    </div>
+                    <WalletModalListSkeleton />
                   ) : approvedItems.length === 0 ? (
                     <p className="px-5 py-10 text-center text-sm text-gray-400">{t("wallet.noApprovedItems")}</p>
                   ) : (
@@ -1796,7 +1832,7 @@ export default function WalletPage() {
                               </div>
                               <span className="text-sm font-bold text-green-700 shrink-0">+{fmt(item.amount)} $</span>
                               {detailLoading === item.booking_id
-                                ? <div className="h-4 w-4 rounded-full border-2 border-gray-300 border-t-gray-500 animate-spin shrink-0" />
+                                ? <Skeleton className="h-4 w-4 rounded-full shrink-0" />
                                 : <ChevronRight className="h-4 w-4 text-gray-400 shrink-0" />
                               }
                             </button>
@@ -1948,7 +1984,7 @@ export default function WalletPage() {
                   </div>
                   <span className="text-sm font-bold text-green-700 shrink-0">+{fmt(item.worker_amount)} $</span>
                   {payoutItemLoading === item.booking_id
-                    ? <div className="h-4 w-4 rounded-full border-2 border-gray-300 border-t-gray-500 animate-spin shrink-0" />
+                    ? <Skeleton className="h-4 w-4 rounded-full shrink-0" />
                     : <ChevronRight className="h-4 w-4 text-gray-400 shrink-0" />
                   }
                 </div>

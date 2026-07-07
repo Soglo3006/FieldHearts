@@ -17,6 +17,7 @@ import SimilarServices from "@/components/serviceDetail/SimilarServices";
 import AdBanner from "@/components/AdBanner";
 import BookingModal from "@/components/serviceDetail/BookingModal";
 import LocationMapModal from "@/components/serviceDetail/LocationMapModal";
+import ServiceDetailSkeleton from "./ServiceDetailSkeleton";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { getServiceLocationEntries, hasApproximateServiceLocation } from "@/lib/serviceLocation";
@@ -111,18 +112,24 @@ interface SimilarService {
   completed_bookings_count?: number | string | null;
 }
 
-export default function ServiceDetailClient() {
+type ServiceDetailClientProps = {
+  initialService?: Service | null;
+};
+
+export default function ServiceDetailClient({ initialService = null }: ServiceDetailClientProps) {
   const { t, i18n } = useTranslation();
   const params = useParams();
   const serviceId = params.id as string;
 
 
-  const [service, setService] = useState<Service | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [service, setService] = useState<Service | null>(initialService);
+  const [loading, setLoading] = useState(!initialService);
   const [error, setError] = useState(false);
   const [similarServices, setSimilarServices] = useState<SimilarService[]>([]);
   const [providerListingCount, setProviderListingCount] = useState(0);
-  const [favoritesCount, setFavoritesCount] = useState(0);
+  const [favoritesCount, setFavoritesCount] = useState(
+    typeof initialService?.favorites_count === "number" ? initialService.favorites_count : 0,
+  );
   const [faqs, setFaqs] = useState<Array<{ question: string; answer: string }>>([]);
   const [isMapOpen, setIsMapOpen] = useState(false);
   const [mapLocationIndex, setMapLocationIndex] = useState(0);
@@ -152,105 +159,125 @@ export default function ServiceDetailClient() {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
+  const serviceMatchesRoute =
+    !!service && String(service.id) === String(serviceId);
+
   useEffect(() => {
     if (!serviceId) return;
+
+    const initialMatches =
+      !!initialService && String(initialService.id) === String(serviceId);
+
+    if (initialMatches) {
+      setService(initialService);
+      setError(false);
+      setLoading(false);
+      setFavoritesCount(
+        typeof initialService.favorites_count === "number" ? initialService.favorites_count : 0,
+      );
+      return;
+    }
+
+    setService((current) =>
+      current && String(current.id) === String(serviceId) ? current : null,
+    );
+    setLoading(true);
+    setError(false);
+  }, [serviceId, initialService]);
+
+  useEffect(() => {
+    if (!serviceId) return;
+
+    const applyFaqs = (data: Service) => {
+      const rawFaq = data.faq;
+      if (Array.isArray(rawFaq)) {
+        setFaqs(rawFaq.filter((x) => x?.question && x?.answer));
+      } else if (typeof rawFaq === "string") {
+        try {
+          const parsed = JSON.parse(rawFaq);
+          if (Array.isArray(parsed)) setFaqs(parsed.filter((x) => x?.question && x?.answer));
+        } catch {}
+      }
+    };
+
+    const loadSupplementary = (data: Service) => {
+      const ownerHeaders: HeadersInit = {};
+      if (session?.access_token) {
+        ownerHeaders.Authorization = `Bearer ${session.access_token}`;
+      }
+      if (data.owner_id) {
+        fetch(`${process.env.NEXT_PUBLIC_API_URL}/services/user/${data.owner_id}`, { headers: ownerHeaders })
+          .then((r) => r.json())
+          .then((list) => setProviderListingCount(Array.isArray(list) ? list.length : 0))
+          .catch(() => {});
+      }
+
+      if (user && session?.access_token) {
+        const endpoint = data.type === "looking" ? "received-bookings" : "my-bookings";
+        fetch(`${process.env.NEXT_PUBLIC_API_URL}/bookings/${endpoint}`, {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        })
+          .then((r) => r.json())
+          .then((bookings: Array<{ service_id: string; status: string }>) => {
+            const active = bookings.find(
+              (b) => b.service_id === data.id && b.status !== "cancelled" && b.status !== "rejected",
+            );
+            if (active) setExistingBookingStatus(active.status);
+          })
+          .catch(() => {});
+      }
+
+      const similarUrl = data.category_id
+        ? `${process.env.NEXT_PUBLIC_API_URL}/services?category=${data.category_id}`
+        : `${process.env.NEXT_PUBLIC_API_URL}/services`;
+      fetch(similarUrl)
+        .then((r) => r.json())
+        .then((json: SimilarService[] | { data?: SimilarService[] }) => {
+          const list = Array.isArray(json) ? json : Array.isArray(json?.data) ? json.data : [];
+          setSimilarServices(list.filter((s) => s.id !== data.id).slice(0, 2));
+        })
+        .catch(() => {});
+    };
+
     const fetchAll = async () => {
       try {
         const headers: HeadersInit = {};
         if (session?.access_token) {
           headers.Authorization = `Bearer ${session.access_token}`;
         }
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/services/${serviceId}`, { headers });
-        if (!res.ok) { setError(true); return; }
-        const data: Service = await res.json();
-        setService(data);
-        setBookingEstimatedHours("");
-        setFavoritesCount(typeof data.favorites_count === "number" ? data.favorites_count : 0);
 
-        const rawFaq = data.faq;
-        if (Array.isArray(rawFaq)) {
-          setFaqs(rawFaq.filter((x) => x?.question && x?.answer));
-        } else if (typeof rawFaq === "string") {
-          try {
-            const parsed = JSON.parse(rawFaq);
-            if (Array.isArray(parsed)) setFaqs(parsed.filter((x) => x?.question && x?.answer));
-          } catch {}
+        const shouldRefetch =
+          !service || String(service.id) !== String(serviceId) || !!session?.access_token;
+        let data = service;
+
+        if (shouldRefetch) {
+          const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/services/${serviceId}`, { headers });
+          if (!res.ok) {
+            setError(true);
+            return;
+          }
+          data = await res.json();
+          setService(data);
+          setBookingEstimatedHours("");
+          setFavoritesCount(typeof data.favorites_count === "number" ? data.favorites_count : 0);
+          applyFaqs(data);
+        } else if (data) {
+          applyFaqs(data);
         }
 
-        const ownerHeaders: HeadersInit = {};
-        if (session?.access_token) {
-          ownerHeaders.Authorization = `Bearer ${session.access_token}`;
-        }
-        if (data.owner_id) {
-          fetch(`${process.env.NEXT_PUBLIC_API_URL}/services/user/${data.owner_id}`, { headers: ownerHeaders })
-            .then((r) => r.json())
-            .then((list) => setProviderListingCount(Array.isArray(list) ? list.length : 0))
-            .catch(() => {});
-        }
-
-        if (user && session?.access_token) {
-          const endpoint = data.type === "looking" ? "received-bookings" : "my-bookings";
-          try {
-            const br = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/bookings/${endpoint}`, {
-              headers: { Authorization: `Bearer ${session.access_token}` },
-            });
-            const bookings: Array<{ service_id: string; status: string }> = await br.json();
-            const active = bookings.find(
-              (b) => b.service_id === data.id && b.status !== "cancelled" && b.status !== "rejected"
-            );
-            if (active) setExistingBookingStatus(active.status);
-          } catch {}
-        }
-
-        const similarUrl = data.category_id
-          ? `${process.env.NEXT_PUBLIC_API_URL}/services?category=${data.category_id}`
-          : `${process.env.NEXT_PUBLIC_API_URL}/services`;
-        fetch(similarUrl)
-          .then((r) => r.json())
-          .then((json: SimilarService[] | { data?: SimilarService[] }) => {
-            const list = Array.isArray(json) ? json : Array.isArray(json?.data) ? json.data : [];
-            setSimilarServices(list.filter((s) => s.id !== data.id).slice(0, 2));
-          })
-          .catch(() => {});
+        if (data) loadSupplementary(data);
       } catch {
         setError(true);
       } finally {
         setLoading(false);
       }
     };
-    fetchAll();
-  }, [serviceId, session?.access_token]);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-white text-black">
-        <main className="max-w-7xl mx-auto p-5">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:items-start animate-pulse">
-            <div className="lg:col-span-2 space-y-6">
-              <div className="rounded-2xl bg-gray-200 aspect-video w-full" />
-              <div className="bg-gray-100 rounded-2xl p-6 space-y-3">
-                <div className="h-6 bg-gray-200 rounded w-2/3" />
-                <div className="h-4 bg-gray-200 rounded w-1/3" />
-                <div className="h-4 bg-gray-200 rounded w-1/2" />
-              </div>
-              <div className="bg-gray-100 rounded-2xl p-6 space-y-3">
-                <div className="h-5 bg-gray-200 rounded w-1/4" />
-                <div className="h-4 bg-gray-200 rounded w-full" />
-                <div className="h-4 bg-gray-200 rounded w-5/6" />
-              </div>
-            </div>
-            <div className="space-y-4">
-              <div className="bg-gray-100 rounded-2xl p-6 space-y-3">
-                <div className="h-8 bg-gray-200 rounded w-1/2" />
-                <div className="h-4 bg-gray-200 rounded w-3/4" />
-                <div className="h-11 bg-gray-200 rounded-xl w-full mt-4" />
-                <div className="h-11 bg-gray-200 rounded-xl w-full" />
-              </div>
-            </div>
-          </div>
-        </main>
-      </div>
-    );
+    fetchAll();
+  }, [serviceId, session?.access_token, user]);
+
+  if (!serviceMatchesRoute || loading) {
+    return <ServiceDetailSkeleton />;
   }
 
   if (error || !service) {

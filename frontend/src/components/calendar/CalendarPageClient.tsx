@@ -15,6 +15,8 @@ import { toast } from "sonner";
 import DateTimeField from "@/components/ui/DateTimeField";
 import CalendarEventSchedule from "@/components/calendar/CalendarEventSchedule";
 import ScheduleConfirmStatus, { ScheduleOutcomeBanner } from "@/components/calendar/ScheduleConfirmStatus";
+import CalendarSkeleton, { CalendarPanelListSkeleton } from "@/components/calendar/CalendarSkeleton";
+import { Skeleton } from "@/components/ui/skeleton";
 import BookingDetailModal, { type BookingDetail } from "@/components/bookings/BookingDetailModal";
 import { useStartConversation } from "@/hooks/useStartConversation";
 
@@ -213,6 +215,10 @@ export default function CalendarPageClient() {
   const monthSlideClass =
     slideDirection === "prev" ? "calendar-month-enter-prev" : "calendar-month-enter-next";
 
+  if (eventsLoading && events.length === 0) {
+    return <CalendarSkeleton />;
+  }
+
   return (
     <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
@@ -262,9 +268,11 @@ export default function CalendarPageClient() {
             ))}
           </div>
 
-          {eventsLoading && events.length === 0 ? (
-            <div className="flex h-64 items-center justify-center text-gray-400">
-              <Loader2 className="h-6 w-6 animate-spin" />
+          {eventsLoading ? (
+            <div className="grid grid-cols-7 gap-1">
+              {Array.from({ length: 42 }).map((_, i) => (
+                <Skeleton key={i} className="aspect-square w-full rounded-xl" />
+              ))}
             </div>
           ) : (
             <div className="relative overflow-hidden">
@@ -608,9 +616,7 @@ export function BookingCalendarPanel({
       )}
 
       {loading ? (
-        <div className="flex justify-center py-6 text-gray-400">
-          <Loader2 className="h-5 w-5 animate-spin" />
-        </div>
+        <CalendarPanelListSkeleton />
       ) : events.length === 0 ? (
         <p className="text-sm text-gray-500">{t("calendar.noBookingEvents")}</p>
       ) : (

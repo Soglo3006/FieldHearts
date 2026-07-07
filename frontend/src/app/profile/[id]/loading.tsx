@@ -1,2 +1,5 @@
-import { PageSpinner } from "@/components/ui/Spinner";
-export default function Loading() { return <PageSpinner />; }
+import ProfileSkeleton from "@/components/profile/ProfileSkeleton";
+
+export default function ProfileLoading() {
+  return <ProfileSkeleton />;
+}

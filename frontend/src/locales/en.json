@@ -524,6 +524,7 @@
     "connectBankDesc": "Connect your bank account to receive your payouts directly, securely via Stripe.",
     "completeFile": "Complete my file",
     "connectAccount": "Connect my account",
+    "connecting": "Connecting…",
     "securedByStripe": "Secured by Stripe",
     "payoutsWillActivate": "Your payouts will be activated once your account is validated.",
     "bankAccountConnected": "Bank account connected",

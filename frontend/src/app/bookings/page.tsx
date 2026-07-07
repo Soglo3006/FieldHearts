@@ -15,7 +15,7 @@ import BookingDetailModal, { type BookingDetail } from "@/components/bookings/Bo
 import ReceivedBookingsList from "@/components/bookings/ReceivedBookingsList";
 import SentBookingsList from "@/components/bookings/SentBookingsList";
 import { ReceivedBooking, SentBooking, BookingStatus, sortBookingsByDateDesc } from "@/components/bookings/bookingTypes";
-import { Spinner } from "@/components/ui/Spinner";
+import BookingsSkeleton, { BookingsListSkeleton } from "@/components/bookings/BookingsSkeleton";
 import AppImage from "@/components/ui/AppImage";
 import { getBookingDisputeFinancialOutcome } from "@/lib/disputeFinancials";
 import { getIntlLocale } from "@/lib/locale";
@@ -61,27 +61,6 @@ function staysInActiveBookingsList(b: ReceivedBooking | SentBooking): boolean {
 
 function staysInCompletedBookingsList(b: ReceivedBooking | SentBooking): boolean {
   return b.status === "completed" && !hasUnpaidBalanceDue(b, bookingDepositConfig(b));
-}
-
-function LoadingSkeleton() {
-  return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-      {[...Array(6)].map((_, i) => (
-        <div key={i} className="border rounded-xl shadow-sm bg-white animate-pulse overflow-hidden">
-          <div className="w-full aspect-video bg-gray-200" />
-          <div className="p-4 space-y-2">
-            <div className="h-4 bg-gray-200 rounded w-3/4" />
-            <div className="h-3 bg-gray-100 rounded w-1/2" />
-            <div className="h-3 bg-gray-100 rounded w-1/3" />
-            <div className="flex gap-2 pt-2">
-              <div className="h-8 bg-gray-200 rounded w-20" />
-              <div className="h-8 bg-gray-200 rounded w-20" />
-            </div>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
 }
 
 function EmptyState({ message }: { message: string }) {
@@ -522,13 +501,7 @@ function BookingsContent() {
   }, [loadingReceived, loadingSent]);
 
   if (authLoading) {
-    return (
-      <main className="max-w-5xl mx-auto px-4 py-8">
-        <div className="flex justify-center py-24">
-          <Spinner size="md" />
-        </div>
-      </main>
-    );
+    return <BookingsSkeleton />;
   }
 
   return (
@@ -611,7 +584,7 @@ function BookingsContent() {
 
       {tab === "received" && (
         <>
-          {loadingReceived ? <LoadingSkeleton /> : visibleReceived.length === 0 ? (
+          {loadingReceived ? <BookingsListSkeleton /> : visibleReceived.length === 0 ? (
             <EmptyState message={t("bookings.noReceived")} />
           ) : (
             <ReceivedBookingsList
@@ -631,7 +604,7 @@ function BookingsContent() {
       )}
 
       {tab === "sent" && (
-        loadingSent ? <LoadingSkeleton /> : visibleSent.length === 0 ? (
+        loadingSent ? <BookingsListSkeleton /> : visibleSent.length === 0 ? (
           <EmptyState message={t("bookings.noSent")} />
         ) : (
           <SentBookingsList
@@ -650,7 +623,7 @@ function BookingsContent() {
       )}
 
       {tab === "done" && (
-        loadingReceived || loadingSent ? <LoadingSkeleton /> :
+        loadingReceived || loadingSent ? <BookingsListSkeleton /> :
         doneCount === 0 ? (
           <div className="text-center py-16 text-gray-500">
             <Clock className="h-12 w-12 mx-auto mb-3 text-gray-300" />
@@ -956,12 +929,9 @@ export default function BookingsPage() {
   return (
     <div className="min-h-screen bg-white">
       <Suspense fallback={
-        <main className="max-w-5xl mx-auto px-4 py-8">
-          <div className="animate-pulse space-y-4">
-            <div className="h-8 bg-gray-200 rounded w-48" />
-            <div className="h-10 bg-gray-100 rounded" />
-          </div>
-        </main>
+        <div className="min-h-screen bg-white">
+          <BookingsSkeleton />
+        </div>
       }>
         <BookingsContent />
       </Suspense>

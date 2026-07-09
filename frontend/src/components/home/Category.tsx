@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition, type MouseEvent, Suspense } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, useTransition, useCallback, type MouseEvent, Suspense } from "react";
 import { useScrollLock } from "@/hooks/useScrollLock";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -8,7 +8,7 @@ import { useTranslation } from "react-i18next";
 import AppImage from "@/components/ui/AppImage";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { categories } from "@/lib/categories";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const toKey = (value: string) =>
@@ -41,13 +41,16 @@ function listingsBrowseHref(categoryName?: string, subcategory?: string) {
 
 function CategoryNavInner() {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const scrollContentRef = useRef<HTMLDivElement>(null);
   const navRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   const [activeCategoryName, setActiveCategoryName] = useState<string | null>(null);
   const [pendingNavigationPath, setPendingNavigationPath] = useState<string | null>(null);
   const [isNavigating, startNavigationTransition] = useTransition();
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
 
   const activeCategory = categories.find((category) => category.name === activeCategoryName) ?? null;
   const activeCategoryColumns = activeCategory?.subcategories
@@ -62,6 +65,54 @@ function CategoryNavInner() {
         : "lg:grid-cols-3";
 
   useScrollLock(!!activeCategoryName);
+
+  const updateScrollEdges = useCallback(() => {
+    const container = scrollRef.current;
+    if (!container) return;
+
+    const { scrollLeft, scrollWidth, clientWidth } = container;
+    const maxScroll = scrollWidth - clientWidth;
+    const hasOverflow = maxScroll > 1;
+    const atStart = scrollLeft <= 1;
+    const atEnd = scrollLeft + clientWidth >= scrollWidth - 1;
+
+    setCanScrollLeft(hasOverflow && !atStart);
+    setCanScrollRight(hasOverflow && !atEnd);
+  }, []);
+
+  useLayoutEffect(() => {
+    const container = scrollRef.current;
+    const content = scrollContentRef.current;
+    if (!container) return;
+
+    const scheduleUpdate = () => {
+      updateScrollEdges();
+      requestAnimationFrame(updateScrollEdges);
+    };
+
+    scheduleUpdate();
+
+    const onScroll = () => updateScrollEdges();
+    container.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", scheduleUpdate);
+
+    const resizeObserver = new ResizeObserver(scheduleUpdate);
+    resizeObserver.observe(container);
+    if (content) resizeObserver.observe(content);
+
+    const timeouts = [100, 400, 1000].map((ms) => window.setTimeout(scheduleUpdate, ms));
+
+    return () => {
+      container.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", scheduleUpdate);
+      resizeObserver.disconnect();
+      timeouts.forEach((id) => window.clearTimeout(id));
+    };
+  }, [updateScrollEdges]);
+
+  useEffect(() => {
+    updateScrollEdges();
+  }, [activeCategoryName, i18n.language, updateScrollEdges]);
 
   useEffect(() => {
     if (!pendingNavigationPath || activeCategoryName !== null) return;
@@ -99,6 +150,8 @@ function CategoryNavInner() {
     const scrollToAlign = (el: HTMLElement) => {
       const left = Math.max(0, Math.min(contentLeft(el), maxScroll));
       container.scrollTo({ left, behavior: "smooth" });
+      window.setTimeout(updateScrollEdges, 50);
+      window.setTimeout(updateScrollEdges, 350);
     };
 
     if (direction === "right") {
@@ -112,6 +165,8 @@ function CategoryNavInner() {
         scrollToAlign(prev);
       } else {
         container.scrollTo({ left: 0, behavior: "smooth" });
+        window.setTimeout(updateScrollEdges, 50);
+        window.setTimeout(updateScrollEdges, 350);
       }
     }
   };
@@ -123,6 +178,16 @@ function CategoryNavInner() {
   };
 
   const isPageTransitioning = pendingNavigationPath !== null || isNavigating;
+  const isViewAllListingsNavigating =
+    isPageTransitioning && pendingNavigationPath === "/listings";
+
+  const scrollButtonClass = (enabled: boolean) =>
+    cn(
+      "shrink-0 rounded-full border p-1.5 transition-all",
+      enabled
+        ? "border-gray-200 bg-white text-gray-600 shadow-sm hover:bg-gray-100 cursor-pointer"
+        : "border-transparent bg-gray-100 text-gray-300 shadow-none cursor-not-allowed pointer-events-none",
+    );
 
   const onNavLinkClick = (e: MouseEvent<HTMLAnchorElement>, path: string) => {
     if (isPageTransitioning) {
@@ -138,31 +203,35 @@ function CategoryNavInner() {
     <>
       <div className="w-full border-b border-gray-200 bg-white shadow-sm">
       <div ref={navRef} className="relative mx-auto max-w-7xl px-4 sm:px-5">
-        <div className="relative flex items-center">
+        <div className="relative flex min-w-0 items-center">
           <button
             type="button"
             onClick={() => scroll("left")}
             title={t("common.previous", { defaultValue: "Previous" })}
             aria-label={t("common.previous", { defaultValue: "Previous" })}
-            disabled={isPageTransitioning}
-            className="mr-2 shrink-0 rounded-full border border-gray-200 bg-white p-1.5 shadow-sm transition-colors hover:bg-gray-100 cursor-pointer"
+            disabled={!canScrollLeft || isPageTransitioning}
+            className={cn("mr-2", scrollButtonClass(canScrollLeft && !isPageTransitioning))}
           >
-            <ChevronLeft className="h-4 w-4 text-gray-600" />
+            <ChevronLeft className="h-4 w-4" />
           </button>
 
           <div
             ref={scrollRef}
-            className="flex items-center overflow-x-auto py-4 scroll-smooth no-scrollbar"
+            className="flex min-w-0 flex-1 items-center overflow-x-auto py-4 scroll-smooth no-scrollbar"
           >
+            <div ref={scrollContentRef} className="flex items-center">
             <Link
               href="/listings"
               className={cn(
-                "inline-flex h-9 shrink-0 items-center justify-center rounded-md px-4 py-2 text-xs font-medium transition-colors",
+                "inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-md px-4 py-2 text-xs font-medium transition-colors",
                 "bg-green-700 text-white hover:bg-green-800 sm:text-sm",
-                isPageTransitioning && "pointer-events-none opacity-50"
+                isPageTransitioning && "pointer-events-none opacity-80",
               )}
               onClick={(e) => onNavLinkClick(e, "/listings")}
             >
+              {isViewAllListingsNavigating && (
+                <Loader2 className="h-4 w-4 animate-spin shrink-0" aria-hidden />
+              )}
               {t("home.viewAllListings")}
             </Link>
 
@@ -206,6 +275,7 @@ function CategoryNavInner() {
                 </div>
               );
             })}
+            </div>
           </div>
 
           <button
@@ -213,10 +283,10 @@ function CategoryNavInner() {
             onClick={() => scroll("right")}
             title={t("common.next", { defaultValue: "Next" })}
             aria-label={t("common.next", { defaultValue: "Next" })}
-            disabled={isPageTransitioning}
-            className="ml-2 shrink-0 rounded-full border border-gray-200 bg-white p-1.5 shadow-sm transition-colors hover:bg-gray-100 cursor-pointer"
+            disabled={!canScrollRight || isPageTransitioning}
+            className={cn("ml-2", scrollButtonClass(canScrollRight && !isPageTransitioning))}
           >
-            <ChevronRight className="h-4 w-4 text-gray-600" />
+            <ChevronRight className="h-4 w-4" />
           </button>
         </div>
 
@@ -250,9 +320,12 @@ function CategoryNavInner() {
                     <div className="shrink-0 border-b border-gray-200 px-3 py-3 lg:px-5 lg:py-5">
                       <Link
                         href="/listings"
-                        className="block text-xs font-medium leading-snug text-green-700 transition-colors hover:text-green-800 hover:underline sm:text-sm"
+                        className="flex items-center gap-2 text-xs font-medium leading-snug text-green-700 transition-colors hover:text-green-800 hover:underline sm:text-sm"
                         onClick={(e) => onNavLinkClick(e, "/listings")}
                       >
+                        {isViewAllListingsNavigating && (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" aria-hidden />
+                        )}
                         {t("home.viewAllListings")}
                       </Link>
                     </div>

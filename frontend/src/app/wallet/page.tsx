@@ -33,6 +33,11 @@ import { Label } from "@/components/ui/label";
 import { getLanguageCode } from "@/lib/locale";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
+import WalletSkeleton, {
+  WalletModalListSkeleton,
+  WalletSummaryListSkeleton,
+  WalletTransactionListSkeleton,
+} from "@/components/wallet/WalletSkeleton";
 import { createStripeConnectLink } from "@/lib/stripeConnect";
 import {
   groupWalletTransactions,
@@ -408,40 +413,6 @@ function formatPayoutDate(dateStr: string, lang: string) {
   } catch { return dateStr; }
 }
 
-function WalletSummaryListSkeleton() {
-  return (
-    <div className="px-5 py-4 space-y-0">
-      {[...Array(4)].map((_, i) => (
-        <div key={i} className="flex items-center gap-3 py-3 border-b border-gray-100 last:border-0">
-          <Skeleton className="h-9 w-9 rounded-full shrink-0" />
-          <div className="flex-1 space-y-1.5">
-            <Skeleton className="h-4 w-3/4" />
-            <Skeleton className="h-3 w-1/2" />
-          </div>
-          <Skeleton className="h-5 w-16 shrink-0" />
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function WalletModalListSkeleton({ rows = 4 }: { rows?: number }) {
-  return (
-    <div className="px-5 py-4 space-y-2">
-      {[...Array(rows)].map((_, i) => (
-        <div key={i} className="flex items-center gap-3 rounded-lg border border-gray-100 px-3 py-3">
-          <div className="min-w-0 flex-1 space-y-2">
-            <Skeleton className="h-4 w-3/4" />
-            <Skeleton className="h-3 w-1/2" />
-            <Skeleton className="h-3 w-2/5" />
-          </div>
-          <Skeleton className="h-5 w-14 shrink-0" />
-        </div>
-      ))}
-    </div>
-  );
-}
-
 function WalletDetailLoadingPanel({
   onBack,
   backLabel,
@@ -475,73 +446,6 @@ function WalletDetailLoadingPanel({
           <Skeleton className="h-10 w-full rounded-lg" />
         </div>
       </div>
-    </div>
-  );
-}
-
-function WalletSkeleton() {
-  return (
-    <div className="space-y-5">
-      {/* Title row */}
-      <div className="flex items-center gap-3">
-        <Skeleton className="h-10 w-10 rounded-xl" />
-        <Skeleton className="h-7 w-36" />
-      </div>
-
-      {/* Stat cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        {/* Balance card — taller, dark */}
-        <Card className="shadow-md overflow-hidden">
-          <CardContent className="pt-5 pb-5 px-5">
-            <Skeleton className="h-3 w-28 mb-3" />
-            <Skeleton className="h-9 w-36" />
-          </CardContent>
-        </Card>
-        {/* Earned */}
-        <Card className="shadow-sm">
-          <CardContent className="pt-5 pb-5 px-5 flex items-center gap-4">
-            <Skeleton className="h-10 w-10 rounded-xl shrink-0" />
-            <div className="space-y-2">
-              <Skeleton className="h-3 w-20" />
-              <Skeleton className="h-6 w-24" />
-            </div>
-          </CardContent>
-        </Card>
-        {/* Spent */}
-        <Card className="shadow-sm">
-          <CardContent className="pt-5 pb-5 px-5 flex items-center gap-4">
-            <Skeleton className="h-10 w-10 rounded-xl shrink-0" />
-            <div className="space-y-2">
-              <Skeleton className="h-3 w-20" />
-              <Skeleton className="h-6 w-24" />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Transaction card */}
-      <Card className="shadow-sm overflow-hidden">
-        <CardHeader className="pb-3 pt-5 px-5">
-          <Skeleton className="h-5 w-48" />
-        </CardHeader>
-        {/* Tabs row */}
-        <div className="px-5 pb-4">
-          <Skeleton className="h-8 w-full rounded-md" />
-        </div>
-        <Separator />
-        <CardContent className="pt-4 pb-2 space-y-4">
-          {[...Array(5)].map((_, i) => (
-            <div key={i} className="flex items-center gap-3">
-              <Skeleton className="h-9 w-9 rounded-full shrink-0" />
-              <div className="flex-1 space-y-1.5">
-                <Skeleton className="h-4 w-3/4" />
-                <Skeleton className="h-3 w-1/2" />
-              </div>
-              <Skeleton className="h-6 w-16 rounded-full" />
-            </div>
-          ))}
-        </CardContent>
-      </Card>
     </div>
   );
 }
@@ -1138,7 +1042,7 @@ export default function WalletPage() {
     if (spentPage > spentTotalPages) setSpentPage(spentTotalPages);
   }, [spentPage, spentTotalPages]);
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <div className="min-h-screen bg-white">
         <main className="max-w-3xl mx-auto px-3 sm:px-4 py-6 sm:py-10">
@@ -1369,17 +1273,6 @@ export default function WalletPage() {
                   </div>
                 </>
               )}
-              <Separator />
-              <div className="space-y-2">
-                <p className="text-sm text-gray-700">
-                  <span className="font-medium">{t("wallet.platformCommissionPromo")}</span>
-                </p>
-                <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5">
-                  <p className="text-xs text-amber-950/90 leading-relaxed">
-                    {t("wallet.commissionPromoNotice")}
-                  </p>
-                </div>
-              </div>
             </CardContent>
           </Card>
         )}
@@ -1473,18 +1366,7 @@ export default function WalletPage() {
           <Separator />
 
           {txLoading ? (
-            <CardContent className="pt-5 pb-5 space-y-4">
-              {[...Array(3)].map((_, i) => (
-                <div key={i} className="flex items-center gap-3">
-                  <Skeleton className="h-9 w-9 rounded-full shrink-0" />
-                  <div className="flex-1 space-y-1.5">
-                    <Skeleton className="h-4 w-3/4" />
-                    <Skeleton className="h-3 w-1/2" />
-                  </div>
-                  <Skeleton className="h-5 w-16" />
-                </div>
-              ))}
-            </CardContent>
+            <WalletTransactionListSkeleton rows={3} />
           ) : transactions.length === 0 ? (
             <CardContent className="flex flex-col items-center justify-center py-16 text-center">
               <div className="h-14 w-14 rounded-full bg-gray-100 flex items-center justify-center mb-3">

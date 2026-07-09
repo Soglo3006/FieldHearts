@@ -25,6 +25,7 @@ const AdBanner = dynamic(() => import("@/components/AdBanner"), { ssr: false });
 import { ListingCardSubtitle, ListingCardPriceRow, ListingCardTitle } from "@/components/listings/ListingTrustLine";
 import { formatListingCategoryLine } from "@/lib/listingTags";
 import { formatListingPriceLine } from "@/lib/listingPrice";
+import { HomeListingCardSkeleton } from "@/components/home/HomeSkeleton";
 
 const CityAutocomplete = dynamic(() => import("@/components/ui/CityAutocomplete"), { ssr: false });
 const toKey = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
@@ -153,18 +154,6 @@ function ListingCard({
   );
 }
 
-function ListingSkeleton() {
-  return (
-    <div className="border rounded-xl shadow-sm bg-white overflow-hidden animate-pulse">
-      <div className="w-full aspect-video bg-gray-200" />
-      <div className="p-3">
-        <div className="h-4 bg-gray-200 rounded mt-1 w-3/4" />
-        <div className="h-4 bg-gray-200 rounded mt-2 w-1/2" />
-      </div>
-    </div>
-  );
-}
-
 export default function HomePageClient({
   initialListings,
   initialCategoryCounts,
@@ -186,6 +175,7 @@ export default function HomePageClient({
   const [debouncedLocation, setDebouncedLocation] = useState("");
   const [locationCoords, setLocationCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [resolvedLocationCoords, setResolvedLocationCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [mounted, setMounted] = useState(false);
 
   const { isLoaded: mapsReady } = useJsApiLoader({
     googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "",
@@ -207,16 +197,20 @@ export default function HomePageClient({
   );
 
   useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
     const timer = setTimeout(() => setDebouncedLocation(locationInput), 400);
     return () => clearTimeout(timer);
   }, [locationInput]);
 
   useEffect(() => {
-    if (loading) return;
+    if (!mounted || loading) return;
     if (user && needsOnboardingSetup(user)) {
       router.push("/choose_type");
     }
-  }, [user, loading, router]);
+  }, [mounted, user, loading, router]);
 
   useEffect(() => {
     const countMap: Record<string, number> = {};
@@ -391,7 +385,7 @@ export default function HomePageClient({
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
             <div className="grid lg:col-span-3 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
               {dataLoading ? (
-                Array.from({ length: 9 }).map((_, i) => <ListingSkeleton key={i} />)
+                Array.from({ length: 9 }).map((_, i) => <HomeListingCardSkeleton key={i} />)
               ) : listings.length === 0 ? (
                 <ListingsRegionEmptyState locationLabel={debouncedLocation} className="col-span-full" />
               ) : (
@@ -480,7 +474,7 @@ export default function HomePageClient({
                   <h2 className="text-2xl font-bold mb-5">{t("home.listingsNearYou")}</h2>
                   <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
                     {dataLoading ? (
-                      Array.from({ length: 3 }).map((_, i) => <ListingSkeleton key={i} />)
+                      Array.from({ length: 3 }).map((_, i) => <HomeListingCardSkeleton key={i} />)
                     ) : nearbyListings.length === 0 ? (
                       <p className="text-gray-500 col-span-full">{t("home.noListingsNearYou")}</p>
                     ) : (

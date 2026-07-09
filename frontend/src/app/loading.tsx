@@ -1,2 +1,5 @@
-import { PageSpinner } from "@/components/ui/Spinner";
-export default function Loading() { return <PageSpinner />; }
+import HomeSkeleton from "@/components/home/HomeSkeleton";
+
+export default function Loading() {
+  return <HomeSkeleton />;
+}

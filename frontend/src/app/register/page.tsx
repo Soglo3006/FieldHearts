@@ -18,8 +18,8 @@ import { useAuth } from "@/contexts/AuthContext"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { SocialOAuthButtons } from "@/components/auth/SocialOAuthButtons";
+import AuthPageSkeleton from "@/components/auth/AuthPageSkeleton";
 import { useTranslation } from "react-i18next";
-import { Spinner } from "@/components/ui/Spinner";
 import { getLanguageCode } from "@/lib/locale";
 import { getEmailValidationIssue } from "@/lib/emailValidation";
 
@@ -136,13 +136,7 @@ export default function RegisterPage() {
     setLastName("");
   };
 
-  if (loading) return (
-    <div className="min-h-screen flex flex-col bg-white">
-        <div className="flex-1 flex items-center justify-center">
-          <Spinner size="xl" />
-        </div>
-      </div>
-  );
+  if (loading) return <AuthPageSkeleton />;
 
   return (
     <div className="min-h-screen flex flex-col bg-white">

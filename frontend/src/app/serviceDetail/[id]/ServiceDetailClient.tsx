@@ -3,7 +3,7 @@
 import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useStartConversation } from "@/hooks/useStartConversation";
 import { useAuth } from "@/contexts/AuthContext";
 import { useServiceDetailBooking } from "@/hooks/useServiceDetailBooking";
@@ -16,6 +16,8 @@ import BookingSidebar from "@/components/serviceDetail/BookingSidebar";
 import SimilarServices from "@/components/serviceDetail/SimilarServices";
 import AdBanner from "@/components/AdBanner";
 import BookingModal from "@/components/serviceDetail/BookingModal";
+import CompleteProfileModal from "@/components/profile/CompleteProfileModal";
+import { useBuyerTaxLocation } from "@/hooks/useBuyerTaxLocation";
 import LocationMapModal from "@/components/serviceDetail/LocationMapModal";
 import ServiceDetailSkeleton from "./ServiceDetailSkeleton";
 import { useTranslation } from "react-i18next";
@@ -139,6 +141,18 @@ export default function ServiceDetailClient({ initialService = null }: ServiceDe
   const router = useRouter();
 
   const [existingBookingStatus, setExistingBookingStatus] = useState<string | null>(null);
+  const [showTaxLocationModal, setShowTaxLocationModal] = useState(false);
+  const buyerTaxLocation = useBuyerTaxLocation();
+
+  const canOpenBooking = useCallback(() => {
+    if (!service || service.type === "looking") return true;
+    if (buyerTaxLocation.loading) return false;
+    return buyerTaxLocation.isComplete;
+  }, [service, buyerTaxLocation.loading, buyerTaxLocation.isComplete]);
+
+  const onBookingBlocked = useCallback(() => {
+    setShowTaxLocationModal(true);
+  }, []);
 
   const {
     showBookingModal,
@@ -152,6 +166,8 @@ export default function ServiceDetailClient({ initialService = null }: ServiceDe
     handleBookingRequest,
   } = useServiceDetailBooking({
     serviceId,
+    canOpenBooking,
+    onBookingBlocked,
   });
 
   const [showEditModal, setShowEditModal] = useState(false);
@@ -471,6 +487,13 @@ export default function ServiceDetailClient({ initialService = null }: ServiceDe
           />
         );
       })()}
+
+      <CompleteProfileModal
+        open={showTaxLocationModal}
+        onClose={() => setShowTaxLocationModal(false)}
+        titleKey="serviceDetail.taxLocationRequired"
+        descKey="serviceDetail.taxLocationRequiredDesc"
+      />
     </div>
   );
 }

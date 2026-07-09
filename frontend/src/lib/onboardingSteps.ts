@@ -5,6 +5,7 @@ export type AccountType = "person" | "company";
 export interface ProfileForCompletion {
   account_type?: string | null;
   full_name?: string | null;
+  company_name?: string | null;
   phone?: string | null;
   address?: string | null;
   city?: string | null;
@@ -13,6 +14,31 @@ export interface ProfileForCompletion {
   profession?: string | null;
   industry?: string | null;
   skills?: string[] | string | null;
+}
+
+function parseJsonArray<T>(value: unknown): T[] {
+  if (!value) return [];
+  if (Array.isArray(value)) return value as T[];
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value);
+      return Array.isArray(parsed) ? (parsed as T[]) : [];
+    } catch {
+      return [];
+    }
+  }
+  return [];
+}
+
+export interface ProfileRecord extends ProfileForCompletion {
+  bio?: string | null;
+  avatar?: string | null;
+  languages?: unknown;
+  experiences?: unknown;
+  portfolio?: unknown;
+  team_size?: string | null;
+  email?: string | null;
+  profile_completed?: boolean | null;
 }
 
 function parseSkills(skills: ProfileForCompletion["skills"]): string[] {
@@ -84,12 +110,13 @@ export function getOnboardingStepCompletions(
   );
 }
 
-export function onboardingDataFromProfile(profile: ProfileForCompletion): OnboardingData {
+export function onboardingDataFromProfile(profile: ProfileRecord): OnboardingData {
   const skills = parseSkills(profile.skills);
+  const isCompany = profile.account_type === "company";
   return {
-    accountType: (profile.account_type === "company" ? "company" : "person") as AccountType,
-    avatar: "",
-    email: "",
+    accountType: (isCompany ? "company" : "person") as AccountType,
+    avatar: profile.avatar || "",
+    email: profile.email || "",
     phone: profile.phone || "",
     adresse: profile.address || "",
     ville: profile.city || "",
@@ -97,16 +124,27 @@ export function onboardingDataFromProfile(profile: ProfileForCompletion): Onboar
     postalCode: profile.postal_code || "",
     fullName: profile.full_name || "",
     profession: profile.profession || "",
-    bio: "",
+    bio: isCompany ? "" : (profile.bio || ""),
     skills,
-    languages: [],
-    experiences: [],
-    companyName: "",
+    languages: parseJsonArray(profile.languages),
+    experiences: parseJsonArray(profile.experiences),
+    companyName: profile.company_name || "",
     industry: profile.industry || "",
-    companyBio: "",
-    teamSize: "",
-    portfolio: [],
+    companyBio: isCompany ? (profile.bio || "") : "",
+    teamSize: profile.team_size || "",
+    portfolio: parseJsonArray(profile.portfolio),
   };
+}
+
+/** Restore step progress after finish or when local draft was cleared. */
+export function resolveOnboardingMaxStep(
+  totalSteps: number,
+  options: { savedMaxStep?: number | null; profileCompleted?: boolean },
+): number {
+  const saved = options.savedMaxStep;
+  if (saved != null && saved >= 1) return Math.min(saved, totalSteps);
+  if (options.profileCompleted) return totalSteps;
+  return 1;
 }
 
 /** True when any required onboarding step (1–3) is missing data. */
@@ -121,7 +159,84 @@ export function isProfileDetailsIncomplete(profile: ProfileForCompletion | null 
   return completions.slice(0, 3).some((complete) => !complete);
 }
 
-export function profileCompletionPath(accountType: string | null | undefined): string {
+export function profileCompletionPath(
+  accountType: string | null | undefined,
+  step?: number,
+): string {
   const type = accountType === "company" ? "company" : "person";
-  return `/profile/complete_profil?type=${type}`;
+  const base = `/profile/complete_profil?type=${type}`;
+  if (step != null && step >= 1) return `${base}&step=${step}`;
+  return base;
+}
+
+/** Step 1 address fields required for buyer tax calculation. */
+export function isProfileTaxLocationComplete(profile: ProfileForCompletion | null | undefined): boolean {
+  if (!profile) return false;
+  return (
+    hasText(profile.address) &&
+    hasText(profile.city) &&
+    hasText(profile.province) &&
+    hasText(profile.postal_code)
+  );
+}
+
+export type BillingAddressForTax = {
+  address_line1?: string | null;
+  city?: string | null;
+  province?: string | null;
+  postal_code?: string | null;
+};
+
+export function isBillingAddressTaxComplete(address: BillingAddressForTax | null | undefined): boolean {
+  if (!address) return false;
+  return (
+    hasText(address.address_line1) &&
+    hasText(address.city) &&
+    hasText(address.province) &&
+    hasText(address.postal_code)
+  );
+}
+
+export function onboardingDataToPayoutProfile(
+  data: Pick<
+    import("@/components/onboarding/onboardingTypes").OnboardingData,
+    | "accountType"
+    | "fullName"
+    | "companyName"
+    | "phone"
+    | "adresse"
+    | "ville"
+    | "province"
+    | "postalCode"
+  >,
+): ProfileForCompletion {
+  return {
+    account_type: data.accountType,
+    full_name: data.fullName,
+    company_name: data.companyName,
+    phone: data.phone,
+    address: data.adresse,
+    city: data.ville,
+    province: data.province,
+    postal_code: data.postalCode,
+  };
+}
+
+/** Step 1 fields required before opening Stripe payout onboarding. */
+export function isPayoutProfileComplete(profile: ProfileForCompletion | null | undefined): boolean {
+  if (!profile) return false;
+  const isCompany = profile.account_type === "company";
+
+  const hasIdentity = isCompany
+    ? hasText(profile.company_name) && hasText(profile.full_name)
+    : hasText(profile.full_name);
+
+  return (
+    hasIdentity &&
+    hasText(profile.phone) &&
+    hasText(profile.address) &&
+    hasText(profile.city) &&
+    hasText(profile.province) &&
+    hasText(profile.postal_code)
+  );
 }

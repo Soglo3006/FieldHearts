@@ -1,6 +1,7 @@
 "use client";
 
 import { X } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useScrollLock } from "@/hooks/useScrollLock";
 import { useTranslation } from "react-i18next";
 import PaymentInlinePanel from "@/components/payment/PaymentInlinePanel";
@@ -39,6 +40,7 @@ function PaymentModalInner({
   pricingMode = null,
 }: Omit<Props, "open">) {
   const { t } = useTranslation();
+  const router = useRouter();
   useScrollLock(true);
   const showsFullDepositCopy =
     checkoutKind === "full" &&
@@ -85,6 +87,10 @@ function PaymentModalInner({
           checkoutKind={checkoutKind}
           fullServiceBase={fullServiceBase}
           pricingMode={pricingMode}
+          onPaymentSuccess={() => {
+            onClose();
+            router.push(`/payment/success?booking_id=${bookingId}`);
+          }}
         />
       </div>
     </div>

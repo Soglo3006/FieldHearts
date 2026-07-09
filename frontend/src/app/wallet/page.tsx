@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useStartConversation } from "@/hooks/useStartConversation";
 import BookingDetailModal, { type BookingDetail } from "@/components/bookings/BookingDetailModal";
@@ -38,7 +38,7 @@ import WalletSkeleton, {
   WalletSummaryListSkeleton,
   WalletTransactionListSkeleton,
 } from "@/components/wallet/WalletSkeleton";
-import { createStripeConnectLink } from "@/lib/stripeConnect";
+import StripePayoutSetup from "@/components/stripe/StripePayoutSetup";
 import {
   groupWalletTransactions,
   isDepositOnlyDescription,
@@ -455,7 +455,6 @@ export default function WalletPage() {
   const lang = getLanguageCode(i18n.language);
   const { user, session, loading: authLoading } = useAuth();
   const router = useRouter();
-  const searchParams = useSearchParams();
 
   const [wallet, setWallet] = useState<WalletData | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -488,7 +487,6 @@ export default function WalletPage() {
       if (connectRaw) setConnectStatus(JSON.parse(connectRaw));
     } catch {}
   }, []);
-  const [connectLoading, setConnectLoading] = useState(false);
   const [detailBooking, setDetailBooking] = useState<{ booking: BookingDetail; role: "worker" | "client" } | null>(null);
   const [detailLoading, setDetailLoading] = useState<string | null>(null);
   const [payoutModal, setPayoutModal] = useState<{ date: string; items: { booking_id: string; title: string; base_price: number; worker_amount: number }[]; total: number } | null>(null);
@@ -883,29 +881,6 @@ export default function WalletPage() {
     }
   };
 
-  const handleConnectStripe = async () => {
-    if (!session?.access_token) return;
-    setConnectLoading(true);
-    try {
-      const { url } = await createStripeConnectLink({
-        accessToken: session.access_token,
-        returnPath: "/wallet?stripe=success",
-        refreshPath: "/wallet?stripe=refresh",
-      });
-      if (url) window.location.href = url;
-    } catch {
-    } finally {
-      setConnectLoading(false);
-    }
-  };
-
-  // Auto-redirect back to Stripe if URL contains ?stripe=refresh
-  useEffect(() => {
-    if (searchParams.get("stripe") === "refresh" && session?.access_token && !connectLoading) {
-      handleConnectStripe();
-    }
-  }, [searchParams, session]);
-
   useScrollLock(pendingModalOpen || approvedModalOpen || earnedModalOpen || spentModalOpen);
 
   const groupedTransactions = useMemo(
@@ -1064,64 +1039,21 @@ export default function WalletPage() {
         {/* Page title */}
         <h1 className="text-2xl font-bold text-gray-900">{t("wallet.title")}</h1>
 
-        {/* Stripe Connect banner */}
-        {connectStatus && !connectStatus.charges_enabled && (
-          <Card className="border-green-200 bg-gradient-to-br from-green-50 to-emerald-50 shadow-sm overflow-hidden">
-            <CardContent className="p-6 flex flex-col items-center text-center gap-4">
-              {connectStatus.details_submitted ? (
-                <>
-                  <div className="w-16 h-16 rounded-full bg-amber-50 flex items-center justify-center">
-                    <AlertCircle className="h-8 w-8 text-amber-400" />
-                  </div>
-                  <div>
-                    <p className="font-semibold text-gray-900 mb-1">{t("wallet.verificationInProgress")}</p>
-                    <p className="text-sm text-gray-500 max-w-xs">{t("wallet.stripeVerifyingDesc")}</p>
-                  </div>
-                  <Button
-                    onClick={handleConnectStripe}
-                    disabled={connectLoading}
-                    className="bg-green-700 hover:bg-green-800 text-white gap-2 px-6 h-11 rounded-xl text-sm disabled:opacity-70"
-                  >
-                    {connectLoading ? t("wallet.connecting") : t("wallet.completeFile")}
-                  </Button>
-                </>
-              ) : (
-                <>
-                  <div>
-                    <p className="font-semibold text-gray-900 mb-1">{t("wallet.receivePayments")}</p>
-                    <p className="text-sm text-gray-500 max-w-xs">{t("wallet.connectBankDesc")}</p>
-                  </div>
-                  <Button
-                    onClick={handleConnectStripe}
-                    disabled={connectLoading}
-                    className="bg-green-700 hover:bg-green-800 text-white gap-2 px-6 h-11 rounded-xl text-sm disabled:opacity-70"
-                  >
-                    {connectLoading ? t("wallet.connecting") : t("wallet.connectAccount")}
-                  </Button>
-                  <p className="text-xs text-gray-400 flex items-center gap-1 -mt-1">
-                    <CheckCircle2 className="h-3.5 w-3.5 text-gray-300" />
-                    {t("wallet.securedByStripe")}
-                  </p>
-                </>
-              )}
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Bank connected pill */}
-        {connectStatus?.charges_enabled && (
-          <div className="flex items-center gap-2 px-1">
-            <CheckCircle2 className="h-4 w-4 text-green-600 shrink-0" />
-            <p className="text-sm text-gray-500">
-              {t("wallet.bankAccountConnected")} —{" "}
-              <button
-                onClick={handleConnectStripe}
-                className="text-green-700 hover:underline cursor-pointer"
-              >
-                {t("wallet.manageOnStripe")}
-              </button>
-            </p>
-          </div>
+        {/* Payout setup / bank account management */}
+        {session?.access_token && (
+          <StripePayoutSetup
+            accessToken={session.access_token}
+            title={connectStatus?.charges_enabled ? t("wallet.managePayoutAccount") : t("wallet.receivePayments")}
+            subtitle={connectStatus?.charges_enabled ? t("wallet.managePayoutAccountDesc") : t("wallet.connectBankDesc")}
+            onStatusChange={(status) => {
+              setConnectStatus(status);
+              if (user?.id) {
+                try {
+                  sessionStorage.setItem(`wallet-connect-${user.id}`, JSON.stringify(status));
+                } catch {}
+              }
+            }}
+          />
         )}
 
         {/* Balance breakdown card */}

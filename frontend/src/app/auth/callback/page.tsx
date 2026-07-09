@@ -6,7 +6,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { canAccessAdminPortal, safeInternalPath } from "@/lib/auth";
 import { needsOnboardingSetup } from "@/lib/onboarding";
 import { clearAdminStepUpToken } from "@/lib/adminStepUp";
-import { Spinner } from "@/components/ui/Spinner";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function AuthCallbackPage() {
   const router = useRouter();
@@ -82,9 +82,9 @@ export default function AuthCallbackPage() {
   }, [router]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-white">
-      <div className="text-center">
-        <Spinner size="xl" className="mx-auto mb-4" />
+    <div className="min-h-screen flex items-center justify-center bg-white p-4">
+      <div className="text-center space-y-4 w-full max-w-sm">
+        <Skeleton className="mx-auto h-12 w-12 rounded-full animate-pulse" />
         <p className="text-gray-600 text-lg">{message}</p>
       </div>
     </div>

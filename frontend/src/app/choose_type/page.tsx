@@ -11,9 +11,11 @@ import Link from "next/link";
 import i18n from "@/lib/i18n";
 import { getLanguageCode } from "@/lib/locale";
 import { needsOnboardingSetup } from "@/lib/onboarding";
+import { clearOnboardingStorage } from "@/lib/onboardingStorage";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 import { Spinner } from "@/components/ui/Spinner";
+import { ChooseTypeSkeleton } from "@/components/auth/AuthPageSkeleton";
 
 function LanguageToggle() {
   const { i18n: i18nInstance } = useTranslation();
@@ -106,20 +108,11 @@ function ChooseTypeContent() {
     setPhase("intro");
   };
 
-  const clearOnboardingStorage = () => {
-    try {
-      ["person", "company"].forEach((type) => {
-        localStorage.removeItem(`onboarding_data_${type}`);
-        localStorage.removeItem(`onboarding_max_step_${type}`);
-      });
-    } catch {}
-  };
-
   const handleSkip = async () => {
     if (!selectedType) return;
     setSubmittingAction("skip");
     try {
-      if (isChangingType) clearOnboardingStorage();
+      if (isChangingType) clearOnboardingStorage(user?.id);
       await initializeAccount(selectedType, true);
       router.replace("/");
     } catch (err) {
@@ -132,7 +125,7 @@ function ChooseTypeContent() {
     if (!selectedType) return;
     setSubmittingAction("continue");
     try {
-      if (isChangingType) clearOnboardingStorage();
+      if (isChangingType) clearOnboardingStorage(user?.id);
       await initializeAccount(selectedType, false);
       router.replace(`/profile/complete_profil?type=${selectedType}`);
     } catch (err) {
@@ -141,7 +134,7 @@ function ChooseTypeContent() {
     }
   };
 
-  if (loading) return null;
+  if (loading) return <ChooseTypeSkeleton />;
   if (introCompleted && !submitting && !isChangingType) return null;
 
   return (

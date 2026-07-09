@@ -15,6 +15,7 @@ import { getIntlLocale } from "@/lib/locale";
 import { normalizePricingMode } from "@/lib/listingPrice";
 import BillingAddressSelector, { type BillingAddress } from "@/components/payment/BillingAddressSelector";
 import { PaymentDepositRows } from "@/components/payment/PaymentDepositRows";
+import PaymentCheckoutForm from "@/components/payment/PaymentCheckoutForm";
 import type { DepositConfig } from "@/lib/deposit";
 import {
   fixedAwaitingWorkForBalance,
@@ -88,6 +89,18 @@ export default function PaymentPage() {
   const [billingAddresses, setBillingAddresses] = useState<BillingAddress[]>([]);
   const [selectedAddress, setSelectedAddress] = useState<BillingAddress | null>(null);
   const [billingConfirmed, setBillingConfirmed] = useState(false);
+  const [publishableKey, setPublishableKey] = useState("");
+  const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [preparingPayment, setPreparingPayment] = useState(false);
+
+  useEffect(() => {
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/payments/config`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.publishable_key) setPublishableKey(data.publishable_key);
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (!session?.access_token || !bookingId) return;
@@ -125,6 +138,10 @@ export default function PaymentPage() {
     () => (booking ? resolveCheckoutKind(booking, depositConfig) : null),
     [booking, depositConfig],
   );
+
+  useEffect(() => {
+    setClientSecret(null);
+  }, [selectedAddress?.id, checkoutKind]);
 
   const checkoutPrice = useMemo(
     () => (booking ? resolveCheckoutPrice(booking, depositConfig) : 0),
@@ -248,16 +265,16 @@ export default function PaymentPage() {
     }
   };
 
-  const handlePay = async () => {
+  const handlePreparePayment = async () => {
     if (!session?.access_token || !checkoutKind) return;
     if (!billingConfirmed) {
       setError(t("payment.mustConfirmBilling"));
       return;
     }
-    setPaying(true);
+    setPreparingPayment(true);
     setError("");
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/payments/checkout`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/payments/intent`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -273,10 +290,30 @@ export default function PaymentPage() {
       const data = await res.json();
       if (!res.ok) {
         setError(data.message || t("payment.paymentFailed"));
-        setPaying(false);
+        setPreparingPayment(false);
         return;
       }
-      window.location.href = data.url;
+      setClientSecret(data.client_secret);
+      setPreparingPayment(false);
+    } catch {
+      setError(t("payment.networkError"));
+      setPreparingPayment(false);
+    }
+  };
+
+  const handlePaymentSuccess = async () => {
+    if (!session?.access_token) return;
+    setPaying(true);
+    try {
+      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/payments/verify`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ booking_id: bookingId }),
+      });
+      router.push(`/payment/success?booking_id=${bookingId}`);
     } catch {
       setError(t("payment.networkError"));
       setPaying(false);
@@ -502,23 +539,35 @@ export default function PaymentPage() {
               </div>
             )}
 
-            <Button
-              onClick={handlePay}
-              disabled={paying || !billingConfirmed || !selectedAddress}
-              className="w-full h-14 text-base font-semibold bg-green-700 hover:bg-green-800 text-white rounded-xl disabled:opacity-50"
-            >
-              {paying ? (
-                <span className="flex items-center gap-2">
-                  <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                  </svg>
-                  {t("payment.redirectingToStripe")}
-                </span>
-              ) : (
-                <span>{payButtonLabel}</span>
-              )}
-            </Button>
+            {clientSecret && publishableKey ? (
+              <PaymentCheckoutForm
+                clientSecret={clientSecret}
+                publishableKey={publishableKey}
+                disabled={paying || !billingConfirmed || !selectedAddress}
+                submitLabel={payButtonLabel}
+                processingLabel={t("payment.processingPayment")}
+                onSuccess={handlePaymentSuccess}
+                onError={(message) => setError(message)}
+              />
+            ) : (
+              <Button
+                onClick={handlePreparePayment}
+                disabled={preparingPayment || paying || !billingConfirmed || !selectedAddress || !publishableKey}
+                className="w-full h-14 text-base font-semibold bg-green-700 hover:bg-green-800 text-white rounded-xl disabled:opacity-50"
+              >
+                {preparingPayment ? (
+                  <span className="flex items-center gap-2">
+                    <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                    {t("payment.preparingPayment")}
+                  </span>
+                ) : (
+                  <span>{t("payment.continueToPayment")}</span>
+                )}
+              </Button>
+            )}
 
             <p className="text-xs text-center text-gray-400 mt-3">
               {t("payment.securedByStripe")}

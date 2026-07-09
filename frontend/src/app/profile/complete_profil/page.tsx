@@ -3,7 +3,7 @@
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, useCallback, Suspense } from "react";
 import { Button } from "@/components/ui/button";
 import { useSearchParams } from "next/navigation";
 import { useTranslation } from "react-i18next";
@@ -42,8 +42,9 @@ function FinalizingScreen() {
 }
 import { needsOnboardingSetup } from "@/lib/onboarding";
 import { getLanguageCode } from "@/lib/locale";
-import { getOnboardingStepCompletions, onboardingDataFromProfile } from "@/lib/onboardingSteps";
-import type { AccountType } from "@/lib/onboardingSteps";
+import { getOnboardingStepCompletions, onboardingDataFromProfile, onboardingDataToPayoutProfile, resolveOnboardingMaxStep } from "@/lib/onboardingSteps";
+import type { AccountType, ProfileRecord } from "@/lib/onboardingSteps";
+import { saveOnboardingBasicInfo } from "@/lib/saveOnboardingBasicInfo";
 
 function LanguageToggle() {
   const { i18n: i18nInstance } = useTranslation();
@@ -106,6 +107,7 @@ function OnboardingContent() {
   const [bioError, setBioError] = useState("");
 
   const totalSteps = accountType === "company" ? 6 : 7;
+  const paymentStep = accountType === "company" ? 5 : 6;
 
   const storageKey = `onboarding_data_${accountType}`;
   const maxStepKey = `onboarding_max_step_${accountType}`;
@@ -174,27 +176,79 @@ function OnboardingContent() {
       headers: { Authorization: `Bearer ${session.access_token}` },
     })
       .then((res) => (res.ok ? res.json() : null))
-      .then((profile) => {
+      .then((profile: ProfileRecord | null) => {
         if (!alive || !profile) return;
         const fromProfile = onboardingDataFromProfile(profile);
-        setData((p) => ({
-          ...p,
-          phone: p.phone || fromProfile.phone,
-          adresse: p.adresse || fromProfile.adresse,
-          ville: p.ville || fromProfile.ville,
-          province: p.province || fromProfile.province,
-          postalCode: p.postalCode || fromProfile.postalCode,
-          fullName: p.fullName || fromProfile.fullName,
-          profession: p.profession || fromProfile.profession,
-          industry: p.industry || fromProfile.industry,
-          skills: (p.skills?.length ?? 0) > 0 ? p.skills : fromProfile.skills,
-        }));
+        const profileCompleted =
+          profile.profile_completed === true ||
+          user?.user_metadata?.profile_completed === true;
+
+        let hasSavedDraft = false;
+        try {
+          hasSavedDraft = Boolean(localStorage.getItem(storageKey));
+        } catch {}
+
+        if (!hasSavedDraft) {
+          setData((p) => ({
+            ...fromProfile,
+            accountType: (accountType as "person" | "company"),
+            email: p.email || fromProfile.email || user?.email || "",
+          }));
+        } else {
+          setData((p) => ({
+            ...p,
+            phone: p.phone || fromProfile.phone,
+            adresse: p.adresse || fromProfile.adresse,
+            ville: p.ville || fromProfile.ville,
+            province: p.province || fromProfile.province,
+            postalCode: p.postalCode || fromProfile.postalCode,
+            fullName: p.fullName || fromProfile.fullName,
+            profession: p.profession || fromProfile.profession,
+            industry: p.industry || fromProfile.industry,
+            skills: (p.skills?.length ?? 0) > 0 ? p.skills : fromProfile.skills,
+            bio: p.bio || fromProfile.bio,
+            companyBio: p.companyBio || fromProfile.companyBio,
+            companyName: p.companyName || fromProfile.companyName,
+            teamSize: p.teamSize || fromProfile.teamSize,
+            avatar: p.avatar || fromProfile.avatar,
+            languages: (p.languages?.length ?? 0) > 0 ? p.languages : fromProfile.languages,
+            experiences: (p.experiences?.length ?? 0) > 0 ? p.experiences : fromProfile.experiences,
+            portfolio: (p.portfolio?.length ?? 0) > 0 ? p.portfolio : fromProfile.portfolio,
+          }));
+        }
+
+        let savedMaxStep: number | null = null;
+        try {
+          const raw = localStorage.getItem(maxStepKey);
+          if (raw) savedMaxStep = Number(raw);
+        } catch {}
+
+        const restoredMax = resolveOnboardingMaxStep(totalSteps, {
+          savedMaxStep,
+          profileCompleted,
+        });
+        setMaxStepReached((prev) => Math.max(prev, restoredMax));
       })
       .catch(() => {});
     return () => { alive = false; };
-  }, [session?.access_token]);
+  }, [session?.access_token, storageKey, maxStepKey, accountType, totalSteps, user]);
 
   useEffect(() => { setData((p) => ({ ...p, accountType: accountType as "person" | "company" })); }, [accountType]);
+
+  const payoutProfileSnapshot = onboardingDataToPayoutProfile({
+    ...data,
+    accountType: (data.accountType || accountType) as "person" | "company",
+  });
+
+  const persistBasicInfoIfReady = useCallback(async () => {
+    const token = session?.access_token;
+    if (!token) return false;
+    return saveOnboardingBasicInfo(
+      { ...data, accountType: (data.accountType || accountType) as "person" | "company" },
+      token,
+      user?.id,
+    );
+  }, [data, session?.access_token, user?.id, accountType]);
 
   useEffect(() => {
     setMaxStepReached((prev) => Math.max(prev, currentStep));
@@ -207,6 +261,12 @@ function OnboardingContent() {
   useEffect(() => {
     if (stepFromUrl) setMaxStepReached((prev) => Math.max(prev, stepFromUrl));
   }, [stepFromUrl]);
+
+  useEffect(() => {
+    if (currentStep === paymentStep) {
+      void persistBasicInfoIfReady();
+    }
+  }, [currentStep, paymentStep, persistBasicInfoIfReady]);
 
   const completedSteps = getOnboardingStepCompletions(
     accountType as AccountType,
@@ -261,7 +321,10 @@ function OnboardingContent() {
 
   const canProceed = () => true;
 
-  const goToStep = (step: number) => {
+  const goToStep = async (step: number) => {
+    if (step === paymentStep) {
+      await persistBasicInfoIfReady();
+    }
     setCurrentStep(step);
     router.replace(`/profile/complete_profil?type=${accountType}&step=${step}`);
   };
@@ -276,7 +339,10 @@ function OnboardingContent() {
         }
       }
       setBioError("");
-      goToStep(currentStep + 1);
+      if (currentStep === 1) {
+        await persistBasicInfoIfReady();
+      }
+      await goToStep(currentStep + 1);
       return;
     }
     setLoading(true);
@@ -314,7 +380,14 @@ function OnboardingContent() {
       const { error } = await supabase.auth.updateUser({ data: { profile_completed: true } });
       if (error) throw error;
 
-      try { localStorage.removeItem(storageKey); localStorage.removeItem(maxStepKey); } catch {}
+      try {
+        const finalized = {
+          ...data,
+          accountType: (data.accountType || accountType) as "person" | "company",
+        };
+        localStorage.setItem(storageKey, JSON.stringify(finalized));
+        localStorage.setItem(maxStepKey, String(totalSteps));
+      } catch {}
       setShowSuccess(true);
     } catch (err: unknown) {
       toast.error(t("onboarding.profileSaveFailed", { message: err instanceof Error ? err.message : String(err) }));
@@ -404,10 +477,16 @@ function OnboardingContent() {
               accessToken={session?.access_token ?? ""}
               accountType={accountType}
               autoReconnect={searchParams.get("stripe") === "refresh"}
+              onGoToProfileStep={(step) => goToStep(step)}
+              profileSnapshot={payoutProfileSnapshot}
             />
           )}
           {currentStep === totalSteps && (
-            <StepSummary data={data} accountType={accountType} />
+            <StepSummary
+              data={data}
+              accountType={accountType}
+              accessToken={session?.access_token}
+            />
           )}
 
           <div className="flex justify-between mt-6 sm:mt-8 gap-3">

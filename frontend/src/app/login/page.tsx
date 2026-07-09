@@ -17,12 +17,12 @@ import { FcGoogle } from "react-icons/fc";
 import { FaFacebookF } from "react-icons/fa";
 import { useTranslation } from "react-i18next";
 import { ArrowLeft, Loader2, Eye, EyeOff } from "lucide-react";
-import { Spinner } from "@/components/ui/Spinner";
 import { getLanguageCode } from "@/lib/locale";
 import { useSearchParams } from "next/navigation";
 import { getLoginPageContext } from "@/lib/loginRedirectContext";
 import { getEmailValidationIssue } from "@/lib/emailValidation";
 import { SocialOAuthButtons } from "@/components/auth/SocialOAuthButtons";
+import AuthPageSkeleton from "@/components/auth/AuthPageSkeleton";
 
 type Step = "email" | "password" | "not-found";
 
@@ -50,11 +50,7 @@ export default function LoginPage() {
     loginCtx === "default" ? t("login.subtitle") : t(`login.context.${loginCtx}.subtitle`);
   const { loading } = useProtectedRoute({ requireAuth: false, redirectAfterLogin });
 
-  if (loading) return (
-    <div className="min-h-screen flex items-center justify-center bg-white">
-      <Spinner size="xl" />
-    </div>
-  );
+  if (loading) return <AuthPageSkeleton />;
 
   const handleCheckEmail = async (e: React.FormEvent) => {
     e.preventDefault();

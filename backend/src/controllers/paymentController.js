@@ -1,8 +1,5 @@
 import pool from "../config/db.js";
 import stripe from "../config/stripe.js";
-import { finalizeCompletion } from "./bookingController.js";
-import { notifyPaymentReceipt } from "../services/emailService.js";
-import { getUserLang } from "../services/notificationService.js";
 import { processBookingRefund } from "../services/refundService.js";
 import { calculateDepositAmount, ensureDepositsAndCalendarSchema, resolveBookingDepositMeta, resolveCheckoutBaseAmount } from "../utils/depositSchema.js";
 import {
@@ -16,6 +13,23 @@ import {
   resolveCheckoutKind,
   usesSplitDepositPayment,
 } from "../utils/hourlyPayment.js";
+import {
+  createConnectAccountSession,
+  ensureStripeConnectAccount,
+  getMissingPayoutProfileFields,
+  getStoredStripeAccount,
+  isUserPayoutProfileComplete,
+  loadUserConnectProfile,
+  syncConnectAccountStatus,
+  syncProfileToStripeAccount,
+} from "../services/stripeConnectService.js";
+import { completeCheckoutPayment } from "../services/paymentCompletionService.js";
+import { completePaymentFromIntent } from "../services/paymentCompletionService.js";
+import {
+  billingAddressToStripeAddress,
+  getOrCreateStripeCustomer,
+} from "../services/stripeCustomerService.js";
+import { recordWorkerPayoutLedger } from "../services/ledgerService.js";
 
 // ─── Ensure platform_earnings table exists ────────────────────────────────────
 pool.query(`
@@ -33,6 +47,7 @@ pool.query(`
 import {
   BUYER_COMMISSION_RATE,
   WORKER_PAYOUT_SHARE,
+  workerCommissionFromNet,
 } from "../utils/commissionRates.js";
 const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:3000";
 
@@ -99,85 +114,22 @@ function getTaxLabel(province) {
   return PROVINCE_TAX_LABELS[normalizeProvince(province)] ?? PROVINCE_TAX_LABELS.QC;
 }
 
-// ─── Stripe Connect: create onboarding link for worker ───────────────────────
+// ─── Stripe Connect: legacy redirect link (Express fallback) ───────────────
 export const createConnectAccount = async (req, res) => {
   try {
     const userId = req.user.id;
-
-    // Check if worker already has a Stripe account
-    const existing = await pool.query(
-      "SELECT * FROM stripe_accounts WHERE user_id = $1",
-      [userId]
-    );
-
-    let stripeAccountId;
-
-    if (existing.rows.length > 0) {
-      stripeAccountId = existing.rows[0].stripe_account_id;
-    } else {
-      // Get user email, account type and profile data
-      const user = await pool.query(
-        `SELECT email, account_type, full_name, company_name, phone, address, city, province
-         FROM users WHERE id = $1`,
-        [userId]
-      );
-      if (user.rows.length === 0) {
-        return res.status(404).json({ message: "User not found" });
-      }
-
-      const u = user.rows[0];
-      const isCompany = u.account_type === "company";
-
-      // Build address object if available
-      const addressObj = u.city ? {
-        line1: u.address || "",
-        city: u.city || "",
-        state: u.province || "",
-        country: "CA",
-      } : undefined;
-
-      // Build individual prefill
-      const individualData = !isCompany ? {
-        email: u.email,
-        ...(u.full_name && {
-          first_name: u.full_name.split(" ")[0],
-          last_name: u.full_name.split(" ").slice(1).join(" ") || u.full_name.split(" ")[0],
-        }),
-        ...(u.phone && { phone: u.phone }),
-        ...(addressObj && { address: addressObj }),
-      } : undefined;
-
-      // Create Express Connect account
-      const account = await stripe.accounts.create({
-        type: "express",
-        email: u.email,
-        capabilities: {
-          card_payments: { requested: true },
-          transfers: { requested: true },
-        },
-        business_type: isCompany ? "company" : "individual",
-        ...(individualData && { individual: individualData }),
-        business_profile: {
-          url: "https://www.uneden.ca",
-          mcc: "7299",
-          product_description: "Je fournis des services via la plateforme Uneden. Les clients me trouvent sur uneden.ca et les paiements sont traités par Uneden.",
-        },
-        settings: {
-          payouts: { schedule: { interval: "manual" } },
-        },
+    const user = await loadUserConnectProfile(userId);
+    if (!isUserPayoutProfileComplete(user)) {
+      return res.status(400).json({
+        message: "Complete your profile before setting up payouts",
+        code: "PROFILE_INCOMPLETE",
+        missing_fields: getMissingPayoutProfileFields(user),
       });
-
-      stripeAccountId = account.id;
-
-      // Save to DB
-      await pool.query(
-        `INSERT INTO stripe_accounts (user_id, stripe_account_id, details_submitted, charges_enabled)
-         VALUES ($1, $2, false, false)`,
-        [userId, stripeAccountId]
-      );
     }
 
-    // Allow callers to specify custom return/refresh paths (e.g. onboarding flow)
+    const { stripeAccountId } = await ensureStripeConnectAccount(userId);
+    await syncProfileToStripeAccount(userId, stripeAccountId);
+
     const isValidRelativePath = (path) =>
       path
       && typeof path === "string"
@@ -194,7 +146,6 @@ export const createConnectAccount = async (req, res) => {
       ? `${FRONTEND_URL}${customRefreshUrl}`
       : `${FRONTEND_URL}/wallet?stripe=refresh`;
 
-    // Create account link (onboarding URL)
     const accountLink = await stripe.accountLinks.create({
       account: stripeAccountId,
       refresh_url: refreshUrl,
@@ -202,93 +153,76 @@ export const createConnectAccount = async (req, res) => {
       type: "account_onboarding",
     });
 
-    res.json({ url: accountLink.url });
+    res.json({ url: accountLink.url, embedded: false });
   } catch (err) {
     console.error("Stripe Connect error:", err);
-    res.status(500).json({ message: "Failed to create Stripe Connect account" });
+    res.status(err.statusCode || 500).json({ message: "Failed to create Stripe Connect account" });
   }
 };
 
-// ─── Create an Account Session for embedded Connect components ───────────────
+// ─── Embedded Connect onboarding / account management (preferred) ────────────
 export const createAccountSession = async (req, res) => {
   try {
     const userId = req.user.id;
+    const mode = req.body?.mode === "management" ? "management" : "onboarding";
+    const stored = await getStoredStripeAccount(userId);
 
-    const existing = await pool.query(
-      "SELECT stripe_account_id FROM stripe_accounts WHERE user_id = $1",
-      [userId]
-    );
+    const components =
+      mode === "management" && stored?.charges_enabled
+        ? {
+            account_management: {
+              enabled: true,
+              features: {
+                external_account_collection: true,
+              },
+            },
+          }
+        : {
+            account_onboarding: { enabled: true },
+          };
 
-    let stripeAccountId;
-
-    if (existing.rows.length > 0) {
-      stripeAccountId = existing.rows[0].stripe_account_id;
-    } else {
-      const user = await pool.query(
-        `SELECT email, account_type, full_name, company_name, phone, address, city, province
-         FROM users WHERE id = $1`,
-        [userId]
-      );
-      if (user.rows.length === 0) return res.status(404).json({ message: "User not found" });
-
-      const u = user.rows[0];
-      const isCompany = u.account_type === "company";
-
-      const addressObj = u.city ? {
-        line1: u.address || "",
-        city: u.city || "",
-        state: u.province || "",
-        country: "CA",
-      } : undefined;
-
-      const individualData = !isCompany ? {
-        email: u.email,
-        ...(u.full_name && {
-          first_name: u.full_name.split(" ")[0],
-          last_name: u.full_name.split(" ").slice(1).join(" ") || u.full_name.split(" ")[0],
-        }),
-        ...(u.phone && { phone: u.phone }),
-        ...(addressObj && { address: addressObj }),
-      } : undefined;
-
-      const account = await stripe.accounts.create({
-        type: "express",
-        email: u.email,
-        capabilities: {
-          card_payments: { requested: true },
-          transfers: { requested: true },
-        },
-        business_type: isCompany ? "company" : "individual",
-        ...(individualData && { individual: individualData }),
-        business_profile: {
-          url: "https://www.uneden.ca",
-          mcc: "7299",
-          product_description: "Je fournis des services via la plateforme Uneden. Les clients me trouvent sur uneden.ca et les paiements sont traités par Uneden.",
-        },
-        settings: {
-          payouts: { schedule: { interval: "manual" } },
-        },
-      });
-
-      stripeAccountId = account.id;
-      await pool.query(
-        `INSERT INTO stripe_accounts (user_id, stripe_account_id, details_submitted, charges_enabled)
-         VALUES ($1, $2, false, false)`,
-        [userId, stripeAccountId]
-      );
-    }
-
-    const session = await stripe.accountSessions.create({
-      account: stripeAccountId,
-      components: {
-        account_onboarding: { enabled: true },
-      },
+    const session = await createConnectAccountSession(userId, {
+      components,
+      requireProfile: mode !== "management",
     });
-
-    res.json({ client_secret: session.client_secret });
+    res.json(session);
   } catch (err) {
     console.error("Account session error:", err);
-    res.status(500).json({ message: "Failed to create account session" });
+    if (err.code === "PROFILE_INCOMPLETE") {
+      return res.status(400).json({
+        message: "Complete your profile before setting up payouts",
+        code: err.code,
+        missing_fields: err.missing_fields ?? [],
+      });
+    }
+    res.status(err.statusCode || 500).json({ message: "Failed to create account session" });
+  }
+};
+
+export const getConnectConfig = async (_req, res) => {
+  const publishableKey = process.env.STRIPE_PUBLISHABLE_KEY;
+  if (!publishableKey) {
+    return res.status(503).json({ message: "Stripe publishable key not configured" });
+  }
+  res.json({ publishable_key: publishableKey });
+};
+
+export const syncConnectProfile = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { stripeAccountId } = await ensureStripeConnectAccount(userId);
+    const result = await syncProfileToStripeAccount(userId, stripeAccountId);
+    res.json(result);
+  } catch (err) {
+    console.error("Connect profile sync error:", err);
+    if (err.code === "PROFILE_INCOMPLETE") {
+      return res.status(400).json({
+        message: "Complete your profile before setting up payouts",
+        code: err.code,
+        missing_fields: err.missing_fields ?? [],
+      });
+    }
+    res.status(err.statusCode || 500).json({ message: "Failed to sync profile to Stripe" });
   }
 };
 
@@ -296,66 +230,58 @@ export const createAccountSession = async (req, res) => {
 export const getConnectStatus = async (req, res) => {
   try {
     const userId = req.user.id;
+    const user = await loadUserConnectProfile(userId);
+    const profileReady = isUserPayoutProfileComplete(user);
+    const missingFields = profileReady ? [] : getMissingPayoutProfileFields(user);
+    const row = await getStoredStripeAccount(userId);
 
-    const result = await pool.query(
-      "SELECT * FROM stripe_accounts WHERE user_id = $1",
-      [userId]
-    );
-
-    if (result.rows.length === 0) {
-      return res.json({ connected: false, charges_enabled: false });
+    if (!row?.stripe_account_id) {
+      return res.json({
+        connected: false,
+        charges_enabled: false,
+        details_submitted: false,
+        profile_ready: profileReady,
+        missing_fields: missingFields,
+      });
     }
 
-    const row = result.rows[0];
-
-    // Refresh status from Stripe — the account may have been deleted or
-    // deauthorized, so handle Stripe errors gracefully instead of crashing.
-    let account;
     try {
-      account = await stripe.accounts.retrieve(row.stripe_account_id);
+      const status = await syncConnectAccountStatus(userId, row.stripe_account_id);
+      res.json({
+        ...status,
+        account_type: row.account_type || status.account_type || "express",
+        profile_ready: profileReady,
+        missing_fields: missingFields,
+      });
     } catch (stripeErr) {
       console.error("[Stripe] accounts.retrieve failed:", stripeErr?.message);
 
-      // If the account no longer exists on Stripe, treat as disconnected
       if (stripeErr?.code === "account_invalid" || stripeErr?.statusCode === 404) {
         await pool.query("DELETE FROM stripe_accounts WHERE user_id = $1", [userId]);
-        return res.json({ connected: false, charges_enabled: false });
+        return res.json({
+          connected: false,
+          charges_enabled: false,
+          details_submitted: false,
+          profile_ready: profileReady,
+          missing_fields: missingFields,
+        });
       }
 
-      // For other Stripe errors (network, key missing, etc.) return cached DB values
       return res.json({
         connected: true,
         charges_enabled: row.charges_enabled ?? false,
         details_submitted: row.details_submitted ?? false,
         stripe_account_id: row.stripe_account_id,
+        account_type: row.account_type || "express",
+        profile_ready: profileReady,
+        missing_fields: missingFields,
         cached: true,
       });
     }
-
-    // Update DB with latest status
-    await pool.query(
-      `UPDATE stripe_accounts
-       SET details_submitted = $1, charges_enabled = $2, updated_at = NOW()
-       WHERE user_id = $3`,
-      [account.details_submitted, account.charges_enabled, userId]
-    );
-
-    res.json({
-      connected: true,
-      charges_enabled: account.charges_enabled,
-      details_submitted: account.details_submitted,
-      stripe_account_id: row.stripe_account_id,
-    });
   } catch (err) {
     console.error("[Stripe] getConnectStatus error:", err);
     res.status(500).json({ message: "Failed to get Stripe status" });
   }
-};
-
-const CHECKOUT_TX_DESCRIPTION = {
-  full: "Payment for service",
-  deposit: "Dépôt — réservation",
-  balance: "Solde — prestation",
 };
 
 function needsBookingPaymentReconciliation(booking, payment) {
@@ -393,197 +319,6 @@ async function loadVerifyBookingSnapshot(bookingId) {
     booking: booking.rows[0] ?? null,
     paid: paidPayment.rows[0] ?? null,
   };
-}
-
-async function loadBookingForHourlyPayment(bookingId) {
-  const result = await pool.query(
-    `SELECT b.*, s.title, s.price AS service_price, s.pricing_mode AS service_pricing_mode,
-            s.price_max, s.estimated_hours AS service_estimated_hours,
-            s.deposit_enabled AS service_deposit_enabled,
-            s.deposit_type AS service_deposit_type,
-            s.deposit_value AS service_deposit_value,
-            CASE WHEN uc.account_type = 'company' THEN uc.company_name ELSE uc.full_name END AS client_name
-     FROM bookings b
-     JOIN services s ON s.id = b.service_id
-     JOIN users uc ON uc.id = b.client_id
-     WHERE b.id = $1`,
-    [bookingId],
-  );
-  const row = result.rows[0];
-  if (!row) return null;
-  return {
-    ...row,
-    price: row.custom_price ?? row.service_price,
-    pricing_mode: row.pricing_mode ?? row.service_pricing_mode,
-  };
-}
-
-function serviceMetaFromBookingRow(row) {
-  return {
-    pricing_mode: row.pricing_mode ?? row.service_pricing_mode,
-    price: row.price ?? row.service_price,
-    price_max: row.price_max,
-    estimated_hours: row.estimated_hours ?? row.service_estimated_hours,
-    ...resolveBookingDepositMeta(row),
-  };
-}
-
-function computeBalanceDueAfterDeposit(bookingRow, newPaidBase) {
-  const meta = serviceMetaFromBookingRow(bookingRow);
-  return computeBalanceDueCents(
-    { ...bookingRow, paid_service_base_cents: newPaidBase, balance_due_cents: 0 },
-    meta,
-  );
-}
-
-async function completeCheckoutPayment(session) {
-  await ensureDepositsAndCalendarSchema(pool);
-
-  const bookingId = session.metadata?.booking_id;
-  if (!bookingId) return;
-
-  const paymentIntentId = session.payment_intent;
-  const paymentRow = await pool.query(
-    `SELECT payment_kind, deposit_amount_cents, amount
-     FROM payments WHERE stripe_checkout_session_id = $1`,
-    [session.id],
-  );
-  const paymentKind =
-    session.metadata?.payment_kind || paymentRow.rows[0]?.payment_kind || "full";
-  const metaServiceCents = session.metadata?.service_price_cents;
-  let paidServiceCents =
-    metaServiceCents != null && metaServiceCents !== ""
-      ? Number(metaServiceCents)
-      : NaN;
-  if (!Number.isFinite(paidServiceCents) && paymentRow.rows[0]) {
-    paidServiceCents =
-      Number(paymentRow.rows[0].deposit_amount_cents) ||
-      Number(paymentRow.rows[0].amount) ||
-      0;
-  } else if (!Number.isFinite(paidServiceCents)) {
-    paidServiceCents = 0;
-  }
-
-  await pool.query(
-    `UPDATE payments
-     SET status = 'paid', stripe_payment_intent_id = $1, updated_at = NOW()
-     WHERE stripe_checkout_session_id = $2`,
-    [paymentIntentId, session.id],
-  );
-
-  const bookingRow = await loadBookingForHourlyPayment(bookingId);
-  const prevPaidBase = Number(bookingRow?.paid_service_base_cents || 0);
-  const newPaidBase = prevPaidBase + paidServiceCents;
-  const balanceDueCents = bookingRow
-    ? computeBalanceDueAfterDeposit(bookingRow, newPaidBase)
-    : 0;
-
-  if (paymentKind === "deposit") {
-    await pool.query(
-      `UPDATE bookings
-       SET payment_status = 'deposit_paid',
-           status = 'active',
-           paid_service_base_cents = $2,
-           balance_due_cents = $3
-       WHERE id = $1 AND status IN ('accepted', 'active')`,
-      [bookingId, newPaidBase, balanceDueCents],
-    );
-  } else if (paymentKind === "balance") {
-    const nextPaymentStatus = balanceDueCents <= 0 ? "paid" : "deposit_paid";
-    await pool.query(
-      `UPDATE bookings
-       SET paid_service_base_cents = $2,
-           balance_due_cents = $3,
-           payment_status = $4
-       WHERE id = $1`,
-      [bookingId, newPaidBase, balanceDueCents, nextPaymentStatus],
-    );
-  } else {
-    await pool.query(
-      `UPDATE bookings
-       SET payment_status = 'paid',
-           status = 'active',
-           paid_service_base_cents = CASE
-             WHEN $2 > 0 THEN paid_service_base_cents + $2
-             ELSE paid_service_base_cents
-           END,
-           balance_due_cents = 0
-       WHERE id = $1 AND status = 'accepted'`,
-      [bookingId, paidServiceCents],
-    );
-  }
-
-  const payoutBooking = await loadBookingForHourlyPayment(bookingId);
-  if (payoutBooking?.status === "completed" && payoutBooking.payment_status === "paid") {
-    await finalizeCompletion(payoutBooking).catch((err) =>
-      console.error("Finalize completion after payment failed for booking", bookingId, err.message),
-    );
-  }
-
-  const booking = await pool.query(
-    `SELECT b.client_id, b.worker_id, p.amount, p.payment_kind, s.title, s.image_url, s.image_urls,
-            CASE WHEN uw.account_type = 'company' THEN uw.company_name ELSE uw.full_name END AS worker_name,
-            CASE WHEN uc.account_type = 'company' THEN uc.company_name ELSE uc.full_name END AS client_name,
-            uc.email AS client_email
-     FROM bookings b
-     JOIN services s ON b.service_id = s.id
-     JOIN users uw ON b.worker_id = uw.id
-     JOIN users uc ON b.client_id = uc.id
-     JOIN payments p ON p.booking_id = b.id AND p.stripe_checkout_session_id = $2
-     WHERE b.id = $1`,
-    [bookingId, session.id],
-  );
-
-  if (booking.rows.length === 0) return;
-
-  const {
-    client_id,
-    amount,
-    payment_kind: dbPaymentKind,
-    title,
-    image_url,
-    image_urls,
-    worker_name,
-    client_name,
-    client_email,
-  } = booking.rows[0];
-  const kind = dbPaymentKind || paymentKind;
-  const amountDollars = (amount / 100).toFixed(2);
-  const txDescription = CHECKOUT_TX_DESCRIPTION[kind] || CHECKOUT_TX_DESCRIPTION.full;
-
-  const existing = await pool.query(
-    `SELECT id FROM transactions
-     WHERE booking_id = $1 AND type = 'debit' AND description = $2`,
-    [bookingId, txDescription],
-  );
-  if (existing.rows.length === 0) {
-    await pool.query(
-      `INSERT INTO transactions (user_id, booking_id, type, amount, description, other_user_name, listing_title)
-       VALUES ($1, $2, 'debit', $3, $4, $5, $6)`,
-      [client_id, bookingId, amountDollars, txDescription, worker_name, title],
-    );
-    await pool.query(
-      `INSERT INTO wallets (user_id, balance, total_spent)
-       VALUES ($1, 0, $2)
-       ON CONFLICT (user_id) DO UPDATE
-       SET total_spent = wallets.total_spent + $2`,
-      [client_id, amountDollars],
-    );
-    const clientLang = await getUserLang(client_id);
-    notifyPaymentReceipt(client_email, client_name, title, amountDollars, worker_name, bookingId, image_url, image_urls, clientLang);
-  }
-
-  const servicePriceCents = Number(session.metadata?.service_price_cents ?? 0);
-  if (servicePriceCents > 0 && paymentKind !== "deposit") {
-    const buyerCommission = (Math.round(servicePriceCents * BUYER_COMMISSION_RATE) / 100).toFixed(2);
-    await pool.query(
-      `INSERT INTO platform_earnings (booking_id, type, amount, description)
-       VALUES ($1, 'buyer_commission', $2, 'Commission acheteur 5% — ' || $3)
-       ON CONFLICT (booking_id, type) DO UPDATE
-       SET amount = (platform_earnings.amount::numeric + EXCLUDED.amount::numeric)::numeric(10,2)`,
-      [bookingId, buyerCommission, title],
-    );
-  }
 }
 
 // ─── Create Stripe Checkout Session (client pays for accepted booking) ────────
@@ -747,26 +482,11 @@ export const createCheckoutSession = async (req, res) => {
         ? (b.client_company_name || null)
         : (b.client_full_name || null);
 
-      const customer = await stripe.customers.create({
+      stripeCustomerId = await getOrCreateStripeCustomer(clientId, {
         email: b.client_email,
-        ...(billingAddress.full_name || defaultClientName
-          ? { name: billingAddress.full_name || defaultClientName }
-          : {}),
-        address: {
-          line1: billingAddress.address_line1,
-          city: billingAddress.city,
-          state: normalizeProvince(billingAddress.province),
-          country: "CA",
-          ...(billingAddress.postal_code ? { postal_code: billingAddress.postal_code } : {}),
-        },
-        metadata: {
-          booking_id,
-          user_id: clientId,
-          billing_address_id,
-        },
+        name: billingAddress.full_name || defaultClientName || undefined,
+        address: billingAddressToStripeAddress(billingAddress),
       });
-
-      stripeCustomerId = customer.id;
     }
 
     // Update the booking's tax_rate to reflect the billing address province used
@@ -839,6 +559,9 @@ export const createCheckoutSession = async (req, res) => {
         payment_kind: checkoutKind,
         service_price_cents: String(servicePriceCents),
         deposit_amount_cents: String(depositAmountCents),
+        buyer_commission_cents: String(buyerCommissionCents),
+        taxes_cents: String(taxesCents),
+        total_cents: String(totalCents),
         ...(billing_address_id ? { billing_address_id: String(billing_address_id) } : {}),
       },
     });
@@ -882,6 +605,32 @@ export const stripeWebhook = async (req, res) => {
         await completeCheckoutPayment(session);
       } catch (err) {
         console.error("Error processing payment webhook:", err);
+      }
+    }
+  }
+
+  if (event.type === "account.updated") {
+    const account = event.data.object;
+    try {
+      const row = await pool.query(
+        "SELECT user_id FROM stripe_accounts WHERE stripe_account_id = $1",
+        [account.id],
+      );
+      if (row.rows[0]?.user_id) {
+        await syncConnectAccountStatus(row.rows[0].user_id, account.id);
+      }
+    } catch (err) {
+      console.error("Error processing account.updated webhook:", err);
+    }
+  }
+
+  if (event.type === "payment_intent.succeeded") {
+    const paymentIntent = event.data.object;
+    if (paymentIntent.metadata?.booking_id && paymentIntent.metadata?.source === "uneden_elements") {
+      try {
+        await completePaymentFromIntent(paymentIntent);
+      } catch (err) {
+        console.error("Error processing payment_intent.succeeded:", err);
       }
     }
   }
@@ -966,6 +715,21 @@ export const releasePayment = async (req, res) => {
       currency: p.currency || "cad",
       destination: b.stripe_account_id,
       source_transaction: sourceTransaction,
+      metadata: {
+        booking_id: String(booking_id),
+        worker_id: String(b.worker_id),
+        transfer_type: "manual_release",
+      },
+    });
+
+    const workerCommissionCents = Math.round(workerCommissionFromNet(transferAmount / 100) * 100);
+    await recordWorkerPayoutLedger({
+      bookingId: booking_id,
+      workerId: b.worker_id,
+      transferId: transfer.id,
+      transferCents: transferAmount,
+      workerCommissionCents,
+      description: `Versement manuel — réservation ${booking_id}`,
     });
 
     // Update payment record
@@ -1105,11 +869,13 @@ export const verifyPayment = async (req, res) => {
     if (payment.rows.length === 0) {
       const { booking, paid } = await loadVerifyBookingSnapshot(booking_id);
 
-      if (paid && needsBookingPaymentReconciliation(booking, paid) && paid.stripe_checkout_session_id) {
-        const session = await stripe.checkout.sessions.retrieve(paid.stripe_checkout_session_id);
-        if (session.payment_status === "paid") {
-          await completeCheckoutPayment(session);
-          return respondWithSnapshot({ confirmed: true, already_confirmed: true, reconciled: true });
+      if (paid && needsBookingPaymentReconciliation(booking, paid)) {
+        if (paid.stripe_checkout_session_id) {
+          const session = await stripe.checkout.sessions.retrieve(paid.stripe_checkout_session_id);
+          if (session.payment_status === "paid") {
+            await completeCheckoutPayment(session);
+            return respondWithSnapshot({ confirmed: true, already_confirmed: true, reconciled: true });
+          }
         }
       }
 
@@ -1121,7 +887,21 @@ export const verifyPayment = async (req, res) => {
 
     const p = payment.rows[0];
 
-    // Verify with Stripe that the session was actually paid
+    // PaymentIntent flow (integrated Elements)
+    if (p.stripe_payment_intent_id && !p.stripe_checkout_session_id) {
+      const pi = await stripe.paymentIntents.retrieve(p.stripe_payment_intent_id);
+      if (pi.status !== "succeeded") {
+        return res.json({ confirmed: false, stripe_status: pi.status });
+      }
+      await completePaymentFromIntent(pi);
+      return respondWithSnapshot({ confirmed: true });
+    }
+
+    // Legacy Checkout Session flow
+    if (!p.stripe_checkout_session_id) {
+      return respondWithSnapshot({ confirmed: false, message: "No checkout session found" });
+    }
+
     const session = await stripe.checkout.sessions.retrieve(p.stripe_checkout_session_id);
 
     if (session.payment_status !== "paid") {

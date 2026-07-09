@@ -1,10 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { AlertCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import BillingAddressSelector, { type BillingAddress } from "@/components/payment/BillingAddressSelector";
+import PaymentCheckoutForm from "@/components/payment/PaymentCheckoutForm";
 import { getTaxRate, getTaxLabel, formatTaxRate } from "@/lib/taxes";
 import { getIntlLocale } from "@/lib/locale";
 import { PaymentDepositRows } from "@/components/payment/PaymentDepositRows";
@@ -27,6 +29,7 @@ interface Props {
   checkoutKind?: CheckoutKind | null;
   fullServiceBase?: number | null;
   pricingMode?: string | null;
+  onPaymentSuccess?: () => void;
 }
 
 export default function PaymentInlinePanel({
@@ -40,16 +43,30 @@ export default function PaymentInlinePanel({
   checkoutKind = "full",
   fullServiceBase = null,
   pricingMode = null,
+  onPaymentSuccess,
 }: Props) {
   const { t, i18n } = useTranslation();
+  const router = useRouter();
   const checkoutLocale = getIntlLocale(i18n.language, { fr: "fr-CA", en: "en" });
 
   const [billingAddresses, setBillingAddresses] = useState<BillingAddress[]>([]);
   const [selectedAddress, setSelectedAddress] = useState<BillingAddress | null>(null);
   const [billingConfirmed, setBillingConfirmed] = useState(false);
+  const [publishableKey, setPublishableKey] = useState("");
+  const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [preparingPayment, setPreparingPayment] = useState(false);
   const [paying, setPaying] = useState(false);
   const [error, setError] = useState("");
   const [loadingAddresses, setLoadingAddresses] = useState(true);
+
+  useEffect(() => {
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/payments/config`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.publishable_key) setPublishableKey(data.publishable_key);
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (!accessToken) return;
@@ -64,6 +81,10 @@ export default function PaymentInlinePanel({
       })
       .finally(() => setLoadingAddresses(false));
   }, [accessToken]);
+
+  useEffect(() => {
+    setClientSecret(null);
+  }, [selectedAddress?.id, checkoutKind]);
 
   const handleAddAddress = async (data: Omit<BillingAddress, "id" | "is_default">) => {
     const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/billing-addresses`, {
@@ -116,12 +137,15 @@ export default function PaymentInlinePanel({
     }
   };
 
-  const handlePay = async () => {
-    if (!billingConfirmed) { setError(t("payment.mustConfirmBilling")); return; }
-    setPaying(true);
+  const handlePreparePayment = async () => {
+    if (!billingConfirmed) {
+      setError(t("payment.mustConfirmBilling"));
+      return;
+    }
+    setPreparingPayment(true);
     setError("");
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/payments/checkout`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/payments/intent`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
         body: JSON.stringify({
@@ -132,10 +156,38 @@ export default function PaymentInlinePanel({
         }),
       });
       const data = await res.json();
-      if (!res.ok) { setError(data.message || t("payNowButton.startError")); setPaying(false); return; }
-      window.location.href = data.url;
+      if (!res.ok) {
+        setError(data.message || t("payment.paymentFailed"));
+        setPreparingPayment(false);
+        return;
+      }
+      setClientSecret(data.client_secret);
+      setPreparingPayment(false);
     } catch {
-      setError(t("payNowButton.networkError"));
+      setError(t("payment.networkError"));
+      setPreparingPayment(false);
+    }
+  };
+
+  const handlePaymentSuccess = async () => {
+    setPaying(true);
+    setError("");
+    try {
+      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/payments/verify`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({ booking_id: bookingId }),
+      });
+      if (onPaymentSuccess) {
+        onPaymentSuccess();
+      } else {
+        router.push(`/payment/success?booking_id=${bookingId}`);
+      }
+    } catch {
+      setError(t("payment.networkError"));
       setPaying(false);
     }
   };
@@ -189,10 +241,15 @@ export default function PaymentInlinePanel({
       ? t("payment.balanceAmount")
       : t("payment.servicePrice");
 
+  const payButtonLabel = isDepositCheckout || isFullDepositCheckout
+    ? t("payment.payDepositLabel")
+    : isBalanceCheckout
+      ? t("payment.payBalanceLabel")
+      : t("payment.payNowLabel");
+
   return (
     <div className="flex flex-col flex-1 overflow-hidden">
       <div className="overflow-y-auto flex-1 px-5 py-4 space-y-4">
-        {/* Price summary */}
         <div className="bg-white rounded-xl border border-gray-100 px-4 py-3 space-y-1.5 text-sm">
           <p className="text-base font-bold text-gray-900 mb-2">{bookingTitle}</p>
           {isBalanceCheckout && (
@@ -223,20 +280,20 @@ export default function PaymentInlinePanel({
           )}
           {!isDepositCheckout && (
             <>
-          <div className="flex justify-between text-gray-500">
-            <div>
-              <div>{t("payment.buyerCommission")}</div>
-              <div className="text-xs text-red-400">{t("payment.nonRefundable")}</div>
-            </div>
-            <span>{fmt(commission)} $</span>
-          </div>
-          <div className="flex justify-between text-gray-500">
-            <div>
-              <div>{t("payment.taxes")} ({formatTaxRate(taxRate)}%)</div>
-              <div className="text-xs text-gray-400">{taxLabel}</div>
-            </div>
-            <span>{fmt(taxes)} $</span>
-          </div>
+              <div className="flex justify-between text-gray-500">
+                <div>
+                  <div>{t("payment.buyerCommission")}</div>
+                  <div className="text-xs text-red-400">{t("payment.nonRefundable")}</div>
+                </div>
+                <span>{fmt(commission)} $</span>
+              </div>
+              <div className="flex justify-between text-gray-500">
+                <div>
+                  <div>{t("payment.taxes")} ({formatTaxRate(taxRate)}%)</div>
+                  <div className="text-xs text-gray-400">{taxLabel}</div>
+                </div>
+                <span>{fmt(taxes)} $</span>
+              </div>
             </>
           )}
           <div className="flex justify-between font-bold text-base border-t border-gray-200 pt-2 mt-1">
@@ -245,7 +302,6 @@ export default function PaymentInlinePanel({
           </div>
         </div>
 
-        {/* Billing address */}
         <div className="bg-white rounded-xl border border-gray-200 px-4 py-4">
           {loadingAddresses ? (
             <div className="flex items-center gap-2 text-sm text-gray-400">
@@ -265,7 +321,6 @@ export default function PaymentInlinePanel({
           )}
         </div>
 
-        {/* Confirmation checkbox */}
         <label className="flex items-start gap-3 cursor-pointer select-none">
           <input
             type="checkbox"
@@ -286,30 +341,33 @@ export default function PaymentInlinePanel({
         )}
       </div>
 
-      {/* Footer */}
       <div className="px-5 py-4 border-t border-gray-100 shrink-0">
-        <Button
-          onClick={handlePay}
-          disabled={paying || !billingConfirmed || !selectedAddress}
-          className="w-full h-12 text-base font-semibold bg-green-700 hover:bg-green-800 text-white rounded-xl disabled:opacity-50"
-        >
-          {paying ? (
-            <span className="flex items-center gap-2">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              {t("payment.redirectingToStripe")}
-            </span>
-          ) : (
-            <span>
-              {isDepositCheckout
-                ? t("payment.payDepositLabel")
-                : isFullDepositCheckout
-                  ? t("payment.payDepositLabel")
-                : isBalanceCheckout
-                  ? t("payment.payBalanceLabel")
-                  : t("payment.payNowLabel")}
-            </span>
-          )}
-        </Button>
+        {clientSecret && publishableKey ? (
+          <PaymentCheckoutForm
+            clientSecret={clientSecret}
+            publishableKey={publishableKey}
+            disabled={paying || !billingConfirmed || !selectedAddress}
+            submitLabel={payButtonLabel}
+            processingLabel={t("payment.processingPayment")}
+            onSuccess={handlePaymentSuccess}
+            onError={(message) => setError(message)}
+          />
+        ) : (
+          <Button
+            onClick={handlePreparePayment}
+            disabled={preparingPayment || paying || !billingConfirmed || !selectedAddress || !publishableKey}
+            className="w-full h-12 text-base font-semibold bg-green-700 hover:bg-green-800 text-white rounded-xl disabled:opacity-50"
+          >
+            {preparingPayment ? (
+              <span className="flex items-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                {t("payment.preparingPayment")}
+              </span>
+            ) : (
+              <span>{t("payment.continueToPayment")}</span>
+            )}
+          </Button>
+        )}
         <p className="text-xs text-center text-gray-400 mt-2">{t("payment.securedByStripe")}</p>
       </div>
     </div>

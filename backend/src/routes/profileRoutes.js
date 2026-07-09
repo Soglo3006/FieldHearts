@@ -1,6 +1,6 @@
 import express from "express";
 import { protect, adminOnly, optionalProtect } from "../middleware/authMiddleware.js";
-import { initializeAccount, completeProfile, GetMyProfile, UpdateMyProfile, getUserProfile, getSettings, updateSettings, searchProfiles, suspendUser, getAllUsers } from "../controllers/profileController.js";
+import { initializeAccount, completeProfile, GetMyProfile, saveOnboardingBasicInfo, UpdateMyProfile, getUserProfile, getSettings, updateSettings, searchProfiles, suspendUser, getAllUsers } from "../controllers/profileController.js";
 import pool from "../config/db.js";
 
 const router = express.Router();
@@ -27,6 +27,7 @@ router.get("/me", protect, GetMyProfile);
 router.put("/me", protect, UpdateMyProfile);
 router.put("/initialize", protect, initializeAccount);
 router.put("/complete", protect, completeProfile);
+router.put("/onboarding-basic", protect, saveOnboardingBasicInfo);
 router.get("/settings", protect, getSettings);
 router.put("/settings", protect, updateSettings);
 router.get("/search", protect, searchProfiles);

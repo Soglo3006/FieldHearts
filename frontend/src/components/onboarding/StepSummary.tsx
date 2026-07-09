@@ -1,17 +1,54 @@
 "use client";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { CheckCircle2, Clock, CreditCard } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import AppImage from "@/components/ui/AppImage";
 import { OnboardingData } from "./onboardingTypes";
+import type { ConnectStatus } from "@/components/stripe/StripePayoutSetup";
 
 interface Props {
   data: OnboardingData;
   accountType: string;
+  accessToken?: string;
 }
 
-export default function StepSummary({ data, accountType }: Props) {
+export default function StepSummary({ data, accountType, accessToken }: Props) {
   const { t } = useTranslation();
+  const [payoutStatus, setPayoutStatus] = useState<ConnectStatus | null>(null);
+
+  useEffect(() => {
+    if (!accessToken) return;
+    let cancelled = false;
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/payments/connect/status`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((status: ConnectStatus | null) => {
+        if (!cancelled && status) setPayoutStatus(status);
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [accessToken]);
+
+  const payoutLabel = payoutStatus?.charges_enabled
+    ? t("onboarding.payoutConfigured")
+    : payoutStatus?.details_submitted
+      ? t("onboarding.payoutVerifying")
+      : t("onboarding.payoutLater");
+
+  const PayoutIcon = payoutStatus?.charges_enabled
+    ? CheckCircle2
+    : payoutStatus?.details_submitted
+      ? Clock
+      : CreditCard;
+
+  const payoutIconClass = payoutStatus?.charges_enabled
+    ? "text-green-600"
+    : payoutStatus?.details_submitted
+      ? "text-amber-500"
+      : "text-gray-400";
 
   return (
     <Card className="p-6 sm:p-8 animate-in fade-in duration-300">
@@ -122,6 +159,14 @@ export default function StepSummary({ data, accountType }: Props) {
             </div>
           </div>
         )}
+
+        <div>
+          <h4 className="font-semibold text-gray-900 mb-2">{t("onboarding.payoutSectionTitle")}</h4>
+          <div className="flex items-start gap-2 text-gray-700">
+            <PayoutIcon className={`h-5 w-5 shrink-0 mt-0.5 ${payoutIconClass}`} />
+            <p>{payoutLabel}</p>
+          </div>
+        </div>
 
         <p className="text-sm text-gray-500 italic">{t("onboarding.confirmReady")}</p>
         </div>

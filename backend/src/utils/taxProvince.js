@@ -51,6 +51,45 @@ export async function resolveClientTaxProvince(pool, clientId) {
   return normalizeProvinceCode(clientResult.rows[0]?.province ?? null);
 }
 
+function hasTaxLocationText(value) {
+  return Boolean(value && String(value).trim());
+}
+
+/** Buyer needs street, city, province, postal code (profile or billing) before booking an offer. */
+export async function isClientTaxLocationComplete(pool, clientId) {
+  const billing = await pool.query(
+    `SELECT address_line1, city, province, postal_code
+     FROM billing_addresses
+     WHERE user_id = $1
+     ORDER BY is_default DESC, created_at ASC
+     LIMIT 1`,
+    [clientId],
+  );
+  const b = billing.rows[0];
+  if (
+    b &&
+    hasTaxLocationText(b.address_line1) &&
+    hasTaxLocationText(b.city) &&
+    hasTaxLocationText(b.province) &&
+    hasTaxLocationText(b.postal_code)
+  ) {
+    return true;
+  }
+
+  const user = await pool.query(
+    `SELECT address, city, province, postal_code FROM users WHERE id = $1`,
+    [clientId],
+  );
+  const u = user.rows[0];
+  return Boolean(
+    u &&
+    hasTaxLocationText(u.address) &&
+    hasTaxLocationText(u.city) &&
+    hasTaxLocationText(u.province) &&
+    hasTaxLocationText(u.postal_code),
+  );
+}
+
 /** SQL fragment: billing province first, then users.province (alias `u` required). */
 export const CLIENT_TAX_PROVINCE_SQL = `
   COALESCE(

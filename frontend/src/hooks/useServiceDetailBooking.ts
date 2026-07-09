@@ -8,9 +8,11 @@ type BookingState = "idle" | "loading" | "success" | "error";
 
 type Options = {
   serviceId: string;
+  canOpenBooking?: () => boolean;
+  onBookingBlocked?: () => void;
 };
 
-export function useServiceDetailBooking({ serviceId }: Options) {
+export function useServiceDetailBooking({ serviceId, canOpenBooking, onBookingBlocked }: Options) {
   const { requireAuth, notifyAuthActionReady } = useAuthGate();
   const [showBookingModal, setShowBookingModal] = useState(false);
   const [bookingState, setBookingState] = useState<BookingState>("idle");
@@ -19,11 +21,15 @@ export function useServiceDetailBooking({ serviceId }: Options) {
   const [pendingBooking, setPendingBooking] = useState(false);
 
   const openBookingFlow = useCallback(() => {
+    if (canOpenBooking && !canOpenBooking()) {
+      onBookingBlocked?.();
+      return;
+    }
     setBookingState("idle");
     setBookingNote("");
     setShowBookingModal(true);
     notifyAuthActionReady();
-  }, [notifyAuthActionReady]);
+  }, [canOpenBooking, onBookingBlocked, notifyAuthActionReady]);
 
   const queueBookingFlow = useCallback(() => {
     setPendingBooking(true);
@@ -57,7 +63,7 @@ export function useServiceDetailBooking({ serviceId }: Options) {
       return;
     }
     openBookingFlow();
-  }, [requireAuth, serviceId, queueBookingFlow, openBookingFlow]);
+  }, [requireAuth, serviceId, queueBookingFlow, openBookingFlow, canOpenBooking, onBookingBlocked]);
 
   return {
     showBookingModal,

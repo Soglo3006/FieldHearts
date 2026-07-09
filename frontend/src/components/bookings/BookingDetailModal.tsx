@@ -2036,6 +2036,7 @@ export default function BookingDetailModal({
               }
               depositAmountCents={booking.deposit_amount_cents}
               pricingMode={booking.pricing_mode}
+              onPaymentSuccess={refreshBookingFromApi}
             />
           </div>{/* end panel 5 */}
 

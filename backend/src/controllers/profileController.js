@@ -1,4 +1,5 @@
 import pool from "../config/db.js";
+import { resetStripeConnectAccount } from "../services/stripeConnectService.js";
 import { sanitizeText } from "../utils/validate.js";
 import { createClient } from '@supabase/supabase-js';
 import { notifyWelcome } from '../services/emailService.js';
@@ -110,6 +111,13 @@ export const initializeAccount = async (req, res) => {
         }
 
         const userId = req.user.id;
+        const existing = await pool.query(
+            "SELECT account_type FROM users WHERE id = $1",
+            [userId],
+        );
+        const previousType = existing.rows[0]?.account_type;
+        const typeChanged = Boolean(previousType && previousType !== account_type);
+
         const meta = req.authUser?.user_metadata || {};
         const firstName = (meta.first_name || "").trim();
         const lastName = (meta.last_name || "").trim();
@@ -127,6 +135,20 @@ export const initializeAccount = async (req, res) => {
             full_name: fullName,
             onboarding_intro_completed: true,
             profile_completed: profileCompleted,
+            ...(typeChanged
+                ? {
+                    phone: "",
+                    address: "",
+                    city: "",
+                    province: "",
+                    postal_code: "",
+                    bio: "",
+                    profession: "",
+                    industry: "",
+                    company_name: "",
+                    team_size: "",
+                }
+                : {}),
         };
 
         const { error: metaError } = await supabaseAdmin.auth.admin.updateUserById(
@@ -142,19 +164,50 @@ export const initializeAccount = async (req, res) => {
             });
         }
 
-        const result = await pool.query(
-            `UPDATE users
-             SET account_type = $1,
-                 full_name = $2,
-                 profile_completed = $3,
-                 updated_at = NOW()
-             WHERE id = $4
-             RETURNING *`,
-            [account_type, fullName, profileCompleted, userId]
-        );
+        const result = typeChanged
+            ? await pool.query(
+                `UPDATE users
+                 SET account_type = $1,
+                     full_name = $2,
+                     profile_completed = $3,
+                     phone = NULL,
+                     address = NULL,
+                     city = NULL,
+                     province = NULL,
+                     postal_code = NULL,
+                     bio = NULL,
+                     profession = NULL,
+                     industry = NULL,
+                     company_name = NULL,
+                     team_size = NULL,
+                     skills = '[]',
+                     languages = '[]',
+                     experiences = '[]',
+                     portfolio = '[]',
+                     updated_at = NOW()
+                 WHERE id = $4
+                 RETURNING *`,
+                [account_type, fullName, profileCompleted, userId],
+            )
+            : await pool.query(
+                `UPDATE users
+                 SET account_type = $1,
+                     full_name = $2,
+                     profile_completed = $3,
+                     updated_at = NOW()
+                 WHERE id = $4
+                 RETURNING *`,
+                [account_type, fullName, profileCompleted, userId],
+            );
 
         if (result.rows.length === 0) {
             return res.status(404).json({ message: "User not found" });
+        }
+
+        if (typeChanged) {
+            await resetStripeConnectAccount(userId).catch((err) => {
+                console.warn("[Stripe] reset on account type change failed:", err?.message);
+            });
         }
 
         res.json({
@@ -374,6 +427,55 @@ export const GetMyProfile = async (req, res) => {
     } catch (err) {
         console.error(err);
         res.status(500).json({ message: "Server error while fetching profile" });
+    }
+};
+
+/** Persist step-1 fields during onboarding without marking profile_completed. */
+export const saveOnboardingBasicInfo = async (req, res) => {
+    try {
+        const {
+            account_type,
+            full_name,
+            phone,
+            address,
+            city,
+            province,
+            postal_code,
+            company_name,
+        } = req.body;
+
+        const normalizedPostalCode = normalizePostalCode(postal_code);
+        const normalizedProvince = normalizeProvinceCode(province);
+
+        await pool.query(
+            `UPDATE users SET
+                account_type = COALESCE(NULLIF($1, ''), account_type),
+                full_name = COALESCE(NULLIF($2, ''), full_name),
+                phone = COALESCE(NULLIF($3, ''), phone),
+                address = COALESCE(NULLIF($4, ''), address),
+                city = COALESCE(NULLIF($5, ''), city),
+                province = COALESCE(NULLIF($6, ''), province),
+                postal_code = COALESCE($7, postal_code),
+                company_name = COALESCE(NULLIF($8, ''), company_name),
+                updated_at = NOW()
+            WHERE id = $9`,
+            [
+                account_type || null,
+                full_name || null,
+                phone || null,
+                address || null,
+                city || null,
+                normalizedProvince || province || null,
+                normalizedPostalCode,
+                company_name || null,
+                req.user.id,
+            ],
+        );
+
+        res.json({ ok: true });
+    } catch (err) {
+        console.error("saveOnboardingBasicInfo error:", err);
+        res.status(500).json({ message: "Failed to save basic profile info" });
     }
 };
 

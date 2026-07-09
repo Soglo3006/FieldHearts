@@ -1,5 +1,6 @@
 import express from "express";
 import { getWallet, getTransactions, exportTransactions, triggerPayout, getPlatformEarnings, getPayoutDetails, getPendingDisputeDetails, getApprovedPayoutDetails, getEarnedDetails, getSpentDetails } from "../controllers/walletController.js";
+import { getLedgerReconciliationReport } from "../controllers/ledgerController.js";
 import { protect, adminOnly } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
@@ -14,5 +15,6 @@ router.get("/payout-details", protect, getPayoutDetails);
 router.get("/export", protect, adminOnly, exportTransactions);
 router.post("/payout/trigger", protect, adminOnly, triggerPayout);
 router.get("/platform-earnings", protect, adminOnly, getPlatformEarnings);
+router.get("/ledger/reconciliation", protect, adminOnly, getLedgerReconciliationReport);
 
 export default router;

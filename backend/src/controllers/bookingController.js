@@ -99,6 +99,7 @@ function appendDepositSets(sets, params, depositOverride, startIndex) {
 
 import {
   getTaxRateForProvince,
+  isClientTaxLocationComplete,
   resolveClientTaxProvince,
 } from "../utils/taxProvince.js";
 
@@ -176,6 +177,18 @@ export const createBooking = async (req, res) => {
       [req.user.id]
     );
     const clientName = applicant.rows[0].display_name;
+
+    if (!isLooking) {
+      const taxLocationComplete = await isClientTaxLocationComplete(pool, client_id);
+      if (!taxLocationComplete) {
+        return res.status(400).json({
+          message:
+            req.lang === "en"
+              ? "Complete your address (street, city, province, and postal code) in your profile before requesting a booking."
+              : "Complétez votre adresse (rue, ville, province et code postal) dans votre profil avant de faire une demande de réservation.",
+        });
+      }
+    }
 
     // Tax rate based on the client's (buyer's) billing province when available
     const clientProvince = await resolveClientTaxProvince(pool, client_id);

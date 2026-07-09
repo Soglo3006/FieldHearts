@@ -18,9 +18,19 @@ interface Props {
   open: boolean;
   onClose: () => void;
   accountType?: string | null;
+  titleKey?: string;
+  descKey?: string;
+  targetStep?: number;
 }
 
-export default function CompleteProfileModal({ open, onClose, accountType }: Props) {
+export default function CompleteProfileModal({
+  open,
+  onClose,
+  accountType,
+  titleKey = "profile.completeProfileRequired",
+  descKey = "profile.completeProfileRequiredDesc",
+  targetStep,
+}: Props) {
   const { t } = useTranslation();
   const router = useRouter();
   const { user } = useAuth();
@@ -29,7 +39,7 @@ export default function CompleteProfileModal({ open, onClose, accountType }: Pro
   const handleComplete = () => {
     const type = accountType ?? profile?.account_type ?? user?.user_metadata?.account_type;
     onClose();
-    router.push(profileCompletionPath(type));
+    router.push(profileCompletionPath(type, targetStep));
   };
 
   return (
@@ -37,10 +47,10 @@ export default function CompleteProfileModal({ open, onClose, accountType }: Pro
       <DialogContent className="max-w-sm text-center">
         <DialogHeader className="items-center">
           <DialogTitle className="text-lg font-bold text-gray-900">
-            {t("profile.completeProfileRequired")}
+            {t(titleKey)}
           </DialogTitle>
           <DialogDescription className="text-sm text-gray-500 mt-1">
-            {t("profile.completeProfileRequiredDesc")}
+            {t(descKey)}
           </DialogDescription>
         </DialogHeader>
         <div className="flex flex-col gap-2 mt-2">

@@ -8,6 +8,7 @@ import {
 import stripe from "../config/stripe.js";
 import { notifyPayoutReceived } from "./emailService.js";
 import { createNotification, getUserLang } from "./notificationService.js";
+import { recordWorkerPayoutLedger } from "./ledgerService.js";
 
 const MIN_BUSINESS_DAYS = 5;             // money must sit 5 business days before payout
 
@@ -144,12 +145,17 @@ export async function processUserPayout(userId) {
     }
 
     try {
-      await stripe.transfers.create({
+      const transfer = await stripe.transfers.create({
         amount: transferCents,
         currency: "cad",
         destination: stripeAccountId,
         source_transaction: sourceTransaction,
         description: `Versement bi-mensuel — réservation ${row.booking_id}`,
+        metadata: {
+          booking_id: String(row.booking_id),
+          worker_id: String(userId),
+          transfer_type: "biweekly_payout",
+        },
       });
 
       // Mark booking + payment as transferred
@@ -168,6 +174,15 @@ export async function processUserPayout(userId) {
          VALUES ($1, 'worker_commission', $2, $3)`,
         [row.booking_id, workerCommission, `Commission vendeur ${WORKER_COMMISSION_RATE * 100}% au versement`]
       );
+
+      await recordWorkerPayoutLedger({
+        bookingId: row.booking_id,
+        workerId: userId,
+        transferId: transfer.id,
+        transferCents,
+        workerCommissionCents: Math.round(Number(workerCommission) * 100),
+        description: `Versement bi-mensuel — réservation ${row.booking_id}`,
+      });
 
       totalTransferredCents += transferCents;
       processedBookings.push(row.booking_id);

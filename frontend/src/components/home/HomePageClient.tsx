@@ -7,7 +7,7 @@ import Link from "next/link";
 import { needsOnboardingSetup } from "@/lib/onboarding";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useTransition, type MouseEvent } from "react";
 import { Grid3x3 } from "lucide-react";
 import { useJsApiLoader } from "@react-google-maps/api";
 import { GOOGLE_MAPS_LIBRARIES } from "@/lib/googleMapsConfig";
@@ -26,6 +26,9 @@ import { ListingCardSubtitle, ListingCardPriceRow, ListingCardTitle } from "@/co
 import { formatListingCategoryLine } from "@/lib/listingTags";
 import { formatListingPriceLine } from "@/lib/listingPrice";
 import { HomeListingCardSkeleton } from "@/components/home/HomeSkeleton";
+import LinkLabelWithLoadingSpinner from "@/components/ui/LinkLabelWithLoadingSpinner";
+import { PostPublishLink, usePostPublishNavigating } from "@/components/navigation/PostPublishLink";
+import { cn } from "@/lib/utils";
 
 const CityAutocomplete = dynamic(() => import("@/components/ui/CityAutocomplete"), { ssr: false });
 const toKey = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
@@ -151,6 +154,18 @@ function ListingCard({
         />
       </Link>
     </div>
+  );
+}
+
+function HomeCtaPostLabel() {
+  const { t } = useTranslation();
+  const isNavigating = usePostPublishNavigating();
+
+  return (
+    <LinkLabelWithLoadingSpinner
+      label={t("home.postListing")}
+      loading={isNavigating}
+    />
   );
 }
 
@@ -341,6 +356,33 @@ export default function HomePageClient({
       ? `/listings?${buildLocationQuery(debouncedLocation, resolvedLocationCoords ?? locationCoords)}`
       : "/listings";
 
+  const [isListingsNavigating, startListingsNavigation] = useTransition();
+  const [isLoginNavigating, startLoginNavigation] = useTransition();
+
+  const onViewAllListingsClick = (e: MouseEvent<HTMLAnchorElement>) => {
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+    if (isListingsNavigating) {
+      e.preventDefault();
+      return;
+    }
+    e.preventDefault();
+    startListingsNavigation(() => {
+      router.push(listingsBrowseHref);
+    });
+  };
+
+  const onLoginClick = (e: MouseEvent<HTMLAnchorElement>) => {
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+    if (isLoginNavigating) {
+      e.preventDefault();
+      return;
+    }
+    e.preventDefault();
+    startLoginNavigation(() => {
+      router.push("/login");
+    });
+  };
+
   return (
     <div className="min-h-screen bg-white text-black">
       <main className="flex-1">
@@ -457,11 +499,30 @@ export default function HomePageClient({
                   <p className="text-sm sm:text-base text-green-100 max-w-xl mx-auto">
                     {user ? t("home.ctaPostSubtitle") : t("home.ctaSubtitle")}
                   </p>
-                  <Link href={user ? "/post" : "/login"}>
-                    <Button className="mt-5 cursor-pointer bg-white text-green-900 hover:bg-green-50 shadow-md">
-                      {user ? t("home.postListing") : t("home.signIn")}
-                    </Button>
-                  </Link>
+                  {user ? (
+                    <PostPublishLink className="inline-block">
+                      <Button className="mt-5 flex cursor-pointer items-center justify-center bg-white text-green-900 shadow-md hover:bg-green-50">
+                        <HomeCtaPostLabel />
+                      </Button>
+                    </PostPublishLink>
+                  ) : (
+                    <Link
+                      href="/login"
+                      className={cn(
+                        "inline-block",
+                        isLoginNavigating && "pointer-events-none opacity-80",
+                      )}
+                      aria-busy={isLoginNavigating}
+                      onClick={onLoginClick}
+                    >
+                      <Button className="mt-5 flex cursor-pointer items-center justify-center bg-white text-green-900 shadow-md hover:bg-green-50">
+                        <LinkLabelWithLoadingSpinner
+                          label={t("home.signIn")}
+                          loading={isLoginNavigating}
+                        />
+                      </Button>
+                    </Link>
+                  )}
                 </div>
               </div>
 
@@ -499,8 +560,24 @@ export default function HomePageClient({
                       ))
                     )}
                   </div>
-                  <Button asChild className="mt-6 w-full bg-green-700 text-white hover:bg-green-800 cursor-pointer">
-                    <Link href={listingsBrowseHref}>{t("home.viewAllListings")}</Link>
+                  <Button
+                    asChild
+                    className={cn(
+                      "mt-6 w-full bg-green-700 text-white hover:bg-green-800 cursor-pointer",
+                      isListingsNavigating && "pointer-events-none opacity-80",
+                    )}
+                  >
+                    <Link
+                      href={listingsBrowseHref}
+                      className="flex items-center justify-center"
+                      aria-busy={isListingsNavigating}
+                      onClick={onViewAllListingsClick}
+                    >
+                      <LinkLabelWithLoadingSpinner
+                        label={t("home.viewAllListings")}
+                        loading={isListingsNavigating}
+                      />
+                    </Link>
                   </Button>
                 </div>
               )}

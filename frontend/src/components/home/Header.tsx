@@ -29,7 +29,8 @@ import {
   type ProfileForCompletion,
 } from "@/lib/onboardingSteps";
 import Link from "next/link";
-import { PostPublishLink } from "@/components/navigation/PostPublishLink";
+import { PostPublishLink, usePostPublishNavigating } from "@/components/navigation/PostPublishLink";
+import LinkLabelWithLoadingSpinner from "@/components/ui/LinkLabelWithLoadingSpinner";
 import { createPortal } from "react-dom";
 import SettingsPage from "@/components/profile/Settings";
 import { useRef, useState, useEffect, useLayoutEffect } from "react";
@@ -184,6 +185,32 @@ function UserDropdown({ avatarUrl, displayName, fallbackInitial, unseenCount, pr
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
+  );
+}
+
+function HeaderPostButton({ className }: { className?: string }) {
+  const { t } = useTranslation();
+  const isNavigating = usePostPublishNavigating();
+
+  return (
+    <Button className={className}>
+      <LinkLabelWithLoadingSpinner label={t("header.post")} loading={isNavigating} />
+    </Button>
+  );
+}
+
+function HeaderPostIconButton({ className }: { className?: string }) {
+  const { t } = useTranslation();
+  const isNavigating = usePostPublishNavigating();
+
+  return (
+    <Button size="icon" className={className} aria-label={t("header.post")}>
+      {isNavigating ? (
+        <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
+      ) : (
+        <span className="font-bold text-lg leading-none">+</span>
+      )}
+    </Button>
   );
 }
 
@@ -571,16 +598,14 @@ export default function Header() {
 
               {/* md+: bouton + */}
               <PostPublishLink className="hidden md:block">
-                <Button className={`${HEADER_CONTROL_H} bg-green-700 text-white hover:bg-green-800 cursor-pointer`}>
-                  {t("header.post")}
-                </Button>
+                <HeaderPostButton
+                  className={`${HEADER_CONTROL_H} bg-green-700 text-white hover:bg-green-800 cursor-pointer`}
+                />
               </PostPublishLink>
 
               {/* Mobile only: bouton + */}
               <PostPublishLink className="md:hidden">
-                <Button size="icon" className="bg-green-700 text-white hover:bg-green-800 cursor-pointer font-bold text-lg">
-                  +
-                </Button>
+                <HeaderPostIconButton className="bg-green-700 text-white hover:bg-green-800 cursor-pointer" />
               </PostPublishLink>
 
               {/* Mobile only: hamburger — only shown when logged in */}

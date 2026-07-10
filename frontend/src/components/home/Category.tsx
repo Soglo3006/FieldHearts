@@ -8,7 +8,8 @@ import { useTranslation } from "react-i18next";
 import AppImage from "@/components/ui/AppImage";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { categories } from "@/lib/categories";
-import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import LinkLabelWithLoadingSpinner from "@/components/ui/LinkLabelWithLoadingSpinner";
 import { cn } from "@/lib/utils";
 
 const toKey = (value: string) =>
@@ -223,16 +224,17 @@ function CategoryNavInner() {
             <Link
               href="/listings"
               className={cn(
-                "inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-md px-4 py-2 text-xs font-medium transition-colors",
+                "inline-flex h-9 shrink-0 items-center justify-center rounded-md px-4 py-2 text-xs font-medium transition-colors",
                 "bg-green-700 text-white hover:bg-green-800 sm:text-sm",
                 isPageTransitioning && "pointer-events-none opacity-80",
               )}
+              aria-busy={isViewAllListingsNavigating}
               onClick={(e) => onNavLinkClick(e, "/listings")}
             >
-              {isViewAllListingsNavigating && (
-                <Loader2 className="h-4 w-4 animate-spin shrink-0" aria-hidden />
-              )}
-              {t("home.viewAllListings")}
+              <LinkLabelWithLoadingSpinner
+                label={t("home.viewAllListings")}
+                loading={isViewAllListingsNavigating}
+              />
             </Link>
 
             <div
@@ -320,13 +322,15 @@ function CategoryNavInner() {
                     <div className="shrink-0 border-b border-gray-200 px-3 py-3 lg:px-5 lg:py-5">
                       <Link
                         href="/listings"
-                        className="flex items-center gap-2 text-xs font-medium leading-snug text-green-700 transition-colors hover:text-green-800 hover:underline sm:text-sm"
+                        className="flex items-center text-xs font-medium leading-snug text-green-700 transition-colors hover:text-green-800 hover:underline sm:text-sm"
+                        aria-busy={isViewAllListingsNavigating}
                         onClick={(e) => onNavLinkClick(e, "/listings")}
                       >
-                        {isViewAllListingsNavigating && (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" aria-hidden />
-                        )}
-                        {t("home.viewAllListings")}
+                        <LinkLabelWithLoadingSpinner
+                          label={t("home.viewAllListings")}
+                          loading={isViewAllListingsNavigating}
+                          spinnerClassName="h-3.5 w-3.5"
+                        />
                       </Link>
                     </div>
 

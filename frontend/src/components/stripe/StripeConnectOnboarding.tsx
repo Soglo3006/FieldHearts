@@ -9,6 +9,10 @@ import {
 } from "@stripe/react-connect-js";
 import { Spinner } from "@/components/ui/Spinner";
 import { getFreshAccessToken } from "@/lib/stripeConnect";
+import {
+  STRIPE_BANK_MANAGEMENT_COLLECTION_OPTIONS,
+  STRIPE_ONBOARDING_COLLECTION_OPTIONS,
+} from "@/lib/stripeConnectCollectionOptions";
 
 type ConnectMode = "onboarding" | "management";
 
@@ -81,6 +85,7 @@ export default function StripeConnectOnboarding({
           colorBackground: "#ffffff",
           fontFamily: "system-ui, sans-serif",
           borderRadius: "12px",
+          overlayBackdropColor: "rgba(0,0,0,0.35)",
         },
       },
       locale: "fr-CA",
@@ -131,16 +136,16 @@ export default function StripeConnectOnboarding({
       <ConnectComponentsProvider connectInstance={connectInstance}>
         {mode === "management" ? (
           <ConnectAccountManagement
+            collectionOptions={STRIPE_BANK_MANAGEMENT_COLLECTION_OPTIONS}
             onExit={() => {
-              onExit?.();
-              onComplete?.();
+              void onComplete?.();
             }}
           />
         ) : (
           <ConnectAccountOnboarding
+            collectionOptions={STRIPE_ONBOARDING_COLLECTION_OPTIONS}
             onExit={() => {
-              onExit?.();
-              onComplete?.();
+              void onComplete?.();
             }}
           />
         )}

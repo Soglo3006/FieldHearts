@@ -22,6 +22,7 @@ import {
   loadUserConnectProfile,
   syncConnectAccountStatus,
   syncProfileToStripeAccount,
+  CONNECT_EMBEDDED_SESSION_FEATURES,
 } from "../services/stripeConnectService.js";
 import { completeCheckoutPayment } from "../services/paymentCompletionService.js";
 import { completePaymentFromIntent } from "../services/paymentCompletionService.js";
@@ -172,13 +173,14 @@ export const createAccountSession = async (req, res) => {
         ? {
             account_management: {
               enabled: true,
-              features: {
-                external_account_collection: true,
-              },
+              features: CONNECT_EMBEDDED_SESSION_FEATURES,
             },
           }
         : {
-            account_onboarding: { enabled: true },
+            account_onboarding: {
+              enabled: true,
+              features: CONNECT_EMBEDDED_SESSION_FEATURES,
+            },
           };
 
     const session = await createConnectAccountSession(userId, {

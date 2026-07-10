@@ -11,6 +11,12 @@ const DEFAULT_CONNECT_ACCOUNT_TYPE = process.env.STRIPE_CONNECT_ACCOUNT_TYPE ===
   ? "express"
   : "custom";
 
+/** Custom accounts: skip connect.stripe.com email/phone signup — stay embedded in Uneden. */
+export const CONNECT_EMBEDDED_SESSION_FEATURES = {
+  external_account_collection: true,
+  disable_stripe_user_authentication: true,
+};
+
 function splitFullName(fullName) {
   if (!fullName?.trim()) return { first_name: undefined, last_name: undefined };
   const parts = fullName.trim().split(/\s+/);
@@ -86,6 +92,13 @@ function buildAddressObject(user) {
   };
 }
 
+function buildIndividualRelationship(user) {
+  const isCompany = user?.account_type === "company";
+  return {
+    title: isCompany ? "Propriétaire" : "Travailleur autonome",
+  };
+}
+
 function buildIndividualData(user, { includeAddress = true } = {}) {
   if (!user) return undefined;
   const { first_name, last_name } = splitFullName(user.full_name);
@@ -97,6 +110,7 @@ function buildIndividualData(user, { includeAddress = true } = {}) {
     ...(last_name && { last_name }),
     ...(phone && { phone }),
     ...(address && { address }),
+    relationship: buildIndividualRelationship(user),
   };
 }
 
@@ -295,12 +309,21 @@ export async function createConnectAccountSession(userId, { components, requireP
   const user = await loadUserConnectProfile(userId);
   if (isUserPayoutProfileComplete(user)) {
     await syncProfileToStripeAccount(userId, stripeAccountId);
+  } else if (user) {
+    // Keep business profile on Stripe even when profile gate is skipped (e.g. bank management).
+    const businessPayload = buildConnectUpdatePayload(user);
+    if (Object.keys(businessPayload).length > 0) {
+      await stripe.accounts.update(stripeAccountId, businessPayload);
+    }
   }
 
   const session = await stripe.accountSessions.create({
     account: stripeAccountId,
     components: components ?? {
-      account_onboarding: { enabled: true },
+      account_onboarding: {
+        enabled: true,
+        features: CONNECT_EMBEDDED_SESSION_FEATURES,
+      },
     },
   });
 

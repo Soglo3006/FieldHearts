@@ -93,3 +93,68 @@ export function ChooseTypeSkeleton() {
     </div>
   );
 }
+
+export function CompleteProfilSkeleton() {
+  return (
+    <div className="min-h-screen flex flex-col bg-white">
+      <div className="flex items-center justify-between px-4 pt-3">
+        <Skeleton className="h-4 w-20" />
+        <Skeleton className="h-8 w-16 rounded-full" />
+      </div>
+
+      <div className="border-b border-gray-200">
+        <div className="max-w-3xl mx-auto px-4 py-4 sm:py-6 space-y-4">
+          <div className="space-y-2">
+            <Skeleton className="h-7 w-56 sm:h-8 sm:w-72" />
+            <Skeleton className="h-4 w-24" />
+          </div>
+          <div className="flex justify-between gap-2">
+            {Array.from({ length: 7 }).map((_, i) => (
+              <div key={i} className="flex flex-col items-center gap-2 flex-1 min-w-0">
+                <Skeleton className="h-8 w-8 sm:h-10 sm:w-10 rounded-full shrink-0" />
+                <Skeleton className="h-3 w-full max-w-12 hidden sm:block" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <main className="flex-1 py-4 sm:py-8 px-3 sm:px-4">
+        <div className="max-w-2xl mx-auto space-y-6">
+          <div className="space-y-2 text-center sm:text-left">
+            <Skeleton className="h-7 w-48 mx-auto sm:mx-0" />
+            <Skeleton className="h-4 w-64 mx-auto sm:mx-0" />
+          </div>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-20" />
+              <Skeleton className="h-10 w-full rounded-md" />
+            </div>
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-10 w-full rounded-md" />
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-16" />
+                <Skeleton className="h-10 w-full rounded-md" />
+              </div>
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-20" />
+                <Skeleton className="h-10 w-full rounded-md" />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-28" />
+              <Skeleton className="h-10 w-full rounded-md" />
+            </div>
+          </div>
+          <div className="flex justify-end gap-3 pt-2">
+            <Skeleton className="h-10 w-24 rounded-md" />
+            <Skeleton className="h-10 w-32 rounded-md" />
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+}

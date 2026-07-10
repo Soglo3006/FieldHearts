@@ -134,7 +134,7 @@ function ChooseTypeContent() {
     }
   };
 
-  if (loading) return <ChooseTypeSkeleton />;
+  if (loading && !submitting) return <ChooseTypeSkeleton />;
   if (introCompleted && !submitting && !isChangingType) return null;
 
   return (

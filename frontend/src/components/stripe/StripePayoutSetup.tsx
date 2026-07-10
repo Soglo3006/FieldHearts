@@ -30,9 +30,7 @@ interface StripePayoutSetupProps {
   title?: string;
   subtitle?: string;
   onStatusChange?: (status: ConnectStatus) => void;
-  /** When set (e.g. onboarding), jump to a profile step without leaving the flow. */
   onGoToProfileStep?: (step: number) => void;
-  /** Live onboarding form data — used before final profile save. */
   profileSnapshot?: ProfileForCompletion | null;
 }
 
@@ -91,7 +89,7 @@ export default function StripePayoutSetup({
     }
   }, [snapshotReady, refreshStatus]);
 
-  const handleComplete = async () => {
+  const handleStripeExit = async () => {
     setShowForm(false);
     setShowManagement(false);
     await refreshStatus();
@@ -153,8 +151,7 @@ export default function StripePayoutSetup({
         <StripeConnectOnboarding
           accessToken={accessToken}
           mode="management"
-          onComplete={handleComplete}
-          onExit={() => setShowManagement(false)}
+          onComplete={handleStripeExit}
         />
       ) : (
         <div className="flex justify-center">
@@ -179,7 +176,7 @@ export default function StripePayoutSetup({
       {!profileReady ? (
         profileGate
       ) : showForm ? (
-        <StripeConnectOnboarding accessToken={accessToken} onComplete={handleComplete} />
+        <StripeConnectOnboarding accessToken={accessToken} onComplete={handleStripeExit} />
       ) : (
         <div className="flex justify-center">
           <Button
@@ -193,7 +190,7 @@ export default function StripePayoutSetup({
       )}
     </div>
   ) : showForm && profileReady ? (
-    <StripeConnectOnboarding accessToken={accessToken} onComplete={handleComplete} />
+    <StripeConnectOnboarding accessToken={accessToken} onComplete={handleStripeExit} />
   ) : (
     <div className="flex flex-col items-center gap-4 py-2 text-center">
       {!profileReady ? (
@@ -234,7 +231,7 @@ export default function StripePayoutSetup({
           <CreditCard className="h-5 w-5 text-green-700 shrink-0" />
           <div>
             <h3 className="font-semibold text-gray-900">{heading}</h3>
-            {!status?.charges_enabled && !showForm && (
+            {!status?.charges_enabled && !showForm && !showManagement && (
               <p className="text-xs text-gray-500 mt-0.5">{desc}</p>
             )}
           </div>

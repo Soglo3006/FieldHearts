@@ -214,7 +214,9 @@
     "alreadyHaveAccount": "Vous avez déjà un compte ?",
     "signIn": "Se connecter",
     "passwordsMismatch": "Les mots de passe ne correspondent pas",
-    "passwordTooShort": "Le mot de passe doit comporter au moins 6 caractères",
+    "passwordRequired": "Veuillez entrer un mot de passe.",
+    "confirmPasswordRequired": "Veuillez confirmer votre mot de passe.",
+    "passwordTooShort": "Le mot de passe doit comporter au moins 8 caractères",
     "registrationFailed": "Échec de l'inscription",
     "emailAlreadyExists": "Un compte existe déjà avec ce courriel. Veuillez vous connecter ou utiliser un autre courriel.",
     "accountCreated": "Compte créé !",
@@ -1126,7 +1128,7 @@
     "title": "Recevoir des paiements",
     "subtitle": "Ajoutez vos informations bancaires et vérifiez votre identité pour recevoir vos versements sur Uneden.",
     "startTitle": "Configurer vos versements",
-    "startButton": "Vérifier mon identité",
+    "startButton": "Ajouter mon compte bancaire",
     "secured": "Paiements sécurisés et conformes",
     "connectedTitle": "Compte de versement configuré",
     "connectedDesc": "Vos gains seront versés sur votre compte bancaire après chaque cycle de paiement.",
@@ -1135,9 +1137,10 @@
     "verifyingDesc": "Nous examinons vos informations. Cela peut prendre 1 à 2 jours ouvrables.",
     "completeVerification": "Compléter la vérification",
     "profileRequiredTitle": "Complétez votre profil d'abord",
-    "profileRequiredDesc": "Avant la vérification d'identité, renseignez votre nom, téléphone et adresse complète dans votre profil. Ces informations pré-rempliront le formulaire Stripe pour un parcours plus court.",
+    "profileRequiredDesc": "Avant d'ajouter votre compte bancaire, renseignez votre nom, téléphone et adresse complète dans votre profil. Ces informations sont déjà configurées pour vous sur Uneden.",
     "completeProfileFirst": "Compléter mon profil",
-    "prefilledHint": "Vos informations de profil seront utilisées pour pré-remplir la vérification."
+    "prefilledHint": "Vos informations de profil sont déjà enregistrées — il ne restera qu'à ajouter votre compte bancaire.",
+    "bankOnlyHint": "Ajoutez votre compte bancaire et complétez la vérification d'identité si demandée. Les autres informations sont déjà configurées par Uneden."
   },
   "onboarding": {
     "stepLabel": "Étape",

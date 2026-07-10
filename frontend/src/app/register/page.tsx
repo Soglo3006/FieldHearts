@@ -95,12 +95,23 @@ export default function RegisterPage() {
     }
   };
 
+  const isPasswordStepComplete =
+    Boolean(firstName.trim()) &&
+    Boolean(lastName.trim()) &&
+    password.length >= 8 &&
+    Boolean(confirmPassword.trim());
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
 
-    if (password !== confirmPassword) {
-      setError(t("register.passwordsMismatch"));
+    if (!firstName.trim() || !lastName.trim()) {
+      setError(t("register.nameRequired"));
+      return;
+    }
+
+    if (!password.trim()) {
+      setError(t("register.passwordRequired"));
       return;
     }
 
@@ -109,8 +120,13 @@ export default function RegisterPage() {
       return;
     }
 
-    if (!firstName.trim() || !lastName.trim()) {
-      setError(t("register.nameRequired"));
+    if (!confirmPassword.trim()) {
+      setError(t("register.confirmPasswordRequired"));
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setError(t("register.passwordsMismatch"));
       return;
     }
 
@@ -244,7 +260,7 @@ export default function RegisterPage() {
           )}
 
           {(step === "password") && (
-            <form onSubmit={handleSubmit}>
+            <form onSubmit={handleSubmit} noValidate>
               <div className="flex flex-col gap-6 font-semibold text-sm animate-in fade-in duration-300">
                 <div className="flex items-center gap-2 text-sm text-gray-600 bg-white border border-gray-200 rounded-lg px-3 py-2">
                   <span className="flex-1 truncate">{email}</span>
@@ -265,10 +281,12 @@ export default function RegisterPage() {
                       id="first_name"
                       type="text"
                       value={firstName}
-                      onChange={(e) => setFirstName(e.target.value)}
+                      onChange={(e) => {
+                        setFirstName(e.target.value);
+                        if (error) setError("");
+                      }}
                       autoComplete="given-name"
                       autoFocus
-                      required
                     />
                   </div>
                   <div className="grid gap-2">
@@ -277,9 +295,11 @@ export default function RegisterPage() {
                       id="last_name"
                       type="text"
                       value={lastName}
-                      onChange={(e) => setLastName(e.target.value)}
+                      onChange={(e) => {
+                        setLastName(e.target.value);
+                        if (error) setError("");
+                      }}
                       autoComplete="family-name"
-                      required
                     />
                   </div>
                 </div>
@@ -291,9 +311,11 @@ export default function RegisterPage() {
                       id="password"
                       type={showPassword ? "text" : "password"}
                       value={password}
-                      onChange={(e) => setPassword(e.target.value)}
+                      onChange={(e) => {
+                        setPassword(e.target.value);
+                        if (error) setError("");
+                      }}
                       autoComplete="new-password"
-                      required
                       className="pr-10"
                     />
                     <button
@@ -314,9 +336,11 @@ export default function RegisterPage() {
                       id="confirm_password"
                       type={showConfirmPassword ? "text" : "password"}
                       value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      onChange={(e) => {
+                        setConfirmPassword(e.target.value);
+                        if (error) setError("");
+                      }}
                       autoComplete="new-password"
-                      required
                       className="pr-10"
                     />
                     <button
@@ -332,13 +356,8 @@ export default function RegisterPage() {
 
                 <Button
                   type="submit"
-                  className="w-full bg-green-800 hover:bg-green-900 cursor-pointer"
-                  disabled={
-                    chargement ||
-                    !firstName.trim() ||
-                    !lastName.trim() ||
-                    password.length < 8
-                  }
+                  className="w-full bg-green-800 hover:bg-green-900 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={chargement || !isPasswordStepComplete}
                 >
                   {chargement ? t("register.creatingAccount") : t("register.createAccount")}
                 </Button>

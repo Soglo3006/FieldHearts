@@ -1,6 +1,6 @@
 import express from "express";
 import { protect, adminOnly } from "../middleware/authMiddleware.js";
-import { joinWaitlist, exportWaitlist, checkEmail, changePassword, deleteAccount } from "../controllers/authController.js";
+import { joinWaitlist, exportWaitlist, checkEmail, changePassword, deleteAccount, sendWelcomeEmail } from "../controllers/authController.js";
 
 const router = express.Router();
 
@@ -11,5 +11,6 @@ router.post("/check-email", checkEmail);
 
 router.put("/change-password", protect, changePassword);
 router.delete("/delete-account", protect, deleteAccount);
+router.post("/welcome-email", protect, sendWelcomeEmail);
 
 export default router;

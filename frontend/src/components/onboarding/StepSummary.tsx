@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { CheckCircle2, Clock, CreditCard } from "lucide-react";
+import { CheckCircle2, Clock, CreditCard, Loader2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import AppImage from "@/components/ui/AppImage";
@@ -12,15 +12,35 @@ interface Props {
   data: OnboardingData;
   accountType: string;
   accessToken?: string;
+  payoutStatus?: ConnectStatus | null;
 }
 
-export default function StepSummary({ data, accountType, accessToken }: Props) {
+export default function StepSummary({
+  data,
+  accountType,
+  accessToken,
+  payoutStatus: payoutStatusProp = null,
+}: Props) {
   const { t } = useTranslation();
-  const [payoutStatus, setPayoutStatus] = useState<ConnectStatus | null>(null);
+  const [payoutStatus, setPayoutStatus] = useState<ConnectStatus | null>(payoutStatusProp);
+  const [statusLoading, setStatusLoading] = useState(!payoutStatusProp);
 
   useEffect(() => {
-    if (!accessToken) return;
+    if (payoutStatusProp) {
+      setPayoutStatus(payoutStatusProp);
+      setStatusLoading(false);
+    }
+  }, [payoutStatusProp]);
+
+  useEffect(() => {
+    if (!accessToken) {
+      setStatusLoading(false);
+      return;
+    }
+    if (payoutStatusProp) return;
+
     let cancelled = false;
+    setStatusLoading(true);
     fetch(`${process.env.NEXT_PUBLIC_API_URL}/payments/connect/status`, {
       headers: { Authorization: `Bearer ${accessToken}` },
     })
@@ -28,9 +48,14 @@ export default function StepSummary({ data, accountType, accessToken }: Props) {
       .then((status: ConnectStatus | null) => {
         if (!cancelled && status) setPayoutStatus(status);
       })
-      .catch(() => {});
-    return () => { cancelled = true; };
-  }, [accessToken]);
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setStatusLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [accessToken, payoutStatusProp]);
 
   const payoutLabel = payoutStatus?.charges_enabled
     ? t("onboarding.payoutConfigured")
@@ -162,10 +187,17 @@ export default function StepSummary({ data, accountType, accessToken }: Props) {
 
         <div>
           <h4 className="font-semibold text-gray-900 mb-2">{t("onboarding.payoutSectionTitle")}</h4>
-          <div className="flex items-start gap-2 text-gray-700">
-            <PayoutIcon className={`h-5 w-5 shrink-0 mt-0.5 ${payoutIconClass}`} />
-            <p>{payoutLabel}</p>
-          </div>
+          {statusLoading && !payoutStatus ? (
+            <div className="flex items-center gap-2 text-gray-500">
+              <Loader2 className="h-5 w-5 shrink-0 animate-spin" aria-hidden />
+              <p>{t("onboarding.payoutStatusLoading")}</p>
+            </div>
+          ) : (
+            <div className="flex items-start gap-2 text-gray-700">
+              <PayoutIcon className={`h-5 w-5 shrink-0 mt-0.5 ${payoutIconClass}`} />
+              <p>{payoutLabel}</p>
+            </div>
+          )}
         </div>
 
         <p className="text-sm text-gray-500 italic">{t("onboarding.confirmReady")}</p>

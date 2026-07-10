@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { canAccessAdminPortal, safeInternalPath } from "@/lib/auth";
 import { needsOnboardingSetup } from "@/lib/onboarding";
 import { clearAdminStepUpToken } from "@/lib/adminStepUp";
+import { requestWelcomeEmail } from "@/lib/requestWelcomeEmail";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function AuthCallbackPage() {
@@ -38,6 +39,7 @@ export default function AuthCallbackPage() {
 
         if (session) {
           clearAdminStepUpToken();
+          requestWelcomeEmail(session.access_token);
           if (canAccessAdminPortal(session.user)) {
             router.replace("/admin");
           } else {
@@ -54,6 +56,7 @@ export default function AuthCallbackPage() {
             if (event === "SIGNED_IN" && session) {
               subscription.unsubscribe();
               clearAdminStepUpToken();
+              requestWelcomeEmail(session.access_token);
               if (canAccessAdminPortal(session.user)) {
                 router.replace("/admin");
               } else {

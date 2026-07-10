@@ -1257,6 +1257,7 @@
     "payoutConfigured": "Payout account configured — your earnings can be sent to your bank account.",
     "payoutVerifying": "Verification in progress — Stripe is reviewing your information (1–2 business days).",
     "payoutLater": "To set up later — you can connect your bank account from your wallet.",
+    "payoutStatusLoading": "Checking bank account…",
     "suggestions": "Suggestions",
     "remove": "Remove",
     "bankAccount": "Bank Account",

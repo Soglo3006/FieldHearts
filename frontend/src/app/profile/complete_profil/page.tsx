@@ -20,6 +20,7 @@ import StepExperience from "@/components/onboarding/StepExperience";
 import StepPortfolio from "@/components/onboarding/StepPortfolio";
 import StepSummary from "@/components/onboarding/StepSummary";
 import StepBankAccount from "@/components/onboarding/StepBankAccount";
+import type { ConnectStatus } from "@/components/stripe/StripePayoutSetup";
 import { toast } from "sonner";
 import { Spinner } from "@/components/ui/Spinner";
 
@@ -105,6 +106,7 @@ function OnboardingContent() {
   const [showSuccess, setShowSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
   const [bioError, setBioError] = useState("");
+  const [payoutConnectStatus, setPayoutConnectStatus] = useState<ConnectStatus | null>(null);
 
   const totalSteps = accountType === "company" ? 6 : 7;
   const paymentStep = accountType === "company" ? 5 : 6;
@@ -240,6 +242,22 @@ function OnboardingContent() {
     accountType: (data.accountType || accountType) as "person" | "company",
   });
 
+  const refreshPayoutConnectStatus = useCallback(async () => {
+    const token = session?.access_token;
+    if (!token) return null;
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/payments/connect/status`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) return null;
+      const status = (await res.json()) as ConnectStatus;
+      setPayoutConnectStatus(status);
+      return status;
+    } catch {
+      return null;
+    }
+  }, [session?.access_token]);
+
   const persistBasicInfoIfReady = useCallback(async () => {
     const token = session?.access_token;
     if (!token) return false;
@@ -324,6 +342,13 @@ function OnboardingContent() {
   const goToStep = async (step: number) => {
     if (step === paymentStep) {
       await persistBasicInfoIfReady();
+    }
+    if (step === totalSteps) {
+      if (payoutConnectStatus) {
+        void refreshPayoutConnectStatus();
+      } else {
+        await refreshPayoutConnectStatus();
+      }
     }
     setCurrentStep(step);
     router.replace(`/profile/complete_profil?type=${accountType}&step=${step}`);
@@ -479,6 +504,7 @@ function OnboardingContent() {
               autoReconnect={searchParams.get("stripe") === "refresh"}
               onGoToProfileStep={(step) => goToStep(step)}
               profileSnapshot={payoutProfileSnapshot}
+              onPayoutStatusChange={setPayoutConnectStatus}
             />
           )}
           {currentStep === totalSteps && (
@@ -486,6 +512,7 @@ function OnboardingContent() {
               data={data}
               accountType={accountType}
               accessToken={session?.access_token}
+              payoutStatus={payoutConnectStatus}
             />
           )}
 

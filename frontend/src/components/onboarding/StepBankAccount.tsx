@@ -3,7 +3,7 @@
 import { Card } from "@/components/ui/card";
 import { CreditCard } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import StripePayoutSetup from "@/components/stripe/StripePayoutSetup";
+import StripePayoutSetup, { type ConnectStatus } from "@/components/stripe/StripePayoutSetup";
 import type { ProfileForCompletion } from "@/lib/onboardingSteps";
 
 interface Props {
@@ -12,12 +12,14 @@ interface Props {
   autoReconnect?: boolean;
   onGoToProfileStep?: (step: number) => void;
   profileSnapshot?: ProfileForCompletion | null;
+  onPayoutStatusChange?: (status: ConnectStatus) => void;
 }
 
 export default function StepBankAccount({
   accessToken,
   onGoToProfileStep,
   profileSnapshot = null,
+  onPayoutStatusChange,
 }: Props) {
   const { t } = useTranslation();
 
@@ -34,6 +36,7 @@ export default function StepBankAccount({
         subtitle={t("onboarding.bankReceiveDesc")}
         onGoToProfileStep={onGoToProfileStep}
         profileSnapshot={profileSnapshot}
+        onStatusChange={onPayoutStatusChange}
       />
     </Card>
   );

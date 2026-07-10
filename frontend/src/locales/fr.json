@@ -1253,6 +1253,7 @@
     "payoutConfigured": "Compte de versement configuré — vos gains pourront être versés sur votre compte bancaire.",
     "payoutVerifying": "Vérification en cours — Stripe examine vos informations (1 à 2 jours ouvrables).",
     "payoutLater": "À configurer plus tard — vous pourrez connecter votre compte bancaire depuis votre portefeuille.",
+    "payoutStatusLoading": "Vérification du compte bancaire…",
     "suggestions": "Suggestions",
     "remove": "Retirer",
     "bankAccount": "Compte bancaire",

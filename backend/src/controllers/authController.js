@@ -2,6 +2,7 @@ import pool from "../config/db.js";
 import bcrypt from "bcryptjs";
 import { notifyPasswordChanged, notifyWaitlistConfirmation } from "../services/emailService.js";
 import { getUserLang } from "../services/notificationService.js";
+import { sendWelcomeEmailOnce } from "../services/userWelcomeService.js";
 import { supabaseAdmin } from "../lib/supabase.js";
 
 export const joinWaitlist = async (req, res) => {
@@ -138,6 +139,16 @@ export const changePassword = async (req, res) => {
             error: err.message 
         });
     }
+};
+
+export const sendWelcomeEmail = async (req, res) => {
+  try {
+    const sent = await sendWelcomeEmailOnce(req.user.id);
+    res.json({ sent });
+  } catch (err) {
+    console.error("sendWelcomeEmail error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
 };
 
 export const deleteAccount = async (req, res) => {

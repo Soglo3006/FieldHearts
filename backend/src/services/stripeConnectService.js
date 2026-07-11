@@ -247,18 +247,8 @@ export async function resetStripeConnectAccount(userId) {
 export async function ensureStripeConnectAccount(userId) {
   const existing = await getStoredStripeAccount(userId);
   if (existing?.stripe_account_id) {
-    if ((existing.account_type || DEFAULT_CONNECT_ACCOUNT_TYPE) === "custom") {
-      await stripe.accounts.update(existing.stripe_account_id, {
-        controller: {
-          stripe_dashboard: { type: "none" },
-          fees: { payer: "application" },
-          losses: { payments: "application" },
-          requirement_collection: "application",
-        },
-      }).catch((err) => {
-        console.warn("[Stripe] Could not update custom account controller:", err.message);
-      });
-    }
+    // `controller` is create-only — never update it on an existing account
+    // (Stripe rejects the param and concurrent updates cause lock_timeout).
     return {
       stripeAccountId: existing.stripe_account_id,
       accountType: existing.account_type || "express",
@@ -291,7 +281,35 @@ export async function ensureStripeConnectAccount(userId) {
   return { stripeAccountId: account.id, accountType, created: true };
 }
 
-export async function createConnectAccountSession(userId, { components, requireProfile = true } = {}) {
+function isStripeRetryableError(err) {
+  return (
+    err?.code === "lock_timeout" ||
+    err?.type === "StripeRateLimitError" ||
+    err?.statusCode === 429 ||
+    err?.raw?.code === "lock_timeout" ||
+    err?.headers?.["stripe-should-retry"] === "true"
+  );
+}
+
+async function withStripeRetry(fn, { retries = 4, baseDelayMs = 500 } = {}) {
+  let lastErr;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastErr = err;
+      if (!isStripeRetryableError(err) || attempt === retries) throw err;
+      const delay = baseDelayMs * 2 ** attempt;
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+  }
+  throw lastErr;
+}
+
+/** Serialize session creates per user — each caller gets a unique secret (no shared claim). */
+const connectSessionQueues = new Map();
+
+async function createConnectAccountSessionUnlocked(userId, { components, requireProfile = true } = {}) {
   if (requireProfile) {
     const user = await loadUserConnectProfile(userId);
     const missing = getMissingPayoutProfileFields(user);
@@ -306,32 +324,56 @@ export async function createConnectAccountSession(userId, { components, requireP
 
   const { stripeAccountId } = await ensureStripeConnectAccount(userId);
 
-  const user = await loadUserConnectProfile(userId);
-  if (isUserPayoutProfileComplete(user)) {
-    await syncProfileToStripeAccount(userId, stripeAccountId);
-  } else if (user) {
-    // Keep business profile on Stripe even when profile gate is skipped (e.g. bank management).
-    const businessPayload = buildConnectUpdatePayload(user);
-    if (Object.keys(businessPayload).length > 0) {
-      await stripe.accounts.update(stripeAccountId, businessPayload);
+  // Sync profile only for onboarding. Management sessions skip accounts.update
+  // so we don't contend with accountSessions.create (lock_timeout).
+  if (requireProfile) {
+    const user = await loadUserConnectProfile(userId);
+    if (isUserPayoutProfileComplete(user)) {
+      await withStripeRetry(() => syncProfileToStripeAccount(userId, stripeAccountId));
+    } else if (user) {
+      const businessPayload = buildConnectUpdatePayload(user);
+      if (Object.keys(businessPayload).length > 0) {
+        await withStripeRetry(() => stripe.accounts.update(stripeAccountId, businessPayload));
+      }
     }
   }
 
-  const session = await stripe.accountSessions.create({
-    account: stripeAccountId,
-    components: components ?? {
-      account_onboarding: {
-        enabled: true,
-        features: CONNECT_EMBEDDED_SESSION_FEATURES,
+  const session = await withStripeRetry(() =>
+    stripe.accountSessions.create({
+      account: stripeAccountId,
+      components: components ?? {
+        account_onboarding: {
+          enabled: true,
+          features: CONNECT_EMBEDDED_SESSION_FEATURES,
+        },
       },
-    },
-  });
+    }),
+  );
 
   return { client_secret: session.client_secret, stripe_account_id: stripeAccountId };
 }
 
+export async function createConnectAccountSession(userId, options = {}) {
+  const prev = connectSessionQueues.get(userId) ?? Promise.resolve();
+  const current = prev.then(
+    () => createConnectAccountSessionUnlocked(userId, options),
+    () => createConnectAccountSessionUnlocked(userId, options),
+  );
+  connectSessionQueues.set(
+    userId,
+    current.finally(() => {
+      if (connectSessionQueues.get(userId) === current) {
+        connectSessionQueues.delete(userId);
+      }
+    }),
+  );
+  return current;
+}
+
 export async function syncConnectAccountStatus(userId, stripeAccountId) {
-  const account = await stripe.accounts.retrieve(stripeAccountId);
+  const account = await stripe.accounts.retrieve(stripeAccountId, {
+    expand: ["external_accounts"],
+  });
 
   await pool.query(
     `UPDATE stripe_accounts
@@ -342,6 +384,9 @@ export async function syncConnectAccountStatus(userId, stripeAccountId) {
     [account.details_submitted, account.charges_enabled, userId],
   );
 
+  const externalAccounts = account.external_accounts?.data ?? [];
+  const bank = externalAccounts.find((ea) => ea.object === "bank_account");
+
   return {
     connected: true,
     charges_enabled: account.charges_enabled,
@@ -349,5 +394,14 @@ export async function syncConnectAccountStatus(userId, stripeAccountId) {
     requirements_due: account.requirements?.currently_due ?? [],
     stripe_account_id: stripeAccountId,
     account_type: account.type,
+    bank_account: bank
+      ? {
+          bank_name: bank.bank_name || null,
+          last4: bank.last4 || null,
+          currency: bank.currency ? String(bank.currency).toUpperCase() : null,
+          routing_number: bank.routing_number || null,
+          country: bank.country || null,
+        }
+      : null,
   };
 }

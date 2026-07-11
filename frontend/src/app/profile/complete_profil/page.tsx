@@ -252,11 +252,35 @@ function OnboardingContent() {
       if (!res.ok) return null;
       const status = (await res.json()) as ConnectStatus;
       setPayoutConnectStatus(status);
+      if (user?.id) {
+        try {
+          sessionStorage.setItem(`wallet-connect-${user.id}`, JSON.stringify(status));
+        } catch {}
+      }
       return status;
     } catch {
       return null;
     }
-  }, [session?.access_token]);
+  }, [session?.access_token, user?.id]);
+
+  // Reuse Wallet/Settings Connect cache so Paiement reflects bank setup done elsewhere
+  useEffect(() => {
+    if (!user?.id) return;
+    try {
+      const raw = sessionStorage.getItem(`wallet-connect-${user.id}`);
+      if (!raw) return;
+      const cached = JSON.parse(raw) as ConnectStatus;
+      if (cached && typeof cached.charges_enabled === "boolean") {
+        setPayoutConnectStatus((prev) => prev ?? cached);
+      }
+    } catch {}
+  }, [user?.id]);
+
+  // Keep Paiement check in sync even if bank was set up in Wallet/Settings first
+  useEffect(() => {
+    if (!session?.access_token) return;
+    void refreshPayoutConnectStatus();
+  }, [session?.access_token, refreshPayoutConnectStatus]);
 
   const persistBasicInfoIfReady = useCallback(async () => {
     const token = session?.access_token;
@@ -281,16 +305,17 @@ function OnboardingContent() {
   }, [stepFromUrl]);
 
   useEffect(() => {
-    if (currentStep === paymentStep) {
-      void persistBasicInfoIfReady();
-    }
-  }, [currentStep, paymentStep, persistBasicInfoIfReady]);
+    if (currentStep !== paymentStep) return;
+    void persistBasicInfoIfReady();
+    void refreshPayoutConnectStatus();
+  }, [currentStep, paymentStep, persistBasicInfoIfReady, refreshPayoutConnectStatus]);
 
   const completedSteps = getOnboardingStepCompletions(
     accountType as AccountType,
     data,
     totalSteps,
-    maxStepReached
+    maxStepReached,
+    { payoutChargesEnabled: payoutConnectStatus?.charges_enabled ?? null }
   );
 
   // Enter key navigation
@@ -340,15 +365,12 @@ function OnboardingContent() {
   const canProceed = () => true;
 
   const goToStep = async (step: number) => {
+    // Don't block the UI on save/status — show the step immediately
     if (step === paymentStep) {
-      await persistBasicInfoIfReady();
-    }
-    if (step === totalSteps) {
-      if (payoutConnectStatus) {
-        void refreshPayoutConnectStatus();
-      } else {
-        await refreshPayoutConnectStatus();
-      }
+      void persistBasicInfoIfReady();
+      void refreshPayoutConnectStatus();
+    } else if (step === totalSteps) {
+      void refreshPayoutConnectStatus();
     }
     setCurrentStep(step);
     router.replace(`/profile/complete_profil?type=${accountType}&step=${step}`);
@@ -504,7 +526,15 @@ function OnboardingContent() {
               autoReconnect={searchParams.get("stripe") === "refresh"}
               onGoToProfileStep={(step) => goToStep(step)}
               profileSnapshot={payoutProfileSnapshot}
-              onPayoutStatusChange={setPayoutConnectStatus}
+              initialStatus={payoutConnectStatus}
+              onPayoutStatusChange={(status) => {
+                setPayoutConnectStatus(status);
+                if (user?.id) {
+                  try {
+                    sessionStorage.setItem(`wallet-connect-${user.id}`, JSON.stringify(status));
+                  } catch {}
+                }
+              }}
             />
           )}
           {currentStep === totalSteps && (
@@ -513,6 +543,7 @@ function OnboardingContent() {
               accountType={accountType}
               accessToken={session?.access_token}
               payoutStatus={payoutConnectStatus}
+              onEditPayment={() => void goToStep(paymentStep)}
             />
           )}
 

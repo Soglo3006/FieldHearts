@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useTranslation } from "react-i18next";
-import { AlertCircle } from "lucide-react";
 import { profileCompletionPath, isProfileDetailsIncomplete } from "@/lib/onboardingSteps";
 import type { ProfileForCompletion } from "@/lib/onboardingSteps";
 
@@ -16,13 +15,12 @@ export default function ProfileIncompleteBanner({ profile }: Props) {
   if (!profile || !isProfileDetailsIncomplete(profile)) return null;
 
   return (
-    <div className="bg-amber-50 border-b border-amber-200">
-      <div className="max-w-6xl mx-auto px-4 py-2.5 flex items-center justify-center gap-2 text-sm text-amber-900">
-        <AlertCircle className="h-4 w-4 shrink-0" />
-        <span>{t("onboarding.profileIncompleteBanner")}</span>
+    <div className="border-b border-gray-200 bg-white">
+      <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-center gap-1.5 px-4 py-2.5 text-sm">
+        <span className="text-gray-900">{t("onboarding.profileIncompleteBanner")}</span>
         <Link
           href={profileCompletionPath(profile.account_type)}
-          className="font-semibold underline underline-offset-2 hover:text-amber-950 whitespace-nowrap"
+          className="font-semibold whitespace-nowrap text-gray-900 underline underline-offset-2 hover:text-red-600"
         >
           {t("onboarding.completeProfileLink")}
         </Link>

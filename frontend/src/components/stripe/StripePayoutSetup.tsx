@@ -1,13 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CheckCircle2, Clock, CreditCard } from "lucide-react";
+import { CheckCircle2, Clock } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Spinner } from "@/components/ui/Spinner";
 import StripeConnectOnboarding from "@/components/stripe/StripeConnectOnboarding";
+import { WalletBankAccountSkeleton } from "@/components/wallet/WalletSkeleton";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMyProfile } from "@/hooks/useMyProfile";
 import {
@@ -22,6 +22,13 @@ export interface ConnectStatus {
   details_submitted: boolean;
   profile_ready?: boolean;
   missing_fields?: string[];
+  bank_account?: {
+    bank_name?: string | null;
+    last4?: string | null;
+    currency?: string | null;
+    routing_number?: string | null;
+    country?: string | null;
+  } | null;
 }
 
 interface StripePayoutSetupProps {
@@ -29,6 +36,7 @@ interface StripePayoutSetupProps {
   variant?: "card" | "inline";
   title?: string;
   subtitle?: string;
+  initialStatus?: ConnectStatus | null;
   onStatusChange?: (status: ConnectStatus) => void;
   onGoToProfileStep?: (step: number) => void;
   profileSnapshot?: ProfileForCompletion | null;
@@ -39,6 +47,7 @@ export default function StripePayoutSetup({
   variant = "card",
   title,
   subtitle,
+  initialStatus = null,
   onStatusChange,
   onGoToProfileStep,
   profileSnapshot = null,
@@ -47,10 +56,11 @@ export default function StripePayoutSetup({
   const router = useRouter();
   const { user } = useAuth();
   const { profile } = useMyProfile();
-  const [status, setStatus] = useState<ConnectStatus | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [status, setStatus] = useState<ConnectStatus | null>(initialStatus);
+  const [loading, setLoading] = useState(!initialStatus);
   const [showForm, setShowForm] = useState(false);
-  const [showManagement, setShowManagement] = useState(false);
+  const onStatusChangeRef = useRef(onStatusChange);
+  onStatusChangeRef.current = onStatusChange;
 
   const snapshotReady = isPayoutProfileComplete(profileSnapshot);
   const profileReady =
@@ -66,22 +76,42 @@ export default function StripePayoutSetup({
     return res.json() as Promise<ConnectStatus>;
   }, [accessToken]);
 
+  const applyStatus = useCallback((data: ConnectStatus) => {
+    setStatus(data);
+    onStatusChangeRef.current?.(data);
+  }, []);
+
   const refreshStatus = useCallback(async () => {
     const data = await fetchStatus();
-    if (data) {
-      setStatus(data);
-      onStatusChange?.(data);
-    }
+    if (data) applyStatus(data);
     return data;
-  }, [fetchStatus, onStatusChange]);
+  }, [fetchStatus, applyStatus]);
+
+  // Parent may hydrate cached status after first paint
+  useEffect(() => {
+    if (!initialStatus) return;
+    setStatus((prev) => prev ?? initialStatus);
+    setLoading(false);
+  }, [initialStatus]);
 
   useEffect(() => {
     if (!accessToken) {
       setLoading(false);
       return;
     }
-    refreshStatus().finally(() => setLoading(false));
-  }, [accessToken, refreshStatus]);
+    let cancelled = false;
+    (async () => {
+      if (!initialStatus) setLoading(true);
+      const data = await fetchStatus();
+      if (cancelled) return;
+      if (data) applyStatus(data);
+      setLoading(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accessToken, fetchStatus, applyStatus]);
 
   useEffect(() => {
     if (snapshotReady) {
@@ -91,7 +121,6 @@ export default function StripePayoutSetup({
 
   const handleStripeExit = async () => {
     setShowForm(false);
-    setShowManagement(false);
     await refreshStatus();
   };
 
@@ -129,43 +158,20 @@ export default function StripePayoutSetup({
     </div>
   ) : null;
 
-  if (loading) {
-    return (
-      <div className="flex justify-center py-8">
-        <Spinner size="md" />
-      </div>
-    );
+  if (loading && !status) {
+    return <WalletBankAccountSkeleton variant={variant} />;
   }
 
   const heading = title ?? t("payoutSetup.title");
   const desc = subtitle ?? t("payoutSetup.subtitle");
 
+  // Connected: bank details + add/edit shown directly by Stripe (loading handled inside)
   const content = status?.charges_enabled ? (
-    <div className="space-y-4">
-      <div className="flex flex-col items-center gap-3 py-2 text-center">
-        <CheckCircle2 className="h-12 w-12 text-green-500" />
-        <p className="font-semibold text-gray-900">{t("payoutSetup.connectedTitle")}</p>
-        <p className="text-sm text-gray-500 max-w-md">{t("payoutSetup.connectedDesc")}</p>
-      </div>
-      {showManagement ? (
-        <StripeConnectOnboarding
-          accessToken={accessToken}
-          mode="management"
-          onComplete={handleStripeExit}
-        />
-      ) : (
-        <div className="flex justify-center">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => setShowManagement(true)}
-            className="cursor-pointer"
-          >
-            {t("payoutSetup.manageBank")}
-          </Button>
-        </div>
-      )}
-    </div>
+    <StripeConnectOnboarding
+      accessToken={accessToken}
+      mode="management"
+      onComplete={handleStripeExit}
+    />
   ) : status?.details_submitted ? (
     <div className="space-y-4">
       <div className="flex flex-col items-center gap-3 py-2 text-center">
@@ -176,7 +182,10 @@ export default function StripePayoutSetup({
       {!profileReady ? (
         profileGate
       ) : showForm ? (
-        <StripeConnectOnboarding accessToken={accessToken} onComplete={handleStripeExit} />
+        <StripeConnectOnboarding
+          accessToken={accessToken}
+          onComplete={handleStripeExit}
+        />
       ) : (
         <div className="flex justify-center">
           <Button
@@ -190,7 +199,10 @@ export default function StripePayoutSetup({
       )}
     </div>
   ) : showForm && profileReady ? (
-    <StripeConnectOnboarding accessToken={accessToken} onComplete={handleStripeExit} />
+    <StripeConnectOnboarding
+      accessToken={accessToken}
+      onComplete={handleStripeExit}
+    />
   ) : (
     <div className="flex flex-col items-center gap-4 py-2 text-center">
       {!profileReady ? (
@@ -218,25 +230,20 @@ export default function StripePayoutSetup({
     </div>
   );
 
-  const body = content;
-
   if (variant === "inline") {
-    return <div>{body}</div>;
+    return <div>{content}</div>;
   }
 
   return (
-    <Card className="shadow-sm border-green-100">
-      <CardContent className="p-5 sm:p-6">
-        <div className="flex items-center gap-3 mb-4">
-          <CreditCard className="h-5 w-5 text-green-700 shrink-0" />
-          <div>
-            <h3 className="font-semibold text-gray-900">{heading}</h3>
-            {!status?.charges_enabled && !showForm && !showManagement && (
-              <p className="text-xs text-gray-500 mt-0.5">{desc}</p>
-            )}
-          </div>
+    <Card className="gap-0 border-green-100 py-0 shadow-sm">
+      <CardContent className="p-4 sm:p-5">
+        <div className="mb-3">
+          <h3 className="font-semibold text-gray-900">{heading}</h3>
+          {desc && !showForm && (
+            <p className="text-xs text-gray-500 mt-0.5">{desc}</p>
+          )}
         </div>
-        {body}
+        {content}
       </CardContent>
     </Card>
   );

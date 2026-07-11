@@ -59,20 +59,34 @@ function hasText(value: string | null | undefined): boolean {
   return Boolean(value?.trim());
 }
 
-/** Steps 1–3: required fields (marked with *). Steps 4+: optional — complete once visited. */
+export type OnboardingCompletionOptions = {
+  /** Stripe Connect payout ready — drives the Paiement step check, not visit progress. */
+  payoutChargesEnabled?: boolean | null;
+};
+
+/** Steps 1–3: required fields (marked with *). Steps 4+: optional — complete once visited.
+ * Payment step is complete only when Stripe charges_enabled (Wallet / Settings / this step). */
 export function isOnboardingStepComplete(
   step: number,
   accountType: AccountType,
   data: OnboardingData,
   maxStepReached: number,
-  totalSteps: number
+  totalSteps: number,
+  options?: OnboardingCompletionOptions
 ): boolean {
+  const paymentStep = accountType === "company" ? 5 : 6;
+  if (step === paymentStep) {
+    return options?.payoutChargesEnabled === true;
+  }
+
   const optionalFromStep = 4;
   if (step >= optionalFromStep) {
     if (step === totalSteps) {
       if (maxStepReached < step) return false;
       for (let s = 1; s < totalSteps; s++) {
-        if (!isOnboardingStepComplete(s, accountType, data, maxStepReached, totalSteps)) return false;
+        if (!isOnboardingStepComplete(s, accountType, data, maxStepReached, totalSteps, options)) {
+          return false;
+        }
       }
       return true;
     }
@@ -103,10 +117,11 @@ export function getOnboardingStepCompletions(
   accountType: AccountType,
   data: OnboardingData,
   totalSteps: number,
-  maxStepReached: number
+  maxStepReached: number,
+  options?: OnboardingCompletionOptions
 ): boolean[] {
   return Array.from({ length: totalSteps }, (_, i) =>
-    isOnboardingStepComplete(i + 1, accountType, data, maxStepReached, totalSteps)
+    isOnboardingStepComplete(i + 1, accountType, data, maxStepReached, totalSteps, options)
   );
 }
 

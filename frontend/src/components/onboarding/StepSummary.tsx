@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { CheckCircle2, Clock, CreditCard, Loader2 } from "lucide-react";
+import { Building2, Loader2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import AppImage from "@/components/ui/AppImage";
@@ -13,6 +13,13 @@ interface Props {
   accountType: string;
   accessToken?: string;
   payoutStatus?: ConnectStatus | null;
+  onEditPayment?: () => void;
+}
+
+function formatBankAccountParts(bank: NonNullable<ConnectStatus["bank_account"]>) {
+  const routing = bank.routing_number || null;
+  const last4 = bank.last4 ? `••••${bank.last4}` : null;
+  return { routing, last4 };
 }
 
 export default function StepSummary({
@@ -20,6 +27,7 @@ export default function StepSummary({
   accountType,
   accessToken,
   payoutStatus: payoutStatusProp = null,
+  onEditPayment,
 }: Props) {
   const { t } = useTranslation();
   const [payoutStatus, setPayoutStatus] = useState<ConnectStatus | null>(payoutStatusProp);
@@ -27,7 +35,7 @@ export default function StepSummary({
 
   useEffect(() => {
     if (payoutStatusProp) {
-      setPayoutStatus(payoutStatusProp);
+      setPayoutStatus((prev) => (prev ? { ...prev, ...payoutStatusProp } : payoutStatusProp));
       setStatusLoading(false);
     }
   }, [payoutStatusProp]);
@@ -37,10 +45,9 @@ export default function StepSummary({
       setStatusLoading(false);
       return;
     }
-    if (payoutStatusProp) return;
 
     let cancelled = false;
-    setStatusLoading(true);
+    if (!payoutStatusProp) setStatusLoading(true);
     fetch(`${process.env.NEXT_PUBLIC_API_URL}/payments/connect/status`, {
       headers: { Authorization: `Bearer ${accessToken}` },
     })
@@ -57,23 +64,15 @@ export default function StepSummary({
     };
   }, [accessToken, payoutStatusProp]);
 
+  const bank = payoutStatus?.bank_account;
+  const showBankCard = Boolean(payoutStatus?.charges_enabled && bank?.last4);
+  const bankParts = bank ? formatBankAccountParts(bank) : null;
+
   const payoutLabel = payoutStatus?.charges_enabled
     ? t("onboarding.payoutConfigured")
     : payoutStatus?.details_submitted
       ? t("onboarding.payoutVerifying")
       : t("onboarding.payoutLater");
-
-  const PayoutIcon = payoutStatus?.charges_enabled
-    ? CheckCircle2
-    : payoutStatus?.details_submitted
-      ? Clock
-      : CreditCard;
-
-  const payoutIconClass = payoutStatus?.charges_enabled
-    ? "text-green-600"
-    : payoutStatus?.details_submitted
-      ? "text-amber-500"
-      : "text-gray-400";
 
   return (
     <Card className="p-6 sm:p-8 animate-in fade-in duration-300">
@@ -110,6 +109,65 @@ export default function StepSummary({
             <p className="text-gray-700">
               <strong>{t("onboarding.addressLabel")}:</strong>{" "}
               {[data.adresse, data.ville, data.province].filter(Boolean).join(", ")}
+            </p>
+          )}
+          {statusLoading && !payoutStatus ? (
+            <div className="mt-1">
+              <p className="text-gray-700 mb-1.5">
+                <strong>{t("onboarding.payoutSectionTitle")}:</strong>
+              </p>
+              <p className="flex items-center gap-2 text-sm text-gray-500">
+                <Loader2 className="h-4 w-4 shrink-0 animate-spin" aria-hidden />
+                {t("onboarding.payoutStatusLoading")}
+              </p>
+            </div>
+          ) : showBankCard && bank && bankParts ? (
+            <div className="mt-1">
+              <p className="text-gray-700 mb-1.5">
+                <strong>{t("onboarding.payoutSectionTitle")}:</strong>
+              </p>
+              <div className="flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-3 py-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-gray-700">
+                  <Building2 className="h-5 w-5" aria-hidden />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="truncate text-sm font-semibold uppercase tracking-wide text-gray-900">
+                      {bank.bank_name || t("onboarding.bankAccount")}
+                    </p>
+                    {bank.currency && (
+                      <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium uppercase text-gray-500">
+                        {bank.currency}
+                      </span>
+                    )}
+                  </div>
+                  {(bankParts.routing || bankParts.last4) && (
+                    <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-sm text-gray-500">
+                      {bankParts.routing && <span>{bankParts.routing}</span>}
+                      {bankParts.routing && bankParts.last4 && (
+                        <span className="inline-flex items-center gap-0.5 text-gray-300" aria-hidden>
+                          <span className="h-1 w-1 rounded-full bg-current" />
+                          <span className="h-1 w-1 rounded-full bg-current" />
+                        </span>
+                      )}
+                      {bankParts.last4 && <span>{bankParts.last4}</span>}
+                    </p>
+                  )}
+                </div>
+                {onEditPayment && (
+                  <button
+                    type="button"
+                    onClick={onEditPayment}
+                    className="shrink-0 rounded-full bg-gray-100 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-200 transition-colors cursor-pointer"
+                  >
+                    {t("payoutSetup.manageBank")}
+                  </button>
+                )}
+              </div>
+            </div>
+          ) : (
+            <p className="text-gray-700">
+              <strong>{t("onboarding.payoutSectionTitle")}:</strong> {payoutLabel}
             </p>
           )}
         </div>
@@ -185,23 +243,8 @@ export default function StepSummary({
           </div>
         )}
 
-        <div>
-          <h4 className="font-semibold text-gray-900 mb-2">{t("onboarding.payoutSectionTitle")}</h4>
-          {statusLoading && !payoutStatus ? (
-            <div className="flex items-center gap-2 text-gray-500">
-              <Loader2 className="h-5 w-5 shrink-0 animate-spin" aria-hidden />
-              <p>{t("onboarding.payoutStatusLoading")}</p>
-            </div>
-          ) : (
-            <div className="flex items-start gap-2 text-gray-700">
-              <PayoutIcon className={`h-5 w-5 shrink-0 mt-0.5 ${payoutIconClass}`} />
-              <p>{payoutLabel}</p>
-            </div>
-          )}
-        </div>
-
         <p className="text-sm text-gray-500 italic">{t("onboarding.confirmReady")}</p>
-        </div>
+      </div>
     </Card>
   );
 }

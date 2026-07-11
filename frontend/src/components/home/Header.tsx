@@ -23,11 +23,7 @@ import { useAuthResumeAction } from "@/hooks/useAuthResumeAction";
 import { useMyProfile } from "@/hooks/useMyProfile";
 import { isAdminUser } from "@/lib/auth";
 import { resolveHeaderDisplayName, resolveUnedenAvatarUrl } from "@/lib/userDisplay";
-import {
-  isProfileDetailsIncomplete,
-  profileCompletionPath,
-  type ProfileForCompletion,
-} from "@/lib/onboardingSteps";
+import { type ProfileForCompletion } from "@/lib/onboardingSteps";
 import Link from "next/link";
 import { PostPublishLink, usePostPublishNavigating } from "@/components/navigation/PostPublishLink";
 import LinkLabelWithLoadingSpinner from "@/components/ui/LinkLabelWithLoadingSpinner";
@@ -77,15 +73,13 @@ interface UserDropdownProps {
   profileSubtitle?: string;
   isPerson: boolean;
   isCompany: boolean;
-  profileDetailsIncomplete: boolean;
-  completeProfileHref: string;
   user: { id: string; email?: string } | null;
   setShowSettings: (v: boolean) => void;
   onOpenSupport: () => void;
   handleSignOut: () => void;
 }
 
-function UserDropdown({ avatarUrl, displayName, fallbackInitial, unseenCount, profileData, profileSubtitle, isPerson, isCompany, profileDetailsIncomplete, completeProfileHref, user, setShowSettings, onOpenSupport, handleSignOut }: UserDropdownProps) {
+function UserDropdown({ avatarUrl, displayName, fallbackInitial, unseenCount, profileData, profileSubtitle, isPerson, isCompany, user, setShowSettings, onOpenSupport, handleSignOut }: UserDropdownProps) {
   const { t } = useTranslation();
   return (
     <DropdownMenu modal={false}>
@@ -113,14 +107,6 @@ function UserDropdown({ avatarUrl, displayName, fallbackInitial, unseenCount, pr
           )}
         </div>
         <DropdownMenuSeparator />
-        {profileDetailsIncomplete && (
-          <DropdownMenuItem asChild>
-            <Link href={completeProfileHref} className="cursor-pointer flex items-center text-green-700">
-              {isCompany ? <Building2 className="mr-2 h-4 w-4" /> : <User className="mr-2 h-4 w-4" />}
-              <span>{t("header.completeProfile")}</span>
-            </Link>
-          </DropdownMenuItem>
-        )}
         <DropdownMenuItem asChild>
           <Link href="/wallet" className="cursor-pointer flex items-center">
             <Wallet className="mr-2 h-4 w-4" />
@@ -445,11 +431,6 @@ export default function Header() {
   const accountType = profileData?.account_type ?? user?.user_metadata?.account_type;
   const isCompany = accountType === "company";
   const isPerson = !isCompany;
-  const profileDetailsIncomplete = isProfileDetailsIncomplete(profileData);
-  const completeProfileHref =
-    isPerson || isCompany
-      ? profileCompletionPath(profileData?.account_type)
-      : "/choose_type";
   const displayName = resolveHeaderDisplayName(user, profileData as ProfileForCompletion & { company_name?: string });
   const profileSubtitle = isCompany
     ? (profileData?.industry ?? (typeof user?.user_metadata?.industry === "string" ? user.user_metadata.industry : undefined))
@@ -580,8 +561,6 @@ export default function Header() {
                     profileSubtitle={profileSubtitle}
                     isPerson={isPerson}
                     isCompany={isCompany}
-                    profileDetailsIncomplete={profileDetailsIncomplete}
-                    completeProfileHref={completeProfileHref}
                     user={user}
                     setShowSettings={setShowSettings}
                     onOpenSupport={openSupport}
@@ -719,16 +698,6 @@ export default function Header() {
                 <nav className="flex-1 overflow-y-auto py-2">
                   {user ? (
                     <>
-                      {profileDetailsIncomplete && (
-                        <Link
-                          href={completeProfileHref}
-                          onClick={() => setMobileMenuOpen(false)}
-                          className="flex items-center gap-3 px-4 py-3 text-sm text-green-700 font-medium hover:bg-green-50 transition-colors"
-                        >
-                          {isCompany ? <Building2 className="h-5 w-5 text-green-600" /> : <User className="h-5 w-5 text-green-600" />}
-                          {t("header.completeProfile")}
-                        </Link>
-                      )}
                       <Link href="/favorites" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
                         <Heart className="h-5 w-5 text-gray-400" /> {t("header.favorites")}
                       </Link>

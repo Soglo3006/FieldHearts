@@ -550,21 +550,18 @@ export default function WalletPage() {
     Promise.all([
       fetch(`${process.env.NEXT_PUBLIC_API_URL}/wallet`, { headers }).then((r) => r.json()),
       fetch(`${process.env.NEXT_PUBLIC_API_URL}/wallet/transactions?period=2weeks`, { headers }).then((r) => r.json()),
-      fetch(`${process.env.NEXT_PUBLIC_API_URL}/payments/connect/status`, { headers }).then((r) => r.json()),
     ])
-      .then(([walletData, txData, statusData]) => {
+      .then(([walletData, txData]) => {
         setWallet(walletData);
         setTransactions(Array.isArray(txData) ? txData : []);
-        setConnectStatus(statusData);
         try {
           sessionStorage.setItem(`wallet-${user.id}`, JSON.stringify(walletData));
           sessionStorage.setItem(`wallet-tx-${user.id}-2weeks`, JSON.stringify(txData));
-          sessionStorage.setItem(`wallet-connect-${user.id}`, JSON.stringify(statusData));
         } catch {}
       })
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [user, session?.user?.id, router, authLoading]);
+  }, [user, session?.user?.id, session?.access_token, router, authLoading]);
 
   useEffect(() => {
     if (!session?.access_token || !user) return;
@@ -1043,6 +1040,7 @@ export default function WalletPage() {
         {session?.access_token && (
           <StripePayoutSetup
             accessToken={session.access_token}
+            initialStatus={connectStatus}
             title={connectStatus?.charges_enabled ? t("wallet.managePayoutAccount") : t("wallet.receivePayments")}
             subtitle={connectStatus?.charges_enabled ? t("wallet.managePayoutAccountDesc") : t("wallet.connectBankDesc")}
             onStatusChange={(status) => {

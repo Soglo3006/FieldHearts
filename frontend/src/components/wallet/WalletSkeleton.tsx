@@ -53,6 +53,40 @@ export function WalletModalListSkeleton({ rows = 4 }: { rows?: number }) {
   );
 }
 
+export function WalletBankAccountSkeleton({
+  variant = "card",
+}: {
+  variant?: "card" | "inline";
+}) {
+  const body = (
+    <div className="space-y-3">
+      <div className="flex flex-col items-center gap-2 py-2">
+        <Skeleton className="h-12 w-12 rounded-full" />
+        <Skeleton className="h-4 w-48" />
+      </div>
+      <div className="flex justify-center">
+        <Skeleton className="h-9 w-24 rounded-md" />
+      </div>
+    </div>
+  );
+
+  if (variant === "inline") {
+    return <div className="py-2">{body}</div>;
+  }
+
+  return (
+    <Card className="gap-0 border-green-100 py-0 shadow-sm">
+      <CardContent className="p-4 sm:p-5">
+        <div className="mb-3 space-y-1.5">
+          <Skeleton className="h-5 w-40" />
+          <Skeleton className="h-3 w-56" />
+        </div>
+        {body}
+      </CardContent>
+    </Card>
+  );
+}
+
 function WalletTransactionHistorySkeleton() {
   return (
     <Card className="shadow-sm overflow-hidden">
@@ -86,6 +120,8 @@ export default function WalletSkeleton() {
   return (
     <div className="space-y-5">
       <Skeleton className="h-8 w-40" />
+
+      <WalletBankAccountSkeleton />
 
       <Card className="shadow-md overflow-hidden border-green-100">
         <CardContent className="p-0">

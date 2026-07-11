@@ -5,10 +5,8 @@
 export type StripeConnectCollectionOptions = {
   fields: "currently_due" | "eventually_due";
   futureRequirements?: "omit" | "include";
-  requirements?: {
-    exclude?: string[];
-    only?: string[];
-  };
+  /** Stripe requires exactly one of `only` or `exclude`, not both optional. */
+  requirements?: { only: string[] } | { exclude: string[] };
 };
 
 /** Synced to Stripe before opening embedded onboarding — hide from the worker UI. */

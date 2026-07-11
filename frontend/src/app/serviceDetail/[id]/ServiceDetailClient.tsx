@@ -273,6 +273,10 @@ export default function ServiceDetailClient({ initialService = null }: ServiceDe
             return;
           }
           data = await res.json();
+          if (!data) {
+            setError(true);
+            return;
+          }
           setService(data);
           setBookingEstimatedHours("");
           setFavoritesCount(typeof data.favorites_count === "number" ? data.favorites_count : 0);

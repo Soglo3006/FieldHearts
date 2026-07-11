@@ -69,7 +69,7 @@ interface UserDropdownProps {
   displayName: string | undefined;
   fallbackInitial: string;
   unseenCount: number;
-  profileData: (ProfileForCompletion & { company_name?: string; avatar?: string }) | null;
+  profileData: (ProfileForCompletion & { avatar?: string | null }) | null;
   profileSubtitle?: string;
   isPerson: boolean;
   isCompany: boolean;

@@ -56,19 +56,23 @@ router.get("/", protect, async (req, res) => {
       `SELECT n.id, n.type, n.title, n.body, n.link, n.read_at, n.created_at,
               COALESCE(s.title, fix.service_title, title_match.service_title) AS service_title,
               COALESCE(b.id, fix.booking_id, title_match.booking_id) AS resolved_booking_id,
-              COALESCE(s.image_urls[1], s.image_url, fix.service_image_url, title_match.service_image_url) AS service_image_url,
-              msg.sender_name,
-              msg.sender_avatar
+              COALESCE(
+                NULLIF(s.image_urls[1], ''),
+                NULLIF(s.image_url, ''),
+                NULLIF(fix.service_image_url, ''),
+                NULLIF(title_match.service_image_url, '')
+              ) AS service_image_url,
+              COALESCE(msg.sender_name, applicant.applicant_name) AS sender_name,
+              COALESCE(msg.sender_avatar, applicant.applicant_avatar) AS sender_avatar
        FROM notifications n
        LEFT JOIN bookings b
-         ON n.link ~ 'booking='
-        AND b.id = (substring(n.link from 'booking=([^&]+)'))::uuid
-        AND (b.client_id = n.user_id OR b.worker_id = n.user_id)
+         ON n.link ~ 'booking=[0-9a-fA-F-]{36}'
+        AND b.id = (substring(n.link from 'booking=([0-9a-fA-F-]{36})'))::uuid
        LEFT JOIN services s ON s.id = b.service_id
        LEFT JOIN LATERAL (
          SELECT bk.id AS booking_id,
                 sv.title AS service_title,
-                COALESCE(sv.image_urls[1], sv.image_url) AS service_image_url
+                COALESCE(NULLIF(sv.image_urls[1], ''), NULLIF(sv.image_url, '')) AS service_image_url
          FROM bookings bk
          JOIN services sv ON sv.id = bk.service_id
          WHERE n.type = 'booking_completed'
@@ -82,7 +86,7 @@ router.get("/", protect, async (req, res) => {
        LEFT JOIN LATERAL (
          SELECT bk.id AS booking_id,
                 sv.title AS service_title,
-                COALESCE(sv.image_urls[1], sv.image_url) AS service_image_url
+                COALESCE(NULLIF(sv.image_urls[1], ''), NULLIF(sv.image_url, '')) AS service_image_url
          FROM bookings bk
          JOIN services sv ON sv.id = bk.service_id
          WHERE b.id IS NULL
@@ -104,6 +108,18 @@ router.get("/", protect, async (req, res) => {
            AND crm.user_id <> n.user_id
          LIMIT 1
        ) msg ON true
+       LEFT JOIN LATERAL (
+         SELECT COALESCE(NULLIF(u.company_name, ''), u.full_name) AS applicant_name,
+                u.avatar AS applicant_avatar
+         FROM users u
+         WHERE n.type = 'booking_request'
+           AND b.id IS NOT NULL
+           AND u.id = CASE
+             WHEN b.client_id = n.user_id THEN b.worker_id
+             ELSE b.client_id
+           END
+         LIMIT 1
+       ) applicant ON true
        WHERE n.user_id = $1
        ORDER BY n.created_at DESC
        LIMIT 50`,

@@ -2,7 +2,11 @@ import pool from "../config/db.js";
 import { finalizeCompletion } from "../controllers/bookingController.js";
 import { notifyPaymentReceipt } from "./emailService.js";
 import { getUserLang } from "./notificationService.js";
-import { ensureDepositsAndCalendarSchema } from "../utils/depositSchema.js";
+import {
+  ensureDepositsAndCalendarSchema,
+  calculateDepositAmount,
+  resolveDepositBaseAmount,
+} from "../utils/depositSchema.js";
 import {
   computeBalanceDueCents,
 } from "../utils/hourlyPayment.js";
@@ -33,6 +37,72 @@ function computeBalanceDueAfterDeposit(bookingRow, newPaidBase) {
     { ...bookingRow, paid_service_base_cents: newPaidBase, balance_due_cents: 0 },
     meta,
   );
+}
+
+/**
+ * If verify + webhook both applied a deposit before idempotency existed,
+ * paid_service_base_cents can be 2× the real amount. Correct booking totals.
+ */
+export async function repairDoubledDepositPaidBase(bookingId) {
+  const bookingRow = await loadBookingForHourlyPayment(bookingId);
+  if (!bookingRow || bookingRow.payment_status !== "deposit_paid") return false;
+
+  const paidBase = Number(bookingRow.paid_service_base_cents || 0);
+  if (paidBase < 1) return false;
+
+  const meta = serviceMetaFromBookingRow(bookingRow);
+  const baseDollars = resolveDepositBaseAmount(meta, bookingRow);
+  const expectedCents =
+    baseDollars != null
+      ? Math.round(calculateDepositAmount(baseDollars, meta) * 100)
+      : 0;
+
+  const payments = await pool.query(
+    `SELECT amount, deposit_amount_cents
+     FROM payments
+     WHERE booking_id = $1 AND status = 'paid' AND payment_kind = 'deposit'
+     ORDER BY created_at ASC`,
+    [bookingId],
+  );
+
+  const chargedFromPayments = payments.rows.reduce((sum, row) => {
+    const cents = Number(row.deposit_amount_cents) || Number(row.amount) || 0;
+    return sum + cents;
+  }, 0);
+
+  const storedDeposit = Number(bookingRow.deposit_amount_cents || 0);
+
+  let correctCents = 0;
+  if (expectedCents > 0 && paidBase === expectedCents * 2) {
+    correctCents = expectedCents;
+  } else if (storedDeposit > 0 && paidBase === storedDeposit * 2) {
+    correctCents = storedDeposit;
+  } else if (chargedFromPayments > 0 && paidBase === chargedFromPayments * 2) {
+    correctCents = chargedFromPayments;
+  } else if (
+    expectedCents > 0 &&
+    storedDeposit > 0 &&
+    storedDeposit === expectedCents * 2 &&
+    paidBase === storedDeposit
+  ) {
+    correctCents = expectedCents;
+  } else {
+    return false;
+  }
+
+  const balanceDueCents = computeBalanceDueAfterDeposit(bookingRow, correctCents);
+
+  const result = await pool.query(
+    `UPDATE bookings
+     SET paid_service_base_cents = $2,
+         balance_due_cents = $3,
+         deposit_amount_cents = $2
+     WHERE id = $1
+       AND payment_status = 'deposit_paid'
+       AND paid_service_base_cents = $4`,
+    [bookingId, correctCents, balanceDueCents, paidBase],
+  );
+  return (result.rowCount ?? 0) > 0;
 }
 
 async function loadBookingForHourlyPayment(bookingId) {
@@ -74,22 +144,50 @@ export async function applySuccessfulPayment({
 }) {
   await ensureDepositsAndCalendarSchema(pool);
 
+  // Claim the pending payment atomically so verify + webhook cannot double-apply
+  // paid_service_base_cents (which previously turned a $70 deposit into $140).
+  let claimedPayment = false;
   if (paymentIntentId) {
     if (checkoutSessionId) {
-      await pool.query(
+      const claimed = await pool.query(
         `UPDATE payments
          SET status = 'paid', stripe_payment_intent_id = $1, updated_at = NOW()
-         WHERE stripe_checkout_session_id = $2`,
+         WHERE stripe_checkout_session_id = $2 AND status = 'pending'
+         RETURNING id`,
         [paymentIntentId, checkoutSessionId],
       );
+      claimedPayment = claimed.rows.length > 0;
+      if (!claimedPayment) {
+        const already = await pool.query(
+          `SELECT id FROM payments
+           WHERE stripe_checkout_session_id = $1 AND status = 'paid'`,
+          [checkoutSessionId],
+        );
+        if (already.rows.length > 0) return;
+      }
     } else {
-      await pool.query(
+      const claimed = await pool.query(
         `UPDATE payments
          SET status = 'paid', updated_at = NOW()
-         WHERE stripe_payment_intent_id = $1 AND booking_id = $2`,
+         WHERE stripe_payment_intent_id = $1 AND booking_id = $2 AND status = 'pending'
+         RETURNING id`,
         [paymentIntentId, bookingId],
       );
+      claimedPayment = claimed.rows.length > 0;
+      if (!claimedPayment) {
+        const already = await pool.query(
+          `SELECT id FROM payments
+           WHERE stripe_payment_intent_id = $1 AND booking_id = $2 AND status = 'paid'`,
+          [paymentIntentId, bookingId],
+        );
+        if (already.rows.length > 0) return;
+      }
     }
+  }
+
+  if (paymentIntentId && !claimedPayment) {
+    // No matching payment row to claim — avoid mutating booking totals blindly.
+    return;
   }
 
   const bookingRow = await loadBookingForHourlyPayment(bookingId);

@@ -26,6 +26,7 @@ import { resolveHeaderDisplayName, resolveUnedenAvatarUrl } from "@/lib/userDisp
 import { type ProfileForCompletion } from "@/lib/onboardingSteps";
 import Link from "next/link";
 import { PostPublishLink, usePostPublishNavigating } from "@/components/navigation/PostPublishLink";
+import { LoginLink, useLoginNavigating } from "@/components/navigation/LoginLink";
 import LinkLabelWithLoadingSpinner from "@/components/ui/LinkLabelWithLoadingSpinner";
 import { createPortal } from "react-dom";
 import SettingsPage from "@/components/profile/Settings";
@@ -197,6 +198,80 @@ function HeaderPostIconButton({ className }: { className?: string }) {
         <span className="font-bold text-lg leading-none">+</span>
       )}
     </Button>
+  );
+}
+
+function HeaderLoginButton({
+  className,
+  label,
+  shortLabel,
+}: {
+  className?: string;
+  label: string;
+  shortLabel?: string;
+}) {
+  const isNavigating = useLoginNavigating();
+
+  return (
+    <Button variant="outline" className={className}>
+      {shortLabel ? (
+        <>
+          <span className="sm:hidden">
+            <LinkLabelWithLoadingSpinner label={shortLabel} loading={isNavigating} />
+          </span>
+          <span className="hidden sm:inline">
+            <LinkLabelWithLoadingSpinner label={label} loading={isNavigating} />
+          </span>
+        </>
+      ) : (
+        <LinkLabelWithLoadingSpinner label={label} loading={isNavigating} />
+      )}
+    </Button>
+  );
+}
+
+function HeaderLoginSolidButton({
+  className,
+  label,
+  shortLabel,
+}: {
+  className?: string;
+  label: string;
+  shortLabel?: string;
+}) {
+  const isNavigating = useLoginNavigating();
+
+  return (
+    <Button className={className}>
+      {shortLabel ? (
+        <>
+          <span className="sm:hidden">
+            <LinkLabelWithLoadingSpinner label={shortLabel} loading={isNavigating} />
+          </span>
+          <span className="hidden sm:inline">
+            <LinkLabelWithLoadingSpinner label={label} loading={isNavigating} />
+          </span>
+        </>
+      ) : (
+        <LinkLabelWithLoadingSpinner label={label} loading={isNavigating} />
+      )}
+    </Button>
+  );
+}
+
+function HeaderMobileLoginMenuItem() {
+  const { t } = useTranslation();
+  const isNavigating = useLoginNavigating();
+
+  return (
+    <>
+      {isNavigating ? (
+        <Loader2 className="h-5 w-5 text-gray-400 animate-spin" aria-hidden />
+      ) : (
+        <User className="h-5 w-5 text-gray-400" />
+      )}
+      <LinkLabelWithLoadingSpinner label={t("header.loginRegister")} loading={isNavigating} />
+    </>
   );
 }
 
@@ -567,11 +642,12 @@ export default function Header() {
                     handleSignOut={handleSignOut}
                   />
                 ) : (
-                  <Link href="/login">
-                    <Button variant="outline" className={`${HEADER_CONTROL_H} cursor-pointer`}>
-                      {t("header.loginRegister") || "Se connecter / S'inscrire"}
-                    </Button>
-                  </Link>
+                  <LoginLink>
+                    <HeaderLoginButton
+                      className={`${HEADER_CONTROL_H} cursor-pointer`}
+                      label={t("header.loginRegister") || "Se connecter / S'inscrire"}
+                    />
+                  </LoginLink>
                 )}
               </div>
 
@@ -653,12 +729,13 @@ export default function Header() {
                 >
                   <MessageSquareText className="h-5 w-5" />
                 </Button>
-                <Link href="/login" className="shrink-0">
-                  <Button className={`${HEADER_CONTROL_H} px-3 text-xs bg-green-700 hover:bg-green-800 text-white cursor-pointer whitespace-nowrap`}>
-                    <span className="sm:hidden">{t("header.login")}</span>
-                    <span className="hidden sm:inline">{t("header.loginRegister")}</span>
-                  </Button>
-                </Link>
+                <LoginLink className="shrink-0">
+                  <HeaderLoginSolidButton
+                    className={`${HEADER_CONTROL_H} px-3 text-xs bg-green-700 hover:bg-green-800 text-white cursor-pointer whitespace-nowrap`}
+                    label={t("header.loginRegister")}
+                    shortLabel={t("header.login")}
+                  />
+                </LoginLink>
               </>
             )}
           </div>
@@ -771,9 +848,12 @@ export default function Header() {
                       <button onClick={() => { setMobileMenuOpen(false); openSupport(); }} className="cursor-pointer w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
                         <MessageSquareText className="h-5 w-5 text-gray-400" /> {t("support.button")}
                       </button>
-                      <Link href="/login" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
-                        <User className="h-5 w-5 text-gray-400" /> {t("header.loginRegister")}
-                      </Link>
+                      <LoginLink
+                        onNavigate={() => setMobileMenuOpen(false)}
+                        className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                      >
+                        <HeaderMobileLoginMenuItem />
+                      </LoginLink>
                     </>
                   )}
                 </nav>

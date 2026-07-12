@@ -12,6 +12,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import AppImage from "@/components/ui/AppImage";
 import type { AppNotification } from "@/hooks/useNotifications";
+import { resolveUnedenAvatarUrl } from "@/lib/userDisplay";
 import { cn } from "@/lib/utils";
 
 const TYPE_CONFIG: Record<
@@ -76,10 +77,11 @@ export default function NotificationVisual({
 
   if (notif.type === "message") {
     const fallbackLabel = getFallbackLabel(notif);
+    const avatarUrl = resolveUnedenAvatarUrl(notif.sender_avatar);
     return (
       <div className={centeredFrameClass}>
         <Avatar className="h-10 w-10">
-          {notif.sender_avatar ? <AvatarImage src={notif.sender_avatar} alt={fallbackLabel} /> : null}
+          {avatarUrl ? <AvatarImage src={avatarUrl} alt={fallbackLabel} /> : null}
           <AvatarFallback className="bg-green-100 text-green-800 text-sm font-semibold">
             {fallbackLabel.charAt(0).toUpperCase()}
           </AvatarFallback>
@@ -88,6 +90,7 @@ export default function NotificationVisual({
     );
   }
 
+  // Listing photo when available (booking / payment / etc.)
   if (notif.service_image_url) {
     return (
       <div className={cn("relative overflow-hidden rounded-lg border border-gray-200 bg-gray-100", frameClass)}>
@@ -98,6 +101,22 @@ export default function NotificationVisual({
           sizes="56px"
           className="object-cover object-center"
         />
+      </div>
+    );
+  }
+
+  // New booking request without listing photo → show applicant avatar
+  if (notif.type === "booking_request") {
+    const fallbackLabel = getFallbackLabel(notif);
+    const avatarUrl = resolveUnedenAvatarUrl(notif.sender_avatar);
+    return (
+      <div className={centeredFrameClass}>
+        <Avatar className="h-10 w-10">
+          {avatarUrl ? <AvatarImage src={avatarUrl} alt={fallbackLabel} /> : null}
+          <AvatarFallback className="bg-green-100 text-green-800 text-sm font-semibold">
+            {fallbackLabel.charAt(0).toUpperCase()}
+          </AvatarFallback>
+        </Avatar>
       </div>
     );
   }

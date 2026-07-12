@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 import { AlertCircle, Loader2 } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
+import LinkLabelWithLoadingSpinner from "@/components/ui/LinkLabelWithLoadingSpinner";
 import BillingAddressSelector, { type BillingAddress } from "@/components/payment/BillingAddressSelector";
 import PaymentCheckoutForm from "@/components/payment/PaymentCheckoutForm";
 import { getTaxRate, getTaxLabel, formatTaxRate } from "@/lib/taxes";
@@ -282,16 +283,13 @@ export default function PaymentSheet({
           <Button
             onClick={handlePreparePayment}
             disabled={preparingPayment || paying || !billingConfirmed || !selectedAddress || !publishableKey}
-            className="w-full h-12 text-base font-semibold bg-green-700 hover:bg-green-800 text-white rounded-xl disabled:opacity-50"
+            className={`w-full h-12 text-base font-semibold bg-green-700 hover:bg-green-800 text-white rounded-xl disabled:opacity-50 ${preparingPayment ? "pointer-events-none" : ""}`}
+            aria-busy={preparingPayment}
           >
-            {preparingPayment ? (
-              <span className="flex items-center gap-2">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                {t("payment.preparingPayment")}
-              </span>
-            ) : (
-              <span>{t("payment.continueToPayment")}</span>
-            )}
+            <LinkLabelWithLoadingSpinner
+              label={t("payment.continueToPayment")}
+              loading={preparingPayment}
+            />
           </Button>
         )}
 

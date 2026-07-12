@@ -1252,6 +1252,9 @@ export const declineCancellation = async (req, res) => {
 export const getBookingById = async (req, res) => {
   try {
     const { id } = req.params;
+    // Dynamic import avoids circular dependency with paymentCompletionService.
+    const { repairDoubledDepositPaidBase } = await import("../services/paymentCompletionService.js");
+    await repairDoubledDepositPaidBase(id).catch(() => {});
     const result = await pool.query(
       `SELECT b.*, s.title, s.price, s.image_url, s.image_urls, s.category,
               s.hide_exact_location,

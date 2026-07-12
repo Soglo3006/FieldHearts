@@ -36,7 +36,10 @@ import { getIntlLocale } from "@/lib/locale";
 import { sanitizePlainText } from "@/lib/sanitize";
 import AppImage from "@/components/ui/AppImage";
 import { toast } from "sonner";
-import PaymentInlinePanel from "@/components/payment/PaymentInlinePanel";
+import PaymentInlinePanel, {
+  type PaymentInlinePanelHandle,
+  type PaymentInlinePhase,
+} from "@/components/payment/PaymentInlinePanel";
 import { HourlyDepositReceiptBreakdown } from "@/components/payment/HourlyDepositReceiptBreakdown";
 import { SplitDepositFullReceiptBreakdown } from "@/components/payment/SplitDepositFullReceiptBreakdown";
 import CancelConfirmPanel from "@/components/bookings/CancelConfirmPanel";
@@ -253,6 +256,24 @@ export default function BookingDetailModal({
   useEffect(() => {
     setBooking(initialBooking);
   }, [initialBooking]);
+
+  // Always refetch on open so deposit repair + fresh payment_status apply (list cache can be stale).
+  useEffect(() => {
+    void (async () => {
+      try {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/bookings/${initialBooking.id}`, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        setBooking((prev) => ({ ...prev, ...data }));
+        onUpdated(initialBooking.id, data);
+      } catch {
+        // ignore
+      }
+    })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- run once per booking open
+  }, [initialBooking.id, accessToken]);
   const [serviceDescription, setServiceDescription] = useState<string | null>(null);
   const [updating, setUpdating] = useState(false);
   const [step, setStep] = useState<BookingStep>("detail");
@@ -273,6 +294,8 @@ export default function BookingDetailModal({
   const [disputeSuccess, setDisputeSuccess] = useState(false);
   const bookingRef = useRef(booking);
   const disputeFileInputRef = useRef<HTMLInputElement>(null);
+  const paymentPanelRef = useRef<PaymentInlinePanelHandle>(null);
+  const [paymentPhase, setPaymentPhase] = useState<PaymentInlinePhase>("billing");
   bookingRef.current = booking;
 
   const refreshBookingFromApi = useCallback(async () => {
@@ -291,6 +314,35 @@ export default function BookingDetailModal({
       return null;
     }
   }, [accessToken, onUpdated]);
+
+  const handleInlinePaymentSuccess = useCallback(async () => {
+    // Force refresh even if fingerprint matches (payment fields just changed).
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/bookings/${bookingRef.current.id}`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const current = bookingRef.current;
+        setBooking({ ...current, ...data });
+        onUpdated(current.id, data);
+        setPaymentPhase("billing");
+        setStep("detail");
+        toast.success(
+          data?.payment_status === "deposit_paid"
+            ? t("payment.confirmedDeposit")
+            : t("bookings.paymentSuccess"),
+        );
+        return;
+      }
+    } catch {
+      // fall through
+    }
+    await refreshBookingFromApi();
+    setPaymentPhase("billing");
+    setStep("detail");
+    toast.success(t("bookings.paymentSuccess"));
+  }, [accessToken, onUpdated, refreshBookingFromApi, t]);
 
   useEffect(() => {
     fetch(`${process.env.NEXT_PUBLIC_API_URL}/services/${initialBooking.service_id}`)
@@ -443,6 +495,17 @@ export default function BookingDetailModal({
   const hasPendingFinalBalance = booking.status === "completed" && checkoutKind === "balance";
   const hasMarkedDone = userRole === "worker" ? booking.completed_by_worker : booking.completed_by_client;
   const otherHasMarkedDone = userRole === "worker" ? booking.completed_by_client : booking.completed_by_worker;
+  const goToPaymentStep = useCallback(() => {
+    setPaymentPhase("billing");
+    setLayoutMode("payment");
+    setStep("payment");
+  }, []);
+
+  const handlePaymentHeaderBack = useCallback(() => {
+    if (paymentPhase === "card" && paymentPanelRef.current?.goBack()) return;
+    setPaymentPhase("billing");
+    setStep("detail");
+  }, [paymentPhase]);
   const panelOrders = layoutMode === "dispute"
     ? { review: 0, detail: 1, dispute: 2, cancel: 3, payment: 4 }
     : layoutMode === "payment"
@@ -659,7 +722,22 @@ export default function BookingDetailModal({
   const modalBody = (
     <>
         {/* Header — changes based on step */}
-        <div className="flex items-start justify-between gap-3 px-5 py-4 border-b border-gray-100 shrink-0">
+        <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-gray-100 shrink-0">
+          {step === "payment" ? (
+            <>
+              <button
+                type="button"
+                onClick={handlePaymentHeaderBack}
+                aria-label={t("common.back")}
+                className="flex shrink-0 items-center justify-center text-gray-500 hover:text-gray-700 transition-colors cursor-pointer -ml-1 p-1"
+              >
+                <ChevronLeft className="h-5 w-5" />
+              </button>
+              <h2 className="flex-1 text-center text-base font-semibold text-gray-900 truncate px-2">
+                {t("payment.completePayment")}
+              </h2>
+            </>
+          ) : (
           <div className="min-w-0 flex-1">
             {embedded && step === "detail" && onBack ? (
               <>
@@ -687,7 +765,13 @@ export default function BookingDetailModal({
                   )}
                 </div>
                 <h2 className="mt-2 text-lg font-bold text-gray-900 leading-snug line-clamp-2">
-                  {booking.title}
+                  <Link
+                    href={`/serviceDetail/${booking.service_id}`}
+                    onClick={onClose}
+                    className="hover:text-green-700 hover:underline underline-offset-2 transition-colors"
+                  >
+                    {booking.title}
+                  </Link>
                 </h2>
               </>
             ) : step !== "detail" ? (
@@ -725,12 +809,19 @@ export default function BookingDetailModal({
                   )}
                 </div>
                 <h2 className="mt-2 text-lg font-bold text-gray-900 leading-snug line-clamp-2">
-                  {booking.title}
+                  <Link
+                    href={`/serviceDetail/${booking.service_id}`}
+                    onClick={onClose}
+                    className="hover:text-green-700 hover:underline underline-offset-2 transition-colors"
+                  >
+                    {booking.title}
+                  </Link>
                 </h2>
               </>
             )}
           </div>
-          <button type="button" onClick={onClose} aria-label={t("common.close")} className="cursor-pointer shrink-0 text-gray-400 hover:text-gray-600 transition-colors mt-0.5">
+          )}
+          <button type="button" onClick={onClose} aria-label={t("common.close")} className="cursor-pointer shrink-0 text-gray-400 hover:text-gray-600 transition-colors">
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -1917,10 +2008,7 @@ export default function BookingDetailModal({
           onOpenReview={openReviewStep}
           onMessage={onMessage}
           onClose={onClose}
-          onPayNow={() => {
-            setLayoutMode("payment");
-            setStep("payment");
-          }}
+          onPayNow={goToPaymentStep}
           onOpenCancelDeposit={openCancelDepositStep}
           onOpenCancelDispute={openCancelDisputeStep}
         />
@@ -2003,8 +2091,9 @@ export default function BookingDetailModal({
           </div>{/* end panel 3 */}
 
           {/* Panel 4 — payment step */}
-          <div className={`flex flex-col overflow-hidden w-1/5 ${orderClasses[panelOrders.payment]}`}>
+          <div className={`flex min-h-0 flex-col overflow-hidden w-1/5 ${orderClasses[panelOrders.payment]}`}>
             <PaymentInlinePanel
+              ref={paymentPanelRef}
               bookingId={booking.id}
               bookingTitle={booking.title}
               price={resolveCheckoutPrice(
@@ -2036,7 +2125,8 @@ export default function BookingDetailModal({
               }
               depositAmountCents={booking.deposit_amount_cents}
               pricingMode={booking.pricing_mode}
-              onPaymentSuccess={refreshBookingFromApi}
+              onPaymentSuccess={handleInlinePaymentSuccess}
+              onPhaseChange={setPaymentPhase}
             />
           </div>{/* end panel 5 */}
 

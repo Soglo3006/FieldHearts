@@ -1,10 +1,14 @@
 "use client";
 
-import { X } from "lucide-react";
+import { useRef, useState } from "react";
+import { ChevronLeft, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useScrollLock } from "@/hooks/useScrollLock";
 import { useTranslation } from "react-i18next";
-import PaymentInlinePanel from "@/components/payment/PaymentInlinePanel";
+import PaymentInlinePanel, {
+  type PaymentInlinePanelHandle,
+  type PaymentInlinePhase,
+} from "@/components/payment/PaymentInlinePanel";
 import type { DepositConfig } from "@/lib/deposit";
 import {
   type CheckoutKind,
@@ -42,6 +46,9 @@ function PaymentModalInner({
   const { t } = useTranslation();
   const router = useRouter();
   useScrollLock(true);
+  const paymentPanelRef = useRef<PaymentInlinePanelHandle>(null);
+  const [paymentPhase, setPaymentPhase] = useState<PaymentInlinePhase>("billing");
+
   const showsFullDepositCopy =
     checkoutKind === "full" &&
     usesFullUpfrontDepositPayment(
@@ -63,35 +70,58 @@ function PaymentModalInner({
         ? t("payment.payBalanceLabel")
         : t("payment.completePayment");
 
+  const handleBack = () => {
+    if (paymentPanelRef.current?.goBack()) return;
+    onClose();
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60">
       <div className="absolute inset-0" onClick={onClose} />
       <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col z-10 overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 shrink-0">
-          <span className="font-semibold text-gray-900 text-base">{headerTitle}</span>
-          <button type="button" onClick={onClose} aria-label={t("common.close")} className="cursor-pointer text-gray-400 hover:text-gray-600 transition-colors">
+        <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-gray-100 shrink-0">
+          {paymentPhase === "card" ? (
+            <button
+              type="button"
+              onClick={handleBack}
+              aria-label={t("common.back")}
+              className="-ml-1 flex shrink-0 cursor-pointer items-center justify-center p-1 text-gray-500 transition-colors hover:text-gray-700"
+            >
+              <ChevronLeft className="h-5 w-5" />
+            </button>
+          ) : (
+            <span className="w-7 shrink-0" aria-hidden />
+          )}
+          <span className="flex-1 truncate text-center text-base font-semibold text-gray-900">
+            {paymentPhase === "card" ? t("payment.completePayment") : headerTitle}
+          </span>
+          <button type="button" onClick={onClose} aria-label={t("common.close")} className="cursor-pointer shrink-0 text-gray-400 hover:text-gray-600 transition-colors">
             <X className="h-5 w-5" />
           </button>
         </div>
 
         {/* Payment panel */}
-        <PaymentInlinePanel
-          bookingId={bookingId}
-          bookingTitle={bookingTitle}
-          price={price}
-          accessToken={accessToken}
-          clientProvince={clientProvince}
-          depositConfig={depositConfig}
-          depositAmountCents={depositAmountCents}
-          checkoutKind={checkoutKind}
-          fullServiceBase={fullServiceBase}
-          pricingMode={pricingMode}
-          onPaymentSuccess={() => {
-            onClose();
-            router.push(`/payment/success?booking_id=${bookingId}`);
-          }}
-        />
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          <PaymentInlinePanel
+            ref={paymentPanelRef}
+            bookingId={bookingId}
+            bookingTitle={bookingTitle}
+            price={price}
+            accessToken={accessToken}
+            clientProvince={clientProvince}
+            depositConfig={depositConfig}
+            depositAmountCents={depositAmountCents}
+            checkoutKind={checkoutKind}
+            fullServiceBase={fullServiceBase}
+            pricingMode={pricingMode}
+            onPhaseChange={setPaymentPhase}
+            onPaymentSuccess={() => {
+              onClose();
+              router.push(`/payment/success?booking_id=${bookingId}`);
+            }}
+          />
+        </div>
       </div>
     </div>
   );

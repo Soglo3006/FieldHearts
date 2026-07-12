@@ -6,7 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { ChevronLeft, ChevronRight, Loader2, Plus, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Loader2, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { getIntlLocale } from "@/lib/locale";
@@ -607,10 +607,13 @@ export function BookingCalendarPanel({
             type="button"
             onClick={handleCreate}
             disabled={saving || !startsAt || !endsAt || scheduleRangeInvalid}
-            className="w-full sm:w-auto bg-green-700 hover:bg-green-800"
+            className="w-full bg-green-700 hover:bg-green-800"
           >
-            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-            <span className="ml-2">{t("calendar.proposeSchedule")}</span>
+            {saving ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              t("calendar.proposeSchedule")
+            )}
           </Button>
         </div>
       )}

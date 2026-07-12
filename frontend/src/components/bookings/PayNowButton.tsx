@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import PaymentModal from "@/components/payment/PaymentModal";
+import LinkLabelWithLoadingSpinner from "@/components/ui/LinkLabelWithLoadingSpinner";
 import {
   type CheckoutKind,
   usesFullUpfrontDepositPayment,
@@ -41,6 +42,12 @@ export default function PayNowButton({
 }: Props) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
+  const [isNavigating, setIsNavigating] = useState(false);
+  const navTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => () => {
+    if (navTimerRef.current) clearTimeout(navTimerRef.current);
+  }, []);
   const showsFullDepositCopy =
     checkoutKind === "full" &&
     usesFullUpfrontDepositPayment(
@@ -64,7 +71,10 @@ export default function PayNowButton({
 
   const handleClick = () => {
     if (onPayNow) {
+      setIsNavigating(true);
       onPayNow();
+      if (navTimerRef.current) clearTimeout(navTimerRef.current);
+      navTimerRef.current = setTimeout(() => setIsNavigating(false), 320);
     } else {
       setOpen(true);
     }
@@ -74,10 +84,12 @@ export default function PayNowButton({
     <>
       <Button
         size={fullWidth ? "default" : "sm"}
-        className={`bg-green-700 hover:bg-green-800 text-white gap-1.5 ${fullWidth ? "w-full h-11" : "w-full justify-center"}`}
+        className={`bg-green-700 hover:bg-green-800 text-white gap-1.5 ${fullWidth ? "w-full h-11" : "w-full justify-center"} ${isNavigating ? "pointer-events-none opacity-90" : ""}`}
         onClick={handleClick}
+        disabled={isNavigating}
+        aria-busy={isNavigating}
       >
-        {buttonLabel}
+        <LinkLabelWithLoadingSpinner label={buttonLabel} loading={isNavigating} />
       </Button>
       {showAgreementText && (
         <p className="text-center text-xs text-gray-400">

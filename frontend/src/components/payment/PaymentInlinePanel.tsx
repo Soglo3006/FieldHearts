@@ -1,10 +1,16 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import {
+  forwardRef,
+  useEffect,
+  useImperativeHandle,
+  useState,
+} from "react";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { AlertCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import LinkLabelWithLoadingSpinner from "@/components/ui/LinkLabelWithLoadingSpinner";
 import BillingAddressSelector, { type BillingAddress } from "@/components/payment/BillingAddressSelector";
 import PaymentCheckoutForm from "@/components/payment/PaymentCheckoutForm";
 import { getTaxRate, getTaxLabel, formatTaxRate } from "@/lib/taxes";
@@ -18,6 +24,13 @@ import {
 } from "@/lib/hourlyPayment";
 import { normalizePricingMode } from "@/lib/listingPrice";
 
+export type PaymentInlinePhase = "billing" | "card";
+
+export type PaymentInlinePanelHandle = {
+  /** Returns true if back was handled (card → billing). */
+  goBack: () => boolean;
+};
+
 interface Props {
   bookingId: string;
   bookingTitle: string;
@@ -30,21 +43,26 @@ interface Props {
   fullServiceBase?: number | null;
   pricingMode?: string | null;
   onPaymentSuccess?: () => void;
+  onPhaseChange?: (phase: PaymentInlinePhase) => void;
 }
 
-export default function PaymentInlinePanel({
-  bookingId,
-  bookingTitle,
-  price,
-  accessToken,
-  clientProvince,
-  depositConfig,
-  depositAmountCents,
-  checkoutKind = "full",
-  fullServiceBase = null,
-  pricingMode = null,
-  onPaymentSuccess,
-}: Props) {
+const PaymentInlinePanel = forwardRef<PaymentInlinePanelHandle, Props>(function PaymentInlinePanel(
+  {
+    bookingId,
+    bookingTitle,
+    price,
+    accessToken,
+    clientProvince,
+    depositConfig,
+    depositAmountCents,
+    checkoutKind = "full",
+    fullServiceBase = null,
+    pricingMode = null,
+    onPaymentSuccess,
+    onPhaseChange,
+  },
+  ref,
+) {
   const { t, i18n } = useTranslation();
   const router = useRouter();
   const checkoutLocale = getIntlLocale(i18n.language, { fr: "fr-CA", en: "en" });
@@ -58,6 +76,20 @@ export default function PaymentInlinePanel({
   const [paying, setPaying] = useState(false);
   const [error, setError] = useState("");
   const [loadingAddresses, setLoadingAddresses] = useState(true);
+  const [phase, setPhase] = useState<PaymentInlinePhase>("billing");
+
+  const goToPhase = (next: PaymentInlinePhase) => {
+    setPhase(next);
+    onPhaseChange?.(next);
+  };
+
+  useImperativeHandle(ref, () => ({
+    goBack: () => {
+      if (phase !== "card") return false;
+      goToPhase("billing");
+      return true;
+    },
+  }), [phase, onPhaseChange]);
 
   useEffect(() => {
     fetch(`${process.env.NEXT_PUBLIC_API_URL}/payments/config`)
@@ -84,7 +116,9 @@ export default function PaymentInlinePanel({
 
   useEffect(() => {
     setClientSecret(null);
-  }, [selectedAddress?.id, checkoutKind]);
+    setPhase("billing");
+    onPhaseChange?.("billing");
+  }, [selectedAddress?.id, checkoutKind, onPhaseChange]);
 
   const handleAddAddress = async (data: Omit<BillingAddress, "id" | "is_default">) => {
     const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/billing-addresses`, {
@@ -162,6 +196,7 @@ export default function PaymentInlinePanel({
         return;
       }
       setClientSecret(data.client_secret);
+      goToPhase("card");
       setPreparingPayment(false);
     } catch {
       setError(t("payment.networkError"));
@@ -182,7 +217,7 @@ export default function PaymentInlinePanel({
         body: JSON.stringify({ booking_id: bookingId }),
       });
       if (onPaymentSuccess) {
-        onPaymentSuccess();
+        await onPaymentSuccess();
       } else {
         router.push(`/payment/success?booking_id=${bookingId}`);
       }
@@ -247,129 +282,167 @@ export default function PaymentInlinePanel({
       ? t("payment.payBalanceLabel")
       : t("payment.payNowLabel");
 
+  const showCardPhase = phase === "card" && Boolean(clientSecret && publishableKey);
+
   return (
-    <div className="flex flex-col flex-1 overflow-hidden">
-      <div className="overflow-y-auto flex-1 px-5 py-4 space-y-4">
-        <div className="bg-white rounded-xl border border-gray-100 px-4 py-3 space-y-1.5 text-sm">
-          <p className="text-base font-bold text-gray-900 mb-2">{bookingTitle}</p>
-          {isBalanceCheckout && (
-            <p className="text-xs text-gray-600 bg-gray-50 border border-gray-200 rounded-lg px-2 py-1.5 mb-1">
-              {t(balanceNoticeKey)}
-            </p>
-          )}
-          <div className="flex justify-between text-gray-600">
-            <span>{isBalanceCheckout ? t(balanceLabelKey) : servicePriceLabel}</span>
-            <span className="font-medium text-gray-900">{fmt(price)} $</span>
-          </div>
-          <hr className="border-gray-100 my-1" />
-          {!isDepositCheckout && !isBalanceCheckout && !isFullDepositCheckout && (
-            <PaymentDepositRows
-              price={price}
-              depositConfig={depositConfig}
-              depositAmountCents={depositAmountCents}
-            />
-          )}
-          {isDepositCheckout && (
-            <p className="text-xs text-gray-500">{t(depositNoticeKey)}</p>
-          )}
-          {isFullDepositCheckout && (
-            <p className="text-xs text-gray-500">{t("payment.fullDepositCoversServiceNotice")}</p>
-          )}
-          {isDepositCheckout && (
-            <p className="text-xs text-gray-500">{t("payment.depositFeesDeferredNotice")}</p>
-          )}
-          {!isDepositCheckout && (
-            <>
-              <div className="flex justify-between text-gray-500">
-                <div>
-                  <div>{t("payment.buyerCommission")}</div>
-                  <div className="text-xs text-red-400">{t("payment.nonRefundable")}</div>
-                </div>
-                <span>{fmt(commission)} $</span>
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+      <div
+        className={`flex h-full min-h-0 w-[200%] transition-transform duration-300 ease-in-out ${
+          showCardPhase ? "-translate-x-1/2" : "translate-x-0"
+        }`}
+      >
+        {/* Step 1 — billing / summary */}
+        <div className="flex w-1/2 min-h-0 flex-col overflow-hidden">
+          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-5 py-4">
+            <div className="space-y-1.5 rounded-xl border border-gray-100 bg-white px-4 py-3 text-sm">
+              <p className="mb-2 text-base font-bold text-gray-900">{bookingTitle}</p>
+              {isBalanceCheckout && (
+                <p className="mb-1 rounded-lg border border-gray-200 bg-gray-50 px-2 py-1.5 text-xs text-gray-600">
+                  {t(balanceNoticeKey)}
+                </p>
+              )}
+              <div className="flex justify-between text-gray-600">
+                <span>{isBalanceCheckout ? t(balanceLabelKey) : servicePriceLabel}</span>
+                <span className="font-medium text-gray-900">{fmt(price)} $</span>
               </div>
-              <div className="flex justify-between text-gray-500">
-                <div>
-                  <div>{t("payment.taxes")} ({formatTaxRate(taxRate)}%)</div>
-                  <div className="text-xs text-gray-400">{taxLabel}</div>
-                </div>
-                <span>{fmt(taxes)} $</span>
+              <hr className="my-1 border-gray-100" />
+              {!isDepositCheckout && !isBalanceCheckout && !isFullDepositCheckout && (
+                <PaymentDepositRows
+                  price={price}
+                  depositConfig={depositConfig}
+                  depositAmountCents={depositAmountCents}
+                />
+              )}
+              {isDepositCheckout && (
+                <p className="text-xs text-gray-500">{t(depositNoticeKey)}</p>
+              )}
+              {isFullDepositCheckout && (
+                <p className="text-xs text-gray-500">{t("payment.fullDepositCoversServiceNotice")}</p>
+              )}
+              {isDepositCheckout && (
+                <p className="text-xs text-gray-500">{t("payment.depositFeesDeferredNotice")}</p>
+              )}
+              {!isDepositCheckout && (
+                <>
+                  <div className="flex justify-between text-gray-500">
+                    <div>
+                      <div>{t("payment.buyerCommission")}</div>
+                      <div className="text-xs text-red-400">{t("payment.nonRefundable")}</div>
+                    </div>
+                    <span>{fmt(commission)} $</span>
+                  </div>
+                  <div className="flex justify-between text-gray-500">
+                    <div>
+                      <div>{t("payment.taxes")} ({formatTaxRate(taxRate)}%)</div>
+                      <div className="text-xs text-gray-400">{taxLabel}</div>
+                    </div>
+                    <span>{fmt(taxes)} $</span>
+                  </div>
+                </>
+              )}
+              <div className="mt-1 flex justify-between border-t border-gray-200 pt-2 text-base font-bold">
+                <span>{t("payment.total")}</span>
+                <span className="text-green-700">{fmt(total)} $</span>
               </div>
-            </>
-          )}
-          <div className="flex justify-between font-bold text-base border-t border-gray-200 pt-2 mt-1">
-            <span>{t("payment.total")}</span>
-            <span className="text-green-700">{fmt(total)} $</span>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl border border-gray-200 px-4 py-4">
-          {loadingAddresses ? (
-            <div className="flex items-center gap-2 text-sm text-gray-400">
-              <Loader2 className="h-4 w-4 animate-spin" /> {t("payment.loading")}
             </div>
-          ) : (
-            <BillingAddressSelector
-              addresses={billingAddresses}
-              selectedId={selectedAddress?.id ?? null}
-              onSelect={(addr) => { setSelectedAddress(addr); setBillingConfirmed(false); }}
-              onAdd={handleAddAddress}
-              onUpdate={handleUpdateAddress}
-              onSetDefault={handleSetDefaultAddress}
-              onDelete={handleDeleteAddress}
-              accessToken={accessToken}
-            />
-          )}
+
+            <div className="rounded-xl border border-gray-200 bg-white px-4 py-4">
+              {loadingAddresses ? (
+                <div className="flex items-center gap-2 text-sm text-gray-400">
+                  <Loader2 className="h-4 w-4 animate-spin" /> {t("payment.loading")}
+                </div>
+              ) : (
+                <BillingAddressSelector
+                  addresses={billingAddresses}
+                  selectedId={selectedAddress?.id ?? null}
+                  onSelect={(addr) => { setSelectedAddress(addr); setBillingConfirmed(false); }}
+                  onAdd={handleAddAddress}
+                  onUpdate={handleUpdateAddress}
+                  onSetDefault={handleSetDefaultAddress}
+                  onDelete={handleDeleteAddress}
+                  accessToken={accessToken}
+                />
+              )}
+            </div>
+
+            <label className="flex cursor-pointer select-none items-start gap-3">
+              <input
+                type="checkbox"
+                checked={billingConfirmed}
+                onChange={(e) => { setBillingConfirmed(e.target.checked); if (e.target.checked) setError(""); }}
+                className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer rounded border-gray-300 text-green-600 focus:ring-green-500"
+              />
+              <span className="text-xs leading-relaxed text-gray-600">
+                {t("payment.confirmBillingAccuracy")}
+              </span>
+            </label>
+
+            {error && phase === "billing" && (
+              <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                <AlertCircle className="h-4 w-4 shrink-0" />
+                {error}
+              </div>
+            )}
+          </div>
+
+          <div className="shrink-0 border-t border-gray-100 px-5 py-4">
+            <Button
+              onClick={handlePreparePayment}
+              disabled={preparingPayment || paying || !billingConfirmed || !selectedAddress || !publishableKey}
+              className={`h-12 w-full rounded-xl bg-green-700 text-base font-semibold text-white hover:bg-green-800 disabled:opacity-50 ${preparingPayment ? "pointer-events-none" : ""}`}
+              aria-busy={preparingPayment}
+            >
+              <LinkLabelWithLoadingSpinner
+                label={t("payment.continueToPayment")}
+                loading={preparingPayment}
+              />
+            </Button>
+            <p className="mt-2 text-center text-xs text-gray-400">{t("payment.securedByStripe")}</p>
+          </div>
         </div>
 
-        <label className="flex items-start gap-3 cursor-pointer select-none">
-          <input
-            type="checkbox"
-            checked={billingConfirmed}
-            onChange={(e) => { setBillingConfirmed(e.target.checked); if (e.target.checked) setError(""); }}
-            className="mt-0.5 h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500 shrink-0 cursor-pointer"
-          />
-          <span className="text-xs text-gray-600 leading-relaxed">
-            {t("payment.confirmBillingAccuracy")}
-          </span>
-        </label>
-
-        {error && (
-          <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 rounded-xl px-3 py-2 text-xs">
-            <AlertCircle className="h-4 w-4 shrink-0" />
-            {error}
-          </div>
-        )}
-      </div>
-
-      <div className="px-5 py-4 border-t border-gray-100 shrink-0">
-        {clientSecret && publishableKey ? (
-          <PaymentCheckoutForm
-            clientSecret={clientSecret}
-            publishableKey={publishableKey}
-            disabled={paying || !billingConfirmed || !selectedAddress}
-            submitLabel={payButtonLabel}
-            processingLabel={t("payment.processingPayment")}
-            onSuccess={handlePaymentSuccess}
-            onError={(message) => setError(message)}
-          />
-        ) : (
-          <Button
-            onClick={handlePreparePayment}
-            disabled={preparingPayment || paying || !billingConfirmed || !selectedAddress || !publishableKey}
-            className="w-full h-12 text-base font-semibold bg-green-700 hover:bg-green-800 text-white rounded-xl disabled:opacity-50"
-          >
-            {preparingPayment ? (
-              <span className="flex items-center gap-2">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                {t("payment.preparingPayment")}
-              </span>
-            ) : (
-              <span>{t("payment.continueToPayment")}</span>
-            )}
-          </Button>
-        )}
-        <p className="text-xs text-center text-gray-400 mt-2">{t("payment.securedByStripe")}</p>
+        {/* Step 2 — Stripe card form */}
+        <div className="flex w-1/2 min-h-0 flex-col overflow-hidden">
+          {(isDepositCheckout || isBalanceCheckout) && (
+            <div className="shrink-0 border-b border-gray-100 px-5 py-3">
+              <p className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs leading-relaxed text-gray-600">
+                {isDepositCheckout ? t(depositNoticeKey) : t(balanceNoticeKey)}
+              </p>
+            </div>
+          )}
+          {error && phase === "card" && (
+            <div className="mx-5 mt-3 flex shrink-0 items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+              <AlertCircle className="h-4 w-4 shrink-0" />
+              {error}
+            </div>
+          )}
+          {clientSecret && publishableKey ? (
+            <PaymentCheckoutForm
+              clientSecret={clientSecret}
+              publishableKey={publishableKey}
+              disabled={paying || !billingConfirmed || !selectedAddress}
+              submitLabel={payButtonLabel}
+              processingLabel={t("payment.processingPayment")}
+              loadingLabel={t("payment.preparingPayment")}
+              fillHeight
+              footerNote={t("payment.securedByStripe")}
+              onSuccess={handlePaymentSuccess}
+              onError={(message) => {
+                // Ignore incomplete-field copy in the red banner — button stays disabled instead.
+                if (/incomplet/i.test(message)) return;
+                setError(message);
+              }}
+            />
+          ) : (
+            <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 px-5 text-sm text-gray-500">
+              <Loader2 className="h-5 w-5 animate-spin text-green-700" />
+              <span>{t("payment.preparingPayment")}</span>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
-}
+});
+
+export default PaymentInlinePanel;

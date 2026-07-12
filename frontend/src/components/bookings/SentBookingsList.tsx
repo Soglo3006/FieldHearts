@@ -244,7 +244,7 @@ export default function SentBookingsList({
                       <p className="text-xs text-gray-400 mb-3">{formatDate(b.created_at)}</p>
 
                       {needsPayment && checkoutKind === "deposit" && (
-                        <div className="bg-green-50 border border-green-200 rounded-lg px-3 py-2 mb-3 text-xs text-green-700">
+                        <div className="bg-green-50 border border-green-200 rounded-lg px-3 py-2 mb-3 text-xs text-green-700 text-center">
                           {t("bookings.bookingAcceptedPayment")}
                         </div>
                       )}

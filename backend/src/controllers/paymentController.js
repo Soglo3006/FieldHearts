@@ -24,8 +24,11 @@ import {
   syncProfileToStripeAccount,
   CONNECT_EMBEDDED_SESSION_FEATURES,
 } from "../services/stripeConnectService.js";
-import { completeCheckoutPayment } from "../services/paymentCompletionService.js";
-import { completePaymentFromIntent } from "../services/paymentCompletionService.js";
+import {
+  completeCheckoutPayment,
+  completePaymentFromIntent,
+  repairDoubledDepositPaidBase,
+} from "../services/paymentCompletionService.js";
 import {
   billingAddressToStripeAddress,
   getOrCreateStripeCustomer,
@@ -881,6 +884,8 @@ export const verifyPayment = async (req, res) => {
         }
       }
 
+      await repairDoubledDepositPaidBase(booking_id);
+
       return respondWithSnapshot({
         confirmed: booking?.status === "active" || booking?.payment_status === "paid" || booking?.payment_status === "deposit_paid",
         already_confirmed: true,
@@ -896,6 +901,7 @@ export const verifyPayment = async (req, res) => {
         return res.json({ confirmed: false, stripe_status: pi.status });
       }
       await completePaymentFromIntent(pi);
+      await repairDoubledDepositPaidBase(booking_id);
       return respondWithSnapshot({ confirmed: true });
     }
 

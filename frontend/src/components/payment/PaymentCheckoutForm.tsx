@@ -2,7 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { loadStripe, type Stripe } from "@stripe/stripe-js";
-import { Elements, PaymentElement, useElements, useStripe } from "@stripe/react-stripe-js";
+import {
+  Elements,
+  PaymentElement,
+  useElements,
+  useStripe,
+  type StripePaymentElementChangeEvent,
+} from "@stripe/react-stripe-js";
+import { Loader2 } from "lucide-react";
 
 type PaymentCheckoutFormProps = {
   clientSecret: string;
@@ -12,7 +19,17 @@ type PaymentCheckoutFormProps = {
   disabled?: boolean;
   submitLabel: string;
   processingLabel: string;
+  loadingLabel?: string;
+  /** Fill parent height: PaymentElement scrolls, pay button stays sticky at the bottom. */
+  fillHeight?: boolean;
+  footerNote?: string;
 };
+
+function isIncompleteCardError(error: { type?: string; code?: string; message?: string }) {
+  if (error.type === "validation_error") return true;
+  if (error.code?.startsWith("incomplete_")) return true;
+  return /incomplet/i.test(error.message ?? "");
+}
 
 function CheckoutForm({
   onSuccess,
@@ -20,14 +37,21 @@ function CheckoutForm({
   disabled,
   submitLabel,
   processingLabel,
-}: Omit<PaymentCheckoutFormProps, "clientSecret" | "publishableKey">) {
+  fillHeight,
+  footerNote,
+}: Omit<PaymentCheckoutFormProps, "clientSecret" | "publishableKey" | "loadingLabel">) {
   const stripe = useStripe();
   const elements = useElements();
   const [processing, setProcessing] = useState(false);
+  const [paymentReady, setPaymentReady] = useState(false);
+
+  const handlePaymentChange = (event: StripePaymentElementChangeEvent) => {
+    setPaymentReady(event.complete);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!stripe || !elements || disabled) return;
+    if (!stripe || !elements || disabled || !paymentReady) return;
 
     setProcessing(true);
     const { error, paymentIntent } = await stripe.confirmPayment({
@@ -36,7 +60,10 @@ function CheckoutForm({
     });
 
     if (error) {
-      onError(error.message ?? "Payment failed");
+      // Incomplete fields: keep the button blocked via paymentReady — no red banner.
+      if (!isIncompleteCardError(error)) {
+        onError(error.message ?? "Payment failed");
+      }
       setProcessing(false);
       return;
     }
@@ -49,22 +76,58 @@ function CheckoutForm({
     setProcessing(false);
   };
 
+  const canSubmit = Boolean(stripe && elements && paymentReady && !processing && !disabled);
+
+  const submitButton = (
+    <button
+      type="submit"
+      disabled={!canSubmit}
+      className="w-full h-14 text-base font-semibold bg-green-700 hover:bg-green-800 text-white rounded-xl disabled:opacity-50 disabled:cursor-not-allowed"
+    >
+      {processing ? processingLabel : submitLabel}
+    </button>
+  );
+
+  const paymentFields = (
+    <PaymentElement options={{ layout: "tabs" }} onChange={handlePaymentChange} />
+  );
+
+  if (fillHeight) {
+    return (
+      <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-4">
+          {paymentFields}
+        </div>
+        <div className="shrink-0 border-t border-gray-100 px-5 py-4">
+          {submitButton}
+          {footerNote ? (
+            <p className="mt-2 text-center text-xs text-gray-400">{footerNote}</p>
+          ) : null}
+        </div>
+      </form>
+    );
+  }
+
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <PaymentElement options={{ layout: "tabs" }} />
-      <button
-        type="submit"
-        disabled={!stripe || !elements || processing || disabled}
-        className="w-full h-14 text-base font-semibold bg-green-700 hover:bg-green-800 text-white rounded-xl disabled:opacity-50"
-      >
-        {processing ? processingLabel : submitLabel}
-      </button>
+      {paymentFields}
+      {submitButton}
+      {footerNote ? (
+        <p className="text-center text-xs text-gray-400">{footerNote}</p>
+      ) : null}
     </form>
   );
 }
 
 export default function PaymentCheckoutForm(props: PaymentCheckoutFormProps) {
-  const { clientSecret, publishableKey, ...rest } = props;
+  const {
+    clientSecret,
+    publishableKey,
+    processingLabel,
+    loadingLabel = processingLabel,
+    fillHeight,
+    ...rest
+  } = props;
   const [stripePromise, setStripePromise] = useState<Promise<Stripe | null> | null>(null);
 
   useEffect(() => {
@@ -73,11 +136,24 @@ export default function PaymentCheckoutForm(props: PaymentCheckoutFormProps) {
     }
   }, [publishableKey]);
 
-  if (!stripePromise || !clientSecret) return null;
+  if (!stripePromise || !clientSecret) {
+    return (
+      <div
+        className={`flex flex-col items-center justify-center gap-3 rounded-xl border border-gray-100 bg-gray-50/80 px-4 py-8 text-sm text-gray-500 ${
+          fillHeight ? "min-h-0 flex-1" : "min-h-[220px]"
+        }`}
+      >
+        <Loader2 className="h-5 w-5 animate-spin text-green-700" />
+        <span>{loadingLabel}</span>
+      </div>
+    );
+  }
 
   return (
-    <Elements stripe={stripePromise} options={{ clientSecret, appearance: { theme: "stripe" } }}>
-      <CheckoutForm {...rest} />
-    </Elements>
+    <div className={fillHeight ? "flex min-h-0 flex-1 flex-col" : undefined}>
+      <Elements stripe={stripePromise} options={{ clientSecret, appearance: { theme: "stripe" } }}>
+        <CheckoutForm {...rest} processingLabel={processingLabel} fillHeight={fillHeight} />
+      </Elements>
+    </div>
   );
 }

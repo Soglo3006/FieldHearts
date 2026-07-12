@@ -7,6 +7,7 @@ import {
   type CheckoutKind,
 } from "@/lib/hourlyPayment";
 import { resolveBookingCheckoutBase, getEffectiveBookingPrice } from "@/lib/listingPrice";
+import { calculateDepositAmount, resolveDepositBaseAmount } from "@/lib/deposit";
 
 export type PaidCheckoutKind = CheckoutKind;
 
@@ -310,7 +311,7 @@ export function buildSplitDepositFullReceipt(booking: BookingFields): SplitDepos
   if (!usesSplitDepositPayment(booking)) return null;
   if (booking.payment_status !== "paid" && booking.payment_status !== "transferred") return null;
 
-  const depositPaid = Number(booking.deposit_amount_cents || 0) / 100;
+  const depositPaid = resolveDepositPaidCents(booking) / 100;
   if (depositPaid < 0.01) return null;
 
   const taxRate = resolveTaxRate(booking);
@@ -332,6 +333,37 @@ export function buildSplitDepositFullReceipt(booking: BookingFields): SplitDepos
   };
 }
 
+/** Deposit actually paid (cents), correcting doubled paid_service_base_cents bookkeeping. */
+export function resolveDepositPaidCents(booking: BookingFields): number {
+  const paidBase = Number(booking.paid_service_base_cents || 0);
+  const storedDeposit = Number(booking.deposit_amount_cents || 0);
+
+  if (storedDeposit > 0 && paidBase === storedDeposit * 2) {
+    return storedDeposit;
+  }
+
+  if (usesSplitDepositPayment(booking)) {
+    const base = resolveDepositBaseAmount(booking, booking);
+    if (base != null) {
+      const expected = Math.round(
+        calculateDepositAmount(base, {
+          deposit_enabled: true,
+          deposit_type: booking.deposit_type,
+          deposit_value: booking.deposit_value,
+        }) * 100,
+      );
+      if (expected > 0 && paidBase === expected * 2) {
+        return expected;
+      }
+      if (expected > 0 && storedDeposit === expected * 2 && paidBase === storedDeposit) {
+        return expected;
+      }
+    }
+  }
+
+  return paidBase || storedDeposit;
+}
+
 /** Payment summary card in booking detail (client view). */
 export function buildClientPaymentSummary(booking: BookingFields): ClientPaymentSummary {
   const taxRate = resolveTaxRate(booking);
@@ -340,9 +372,7 @@ export function buildClientPaymentSummary(booking: BookingFields): ClientPayment
   const approvedH = Number(booking.approved_hours_total) || 0;
   const estimatedH = booking.estimated_hours != null ? Number(booking.estimated_hours) : null;
   const estimatedBase = resolveBookingCheckoutBase(booking);
-  const depositPaid =
-    Number(booking.paid_service_base_cents || 0) / 100 ||
-    (booking.deposit_amount_cents ? booking.deposit_amount_cents / 100 : 0);
+  const depositPaid = resolveDepositPaidCents(booking) / 100;
 
   if (
     usesSplitDepositPayment(booking) &&

@@ -781,15 +781,13 @@ export default function BookingDetailModal({
                 className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 transition-colors cursor-pointer"
               >
                 <ChevronLeft className="h-4 w-4" />
-                {step === "payment"
-                  ? t("payment.completePayment")
-                  : step === "cancel"
-                    ? cancelMode === "deposit"
-                      ? t("deposit.cancelWithDeposit")
-                      : t("bookings.cancelActiveBooking")
-                    : step === "review"
-                      ? t("bookings.leaveReview")
-                      : t("bookings.openDispute")}
+                {step === "cancel"
+                  ? cancelMode === "deposit"
+                    ? t("deposit.cancelWithDeposit")
+                    : t("bookings.cancelActiveBooking")
+                  : step === "review"
+                    ? t("bookings.leaveReview")
+                    : t("bookings.openDispute")}
               </button>
             ) : (
               <>

@@ -7,7 +7,6 @@ import {
   PaymentElement,
   useElements,
   useStripe,
-  type StripePaymentElementChangeEvent,
 } from "@stripe/react-stripe-js";
 import { Loader2 } from "lucide-react";
 
@@ -45,7 +44,7 @@ function CheckoutForm({
   const [processing, setProcessing] = useState(false);
   const [paymentReady, setPaymentReady] = useState(false);
 
-  const handlePaymentChange = (event: StripePaymentElementChangeEvent) => {
+  const handlePaymentChange = (event: { complete: boolean }) => {
     setPaymentReady(event.complete);
   };
 

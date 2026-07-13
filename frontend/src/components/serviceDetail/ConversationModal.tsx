@@ -378,7 +378,17 @@ export default function ConversationModal({ otherUserId, otherUser: otherUserPro
               messages={messages}
               loading={messagesLoading && !!chatId}
               currentUserId={user.id}
-              otherUser={otherUser}
+              otherUser={
+                otherUser
+                  ? {
+                      id: otherUser.id,
+                      full_name: otherUser.full_name ?? undefined,
+                      company_name: otherUser.company_name ?? undefined,
+                      account_type: otherUser.account_type ?? undefined,
+                      avatar_url: otherUser.avatar_url,
+                    }
+                  : null
+              }
               hoveredMessageId={hoveredMessageId}
               setHoveredMessageId={setHoveredMessageId}
               openMenuKey={openMenuKey}

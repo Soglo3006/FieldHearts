@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { loadConnectAndInitialize, type StripeConnectInstance } from "@stripe/connect-js";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { loadConnectAndInitialize, type StripeConnectInstance } from "@stripe/connect-js/pure";
 import {
   ConnectAccountManagement,
   ConnectAccountOnboarding,
@@ -196,9 +196,15 @@ export default function StripeConnectOnboarding({
     }
   }, []);
 
-  const connectInstance = useMemo<StripeConnectInstance | null>(() => {
-    if (!publishableKey) return null;
-    return loadConnectAndInitialize({
+  const [connectInstance, setConnectInstance] = useState<StripeConnectInstance | null>(null);
+
+  useEffect(() => {
+    if (!publishableKey) {
+      setConnectInstance(null);
+      return;
+    }
+
+    const instance = loadConnectAndInitialize({
       publishableKey,
       fetchClientSecret,
       appearance: {
@@ -213,6 +219,7 @@ export default function StripeConnectOnboarding({
       },
       locale: "fr-CA",
     });
+    setConnectInstance(instance);
   }, [publishableKey, fetchClientSecret, instanceEpoch]);
 
   useEffect(() => {

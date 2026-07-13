@@ -209,11 +209,6 @@ export default function StripePayoutSetup({
         profileGate
       ) : (
         <>
-          <div>
-            <p className="font-semibold text-gray-900 mb-1">{t("payoutSetup.startTitle")}</p>
-            <p className="text-sm text-gray-500 max-w-md">{desc}</p>
-            <p className="text-xs text-gray-400 mt-2 max-w-md">{t("payoutSetup.prefilledHint")}</p>
-          </div>
           <Button
             type="button"
             onClick={openOnboarding}

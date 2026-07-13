@@ -3,7 +3,6 @@
 import { useRef, useEffect, useLayoutEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ArrowDown, MessageCircle, Loader2 } from "lucide-react";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PinnedMessages } from "./PinnedMessages";
 import { MessageItem } from "./MessageItem";
@@ -92,12 +91,13 @@ export function MessageThread({
   messages, loading, currentUserId, otherUser,
   hoveredMessageId, setHoveredMessageId, openMenuKey, setOpenMenuKey,
   selectedMessageKey, setSelectedMessageKey,
-  retryMessage, onReply, onReplyClick, onReactionToggle, onEdit, onPin, onDelete,
+  retryMessage, onReply, onReplyClick: _onReplyClick, onReactionToggle, onEdit, onPin, onDelete,
   isTyping, hasMore, loadingMore, loadMore,
 }: MessageThreadProps) {
   const { t, i18n } = useTranslation();
   const SCROLL_TO_BOTTOM_THRESHOLD = 160;
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollViewportRef = useRef<HTMLDivElement | null>(null);
   const prevMessagesLength = useRef(0);
   const isInitialLoad = useRef(true);
   const hoverTimeoutRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
@@ -108,10 +108,103 @@ export function MessageThread({
   const loadingMoreRef = useRef(loadingMore ?? false);
   const loadMoreRef = useRef(loadMore);
   const prevLoadingRef = useRef(loading);
+  const pendingJumpRef = useRef<string | null>(null);
+  const jumpTimeoutRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const [showScrollToBottom, setShowScrollToBottom] = useState(false);
+  const [pinnedModalOpen, setPinnedModalOpen] = useState(false);
+  const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
 
   useEffect(() => { hasMoreRef.current = hasMore ?? false; }, [hasMore]);
   useEffect(() => { loadingMoreRef.current = loadingMore ?? false; }, [loadingMore]);
   useEffect(() => { loadMoreRef.current = loadMore; }, [loadMore]);
+
+  const pinnedMessages = messages
+    .filter(msg => msg.pinned_at && !msg.deleted_at)
+    .sort((a, b) => new Date(a.pinned_at!).getTime() - new Date(b.pinned_at!).getTime())
+    .map(msg => ({
+      id: msg.id, content: msg.content, created_at: msg.created_at,
+      sender_name: msg.sender?.account_type === "company" ? msg.sender.company_name : msg.sender?.full_name,
+    }));
+
+  const prevPinnedLengthRef = useRef(pinnedMessages.length);
+  const prevScrollHeightForPinRef = useRef(0);
+
+  const clearJumpTimeouts = () => {
+    jumpTimeoutRef.current.forEach(clearTimeout);
+    jumpTimeoutRef.current = [];
+  };
+
+  const updateScrollToBottomVisibility = () => {
+    const viewport = scrollViewportRef.current;
+    if (!viewport) {
+      setShowScrollToBottom(false);
+      return;
+    }
+
+    const remainingDistance = viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight;
+    const hasEnoughScrollableContent = viewport.scrollHeight - viewport.clientHeight > SCROLL_TO_BOTTOM_THRESHOLD;
+
+    setShowScrollToBottom(hasEnoughScrollableContent && remainingDistance > SCROLL_TO_BOTTOM_THRESHOLD);
+  };
+
+  const scrollToBottom = (behavior: ScrollBehavior = "smooth") => {
+    const viewport = scrollViewportRef.current;
+    if (!viewport) return;
+    if (behavior === "instant") {
+      viewport.scrollTop = viewport.scrollHeight;
+    } else {
+      viewport.scrollTo({ top: viewport.scrollHeight, behavior });
+    }
+    requestAnimationFrame(() => updateScrollToBottomVisibility());
+  };
+
+  const scrollToMessageInThread = (messageId: string, behavior: ScrollBehavior = "smooth") => {
+    const viewport = scrollViewportRef.current;
+    const element =
+      document.getElementById(`message-${messageId}`) ||
+      viewport?.querySelector(`[data-message-id="${messageId}"]`);
+
+    if (!element || !viewport) return false;
+
+    const top = Math.max(
+      0,
+      viewport.scrollTop +
+        element.getBoundingClientRect().top -
+        viewport.getBoundingClientRect().top -
+        Math.max(24, viewport.clientHeight * 0.35) +
+        element.clientHeight / 2,
+    );
+
+    viewport.scrollTo({ top, behavior });
+
+    setHighlightedMessageId(messageId);
+    window.setTimeout(() => {
+      setHighlightedMessageId((current) => (current === messageId ? null : current));
+    }, 2200);
+
+    return true;
+  };
+
+  const handleJumpToMessage = (messageId: string) => {
+    pendingJumpRef.current = messageId;
+    clearJumpTimeouts();
+
+    const wasPinnedOpen = pinnedModalOpen;
+    if (wasPinnedOpen) setPinnedModalOpen(false);
+
+    const runSmoothScroll = () => {
+      if (pendingJumpRef.current !== messageId) return;
+      if (scrollToMessageInThread(messageId, "smooth")) {
+        pendingJumpRef.current = null;
+      }
+    };
+
+    // If the pinned panel was open, wait for it to close then glide.
+    // Otherwise glide immediately.
+    jumpTimeoutRef.current.push(setTimeout(runSmoothScroll, wasPinnedOpen ? 100 : 0));
+    // One fallback if the element wasn't ready yet.
+    jumpTimeoutRef.current.push(setTimeout(runSmoothScroll, wasPinnedOpen ? 280 : 120));
+  };
 
   // Scroll to bottom when skeleton disappears (loading: true → false)
   useLayoutEffect(() => {
@@ -129,20 +222,6 @@ export function MessageThread({
     prevLoadingRef.current = loading;
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading]);
-
-  const pinnedMessages = messages
-    .filter(msg => msg.pinned_at && !msg.deleted_at)
-    .sort((a, b) => new Date(a.pinned_at!).getTime() - new Date(b.pinned_at!).getTime())
-    .map(msg => ({
-      id: msg.id, content: msg.content, created_at: msg.created_at,
-      sender_name: msg.sender?.account_type === "company" ? msg.sender.company_name : msg.sender?.full_name,
-    }));
-
-  const prevPinnedLengthRef = useRef(pinnedMessages.length);
-  const prevScrollHeightForPinRef = useRef(0);
-  const scrollViewportRef = useRef<HTMLDivElement | null>(null);
-  const [showScrollToBottom, setShowScrollToBottom] = useState(false);
-  const [pinnedModalOpen, setPinnedModalOpen] = useState(false);
 
   // Keep viewport stable when pin/unpin changes pinned section height.
   useLayoutEffect(() => {
@@ -163,27 +242,6 @@ export function MessageThread({
     prevScrollHeightForPinRef.current = viewport.scrollHeight;
   }, [pinnedMessages.length, messages.length]);
 
-  const updateScrollToBottomVisibility = () => {
-    const viewport = scrollViewportRef.current;
-    if (!viewport) {
-      setShowScrollToBottom(false);
-      return;
-    }
-
-    const remainingDistance = viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight;
-    const hasEnoughScrollableContent = viewport.scrollHeight - viewport.clientHeight > SCROLL_TO_BOTTOM_THRESHOLD;
-
-    setShowScrollToBottom(hasEnoughScrollableContent && remainingDistance > SCROLL_TO_BOTTOM_THRESHOLD);
-  };
-
-  const scrollToBottom = (behavior: ScrollBehavior = "smooth") => {
-    const viewport = scrollViewportRef.current;
-    if (!viewport) return;
-    if (behavior === "instant") { viewport.scrollTop = viewport.scrollHeight; }
-    else { viewport.scrollTo({ top: viewport.scrollHeight, behavior }); }
-    requestAnimationFrame(() => updateScrollToBottomVisibility());
-  };
-
   useLayoutEffect(() => {
     if (messages.length > 0 && isInitialLoad.current) {
       const tryScroll = () => {
@@ -192,7 +250,6 @@ export function MessageThread({
           viewport.scrollTop = viewport.scrollHeight;
           isInitialLoad.current = false;
         }
-        // iOS fallback: use scrollIntoView on the end element
         messagesEndRef.current?.scrollIntoView({ block: "end" });
       };
       tryScroll();
@@ -237,7 +294,7 @@ export function MessageThread({
     el.addEventListener("scroll", onScroll);
     onScroll();
     return () => el.removeEventListener("scroll", onScroll);
-  }, []);
+  }, [otherUser?.id, loading]);
 
   useEffect(() => {
     updateScrollToBottomVisibility();
@@ -260,6 +317,10 @@ export function MessageThread({
     prevMessagesLength.current = messages.length;
   }, [messages, showScrollToBottom, currentUserId]);
 
+  useEffect(() => {
+    return () => clearJumpTimeouts();
+  }, []);
+
   if (!otherUser) {
     return (
       <div className="flex-1 flex items-center justify-center bg-white">
@@ -280,37 +341,37 @@ export function MessageThread({
   const selectedIsOwn = selectedMessage?.user_id === currentUserId;
 
   return (
-    <div className="relative flex-1 min-h-0 overflow-hidden flex flex-col">
+    <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
       <PinnedMessages
         pinnedMessages={pinnedMessages}
         open={pinnedModalOpen}
         onOpenChange={setPinnedModalOpen}
-        onMessageClick={onReplyClick || (() => {})}
+        onMessageClick={handleJumpToMessage}
         onUnpin={(messageId) => onPin?.(messageId, true)}
       />
 
-      <ScrollArea className="flex-1 min-h-0" ref={(node: { querySelector?: (s: string) => Element | null } | null) => {
-        if (!node) return;
-        const viewport = node.querySelector?.("[data-radix-scroll-area-viewport]");
-        if (viewport) scrollViewportRef.current = viewport as HTMLDivElement;
-      }}>
-        <div className="p-4 bg-white">
+      <div
+        ref={scrollViewportRef}
+        data-message-thread-viewport
+        className={`h-0 min-h-0 flex-1 overflow-y-auto overscroll-contain bg-white ${pinnedModalOpen ? "pointer-events-none" : ""}`}
+      >
+        <div className="p-4">
           {loadingMore && (
             <div className="flex justify-center py-3">
               <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
             </div>
           )}
           {loading ? (
-            <div className="flex flex-col justify-end space-y-4 h-full py-4 px-2">
+            <div className="flex h-full flex-col justify-end space-y-4 px-2 py-4">
               {SKELETON_BUBBLES.map((s, i) => (
                 <div key={i} className={`flex items-end gap-2 ${s.isOwn ? "justify-end" : "justify-start"}`}>
-                  {!s.isOwn && <Skeleton className="h-8 w-8 rounded-full bg-gray-200 shrink-0" />}
+                  {!s.isOwn && <Skeleton className="h-8 w-8 shrink-0 rounded-full bg-gray-200" />}
                   <Skeleton className={`h-10 rounded-2xl bg-gray-200 ${s.w}`} style={{ animationDelay: `${i * 60}ms` }} />
                 </div>
               ))}
             </div>
           ) : messages.length === 0 ? (
-            <div className="flex items-center justify-center h-full text-gray-500">
+            <div className="flex h-full items-center justify-center text-gray-500">
               <p>{t("messages.startConversationEmpty")}</p>
             </div>
           ) : (
@@ -319,38 +380,40 @@ export function MessageThread({
                 const isOwn = message.user_id === currentUserId;
                 const showDate = index === 0 || new Date(message.created_at).toDateString() !== new Date(messages[index - 1].created_at).toDateString();
                 return (
-                  <MessageItem
-                    key={message.id}
-                    message={message}
-                    showDate={showDate}
-                    dateLabel={showDate ? getDateLabel(message.created_at, t, i18n.language) : ""}
-                    isOwn={isOwn}
-                    currentUserId={currentUserId}
-                    otherUser={otherUser}
-                    hoveredMessageId={hoveredMessageId}
-                    openMenuKey={openMenuKey}
-                    selectedMessageKey={selectedMessageKey}
-                    hoverTimeoutRef={hoverTimeoutRef}
-                    setHoveredMessageId={setHoveredMessageId}
-                    setOpenMenuKey={setOpenMenuKey}
-                    setSelectedMessageKey={setSelectedMessageKey}
-                    retryMessage={retryMessage}
-                    onReply={onReply}
-                    onReplyClick={onReplyClick}
-                    onReactionToggle={onReactionToggle}
-                    onEdit={onEdit}
-                    onPin={onPin}
-                    onDelete={onDelete}
-                  />
+                  <div key={message.id} data-message-id={message.id}>
+                    <MessageItem
+                      message={message}
+                      isHighlighted={highlightedMessageId === message.id}
+                      showDate={showDate}
+                      dateLabel={showDate ? getDateLabel(message.created_at, t, i18n.language) : ""}
+                      isOwn={isOwn}
+                      currentUserId={currentUserId}
+                      otherUser={otherUser}
+                      hoveredMessageId={hoveredMessageId}
+                      openMenuKey={openMenuKey}
+                      selectedMessageKey={selectedMessageKey}
+                      hoverTimeoutRef={hoverTimeoutRef}
+                      setHoveredMessageId={setHoveredMessageId}
+                      setOpenMenuKey={setOpenMenuKey}
+                      setSelectedMessageKey={setSelectedMessageKey}
+                      retryMessage={retryMessage}
+                      onReply={onReply}
+                      onReplyClick={handleJumpToMessage}
+                      onReactionToggle={onReactionToggle}
+                      onEdit={onEdit}
+                      onPin={onPin}
+                      onDelete={onDelete}
+                    />
+                  </div>
                 );
               })}
               {isTyping && (
                 <div className="flex items-end gap-2">
-                  <div className="bg-white border rounded-2xl rounded-bl-sm px-4 py-3 shadow-sm w-16">
+                  <div className="w-16 rounded-2xl rounded-bl-sm border bg-white px-4 py-3 shadow-sm">
                     <div className="flex items-center justify-center gap-1">
-                      <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:0ms]" />
-                      <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:150ms]" />
-                      <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:300ms]" />
+                      <span className="h-2 w-2 animate-bounce rounded-full bg-gray-400 [animation-delay:0ms]" />
+                      <span className="h-2 w-2 animate-bounce rounded-full bg-gray-400 [animation-delay:150ms]" />
+                      <span className="h-2 w-2 animate-bounce rounded-full bg-gray-400 [animation-delay:300ms]" />
                     </div>
                   </div>
                 </div>
@@ -359,12 +422,12 @@ export function MessageThread({
             </div>
           )}
         </div>
-      </ScrollArea>
+      </div>
 
       {showScrollToBottom && !loading && messages.length > 0 && (
         <button
           onClick={() => scrollToBottom("smooth")}
-          className="absolute bottom-2 left-1/2 z-50 -translate-x-1/2 h-11 w-11 rounded-full bg-green-700 cursor-pointer text-white shadow-lg flex items-center justify-center transition-all duration-300 animate-in fade-in zoom-in-95"
+          className="absolute bottom-2 left-1/2 z-50 flex h-11 w-11 -translate-x-1/2 cursor-pointer items-center justify-center rounded-full bg-green-700 text-white shadow-lg transition-all duration-300 animate-in fade-in zoom-in-95"
           title={t("messages.scrollToBottom", { defaultValue: "Go to latest messages" })}
         >
           <ArrowDown className="h-5 w-5" />

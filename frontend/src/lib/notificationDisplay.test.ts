@@ -8,6 +8,10 @@ const en: Record<string, string> = {
   "notifications.bookingCompletedTitle": "Work completed",
   "notifications.bookingCompletedBody": '"{{title}}" has been marked as completed.',
   "notifications.unknownListing": "this listing",
+  "notifications.newMessageBody": "You have a new message",
+  "messages.photo": "Photo",
+  "messages.file": "File",
+  "messages.voiceMessage": "Voice message",
 };
 
 function tEn(key: string, opts?: Record<string, string>) {
@@ -85,5 +89,33 @@ describe("displayNotificationBody", () => {
     expect(displayNotificationBody(notif, tEn)).toBe(
       '"Nettoyage de Chambre" has been marked as completed.',
     );
+  });
+
+  it("shows Photo for image file message notifications", () => {
+    const notif: AppNotification = {
+      id: "3",
+      type: "message",
+      title: "Nouveau message de Alex",
+      body: "[FILE:https://cdn.example.com/chat-attachments/photo.webp]",
+      link: "/messages?chat=abc",
+      read_at: null,
+      created_at: new Date().toISOString(),
+    };
+
+    expect(displayNotificationBody(notif, tEn)).toBe("Photo");
+  });
+
+  it("shows Voice message for audio message notifications", () => {
+    const notif: AppNotification = {
+      id: "4",
+      type: "message",
+      title: "Nouveau message de Alex",
+      body: "[AUDIO:https://cdn.example.com/voice.webm:8]",
+      link: "/messages?chat=abc",
+      read_at: null,
+      created_at: new Date().toISOString(),
+    };
+
+    expect(displayNotificationBody(notif, tEn)).toBe("Voice message");
   });
 });

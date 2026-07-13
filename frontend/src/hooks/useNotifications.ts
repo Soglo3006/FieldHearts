@@ -106,5 +106,31 @@ export function useNotifications() {
     });
   }, [token]);
 
+  // Sync when a chat is opened from another place (e.g. Contacter modal).
+  useEffect(() => {
+    const onMarked = (event: Event) => {
+      const chatId = (event as CustomEvent<{ chatId?: string }>).detail?.chatId;
+      if (!chatId || !token) return;
+      const linkSubstring = `chat=${chatId}`;
+      setNotifications((prev) => {
+        const toMark = prev.filter((n) => !n.read_at && n.link?.includes(linkSubstring));
+        if (toMark.length === 0) return prev;
+        toMark.forEach((n) => {
+          fetch(`${API}/notifications/${n.id}/read`, {
+            method: "PATCH",
+            headers: { Authorization: `Bearer ${token}` },
+          }).catch(() => {});
+        });
+        return prev.map((n) =>
+          !n.read_at && n.link?.includes(linkSubstring)
+            ? { ...n, read_at: new Date().toISOString() }
+            : n,
+        );
+      });
+    };
+    window.addEventListener("chat-marked-read", onMarked);
+    return () => window.removeEventListener("chat-marked-read", onMarked);
+  }, [token]);
+
   return { notifications, unreadCount, loading, markRead, markAllRead, markReadByLink, deleteOne, clearAll, refresh: fetchNotifications };
 }

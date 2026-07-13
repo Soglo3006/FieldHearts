@@ -67,7 +67,11 @@ interface FileMessageProps {
   onReply?: () => void;
   onPin?: () => void;
   onDelete?: () => void;
+  isHighlighted?: boolean;
 }
+
+const messageRowHighlightClass =
+  "rounded-2xl shadow-[0_0_0_6px_#fef9c3] bg-yellow-100/70 transition-[box-shadow,background-color] duration-500";
 
 interface ImageAttachmentProps {
   fileUrl: string;
@@ -121,6 +125,7 @@ function ImageAttachment({
           alt={altText}
           width={256}
           height={256}
+          unoptimized={fileUrl.includes("/chat-attachments/")}
           className={`max-w-xs max-h-64 rounded-xl object-cover transition-opacity ${imageLoaded && !isSending ? 'opacity-100' : 'absolute inset-0 opacity-0'} hover:opacity-90`}
           onLoad={() => setImageLoaded(true)}
           onError={() => setImageFailed(true)}
@@ -154,6 +159,7 @@ export function FileMessage({
   onReply,
   onPin,
   onDelete,
+  isHighlighted = false,
 }: FileMessageProps) {
   const { t } = useTranslation();
   const keyText = `${messageId}-text`;
@@ -215,7 +221,8 @@ export function FileMessage({
           )}
 
           {/* Avatar + Bulle */}
-          <div className="flex items-end gap-2">
+          <div className={`inline-flex items-end gap-2 ${isHighlighted ? messageRowHighlightClass : ""}`}>
+
             {!isOwn && (
               <Avatar className="h-8 w-8 shrink-0">
                 {otherUser?.avatar_url ? (
@@ -305,7 +312,8 @@ export function FileMessage({
           )}
 
           {/* Avatar + Image */}
-          <div className="flex items-end gap-2">
+          <div className={`inline-flex items-end gap-2 ${isHighlighted ? messageRowHighlightClass : ""}`}>
+
             {!isOwn && (
               <Avatar className="h-8 w-8 shrink-0">
                 {otherUser?.avatar_url ? (

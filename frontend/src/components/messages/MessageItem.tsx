@@ -71,13 +71,18 @@ interface Props {
   onEdit?: (messageId: string, content: string) => void;
   onPin?: (messageId: string, isPinned: boolean) => void;
   onDelete?: (messageId: string) => Promise<void>;
+  isHighlighted?: boolean;
 }
+
+const messageRowHighlightClass =
+  "rounded-2xl shadow-[0_0_0_6px_#fef9c3] bg-yellow-100/70 transition-[box-shadow,background-color] duration-500";
 
 export function MessageItem({
   message, showDate, dateLabel, isOwn, currentUserId, otherUser,
   hoveredMessageId, openMenuKey, selectedMessageKey, hoverTimeoutRef,
   setHoveredMessageId, setOpenMenuKey, setSelectedMessageKey,
   retryMessage, onReply, onReplyClick, onReactionToggle, onEdit, onPin, onDelete,
+  isHighlighted = false,
 }: Props) {
   const { t, i18n } = useTranslation();
   const [suppressAudioActionsUntilLeave, setSuppressAudioActionsUntilLeave] = useState(false);
@@ -136,7 +141,11 @@ export function MessageItem({
           const audioUrl = match ? match[1] : "";
           const dur = match ? parseInt(match[2]) : 0;
           return (
-            <div {...hoverHandlers} className={`relative flex items-end gap-2 ${isOwn ? "flex-row-reverse" : "flex-row"}`}>
+            <div
+              {...hoverHandlers}
+              className={`relative inline-flex items-end gap-2 ${isOwn ? "flex-row-reverse" : "flex-row"} ${isHighlighted ? messageRowHighlightClass : ""}`}
+            >
+
               {!isOwn && (
                 <Avatar className="h-8 w-8 shrink-0">
                   {otherUser?.avatar_url ? <AvatarImage src={otherUser.avatar_url} /> : null}
@@ -181,6 +190,7 @@ export function MessageItem({
             <FileMessage
               messageId={message.id} text={text} fileUrl={fileUrl} isImage={isImage}
               isOwn={isOwn} currentUserId={currentUserId} status={message.status}
+              isHighlighted={isHighlighted}
               repliedTo={message.replied_to} onReplyClick={onReplyClick}
               reactions={message.reactions} otherUser={otherUser}
               hoveredMessageId={hoveredMessageId} openMenuKey={openMenuKey} selectedMessageKey={selectedMessageKey}
@@ -198,6 +208,7 @@ export function MessageItem({
             messageId={message.id} content={message.content} isOwn={isOwn}
             currentUserId={currentUserId} status={message.status} createdAt={message.created_at} editedAt={message.edited_at}
             deletedAt={message.deleted_at}
+            isHighlighted={isHighlighted}
             isPinned={!!message.pinned_at} repliedTo={message.replied_to} onReplyClick={onReplyClick}
             otherUser={otherUser} isHovered={hoveredMessageId === message.id}
             isMenuOpen={openMenuKey === message.id} isSelected={selectedMessageKey === message.id}

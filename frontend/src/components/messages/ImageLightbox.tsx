@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect } from 'react';
-import Image from 'next/image';
 import { useTranslation } from 'react-i18next';
 import { useScrollLock } from "@/hooks/useScrollLock";
+import AppImage from '@/components/ui/AppImage';
 import { X, Download } from 'lucide-react';
 
 interface ImageLightboxProps {
@@ -47,7 +47,6 @@ export function ImageLightbox({ imageUrl, onClose }: ImageLightboxProps) {
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/90"
       onClick={onClose}
     >
-      {/* Boutons en haut à droite */}
       <div
         className="absolute top-4 right-4 flex items-center gap-2 z-10"
         onClick={(e) => e.stopPropagation()}
@@ -68,16 +67,16 @@ export function ImageLightbox({ imageUrl, onClose }: ImageLightboxProps) {
         </button>
       </div>
 
-      {/* Image */}
       <div
         className="max-w-[90vw] max-h-[90vh] flex items-center justify-center"
-        onClick={(e) => e.stopPropagation()} // Clic sur l'image ne ferme pas
+        onClick={(e) => e.stopPropagation()}
       >
-        <Image
+        <AppImage
           src={imageUrl}
           alt={t('messages.imagePreview')}
           width={1600}
           height={1200}
+          unoptimized={imageUrl.includes("/chat-attachments/")}
           className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl"
         />
       </div>

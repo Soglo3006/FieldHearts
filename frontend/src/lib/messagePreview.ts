@@ -32,12 +32,28 @@ export function formatUnreadMessagePreview(
   }
 
   if (content.includes('[FILE:')) {
-    const match = content.match(/\[FILE:(.*?)\]/);
-    const fileUrl = match ? match[1] : '';
-    const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(fileUrl);
-    const label = isImage ? labels.photo : labels.file;
+    const label = isImageAttachmentContent(content) ? labels.photo : labels.file;
     return isOwnMessage ? `${labels.ownPrefix}${label}` : label;
   }
 
   return isOwnMessage ? `${labels.ownPrefix}${content}` : content;
+}
+
+/** True when a chat [FILE:…] payload points at an image (handles query strings / truncation). */
+export function isImageAttachmentContent(content: string): boolean {
+  const match = content.match(/\[FILE:([^\]]*)/);
+  const fileUrl = match?.[1] ?? content;
+  return /\.(jpg|jpeg|png|gif|webp)/i.test(fileUrl);
+}
+
+/** Short label for notification / email previews of chat attachments. */
+export function formatAttachmentNotificationPreview(
+  content: string,
+  labels: Pick<UnreadMessagePreviewLabels, "photo" | "file" | "voiceMessage">
+): string | null {
+  if (content.includes("[AUDIO:")) return labels.voiceMessage;
+  if (content.includes("[FILE:")) {
+    return isImageAttachmentContent(content) ? labels.photo : labels.file;
+  }
+  return null;
 }

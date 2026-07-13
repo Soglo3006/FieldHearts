@@ -7,6 +7,27 @@ import { protect } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
+/** Friendly in-app / email body when the chat payload is a photo, file, or voice note. */
+function formatMessagePreviewBodies(messagePreview) {
+  if (!messagePreview) {
+    return {
+      en: 'You have a new message',
+      fr: 'Vous avez un nouveau message',
+    };
+  }
+  if (messagePreview.includes('[AUDIO:')) {
+    return { en: 'Voice message', fr: 'Message vocal' };
+  }
+  if (messagePreview.includes('[FILE:')) {
+    const isImage = /\.(jpg|jpeg|png|gif|webp)/i.test(messagePreview);
+    return isImage
+      ? { en: 'Photo', fr: 'Photo' }
+      : { en: 'File', fr: 'Fichier' };
+  }
+  const truncated = messagePreview.substring(0, 100);
+  return { en: truncated, fr: truncated };
+}
+
 /**
  * GET /api/messages/unread-summary
  * Returns all chat summaries for the authenticated user in a single SQL query.
@@ -144,6 +165,8 @@ router.post('/notify', protect, async (req, res) => {
       }
     }
 
+    const previewBodies = formatMessagePreviewBodies(messagePreview);
+
     // In-app notification
     createLocalizedNotification({
       userId: receiverId,
@@ -151,11 +174,11 @@ router.post('/notify', protect, async (req, res) => {
       link: `/messages?chat=${chatRoomId}`,
       en: {
         title: `New message from ${senderName}`,
-        body: messagePreview ? messagePreview.substring(0, 100) : "You have a new message",
+        body: previewBodies.en,
       },
       fr: {
         title: `Nouveau message de ${senderName}`,
-        body: messagePreview ? messagePreview.substring(0, 100) : "Vous avez un nouveau message",
+        body: previewBodies.fr,
       },
     });
 
@@ -175,11 +198,12 @@ router.post('/notify', protect, async (req, res) => {
     const canEmail = await shouldSendEmail(receiverId, 'message');
     if (canEmail) {
       const lang = await getUserLang(receiverId);
+      const emailPreview = lang === 'en' ? previewBodies.en : previewBodies.fr;
       await notifyNewMessage(
         receiver.email,
         receiver.display_name || 'là',
         senderName,
-        (messagePreview || '').substring(0, 100),
+        emailPreview,
         chatRoomId,
         lang,
       );

@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { MessageActions } from './MessageActions';
-import { AlertCircle, RefreshCw,Check, X, Pin } from 'lucide-react';
+import { AlertCircle, RefreshCw, Pin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { RepliedMessage } from './RepliedMessage';
@@ -57,7 +57,11 @@ interface MessageBubbleProps {
   onDelete?: () => void;
   onRetry?: () => void;
   onReactionToggle?: (emoji: string) => void;
+  isHighlighted?: boolean;
 }
+
+const messageRowHighlightClass =
+  "rounded-2xl shadow-[0_0_0_6px_#fef9c3] bg-yellow-100/70 transition-[box-shadow,background-color] duration-500";
 
 export function MessageBubble({
   messageId,
@@ -87,6 +91,7 @@ export function MessageBubble({
   onDelete,
   onRetry,
   onReactionToggle,
+  isHighlighted = false,
 }: MessageBubbleProps) {
   const { t } = useTranslation();
   const [isEditing, setIsEditing] = useState(false);
@@ -120,16 +125,28 @@ export function MessageBubble({
   }, []);
 
 
+  const syncEditTextareaHeight = () => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = "0px";
+    const next = Math.min(Math.max(el.scrollHeight, 36), 160);
+    el.style.height = `${next}px`;
+    el.style.overflowY = el.scrollHeight > 160 ? "auto" : "hidden";
+  };
+
   useEffect(() => {
-    if (isEditing && textareaRef.current) {
-      textareaRef.current.focus();
-      // Placer le curseur à la fin
-      textareaRef.current.setSelectionRange(
-        textareaRef.current.value.length,
-        textareaRef.current.value.length
-      );
-    }
+    if (!isEditing || !textareaRef.current) return;
+    const el = textareaRef.current;
+    el.focus();
+    el.setSelectionRange(el.value.length, el.value.length);
+    syncEditTextareaHeight();
+    requestAnimationFrame(syncEditTextareaHeight);
   }, [isEditing]);
+
+  const handleEditContentChange = (value: string) => {
+    setEditedContent(value);
+    syncEditTextareaHeight();
+  };
 
 
   const handleStartEdit = () => {
@@ -239,7 +256,8 @@ export function MessageBubble({
       className={`flex ${isOwn ? 'gap-1' : 'gap-2'} items-start ${isOwn ? 'flex-row' : 'flex-row-reverse'}`}
     >
   {/* Avatar + Message */}
-  <div className="flex items-end gap-2">
+  <div className={`inline-flex items-end gap-2 ${isHighlighted ? messageRowHighlightClass : ""}`}>
+
     {/* Avatar pour les messages de l'autre personne */}
     {!isOwn && (
       <Avatar className="h-8 w-8 shrink-0">
@@ -279,7 +297,44 @@ export function MessageBubble({
       <div className={`flex items-center ${isOwn ? 'gap-1 flex-row-reverse' : 'gap-2 flex-row'}`}>
         {/* Bulle de message avec réaction en position absolue */}
         <div className="relative">
-          <div
+            {/* MODE ÉDITION */}
+            {isEditing ? (
+              <div
+                className="w-[min(18rem,70vw)] space-y-2 rounded-2xl border border-gray-200 bg-white p-2.5 shadow-sm"
+                onClick={(e) => e.stopPropagation()}
+                onPointerDown={(e) => e.stopPropagation()}
+              >
+                <Textarea
+                  ref={textareaRef}
+                  value={editedContent}
+                  onChange={(e) => handleEditContentChange(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  rows={1}
+                  className="min-h-[2.25rem] max-h-40 resize-none overflow-hidden border-gray-200 bg-white py-2 text-sm leading-5 text-gray-900 shadow-none field-sizing-fixed focus-visible:ring-green-600/30 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-resizer]:hidden"
+                  placeholder={t('messages.editPlaceholder')}
+                />
+                <div className="flex items-center justify-end gap-1.5">
+                  <Button
+                    size="sm"
+                    type="button"
+                    variant="ghost"
+                    className="h-8 cursor-pointer px-2.5 text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+                    onClick={(e) => { e.stopPropagation(); handleCancelEdit(); }}
+                  >
+                    {t('common.cancel')}
+                  </Button>
+                  <Button
+                    size="sm"
+                    type="button"
+                    className="h-8 cursor-pointer bg-green-700 px-3 text-white hover:bg-green-800"
+                    onClick={(e) => { e.stopPropagation(); handleSaveEdit(); }}
+                  >
+                    {t('common.save')}
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div
               onPointerDown={touchLongPressHandlers.onPointerDown}
               className={`rounded-2xl px-4 py-2 max-w-xs md:max-w-md ${
                 isOwn
@@ -289,42 +344,6 @@ export function MessageBubble({
                   : 'bg-white border border-gray-200 text-gray-900'
               } ${isSending ? 'opacity-60' : ''}`}
             >
-            {/* MODE ÉDITION */}
-            {isEditing ? (
-              <div className="space-y-2">
-                <Textarea
-                  ref={textareaRef}
-                  value={editedContent}
-                  onChange={(e) => setEditedContent(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  className={`min-h-15 text-sm resize-none ${
-                    isOwn ? 'bg-green-600 text-white placeholder:text-green-200' : 'bg-white'
-                  }`}
-                  placeholder={t('messages.editPlaceholder')}
-                />
-                <div className="flex items-center gap-2">
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className={`h-7 cursor-pointer ${isOwn ? 'text-white hover:bg-green-600' : ''}`}
-                    onClick={(e) => { e.stopPropagation(); handleSaveEdit(); }}
-                  >
-                    <Check className="h-4 w-4 mr-1" />
-                    {t('common.save')}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className={`h-7 cursor-pointer ${isOwn ? 'text-white hover:bg-green-600' : ''}`}
-                    onClick={(e) => { e.stopPropagation(); handleCancelEdit(); }}
-                  >
-                    <X className="h-4 w-4 mr-1" />
-                    {t('common.cancel')}
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <>
                 {/* MODE LECTURE */}
                 <div className="text-sm wrap-break-word">
                   {isDeleted ? (
@@ -343,15 +362,11 @@ export function MessageBubble({
                     <Pin className="h-3 w-3 text-green-700" />
                   </div>
                 )}
-
-            
-
-              </>
+              </div>
             )}
-          </div>
 
           {/* Réactions en position absolue - en bas à droite */}
-          {reactions && reactions.length > 0 && (
+          {reactions && reactions.length > 0 && !isEditing && (
             <div className={`absolute -bottom-4 ${isOwn ? '-left-2' : '-right-2'}`}>
               <MessageReactions
                 reactions={reactions}

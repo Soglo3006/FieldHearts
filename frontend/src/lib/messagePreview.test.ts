@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { formatUnreadMessagePreview } from './messagePreview';
+import {
+  formatAttachmentNotificationPreview,
+  formatUnreadMessagePreview,
+  isImageAttachmentContent,
+} from './messagePreview';
 
 const labels = {
   ownPrefix: 'Vous: ',
@@ -48,5 +52,29 @@ describe('formatUnreadMessagePreview', () => {
         labels,
       })
     ).toBe('Vous: Ce message a ete supprime');
+  });
+
+  it('detects images with query strings', () => {
+    expect(
+      isImageAttachmentContent(
+        '[FILE:https://cdn.example.com/photo.webp?token=abc]'
+      )
+    ).toBe(true);
+  });
+
+  it('formats notification attachment previews', () => {
+    expect(
+      formatAttachmentNotificationPreview(
+        '[FILE:https://cdn.example.com/photo.webp]',
+        labels
+      )
+    ).toBe('Photo');
+    expect(
+      formatAttachmentNotificationPreview(
+        '[AUDIO:https://cdn.example.com/voice.webm:12]',
+        labels
+      )
+    ).toBe('Message vocal');
+    expect(formatAttachmentNotificationPreview('hello', labels)).toBeNull();
   });
 });

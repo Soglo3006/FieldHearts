@@ -320,6 +320,9 @@ function MessagesContent() {
         markChatAsRead(activeChatId, user.id);
         clearUnreadCount(activeChatId);
         markReadByLink(`chat=${activeChatId}`);
+        window.dispatchEvent(
+          new CustomEvent("chat-marked-read", { detail: { chatId: activeChatId } }),
+        );
       }, 1000);
       return () => clearTimeout(timer);
     }
@@ -850,15 +853,21 @@ function MessagesContent() {
   const scrollToMessage = (messageId: string) => {
     const element = document.getElementById(`message-${messageId}`);
     if (!element) return;
-    const viewport = element.closest('[data-radix-scroll-area-viewport]') as HTMLElement | null;
+    const viewport =
+      (element.closest("[data-message-thread-viewport]") as HTMLElement | null) ||
+      (element.closest("[data-slot='scroll-area-viewport']") as HTMLElement | null) ||
+      (element.closest("[data-radix-scroll-area-viewport]") as HTMLElement | null);
     if (viewport) {
-      const top = viewport.scrollTop + element.getBoundingClientRect().top - viewport.getBoundingClientRect().top - viewport.clientHeight / 2 + element.clientHeight / 2;
-      viewport.scrollTo({ top, behavior: 'smooth' });
+      const top =
+        viewport.scrollTop +
+        element.getBoundingClientRect().top -
+        viewport.getBoundingClientRect().top -
+        viewport.clientHeight / 2 +
+        element.clientHeight / 2;
+      viewport.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
     } else {
-      element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      element.scrollIntoView({ behavior: "smooth", block: "center" });
     }
-    element.classList.add('bg-yellow-100');
-    setTimeout(() => element.classList.remove('bg-yellow-100'), 2000);
   };
 
   const otherUserName = displayedConversationUser?.account_type === 'company'

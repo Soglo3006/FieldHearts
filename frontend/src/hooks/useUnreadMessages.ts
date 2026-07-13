@@ -149,7 +149,33 @@ export function useUnreadMessages() {
       prevUnreadCountRef.current = newCount;
       return newCount;
     });
+
+    window.dispatchEvent(
+      new CustomEvent("chat-marked-read", { detail: { chatId: chatRoomId } }),
+    );
   };
+
+  // Keep header / other hook instances in sync when a chat is opened elsewhere.
+  useEffect(() => {
+    const onMarked = (event: Event) => {
+      const chatId = (event as CustomEvent<{ chatId?: string }>).detail?.chatId;
+      if (!chatId) return;
+      setUnreadChats((prev) => {
+        const wasUnread = prev.some((c) => c.chat_room_id === chatId && !c.is_read);
+        if (!wasUnread) return prev;
+        setUnreadCount((count) => {
+          const next = Math.max(0, count - 1);
+          prevUnreadCountRef.current = next;
+          return next;
+        });
+        return prev.map((c) =>
+          c.chat_room_id === chatId ? { ...c, is_read: true } : c,
+        );
+      });
+    };
+    window.addEventListener("chat-marked-read", onMarked);
+    return () => window.removeEventListener("chat-marked-read", onMarked);
+  }, []);
 
   return { unreadChats, unreadCount, loading, markAsRead };
 }

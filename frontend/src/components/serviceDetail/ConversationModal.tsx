@@ -7,10 +7,17 @@ import { toast } from "sonner";
 import { useScrollLock } from "@/hooks/useScrollLock";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMessages } from "@/hooks/useMessages";
+import { useMessageReactions } from "@/hooks/useMessageReactions";
+import { usePinMessage } from "@/hooks/usePinMessage";
+import { useEditMessage } from "@/hooks/useEditMessage";
+import { useDeleteMessage } from "@/hooks/useDeleteMessage";
 import { MessageThread } from "@/components/messages/MessageThread";
 import { ChatInputArea } from "@/components/messages/ChatInputArea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Spinner } from "@/components/ui/Spinner";
+import { Skeleton } from "@/components/ui/skeleton";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { useMarkAsRead } from "@/hooks/useMarkAsRead";
+import { useNotifications } from "@/hooks/useNotifications";
 import { findExistingChat, getOrCreateDirectChat } from "@/lib/chatUtils";
 import { prepareDraftMessageTarget, DraftMessagePreparationError } from "@/lib/draftMessage";
 import { supabase } from "@/lib/supabaseClient";
@@ -23,6 +30,41 @@ export type ConversationModalUser = {
   account_type?: string | null;
   avatar_url?: string | null;
 };
+
+const MODAL_SKELETON_BUBBLES = [
+  { isOwn: false, w: "w-48" },
+  { isOwn: true, w: "w-36" },
+  { isOwn: false, w: "w-64" },
+  { isOwn: true, w: "w-52" },
+  { isOwn: false, w: "w-40" },
+  { isOwn: true, w: "w-44" },
+  { isOwn: false, w: "w-56" },
+  { isOwn: true, w: "w-32" },
+] as const;
+
+function ConversationModalBodySkeleton() {
+  return (
+    <div className="relative flex min-h-0 flex-1 flex-col" aria-busy="true" aria-label="Loading">
+      <div className="flex min-h-0 flex-1 flex-col justify-end space-y-4 overflow-hidden px-4 py-4">
+        {MODAL_SKELETON_BUBBLES.map((s, i) => (
+          <div
+            key={i}
+            className={`flex items-end gap-2 ${s.isOwn ? "justify-end" : "justify-start"}`}
+          >
+            {!s.isOwn && <Skeleton className="h-8 w-8 shrink-0 rounded-full bg-gray-200" />}
+            <Skeleton
+              className={`h-10 rounded-2xl bg-gray-200 ${s.w}`}
+              style={{ animationDelay: `${i * 60}ms` }}
+            />
+          </div>
+        ))}
+      </div>
+      <div className="shrink-0 border-t bg-white px-4 py-3">
+        <Skeleton className="h-10 w-full rounded-xl bg-gray-100" />
+      </div>
+    </div>
+  );
+}
 
 type Props = {
   otherUserId: string;
@@ -66,6 +108,16 @@ export default function ConversationModal({ otherUserId, otherUser: otherUserPro
     loadingMore,
     loadMore,
   } = useMessages(chatId);
+  const { toggleReaction } = useMessageReactions();
+  const { togglePin } = usePinMessage();
+  const { editMessage } = useEditMessage();
+  const { deleteMessage } = useDeleteMessage();
+  const { markChatAsRead } = useMarkAsRead();
+  const { markReadByLink } = useNotifications();
+  const markChatAsReadRef = useRef(markChatAsRead);
+  const markReadByLinkRef = useRef(markReadByLink);
+  markChatAsReadRef.current = markChatAsRead;
+  markReadByLinkRef.current = markReadByLink;
 
   const displayName =
     otherUser?.account_type === "company"
@@ -74,6 +126,19 @@ export default function ConversationModal({ otherUserId, otherUser: otherUserPro
 
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
+
+  // Clear unread badges / message notifications once the conversation is visible.
+  useEffect(() => {
+    if (!chatId || !user?.id || messagesLoading || booting) return;
+    const timer = setTimeout(() => {
+      void markChatAsReadRef.current(chatId, user.id);
+      markReadByLinkRef.current(`chat=${chatId}`);
+      window.dispatchEvent(
+        new CustomEvent("chat-marked-read", { detail: { chatId } }),
+      );
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [chatId, user?.id, messagesLoading, booting]);
 
   useEffect(() => {
     if (!user?.id || !otherUserId) return;
@@ -334,8 +399,14 @@ export default function ConversationModal({ otherUserId, otherUser: otherUserPro
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
-      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
+    <TooltipProvider>
+    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden p-4 sm:p-6">
+      <div
+        className="absolute inset-0 bg-black/50"
+        onClick={onClose}
+        onWheel={(e) => e.preventDefault()}
+        aria-hidden
+      />
       <div
         className={cn(
           "relative z-10 flex h-[min(85vh,720px)] w-full max-w-lg flex-col overflow-hidden",
@@ -344,6 +415,7 @@ export default function ConversationModal({ otherUserId, otherUser: otherUserPro
         role="dialog"
         aria-modal="true"
         aria-label={t("serviceDetail.contactPerson", { name: displayName })}
+        onWheel={(e) => e.stopPropagation()}
       >
         <div className="flex shrink-0 items-center justify-between gap-3 border-b px-4 py-3">
           <div className="flex min-w-0 flex-1 items-center gap-3">
@@ -369,9 +441,7 @@ export default function ConversationModal({ otherUserId, otherUser: otherUserPro
         </div>
 
         {booting || !user ? (
-          <div className="flex flex-1 items-center justify-center">
-            <Spinner size="lg" />
-          </div>
+          <ConversationModalBodySkeleton />
         ) : (
           <div className="relative flex min-h-0 flex-1 flex-col">
             <MessageThread
@@ -408,6 +478,19 @@ export default function ConversationModal({ otherUserId, otherUser: otherUserPro
                   sender_name: senderName,
                 });
               }}
+              onReactionToggle={async (messageId, emoji, currentReactions) => {
+                if (!user?.id) return;
+                await toggleReaction(messageId, emoji, user.id, currentReactions);
+              }}
+              onEdit={async (messageId, newContent) => {
+                await editMessage(messageId, newContent);
+              }}
+              onPin={async (messageId, isPinned) => {
+                await togglePin(messageId, isPinned);
+              }}
+              onDelete={async (messageId) => {
+                await deleteMessage(messageId);
+              }}
               hasMore={hasMore}
               loadingMore={loadingMore}
               loadMore={loadMore}
@@ -437,5 +520,6 @@ export default function ConversationModal({ otherUserId, otherUser: otherUserPro
         )}
       </div>
     </div>
+    </TooltipProvider>
   );
 }

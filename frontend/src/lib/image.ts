@@ -33,6 +33,8 @@ export function getSafeMetadataImageUrl(src: string | null | undefined): string 
  * which avoids downloading the full-resolution original.
  *
  * Non-Supabase URLs (Unsplash, data:, blob:) are returned unchanged.
+ * chat-attachments skip transform — that API often returns 403 when Image
+ * Transformation is not enabled on the project.
  */
 export function getOptimizedImageUrl(
   src: string | null | undefined,
@@ -44,6 +46,11 @@ export function getOptimizedImageUrl(
 
   const match = normalizedSrc.match(SUPABASE_STORAGE_RE);
   if (!match) return normalizedSrc;
+
+  // Direct public object URL — Image Transform is not reliable for this bucket
+  if (match[2].includes("/chat-attachments/")) {
+    return normalizedSrc;
+  }
 
   // e.g. https://xxx.supabase.co/storage/v1/render/image/public/<bucket>/file.jpg?width=800&quality=75
   return `${match[1].replace("/object", "/render/image")}${match[2]}?width=${width}&quality=${quality}`;

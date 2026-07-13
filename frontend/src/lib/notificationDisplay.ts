@@ -1,4 +1,5 @@
 import type { AppNotification } from "@/hooks/useNotifications";
+import { formatAttachmentNotificationPreview } from "@/lib/messagePreview";
 
 type TFn = (key: string, opts?: Record<string, string>) => string;
 
@@ -200,6 +201,18 @@ export function displayNotificationBody(notif: AppNotification, t: TFn): string 
   if (notif.type === "message") {
     if (/you have a new message|vous avez un nouveau message/i.test(body)) {
       return t("notifications.newMessageBody");
+    }
+    const attachmentPreview = formatAttachmentNotificationPreview(body, {
+      photo: t("messages.photo"),
+      file: t("messages.file"),
+      voiceMessage: t("messages.voiceMessage"),
+    });
+    if (attachmentPreview) return attachmentPreview;
+    // Backend may already store localized attachment labels
+    if (/^photo$/i.test(body.trim())) return t("messages.photo");
+    if (/^file$|^fichier$/i.test(body.trim())) return t("messages.file");
+    if (/^voice message$|^message vocal$/i.test(body.trim())) {
+      return t("messages.voiceMessage");
     }
     return body;
   }

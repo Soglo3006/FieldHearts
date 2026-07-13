@@ -55,7 +55,7 @@ export function EmojiPickerPopover({ onEmojiSelect, onOpenChange }: EmojiPickerP
         align="center"
         side="top"
         sideOffset={8}
-        className="w-auto p-0 border-0 bg-transparent shadow-none rounded-none"
+        className="z-[100] w-auto rounded-none border-0 bg-transparent p-0 shadow-none"
         onPointerDownOutside={() => {
           setOpen(false);
           onOpenChange?.(false);

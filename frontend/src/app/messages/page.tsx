@@ -874,9 +874,9 @@ function MessagesContent() {
   if (showFullPageSkeleton) {
     return (
       <TooltipProvider>
-        <div className="flex-1 flex flex-col bg-white min-h-0">
-          <div className="flex-1 max-w-400 w-full mx-auto p-0 sm:p-5 min-h-0 flex flex-col">
-            <div className="bg-white sm:rounded-xl shadow-sm overflow-hidden flex-1 min-h-0">
+        <div className="flex min-h-0 flex-1 flex-col bg-white">
+          <div className="mx-auto flex min-h-0 w-full max-w-400 flex-1 flex-col p-0 sm:p-5">
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-white sm:rounded-xl sm:shadow-sm">
               <MessagesThreeColumnSkeleton />
             </div>
           </div>
@@ -887,7 +887,7 @@ function MessagesContent() {
 
   return (
     <TooltipProvider>
-      <div className="flex-1 flex flex-col bg-white min-h-0">
+      <div className="flex min-h-0 flex-1 flex-col bg-white">
         {!isOnline && (
           <div className="flex items-center justify-center gap-2 bg-amber-50 border-b border-amber-200 px-4 py-2 shrink-0">
             <WifiOff className="h-4 w-4 text-amber-600 shrink-0" />
@@ -895,8 +895,8 @@ function MessagesContent() {
           </div>
         )}
 
-        <div className="flex-1 max-w-400 w-full mx-auto p-0 sm:p-5 min-h-0 flex flex-col">
-          <div className="bg-white sm:rounded-xl shadow-sm overflow-hidden flex-1 min-h-0">
+        <div className="mx-auto flex min-h-0 w-full max-w-400 flex-1 flex-col p-0 sm:p-5">
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-white sm:rounded-xl sm:shadow-sm">
             <div className="relative flex h-full min-h-0 overflow-hidden">
 
               {/* Colonne 1 : Liste des conversations */}
@@ -1228,6 +1228,7 @@ function MessagesContent() {
                       otherUser={displayedConversationUser}
                       onClose={!isLargeScreen ? () => setShowMobileSidebar(false) : undefined}
                       onOpenSettings={!isLargeScreen && activeChat ? () => setShowSettings(true) : undefined}
+                      lockScroll={!isLargeScreen && showMobileSidebar}
                       isBlocked={pendingNewConvUser ? pendingIsBlocked : isBlocked}
                       isBlockedByOther={pendingNewConvUser ? pendingIsBlockedByOther : isBlockedByOther}
                       blockCheckLoading={pendingNewConvUser ? pendingBlockCheckLoading : blockCheckLoading}

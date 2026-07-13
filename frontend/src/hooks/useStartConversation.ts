@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
@@ -7,7 +7,12 @@ import { useAuthResumeAction } from "@/hooks/useAuthResumeAction";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 
-export function useStartConversation() {
+type StartConversationOptions = {
+  /** Called instead of navigating to /messages (e.g. open an in-page chat modal). */
+  onConversationReady?: (otherUserId: string) => void;
+};
+
+export function useStartConversation(options?: StartConversationOptions) {
   const router = useRouter();
   const { t } = useTranslation();
   const { user, loading: authLoading } = useAuth();
@@ -17,6 +22,9 @@ export function useStartConversation() {
     otherUserId: string;
     redirectBack?: string;
   } | null>(null);
+
+  const onReadyRef = useRef(options?.onConversationReady);
+  onReadyRef.current = options?.onConversationReady;
 
   const continueConversation = useCallback(
     async (otherUserId: string) => {
@@ -48,6 +56,12 @@ export function useStartConversation() {
         ]);
         if (iBlocked || theyBlocked) {
           toast.error(t("messages.cannotStartChatBlocked"));
+          setLoading(false);
+          return;
+        }
+
+        if (onReadyRef.current) {
+          onReadyRef.current(otherUserId);
           setLoading(false);
           return;
         }

@@ -8,6 +8,54 @@ let previousBodyWidth = "";
 let previousBodyOverflow = "";
 let previousHtmlOverflowY = "";
 
+function applyUnlock() {
+  const { body, documentElement } = document;
+
+  documentElement.removeAttribute("data-scroll-locked");
+  body.removeAttribute("data-scroll-locked");
+
+  body.style.position = previousBodyPosition;
+  body.style.top = previousBodyTop;
+  body.style.width = previousBodyWidth;
+  body.style.overflow = previousBodyOverflow;
+  documentElement.style.overflowY = previousHtmlOverflowY;
+
+  window.scrollTo(0, savedScrollY);
+
+  previousBodyPosition = "";
+  previousBodyTop = "";
+  previousBodyWidth = "";
+  previousBodyOverflow = "";
+  previousHtmlOverflowY = "";
+}
+
+/** Force-clear document scroll lock (e.g. after client navigation left a stuck lock). */
+export function forceClearScrollLock() {
+  if (activeLocks === 0) {
+    // Heal leftover attributes/styles even if counter is already 0
+    const { body, documentElement } = document;
+    if (
+      documentElement.hasAttribute("data-scroll-locked") ||
+      body.hasAttribute("data-scroll-locked") ||
+      body.style.position === "fixed"
+    ) {
+      documentElement.removeAttribute("data-scroll-locked");
+      body.removeAttribute("data-scroll-locked");
+      body.style.removeProperty("position");
+      body.style.removeProperty("top");
+      body.style.removeProperty("width");
+      if (body.style.overflow === "hidden") body.style.removeProperty("overflow");
+      if (documentElement.style.overflowY === "scroll" || documentElement.style.overflowY === "hidden") {
+        documentElement.style.removeProperty("overflow-y");
+      }
+    }
+    return;
+  }
+
+  activeLocks = 0;
+  applyUnlock();
+}
+
 export function useScrollLock(active: boolean) {
   useEffect(() => {
     if (!active) return;
@@ -42,22 +90,7 @@ export function useScrollLock(active: boolean) {
 
       if (activeLocks > 0) return;
 
-      documentElement.removeAttribute("data-scroll-locked");
-      body.removeAttribute("data-scroll-locked");
-
-      body.style.position = previousBodyPosition;
-      body.style.top = previousBodyTop;
-      body.style.width = previousBodyWidth;
-      body.style.overflow = previousBodyOverflow;
-      documentElement.style.overflowY = previousHtmlOverflowY;
-
-      window.scrollTo(0, savedScrollY);
-
-      previousBodyPosition = "";
-      previousBodyTop = "";
-      previousBodyWidth = "";
-      previousBodyOverflow = "";
-      previousHtmlOverflowY = "";
+      applyUnlock();
     };
   }, [active]);
 }

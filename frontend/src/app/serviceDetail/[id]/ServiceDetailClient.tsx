@@ -16,6 +16,7 @@ import BookingSidebar from "@/components/serviceDetail/BookingSidebar";
 import SimilarServices from "@/components/serviceDetail/SimilarServices";
 import AdBanner from "@/components/AdBanner";
 import BookingModal from "@/components/serviceDetail/BookingModal";
+import ConversationModal from "@/components/serviceDetail/ConversationModal";
 import CompleteProfileModal from "@/components/profile/CompleteProfileModal";
 import { useBuyerTaxLocation } from "@/hooks/useBuyerTaxLocation";
 import LocationMapModal from "@/components/serviceDetail/LocationMapModal";
@@ -136,7 +137,10 @@ export default function ServiceDetailClient({ initialService = null }: ServiceDe
   const [isMapOpen, setIsMapOpen] = useState(false);
   const [mapLocationIndex, setMapLocationIndex] = useState(0);
 
-  const { startConversation, loading: contactLoading } = useStartConversation();
+  const [showConversationModal, setShowConversationModal] = useState(false);
+  const { startConversation, loading: contactLoading } = useStartConversation({
+    onConversationReady: () => setShowConversationModal(true),
+  });
   const { user, session } = useAuth();
   const router = useRouter();
 
@@ -474,6 +478,20 @@ export default function ServiceDetailClient({ initialService = null }: ServiceDe
             setShowBookingModal(false);
             startConversation(String(service.owner_id), `/serviceDetail/${serviceId}`);
           }}
+        />
+      )}
+
+      {showConversationModal && service && (
+        <ConversationModal
+          otherUserId={String(service.owner_id)}
+          otherUser={{
+            id: String(service.owner_id),
+            full_name: service.owner_name,
+            company_name: providerIsCompany ? service.owner_name : null,
+            account_type: service.owner_account_type,
+            avatar_url: service.owner_avatar,
+          }}
+          onClose={() => setShowConversationModal(false)}
         />
       )}
 

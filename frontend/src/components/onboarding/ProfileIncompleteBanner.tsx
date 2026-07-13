@@ -15,7 +15,7 @@ export default function ProfileIncompleteBanner({ profile }: Props) {
   if (!profile || !isProfileDetailsIncomplete(profile)) return null;
 
   return (
-    <div className="border-b border-gray-200 bg-white">
+    <div className="shrink-0 border-b border-gray-200 bg-white">
       <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-center gap-1.5 px-4 py-2.5 text-sm">
         <span className="text-gray-900">{t("onboarding.profileIncompleteBanner")}</span>
         <Link

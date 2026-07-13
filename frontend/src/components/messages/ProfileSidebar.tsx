@@ -53,11 +53,23 @@ interface ProfileSidebarProps {
   /** When set, listing fetch uses API block rules for the current viewer */
   accessToken?: string | null;
   onLoadingChange?: (loading: boolean) => void;
+  /** Lock page scroll only when sidebar is an overlay (mobile), never as a desktop column. */
+  lockScroll?: boolean;
 }
 
-export function ProfileSidebar({ otherUser, onClose, onOpenSettings, isBlocked, isBlockedByOther, blockCheckLoading, accessToken, onLoadingChange }: ProfileSidebarProps) {
+export function ProfileSidebar({
+  otherUser,
+  onClose,
+  onOpenSettings,
+  isBlocked,
+  isBlockedByOther,
+  blockCheckLoading,
+  accessToken,
+  onLoadingChange,
+  lockScroll = false,
+}: ProfileSidebarProps) {
   const { t, i18n } = useTranslation();
-  useScrollLock(true);
+  useScrollLock(lockScroll);
   const [userListings, setUserListings] = useState<SidebarListing[]>([]);
   const [listingsLoading, setListingsLoading] = useState(false);
   const [profileBio, setProfileBio] = useState<string | null>(null);

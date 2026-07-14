@@ -75,7 +75,41 @@ export default function ConditionalShell({ children }: { children: React.ReactNo
     // Always heal stuck locks on route change — including /messages.
     // (ProfileSidebar used to leave data-scroll-locked on forever.)
     clearStaleDocumentLocks();
-  }, [pathname]);
+
+    if (!isNoFooterPage) return;
+
+    // Body uses min-h-screen (100vh) which on iOS is taller than the visible
+    // area → white gap under the composer. Pin html/body to the small viewport.
+    const html = document.documentElement;
+    const body = document.body;
+    html.classList.add(MESSAGES_SCROLL_LOCK_CLASS);
+    const prev = {
+      htmlOverflow: html.style.overflow,
+      htmlHeight: html.style.height,
+      htmlMaxHeight: html.style.maxHeight,
+      bodyOverflow: body.style.overflow,
+      bodyHeight: body.style.height,
+      bodyMaxHeight: body.style.maxHeight,
+      bodyMinHeight: body.style.minHeight,
+    };
+    html.style.overflow = "hidden";
+    html.style.height = "100%";
+    html.style.maxHeight = "100svh";
+    body.style.overflow = "hidden";
+    body.style.height = "100%";
+    body.style.maxHeight = "100svh";
+    body.style.minHeight = "0";
+    return () => {
+      html.classList.remove(MESSAGES_SCROLL_LOCK_CLASS);
+      html.style.overflow = prev.htmlOverflow;
+      html.style.height = prev.htmlHeight;
+      html.style.maxHeight = prev.htmlMaxHeight;
+      body.style.overflow = prev.bodyOverflow;
+      body.style.height = prev.bodyHeight;
+      body.style.maxHeight = prev.bodyMaxHeight;
+      body.style.minHeight = prev.bodyMinHeight;
+    };
+  }, [pathname, isNoFooterPage]);
 
   useEffect(() => {
     if (authLoading) return;

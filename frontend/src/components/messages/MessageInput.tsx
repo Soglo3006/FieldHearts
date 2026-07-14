@@ -221,7 +221,7 @@ export function MessageInput({
   };
 
   return (
-    <div className="sticky bottom-0 p-4 border-t bg-white">
+    <div className="border-t bg-white p-3 sm:p-4">
       {/* Preview fichier */}
       {attachedFile && (
         <div className="mb-3 p-3 bg-white rounded-lg border border-gray-200">

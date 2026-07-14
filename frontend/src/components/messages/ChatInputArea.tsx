@@ -43,7 +43,7 @@ export function ChatInputArea({
   const { t } = useTranslation();
 
   return (
-    <div className="shrink-0 pb-[env(safe-area-inset-bottom)]">
+    <div className="shrink-0">
       <ReplyPreview repliedMessage={replyingTo} onCancel={onCancelReply} />
 
       {blockCheckLoading ? (

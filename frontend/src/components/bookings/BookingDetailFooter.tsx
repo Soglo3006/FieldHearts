@@ -252,7 +252,7 @@ export default function BookingDetailFooter({
 
             {t("bookings.youMarkedDone")}
 
-            {!otherHasMarkedDone && ` — ${userRole === "worker" ? t("bookings.waitingForClient") : t("bookings.waitingForProvider")}`}
+            {!otherHasMarkedDone && `. ${userRole === "worker" ? t("bookings.waitingForClient") : t("bookings.waitingForProvider")}`}
 
           </div>
 

@@ -497,7 +497,14 @@ export const createCheckoutSession = async (req, res) => {
     // Update the booking's tax_rate to reflect the billing address province used
     await pool.query(
       "UPDATE bookings SET tax_rate = $1, client_province = $2, deposit_amount_cents = $3 WHERE id = $4",
-      [taxRate, effectiveProvince, depositAmountCents, booking_id]
+      [
+        taxRate,
+        effectiveProvince,
+        checkoutKind === "balance" && Number(b.deposit_amount_cents) > 0
+          ? Number(b.deposit_amount_cents)
+          : depositAmountCents,
+        booking_id,
+      ]
     );
 
     const lineItemName =
@@ -557,8 +564,8 @@ export const createCheckoutSession = async (req, res) => {
       line_items: lineItems,
       mode: "payment",
       locale: req.body.locale || "fr-CA",
-      success_url: `${FRONTEND_URL}/payment/success?booking_id=${booking_id}`,
-      cancel_url: `${FRONTEND_URL}/payment/${booking_id}?cancelled=true`,
+      success_url: `${FRONTEND_URL}/bookings?payment=success&booking=${booking_id}`,
+      cancel_url: `${FRONTEND_URL}/bookings?booking=${booking_id}`,
       metadata: {
         booking_id,
         payment_kind: checkoutKind,

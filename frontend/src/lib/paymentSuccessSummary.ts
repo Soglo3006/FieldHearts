@@ -123,8 +123,8 @@ function resolveFullServiceBaseForReceipt(booking: BookingFields): number {
 }
 
 function resolveDepositPaidBase(booking: BookingFields, fullServiceBase: number, balanceBase: number): number {
-  const stored = Number(booking.deposit_amount_cents || 0) / 100;
-  if (stored > 0) return stored;
+  const fromResolve = resolveDepositPaidCents(booking) / 100;
+  if (fromResolve > 0) return fromResolve;
   return Math.max(0, roundMoney(fullServiceBase - balanceBase));
 }
 
@@ -295,6 +295,9 @@ export interface ClientPaymentSummary {
   hourlyRate: number | null;
   hoursLabel: number | null;
   hoursIsApproved: boolean;
+  /** True when approved hours differ from the original estimate. */
+  hoursChanged: boolean;
+  estimatedHours: number | null;
   depositPaid: number;
   remainingBase: number;
   remainingCommission: number;
@@ -333,13 +336,23 @@ export function buildSplitDepositFullReceipt(booking: BookingFields): SplitDepos
   };
 }
 
-/** Deposit actually paid (cents), correcting doubled paid_service_base_cents bookkeeping. */
+/** Deposit actually paid (cents). Never confuse with full paid_service_base after balance. */
 export function resolveDepositPaidCents(booking: BookingFields): number {
   const paidBase = Number(booking.paid_service_base_cents || 0);
   const storedDeposit = Number(booking.deposit_amount_cents || 0);
+  const status = booking.payment_status ?? null;
+  const fullyPaid = status === "paid" || status === "transferred";
+  /** Balance checkout used to overwrite deposit_amount_cents with the full service base. */
+  const storedLooksLikeFullBase = fullyPaid && paidBase > 0 && storedDeposit === paidBase;
 
-  if (storedDeposit > 0 && paidBase === storedDeposit * 2) {
-    return storedDeposit;
+  // Prefer the stored deposit when it still looks like the real deposit charge.
+  if (storedDeposit > 0 && !storedLooksLikeFullBase) {
+    if (paidBase === storedDeposit * 2 && status === "deposit_paid") {
+      return storedDeposit;
+    }
+    if (fullyPaid || paidBase > storedDeposit) {
+      return storedDeposit;
+    }
   }
 
   if (usesSplitDepositPayment(booking)) {
@@ -352,16 +365,29 @@ export function resolveDepositPaidCents(booking: BookingFields): number {
           deposit_value: booking.deposit_value,
         }) * 100,
       );
-      if (expected > 0 && paidBase === expected * 2) {
-        return expected;
-      }
-      if (expected > 0 && storedDeposit === expected * 2 && paidBase === storedDeposit) {
-        return expected;
+      if (expected > 0) {
+        if (paidBase === expected * 2) return expected;
+        if (storedDeposit === expected * 2 && paidBase === storedDeposit) return expected;
+        // After hours increase / balance pay, paid base grows past the original deposit.
+        if (paidBase > expected && (fullyPaid || status === "deposit_paid")) {
+          if (storedDeposit <= 0 || storedLooksLikeFullBase || storedDeposit === paidBase) {
+            return expected;
+          }
+        }
       }
     }
   }
 
-  return paidBase || storedDeposit;
+  // While only the deposit is paid, paid_service_base_cents is the deposit.
+  if (status === "deposit_paid" && paidBase > 0 && !storedLooksLikeFullBase) {
+    return paidBase;
+  }
+
+  if (storedDeposit > 0 && !storedLooksLikeFullBase) {
+    return storedDeposit;
+  }
+
+  return paidBase;
 }
 
 /** Payment summary card in booking detail (client view). */
@@ -378,30 +404,37 @@ export function buildClientPaymentSummary(booking: BookingFields): ClientPayment
     usesSplitDepositPayment(booking) &&
     booking.payment_status === "deposit_paid"
   ) {
-    const balanceDueNow = computeBalanceDueCents(booking) / 100;
-    const fullServiceBase =
-      isHourly && approvedH > 0 && hourlyRate != null
-        ? roundMoney(hourlyRate * approvedH)
-        : estimatedBase;
+    const hasApprovedHours = isHourly && approvedH > 0 && hourlyRate != null;
+    const fullServiceBase = hasApprovedHours
+      ? roundMoney(hourlyRate! * approvedH)
+      : estimatedBase;
     const remainingFees = computeHourlyBalanceCheckoutTotal(
       fullServiceBase,
       depositPaid,
       taxRate,
     );
-    const estimateFees = computeServiceCheckoutTotal(estimatedBase, taxRate);
+    const currentFees = computeServiceCheckoutTotal(fullServiceBase, taxRate);
+    const hoursChanged =
+      hasApprovedHours &&
+      estimatedH != null &&
+      Number.isFinite(estimatedH) &&
+      estimatedH > 0 &&
+      Math.abs(approvedH - estimatedH) >= 0.01;
 
     return {
       variant: "split_deposit_paid",
-      serviceBase: estimatedBase,
+      serviceBase: fullServiceBase,
       hourlyRate,
-      hoursLabel: approvedH > 0 ? approvedH : estimatedH,
-      hoursIsApproved: approvedH > 0,
+      hoursLabel: hasApprovedHours ? approvedH : estimatedH,
+      hoursIsApproved: hasApprovedHours,
+      hoursChanged,
+      estimatedHours: estimatedH != null && Number.isFinite(estimatedH) ? estimatedH : null,
       depositPaid,
       remainingBase: remainingFees.balanceBase,
       remainingCommission: remainingFees.commission,
       remainingTaxes: remainingFees.taxes,
       remainingTotal: remainingFees.total,
-      estimatedTotalWithFees: estimateFees.total,
+      estimatedTotalWithFees: currentFees.total,
       buyerCommission: 0,
       taxes: 0,
       total: depositPaid,
@@ -420,6 +453,8 @@ export function buildClientPaymentSummary(booking: BookingFields): ClientPayment
     hourlyRate,
     hoursLabel: isHourly && approvedH > 0 ? approvedH : isHourly ? estimatedH : null,
     hoursIsApproved: isHourly && approvedH > 0,
+    hoursChanged: false,
+    estimatedHours: estimatedH != null && Number.isFinite(estimatedH) ? estimatedH : null,
     depositPaid: 0,
     remainingBase: 0,
     remainingCommission: 0,

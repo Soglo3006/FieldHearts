@@ -42,6 +42,17 @@ const nextConfig: NextConfig = {
         destination: "https://www.uneden.ca/:path*",
         permanent: true,
       },
+      // Legacy Stripe Checkout / PaymentIntent return pages → bookings (confirmation is in-modal)
+      {
+        source: "/payment/success",
+        destination: "/bookings?payment=success",
+        permanent: false,
+      },
+      {
+        source: "/payment/:bookingId",
+        destination: "/bookings?booking=:bookingId",
+        permanent: false,
+      },
     ];
   },
   images: {

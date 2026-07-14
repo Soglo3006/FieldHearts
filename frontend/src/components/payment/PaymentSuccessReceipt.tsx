@@ -1,16 +1,12 @@
 "use client";
 
-import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { useAuth } from "@/contexts/AuthContext";
+import { useTranslation } from "react-i18next";
 import { MapPin, Calendar } from "lucide-react";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
-import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/Spinner";
 import AppImage from "@/components/ui/AppImage";
-import Link from "next/link";
-import { useTranslation } from "react-i18next";
 import { getTaxLabel, formatTaxRate } from "@/lib/taxes";
 import { getIntlLocale } from "@/lib/locale";
 import {
@@ -55,10 +51,20 @@ interface VerifyResult {
   platform_fee_cents?: number;
 }
 
-export default function PaymentSuccessPage() {
-  const searchParams = useSearchParams();
-  const bookingId = searchParams.get("booking_id");
-  const { session } = useAuth();
+type Props = {
+  bookingId: string;
+  accessToken: string;
+  /** Compact layout for modal (no large page title when parent shows one). */
+  embedded?: boolean;
+  showHeroImage?: boolean;
+};
+
+export default function PaymentSuccessReceipt({
+  bookingId,
+  accessToken,
+  embedded = false,
+  showHeroImage = true,
+}: Props) {
   const { t, i18n } = useTranslation();
   const bookingLocale = getIntlLocale(i18n.language, { fr: "fr-CA", en: "en-CA" });
   const [booking, setBooking] = useState<Booking | null>(null);
@@ -66,15 +72,14 @@ export default function PaymentSuccessPage() {
   const [verifyMeta, setVerifyMeta] = useState<VerifyResult | null>(null);
 
   useEffect(() => {
-    if (!bookingId || !session?.access_token) return;
-    const headers = { Authorization: `Bearer ${session.access_token}`, "Content-Type": "application/json" };
+    if (!bookingId || !accessToken) return;
+    const headers = { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" };
 
     const applyVerifyResult = (data: {
       payment_kind?: string;
       amount_cents?: number | null;
       platform_fee_cents?: number;
       booking?: Partial<Booking> | null;
-      confirmed?: boolean;
     }) => {
       if (data?.payment_kind || data?.amount_cents != null) {
         setVerifyMeta({
@@ -138,7 +143,7 @@ export default function PaymentSuccessPage() {
     fetchBookingDetails();
 
     return () => retryTimers.forEach(clearTimeout);
-  }, [bookingId, session?.access_token]);
+  }, [bookingId, accessToken]);
 
   const breakdown = useMemo(() => {
     if (!booking) return null;
@@ -152,24 +157,29 @@ export default function PaymentSuccessPage() {
   const balancePaidLineKey = isWorkBasedPrice ? "payment.balancePaidLineFixed" : "payment.balancePaidLine";
 
   return (
-    <div className="min-h-screen bg-white flex items-start justify-center px-4 py-10">
-      <div className="max-w-md w-full">
-        <div className="text-center mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">
+    <div className={embedded ? "flex min-h-0 flex-1 flex-col overflow-hidden" : ""}>
+      <div className={embedded ? "min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-5 py-4" : ""}>
+        <div className={`text-center ${embedded ? "mb-1" : "mb-6"}`}>
+          <h1 className={`font-bold text-gray-900 ${embedded ? "text-xl" : "text-2xl"}`}>
             {breakdown ? t(breakdown.titleKey) : t("payment.confirmed")}
           </h1>
-          <p className="text-gray-500 mt-1.5 text-sm">
+          <p className="mt-1.5 text-sm text-gray-500">
             {breakdown ? t(breakdown.descKey) : t("payment.confirmedDesc")}
           </p>
         </div>
 
         {!booking || !breakdown ? (
-          <div className="flex justify-center py-10">
+          <div className="flex flex-col items-center justify-center gap-3 py-10">
             <Spinner className="h-8 w-8 text-green-600" />
+            <p className="text-sm text-gray-500">{t("payment.processingPayment")}</p>
           </div>
         ) : (
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden mb-5">
-            {booking.image_url && (
+          <div
+            className={`overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm ${
+              embedded ? "" : "mb-5"
+            }`}
+          >
+            {showHeroImage && booking.image_url && (
               <AspectRatio ratio={16 / 9}>
                 <AppImage
                   src={booking.image_url}
@@ -181,24 +191,24 @@ export default function PaymentSuccessPage() {
               </AspectRatio>
             )}
             <div className="p-5">
-              <h2 className="font-semibold text-gray-900 text-base mb-3">{booking.title}</h2>
+              <h2 className="mb-3 text-base font-semibold text-gray-900">{booking.title}</h2>
               <div className="space-y-1.5 text-sm text-gray-600">
                 {booking.service_location && (
                   <div className="flex items-center gap-2">
-                    <MapPin className="h-4 w-4 text-gray-400 shrink-0" />
+                    <MapPin className="h-4 w-4 shrink-0 text-gray-400" />
                     <span>{booking.service_location}</span>
                   </div>
                 )}
                 <div className="flex items-center gap-2">
-                  <Calendar className="h-4 w-4 text-gray-400 shrink-0" />
+                  <Calendar className="h-4 w-4 shrink-0 text-gray-400" />
                   <span>{new Date(booking.created_at).toLocaleDateString(bookingLocale)}</span>
                 </div>
               </div>
 
-              <div className="mt-4 pt-4 border-t border-gray-200 space-y-1.5 text-sm">
+              <div className="mt-4 space-y-1.5 border-t border-gray-200 pt-4 text-sm">
                 {breakdown.kind === "deposit" ? (
                   <>
-                    <div className="flex justify-between text-green-700 bg-green-50 -mx-1 px-2 py-1.5 rounded-lg">
+                    <div className="-mx-1 flex justify-between rounded-lg bg-green-50 px-2 py-1.5 text-green-700">
                       <span className="font-medium">{t("payment.depositPaidLine")}</span>
                       <span className="font-semibold">{fmt(breakdown.totalPaid)} $</span>
                     </div>
@@ -234,20 +244,20 @@ export default function PaymentSuccessPage() {
                       )}
                     {breakdown.balanceDueNow > 0 &&
                       (Number(booking.approved_hours_total) || 0) > 0 && (
-                      <>
-                        <Separator className="my-3" />
-                        <div className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 space-y-1">
-                          <div className="flex justify-between text-gray-900 font-semibold">
-                            <span>{t("payment.balanceDueNow")}</span>
-                            <span>{fmt(breakdown.balanceDueTotal ?? breakdown.balanceDueNow)} $</span>
+                        <>
+                          <Separator className="my-3" />
+                          <div className="space-y-1 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5">
+                            <div className="flex justify-between font-semibold text-gray-900">
+                              <span>{t("payment.balanceDueNow")}</span>
+                              <span>{fmt(breakdown.balanceDueTotal ?? breakdown.balanceDueNow)} $</span>
+                            </div>
+                            <div className="flex justify-between text-sm text-gray-700">
+                              <span>{t("payment.balanceAmount")}</span>
+                              <span>{fmt(breakdown.balanceDueNow)} $</span>
+                            </div>
                           </div>
-                          <div className="flex justify-between text-sm text-gray-700">
-                            <span>{t("payment.balanceAmount")}</span>
-                            <span>{fmt(breakdown.balanceDueNow)} $</span>
-                          </div>
-                        </div>
-                      </>
-                    )}
+                        </>
+                      )}
                   </>
                 ) : breakdown.kind === "balance" ? (
                   breakdown.splitDepositFullReceipt ? (
@@ -270,29 +280,29 @@ export default function PaymentSuccessPage() {
                       fmt={fmt}
                     />
                   ) : (
-                  <>
-                    <div className="flex justify-between text-gray-500">
-                      <span>{t(balancePaidLineKey)}</span>
-                      <span className="text-gray-700">{fmt(breakdown.serviceBase)} $</span>
-                    </div>
-                    <div className="flex justify-between text-gray-400">
-                      <div>
-                        <div>{t("payment.buyerCommission")}</div>
-                        <div className="text-xs text-red-400">{t("payment.nonRefundable")}</div>
+                    <>
+                      <div className="flex justify-between text-gray-500">
+                        <span>{t(balancePaidLineKey)}</span>
+                        <span className="text-gray-700">{fmt(breakdown.serviceBase)} $</span>
                       </div>
-                      <span>{fmt(breakdown.commission)} $</span>
-                    </div>
-                    <div className="flex justify-between text-gray-400">
-                      <div>
+                      <div className="flex justify-between text-gray-400">
                         <div>
-                          {t("payment.taxes")}
-                          {taxRate != null ? ` (${formatTaxRate(taxRate)}%)` : ""}
+                          <div>{t("payment.buyerCommission")}</div>
+                          <div className="text-xs text-red-400">{t("payment.nonRefundable")}</div>
                         </div>
-                        <div className="text-xs text-gray-300">{taxLabel}</div>
+                        <span>{fmt(breakdown.commission)} $</span>
                       </div>
-                      <span>{fmt(breakdown.taxes)} $</span>
-                    </div>
-                  </>
+                      <div className="flex justify-between text-gray-400">
+                        <div>
+                          <div>
+                            {t("payment.taxes")}
+                            {taxRate != null ? ` (${formatTaxRate(taxRate)}%)` : ""}
+                          </div>
+                          <div className="text-xs text-gray-300">{taxLabel}</div>
+                        </div>
+                        <span>{fmt(breakdown.taxes)} $</span>
+                      </div>
+                    </>
                   )
                 ) : (
                   <>
@@ -321,34 +331,19 @@ export default function PaymentSuccessPage() {
                 )}
 
                 {breakdown.kind !== "deposit" && !breakdown.splitDepositFullReceipt && (
-                  <div className="flex justify-between font-bold text-base border-t border-gray-200 pt-2.5 mt-1">
+                  <div className="mt-1 flex justify-between border-t border-gray-200 pt-2.5 text-base font-bold">
                     <span>{t("payment.amountPaid")}</span>
                     <span className="text-green-700">{fmt(breakdown.totalPaid)} $</span>
                   </div>
                 )}
 
                 {breakdown.isFullyPaid && breakdown.kind !== "full" && (
-                  <p className="text-xs text-green-700 bg-green-50 rounded-lg px-2 py-1.5 mt-1">
+                  <p className="mt-1 rounded-lg bg-green-50 px-2 py-1.5 text-xs text-green-700">
                     {t("payment.fullyPaidNotice")}
                   </p>
                 )}
               </div>
             </div>
-          </div>
-        )}
-
-        {booking && (
-          <div className="flex flex-col gap-2.5">
-            <Link href="/bookings?payment=success">
-              <Button className="w-full bg-green-700 hover:bg-green-800 text-white h-12 rounded-xl">
-                {t("payment.viewBookings")}
-              </Button>
-            </Link>
-            <Link href="/">
-              <Button variant="outline" className="w-full h-12 rounded-xl">
-                {t("payment.backHome")}
-              </Button>
-            </Link>
           </div>
         )}
       </div>

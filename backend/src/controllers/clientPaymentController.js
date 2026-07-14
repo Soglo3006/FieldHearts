@@ -51,7 +51,15 @@ export const createPaymentIntent = async (req, res) => {
 
     await pool.query(
       "UPDATE bookings SET tax_rate = $1, client_province = $2, deposit_amount_cents = $3 WHERE id = $4",
-      [ctx.data.taxRate, effectiveProvince, depositAmountCents, booking_id],
+      [
+        ctx.data.taxRate,
+        effectiveProvince,
+        // Never overwrite the charged deposit when paying the balance (would replace $50 with a recalculated base).
+        checkoutKind === "balance" && Number(b.deposit_amount_cents) > 0
+          ? Number(b.deposit_amount_cents)
+          : depositAmountCents,
+        booking_id,
+      ],
     );
 
     await pool.query(

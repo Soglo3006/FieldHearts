@@ -352,7 +352,7 @@ export default function SentBookingsList({
                               ) : (
                                 <span className="text-xs text-green-700 flex items-center gap-1 flex-1">
                                   <CheckCircle className="h-3.5 w-3.5" /> {t("bookings.youMarkedDone")}
-                                  {!b.completed_by_client && ` — ${t("bookings.waitingForClient")}`}
+                                  {!b.completed_by_client && `. ${t("bookings.waitingForClient")}`}
                                 </span>
                               )}
                               {!b.has_dispute && (
@@ -373,7 +373,7 @@ export default function SentBookingsList({
                               ) : (
                                 <span className="text-xs text-green-700 flex items-center gap-1 flex-1">
                                   <CheckCircle className="h-3.5 w-3.5" /> {t("bookings.youMarkedDone")}
-                                  {!b.completed_by_worker && ` — ${t("bookings.waitingForProvider")}`}
+                                  {!b.completed_by_worker && `. ${t("bookings.waitingForProvider")}`}
                                 </span>
                               )}
                               {!b.has_dispute && disputeWindow.isOpen && (

@@ -13,7 +13,7 @@ import { Loader2 } from "lucide-react";
 type PaymentCheckoutFormProps = {
   clientSecret: string;
   publishableKey: string;
-  onSuccess: () => void;
+  onSuccess: () => void | Promise<void>;
   onError: (message: string) => void;
   disabled?: boolean;
   submitLabel: string;
@@ -68,7 +68,11 @@ function CheckoutForm({
     }
 
     if (paymentIntent?.status === "succeeded") {
-      onSuccess();
+      try {
+        await onSuccess();
+      } catch {
+        setProcessing(false);
+      }
       return;
     }
 

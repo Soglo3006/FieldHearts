@@ -16,11 +16,10 @@ type Props = SplitDepositFullReceipt & {
   fmt?: (n: number) => string;
 };
 
+const EPSILON = 0.005;
+
 export function SplitDepositFullReceiptBreakdown({
   fullServiceBase,
-  fullCommission,
-  fullTaxes,
-  fullTotalWithFees,
   depositPaid,
   balanceBase,
   balanceCommission,
@@ -36,8 +35,6 @@ export function SplitDepositFullReceiptBreakdown({
 }: Props) {
   const { t } = useTranslation();
   const isWorkBased = isWorkBasedPricingMode(pricingMode);
-  const serviceTotalKey = isWorkBased ? "payment.servicePrice" : "payment.estimatedServiceTotal";
-  const totalWithFeesKey = isWorkBased ? "payment.totalWithFees" : "payment.estimatedTotalWithFees";
   const balanceLabelKey = isWorkBased ? "payment.balanceAmountFixed" : "payment.balanceAmountHourly";
 
   const hourlySubtext =
@@ -45,85 +42,79 @@ export function SplitDepositFullReceiptBreakdown({
       ? formatHourlyRateSubtext(hourlyRate, hoursLabel, fmt, t)
       : null;
 
+  const showBalanceBase = balanceBase > EPSILON;
+  const showBalanceCommission = balanceCommission > EPSILON;
+  const showBalanceTaxes = balanceTaxes > EPSILON;
+  const showBalanceDetails = showBalanceBase || showBalanceCommission || showBalanceTaxes;
+  /** Deposit already equals service base — don't repeat the same amount above. */
+  const showServiceLine = Math.abs(fullServiceBase - depositPaid) > EPSILON;
+
   return (
     <>
-      <div className="space-y-2">
-        <div className="flex justify-between text-gray-700">
-          <div>
-            <div className="font-medium">{t(serviceTotalKey)}</div>
-            {hourlySubtext && (
-              <div className="text-xs text-gray-600 mt-0.5">{hourlySubtext}</div>
-            )}
-          </div>
-          <span className="font-medium text-gray-900">{fmt(fullServiceBase)} $</span>
-        </div>
-        <div className="flex justify-between text-gray-600">
-          <div>
-            <div>{t("payment.buyerCommission")}</div>
-            <div className="text-xs text-red-400">{t("payment.nonRefundable")}</div>
-          </div>
-          <span>{fmt(fullCommission)} $</span>
-        </div>
-        <div className="flex justify-between text-gray-600">
-          <div>
-            <div>
-              {t("payment.taxes")}
-              {taxRate != null ? ` (${formatTaxRate(taxRate)}%)` : ""}
+      {(showServiceLine || hourlySubtext) && (
+        <div className="mb-2 space-y-1">
+          {showServiceLine && (
+            <div className="flex justify-between text-sm text-gray-700">
+              <span>{t(isWorkBased ? "payment.servicePrice" : "payment.estimatedServiceTotal")}</span>
+              <span className="font-medium text-gray-900">{fmt(fullServiceBase)} $</span>
             </div>
-            {taxLabel && <div className="text-xs text-gray-400">{taxLabel}</div>}
-          </div>
-          <span>{fmt(fullTaxes)} $</span>
+          )}
+          {hourlySubtext && (
+            <p className="text-xs text-gray-500">{hourlySubtext}</p>
+          )}
         </div>
-        <div className="flex justify-between text-gray-800 font-medium pt-1 border-t border-gray-100">
-          <span>{t(totalWithFeesKey)}</span>
-          <span>{fmt(fullTotalWithFees)} $</span>
-        </div>
-      </div>
+      )}
 
-      <Separator className="my-3" />
-
-      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-        {t("payment.paymentsBreakdown")}
-      </p>
-
-      <div className="space-y-2 mt-2">
-        <div className="flex justify-between text-green-700 bg-green-50 -mx-1 px-2 py-1.5 rounded-lg">
+      <div className="space-y-2">
+        <div className="flex justify-between rounded-lg bg-green-50 px-2 py-1.5 text-green-700 -mx-1">
           <span className="font-medium">{t("payment.depositPaidLine")}</span>
           <span className="font-semibold">{fmt(depositPaid)} $</span>
         </div>
 
-        <div className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-3 space-y-2">
-          <div className="flex justify-between text-gray-900 font-semibold">
-            <span>{t("payment.balancePaidTransaction")}</span>
-            <span>{fmt(balanceTotal)} $</span>
-          </div>
-          <div className="flex justify-between text-sm text-gray-700">
-            <span>{t(balanceLabelKey)}</span>
-            <span className="font-medium">{fmt(balanceBase)} $</span>
-          </div>
-          <div className="flex justify-between text-sm text-gray-700">
-            <div>
-              <div>{t("payment.buyerCommission")}</div>
-              <div className="text-xs text-red-500">{t("payment.nonRefundable")}</div>
+        {balanceTotal > EPSILON && (
+          <div className="space-y-2 rounded-xl border border-gray-200 bg-gray-50 px-3 py-3">
+            <div className="flex justify-between font-semibold text-gray-900">
+              <span>{t("payment.balancePaidTransaction")}</span>
+              <span>{fmt(balanceTotal)} $</span>
             </div>
-            <span>{fmt(balanceCommission)} $</span>
+            {showBalanceDetails && (
+              <>
+                {showBalanceBase && (
+                  <div className="flex justify-between text-sm text-gray-700">
+                    <span>{t(balanceLabelKey)}</span>
+                    <span className="font-medium">{fmt(balanceBase)} $</span>
+                  </div>
+                )}
+                {showBalanceCommission && (
+                  <div className="flex justify-between text-sm text-gray-700">
+                    <div>
+                      <div>{t("payment.buyerCommission")}</div>
+                      <div className="text-xs text-red-500">{t("payment.nonRefundable")}</div>
+                    </div>
+                    <span>{fmt(balanceCommission)} $</span>
+                  </div>
+                )}
+                {showBalanceTaxes && (
+                  <div className="flex justify-between text-sm text-gray-700">
+                    <div>
+                      <div>
+                        {t("payment.taxes")}
+                        {taxRate != null ? ` (${formatTaxRate(taxRate)}%)` : ""}
+                      </div>
+                      {taxLabel && <div className="text-xs text-gray-600">{taxLabel}</div>}
+                    </div>
+                    <span>{fmt(balanceTaxes)} $</span>
+                  </div>
+                )}
+              </>
+            )}
           </div>
-          <div className="flex justify-between text-sm text-gray-700">
-            <div>
-              <div>
-                {t("payment.taxes")}
-                {taxRate != null ? ` (${formatTaxRate(taxRate)}%)` : ""}
-              </div>
-              {taxLabel && <div className="text-xs text-gray-600">{taxLabel}</div>}
-            </div>
-            <span>{fmt(balanceTaxes)} $</span>
-          </div>
-        </div>
+        )}
       </div>
 
       <Separator className="my-3" />
 
-      <div className="flex justify-between font-bold text-base text-gray-900">
+      <div className="flex justify-between text-base font-bold text-gray-900">
         <span>{t("payment.grandTotalPaid")}</span>
         <span className="text-green-700">{fmt(grandTotalPaid)} $</span>
       </div>

@@ -1,9 +1,11 @@
 "use client";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useScrollLock } from "@/hooks/useScrollLock";
 import { formatTaxRate, getTaxRate, getTaxLabel } from "@/lib/taxes";
 import { useClientTax } from "@/hooks/useClientTax";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { CheckCircle, X } from "lucide-react";
 import Link from "next/link";
 import { getLanguageCode } from "@/lib/locale";
@@ -29,6 +31,33 @@ interface Props {
   onSubmit: () => void;
   onClose: () => void;
   onMessageProvider: () => void;
+}
+
+function HourlyTotalsSkeleton({ showFees }: { showFees: boolean }) {
+  return (
+    <div className="border-t border-gray-100 pt-2 space-y-2" aria-busy="true" aria-label="Loading">
+      <div className="flex justify-between gap-2 items-center">
+        <Skeleton className="h-4 w-28 bg-gray-200" />
+        <Skeleton className="h-4 w-16 bg-gray-200" />
+      </div>
+      {showFees && (
+        <>
+          <div className="flex justify-between gap-2 items-center">
+            <Skeleton className="h-8 w-32 bg-gray-200" />
+            <Skeleton className="h-4 w-14 bg-gray-200" />
+          </div>
+          <div className="flex justify-between gap-2 items-center">
+            <Skeleton className="h-8 w-28 bg-gray-200" />
+            <Skeleton className="h-4 w-14 bg-gray-200" />
+          </div>
+          <div className="flex justify-between gap-2 items-center border-t border-gray-200 pt-2">
+            <Skeleton className="h-5 w-16 bg-gray-200" />
+            <Skeleton className="h-5 w-20 bg-gray-200" />
+          </div>
+        </>
+      )}
+    </div>
+  );
 }
 
 export default function BookingModal({
@@ -66,6 +95,30 @@ export default function BookingModal({
   const taxLabel = getTaxLabel(buyerProvince ?? "QC", lang);
   const showBuyerFees = taxReady;
   const isHourly = String(pricingMode ?? "").toLowerCase() === "hourly";
+
+  const [debouncedHours, setDebouncedHours] = useState(estimatedHours);
+  const [hoursEstimating, setHoursEstimating] = useState(false);
+
+  useEffect(() => {
+    const trimmed = estimatedHours.trim();
+    if (trimmed === debouncedHours.trim()) {
+      setHoursEstimating(false);
+      return;
+    }
+    // Empty input: clear totals immediately (no skeleton flash).
+    if (!trimmed) {
+      setDebouncedHours("");
+      setHoursEstimating(false);
+      return;
+    }
+    setHoursEstimating(true);
+    const timer = window.setTimeout(() => {
+      setDebouncedHours(estimatedHours);
+      setHoursEstimating(false);
+    }, 350);
+    return () => window.clearTimeout(timer);
+  }, [estimatedHours, debouncedHours]);
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
       <div
@@ -110,8 +163,9 @@ export default function BookingModal({
               <p className="font-medium text-gray-900 text-sm mb-3 line-clamp-2">{serviceTitle}</p>
               {isHourly ? (() => {
                 const fmt = (n: number) => n.toFixed(2);
-                const hours = Number(estimatedHours);
+                const hours = Number(debouncedHours);
                 const hasHours = hourlyRate != null && hours > 0;
+                const showTotalsSkeleton = hoursEstimating && estimatedHours.trim().length > 0;
                 const base = hasHours ? hourlyRate! * hours : null;
                 const commission = base != null ? base * 0.05 : null;
                 const taxes = base != null ? base * taxRate : null;
@@ -124,53 +178,67 @@ export default function BookingModal({
                     </div>
                     <div>
                       <label className="text-xs text-gray-500 block mb-1">
-                        {t("post.estimatedHoursLabel")}{" "}
-                        <span className="text-gray-400">{t("serviceDetail.optional")}</span>
+                        {t("post.estimatedHoursLabel")}
                       </label>
                       <input
                         type="number"
                         min="1"
                         step="1"
                         value={estimatedHours}
-                        onChange={(e) => onEstimatedHoursChange?.(e.target.value)}
+                        onChange={(e) => {
+                          const raw = e.target.value;
+                          if (raw === "") {
+                            onEstimatedHoursChange?.("");
+                            return;
+                          }
+                          // Block 0 and negative values — min 1 hour when set.
+                          const n = Number(raw);
+                          if (!Number.isFinite(n) || n < 1) return;
+                          onEstimatedHoursChange?.(String(Math.floor(n)));
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "-" || e.key === "e" || e.key === "E" || e.key === "+") {
+                            e.preventDefault();
+                          }
+                        }}
                         placeholder="2"
                         className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-green-600 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                         disabled={state === "loading"}
                       />
                       <p className="text-xs text-gray-400 mt-1">{t("post.estimatedHoursHint")}</p>
                     </div>
-                    {hasHours && base != null && (
-                      <>
-                        <div className="border-t border-gray-100 pt-2 space-y-1.5">
-                          <div className="flex justify-between gap-2">
-                            <span className="text-gray-500">{fmt(hourlyRate!)} $/h × {hours} h</span>
-                            <span className="text-gray-700 tabular-nums">{fmt(base)} $</span>
-                          </div>
-                          {showBuyerFees && (
-                            <>
-                              <div className="flex justify-between gap-2">
-                                <div>
-                                  <div className="text-gray-500">{t("serviceDetail.buyerCommission")}</div>
-                                  <div className="text-xs text-red-500">{t("payment.nonRefundable")}</div>
-                                </div>
-                                <span className="text-gray-700 tabular-nums shrink-0">{fmt(commission!)} $</span>
-                              </div>
-                              <div className="flex justify-between gap-2">
-                                <div>
-                                  <div className="text-gray-500">{t("serviceDetail.taxes")} ({formatTaxRate(taxRate)}%)</div>
-                                  <div className="text-xs text-gray-400">{taxLabel}</div>
-                                </div>
-                                <span className="text-gray-700 tabular-nums shrink-0">{fmt(taxes!)} $</span>
-                              </div>
-                              <div className="flex justify-between gap-2 font-bold border-t border-gray-200 pt-2">
-                                <span>{t("serviceDetail.total")}</span>
-                                <span className="text-green-700 tabular-nums shrink-0">{fmt(total!)} $</span>
-                              </div>
-                            </>
-                          )}
+                    {showTotalsSkeleton ? (
+                      <HourlyTotalsSkeleton showFees={showBuyerFees} />
+                    ) : hasHours && base != null ? (
+                      <div className="border-t border-gray-100 pt-2 space-y-1.5">
+                        <div className="flex justify-between gap-2">
+                          <span className="text-gray-500">{fmt(hourlyRate!)} $/h × {hours} h</span>
+                          <span className="text-gray-700 tabular-nums">{fmt(base)} $</span>
                         </div>
-                      </>
-                    )}
+                        {showBuyerFees && (
+                          <>
+                            <div className="flex justify-between gap-2">
+                              <div>
+                                <div className="text-gray-500">{t("serviceDetail.buyerCommission")}</div>
+                                <div className="text-xs text-red-500">{t("payment.nonRefundable")}</div>
+                              </div>
+                              <span className="text-gray-700 tabular-nums shrink-0">{fmt(commission!)} $</span>
+                            </div>
+                            <div className="flex justify-between gap-2">
+                              <div>
+                                <div className="text-gray-500">{t("serviceDetail.taxes")} ({formatTaxRate(taxRate)}%)</div>
+                                <div className="text-xs text-gray-400">{taxLabel}</div>
+                              </div>
+                              <span className="text-gray-700 tabular-nums shrink-0">{fmt(taxes!)} $</span>
+                            </div>
+                            <div className="flex justify-between gap-2 font-bold border-t border-gray-200 pt-2">
+                              <span>{t("serviceDetail.total")}</span>
+                              <span className="text-green-700 tabular-nums shrink-0">{fmt(total!)} $</span>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    ) : null}
                   </div>
                 );
               })() : estimatedTotalBase === null ? (

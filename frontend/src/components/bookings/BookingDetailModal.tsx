@@ -316,7 +316,7 @@ export default function BookingDetailModal({
   }, [accessToken, onUpdated]);
 
   const handleInlinePaymentSuccess = useCallback(async () => {
-    // Force refresh even if fingerprint matches (payment fields just changed).
+    // Refresh booking in place; confirmation receipt stays in the payment panel.
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/bookings/${bookingRef.current.id}`, {
         headers: { Authorization: `Bearer ${accessToken}` },
@@ -326,23 +326,13 @@ export default function BookingDetailModal({
         const current = bookingRef.current;
         setBooking({ ...current, ...data });
         onUpdated(current.id, data);
-        setPaymentPhase("billing");
-        setStep("detail");
-        toast.success(
-          data?.payment_status === "deposit_paid"
-            ? t("payment.confirmedDeposit")
-            : t("bookings.paymentSuccess"),
-        );
         return;
       }
     } catch {
       // fall through
     }
     await refreshBookingFromApi();
-    setPaymentPhase("billing");
-    setStep("detail");
-    toast.success(t("bookings.paymentSuccess"));
-  }, [accessToken, onUpdated, refreshBookingFromApi, t]);
+  }, [accessToken, onUpdated, refreshBookingFromApi]);
 
   useEffect(() => {
     fetch(`${process.env.NEXT_PUBLIC_API_URL}/services/${initialBooking.service_id}`)
@@ -502,6 +492,11 @@ export default function BookingDetailModal({
   }, []);
 
   const handlePaymentHeaderBack = useCallback(() => {
+    if (paymentPhase === "success") {
+      setPaymentPhase("billing");
+      setStep("detail");
+      return;
+    }
     if (paymentPhase === "card" && paymentPanelRef.current?.goBack()) return;
     setPaymentPhase("billing");
     setStep("detail");
@@ -725,16 +720,24 @@ export default function BookingDetailModal({
         <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-gray-100 shrink-0">
           {step === "payment" ? (
             <>
-              <button
-                type="button"
-                onClick={handlePaymentHeaderBack}
-                aria-label={t("common.back")}
-                className="flex shrink-0 items-center justify-center text-gray-500 hover:text-gray-700 transition-colors cursor-pointer -ml-1 p-1"
-              >
-                <ChevronLeft className="h-5 w-5" />
-              </button>
+              {paymentPhase !== "success" && paymentPhase !== "confirming" ? (
+                <button
+                  type="button"
+                  onClick={handlePaymentHeaderBack}
+                  aria-label={t("common.back")}
+                  className="flex shrink-0 items-center justify-center text-gray-500 hover:text-gray-700 transition-colors cursor-pointer -ml-1 p-1"
+                >
+                  <ChevronLeft className="h-5 w-5" />
+                </button>
+              ) : (
+                <span className="w-7 shrink-0" aria-hidden />
+              )}
               <h2 className="flex-1 text-center text-base font-semibold text-gray-900 truncate px-2">
-                {t("payment.completePayment")}
+                {paymentPhase === "confirming"
+                  ? t("payment.confirmingPayment")
+                  : paymentPhase === "success"
+                    ? ""
+                    : t("payment.completePayment")}
               </h2>
             </>
           ) : (
@@ -768,7 +771,7 @@ export default function BookingDetailModal({
                   <Link
                     href={`/serviceDetail/${booking.service_id}`}
                     onClick={onClose}
-                    className="hover:text-green-700 hover:underline underline-offset-2 transition-colors"
+                    className="hover:text-green-700 transition-colors"
                   >
                     {booking.title}
                   </Link>
@@ -810,7 +813,7 @@ export default function BookingDetailModal({
                   <Link
                     href={`/serviceDetail/${booking.service_id}`}
                     onClick={onClose}
-                    className="hover:text-green-700 hover:underline underline-offset-2 transition-colors"
+                    className="hover:text-green-700 transition-colors"
                   >
                     {booking.title}
                   </Link>
@@ -1241,6 +1244,7 @@ export default function BookingDetailModal({
                                     hourlyRate={splitPaymentSummary.hourlyRate}
                                     hoursLabel={splitPaymentSummary.hoursLabel}
                                     hoursIsApproved={splitPaymentSummary.hoursIsApproved}
+                                    hoursChanged={splitPaymentSummary.hoursChanged}
                                     estimatedTotalWithFees={splitPaymentSummary.estimatedTotalWithFees}
                                     remainingBase={splitPaymentSummary.remainingBase}
                                     remainingCommission={splitPaymentSummary.remainingCommission}
@@ -1383,6 +1387,7 @@ export default function BookingDetailModal({
                                 hourlyRate={splitPaymentSummary.hourlyRate}
                                 hoursLabel={splitPaymentSummary.hoursLabel}
                                 hoursIsApproved={splitPaymentSummary.hoursIsApproved}
+                                    hoursChanged={splitPaymentSummary.hoursChanged}
                                 estimatedTotalWithFees={splitPaymentSummary.estimatedTotalWithFees}
                                 remainingBase={splitPaymentSummary.remainingBase}
                                 remainingCommission={splitPaymentSummary.remainingCommission}
@@ -1528,6 +1533,7 @@ export default function BookingDetailModal({
                                 hourlyRate={splitPaymentSummary.hourlyRate}
                                 hoursLabel={splitPaymentSummary.hoursLabel}
                                 hoursIsApproved={splitPaymentSummary.hoursIsApproved}
+                                    hoursChanged={splitPaymentSummary.hoursChanged}
                                 estimatedTotalWithFees={splitPaymentSummary.estimatedTotalWithFees}
                                 remainingBase={splitPaymentSummary.remainingBase}
                                 remainingCommission={splitPaymentSummary.remainingCommission}
@@ -1643,6 +1649,7 @@ export default function BookingDetailModal({
                             hourlyRate={splitPaymentSummary.hourlyRate}
                             hoursLabel={splitPaymentSummary.hoursLabel}
                             hoursIsApproved={splitPaymentSummary.hoursIsApproved}
+                                    hoursChanged={splitPaymentSummary.hoursChanged}
                             estimatedTotalWithFees={splitPaymentSummary.estimatedTotalWithFees}
                             remainingBase={splitPaymentSummary.remainingBase}
                             remainingCommission={splitPaymentSummary.remainingCommission}
@@ -1750,7 +1757,7 @@ export default function BookingDetailModal({
                 </p>
                 <Link
                   href={`/profile/${otherUserId}`}
-                  className="text-sm font-semibold text-gray-900 hover:text-green-700 hover:underline"
+                  className="text-sm font-semibold text-gray-900 hover:text-green-700 transition-colors"
                 >
                   {otherUserName}
                 </Link>
@@ -2125,6 +2132,17 @@ export default function BookingDetailModal({
               pricingMode={booking.pricing_mode}
               onPaymentSuccess={handleInlinePaymentSuccess}
               onPhaseChange={setPaymentPhase}
+              successActions={
+                <Button
+                  className="h-12 w-full rounded-xl bg-green-700 text-white hover:bg-green-800"
+                  onClick={() => {
+                    setPaymentPhase("billing");
+                    setStep("detail");
+                  }}
+                >
+                  {t("common.close")}
+                </Button>
+              }
             />
           </div>{/* end panel 5 */}
 

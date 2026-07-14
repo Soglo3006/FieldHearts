@@ -2,9 +2,10 @@
 
 import { useRef, useState } from "react";
 import { ChevronLeft, X } from "lucide-react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useScrollLock } from "@/hooks/useScrollLock";
 import { useTranslation } from "react-i18next";
+import { Button } from "@/components/ui/button";
 import PaymentInlinePanel, {
   type PaymentInlinePanelHandle,
   type PaymentInlinePhase,
@@ -28,6 +29,7 @@ interface Props {
   checkoutKind?: CheckoutKind | null;
   fullServiceBase?: number | null;
   pricingMode?: string | null;
+  onPaymentSuccess?: () => void | Promise<void>;
 }
 
 function PaymentModalInner({
@@ -42,9 +44,9 @@ function PaymentModalInner({
   checkoutKind = "full",
   fullServiceBase = null,
   pricingMode = null,
+  onPaymentSuccess,
 }: Omit<Props, "open">) {
   const { t } = useTranslation();
-  const router = useRouter();
   useScrollLock(true);
   const paymentPanelRef = useRef<PaymentInlinePanelHandle>(null);
   const [paymentPhase, setPaymentPhase] = useState<PaymentInlinePhase>("billing");
@@ -94,7 +96,13 @@ function PaymentModalInner({
             <span className="w-7 shrink-0" aria-hidden />
           )}
           <span className="flex-1 truncate text-center text-base font-semibold text-gray-900">
-            {paymentPhase === "card" ? t("payment.completePayment") : headerTitle}
+            {paymentPhase === "confirming"
+              ? t("payment.confirmingPayment")
+              : paymentPhase === "success"
+                ? ""
+                : paymentPhase === "card"
+                  ? t("payment.completePayment")
+                  : headerTitle}
           </span>
           <button type="button" onClick={onClose} aria-label={t("common.close")} className="cursor-pointer shrink-0 text-gray-400 hover:text-gray-600 transition-colors">
             <X className="h-5 w-5" />
@@ -116,10 +124,19 @@ function PaymentModalInner({
             fullServiceBase={fullServiceBase}
             pricingMode={pricingMode}
             onPhaseChange={setPaymentPhase}
-            onPaymentSuccess={() => {
-              onClose();
-              router.push(`/payment/success?booking_id=${bookingId}`);
-            }}
+            onPaymentSuccess={onPaymentSuccess}
+            successActions={
+              <div className="flex flex-col gap-2.5">
+                <Link href="/bookings?payment=success" onClick={onClose}>
+                  <Button className="h-12 w-full rounded-xl bg-green-700 text-white hover:bg-green-800">
+                    {t("payment.viewBookings")}
+                  </Button>
+                </Link>
+                <Button variant="outline" className="h-12 w-full rounded-xl" onClick={onClose}>
+                  {t("common.close")}
+                </Button>
+              </div>
+            }
           />
         </div>
       </div>

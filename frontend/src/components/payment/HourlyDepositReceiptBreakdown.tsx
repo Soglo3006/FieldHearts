@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { formatTaxRate } from "@/lib/taxes";
 import { isWorkBasedPricingMode } from "@/lib/hourlyPayment";
 import { formatHourlyRateSubtext } from "@/lib/workHours";
+import { cn } from "@/lib/utils";
 
 export type HourlyDepositReceiptProps = {
   depositPaid: number;
@@ -12,6 +13,7 @@ export type HourlyDepositReceiptProps = {
   hourlyRate: number | null;
   hoursLabel: number | null;
   hoursIsApproved?: boolean;
+  hoursChanged?: boolean;
   estimatedTotalWithFees: number;
   remainingBase: number;
   remainingCommission: number;
@@ -28,6 +30,7 @@ export function HourlyDepositReceiptBreakdown({
   serviceBase,
   hourlyRate,
   hoursLabel,
+  hoursChanged = false,
   estimatedTotalWithFees,
   remainingBase,
   remainingCommission,
@@ -52,6 +55,10 @@ export function HourlyDepositReceiptBreakdown({
       ? formatHourlyRateSubtext(hourlyRate, hoursLabel, fmt, t)
       : null;
 
+  const showRemainingBase = remainingBase > 0.005;
+  const showRemainingCommission = remainingCommission > 0.005;
+  const showRemainingTaxes = remainingTaxes > 0.005;
+
   return (
     <>
       <p className="text-xs text-gray-600 pt-1">{t("payment.depositFeesDeferredNotice")}</p>
@@ -61,12 +68,19 @@ export function HourlyDepositReceiptBreakdown({
       <div className="space-y-2">
         <div className="flex justify-between text-gray-700">
           <div>
-            <div className="font-medium">{t(serviceTotalKey)}</div>
+            {/* Only the service estimation (+ hours) turns red when hours changed. */}
+            <div className={cn("font-medium", hoursChanged && "text-red-600")}>
+              {t(serviceTotalKey)}
+            </div>
             {hourlySubtext && (
-              <div className="text-xs text-gray-600 mt-0.5">{hourlySubtext}</div>
+              <div className={cn("text-xs mt-0.5", hoursChanged ? "text-red-600 font-medium" : "text-gray-600")}>
+                {hourlySubtext}
+              </div>
             )}
           </div>
-          <span className="font-medium text-gray-900">{fmt(serviceBase)} $</span>
+          <span className={cn("font-medium", hoursChanged ? "text-red-600" : "text-gray-900")}>
+            {fmt(serviceBase)} $
+          </span>
         </div>
         <div className="flex justify-between text-gray-700">
           <span>{t(totalWithFeesKey)}</span>
@@ -85,27 +99,33 @@ export function HourlyDepositReceiptBreakdown({
           <span>{t(remainingHeaderKey)}</span>
           <span>{fmt(remainingTotal)} $</span>
         </div>
-        <div className="flex justify-between text-sm text-gray-700">
-          <span>{t(balanceLabelKey)}</span>
-          <span className="font-medium">{fmt(remainingBase)} $</span>
-        </div>
-        <div className="flex justify-between text-sm text-gray-700">
-          <div>
-            <div>{t("payment.buyerCommission")}</div>
-            <div className="text-xs text-red-500">{t("payment.nonRefundable")}</div>
+        {showRemainingBase && (
+          <div className="flex justify-between text-sm text-gray-700">
+            <span>{t(balanceLabelKey)}</span>
+            <span className="font-medium">{fmt(remainingBase)} $</span>
           </div>
-          <span>{fmt(remainingCommission)} $</span>
-        </div>
-        <div className="flex justify-between text-sm text-gray-700">
-          <div>
+        )}
+        {showRemainingCommission && (
+          <div className="flex justify-between text-sm text-gray-700">
             <div>
-              {t("payment.taxes")}
-              {taxRate != null ? ` (${formatTaxRate(taxRate)}%)` : ""}
+              <div>{t("payment.buyerCommission")}</div>
+              <div className="text-xs text-red-500">{t("payment.nonRefundable")}</div>
             </div>
-            {taxLabel && <div className="text-xs text-gray-600">{taxLabel}</div>}
+            <span>{fmt(remainingCommission)} $</span>
           </div>
-          <span>{fmt(remainingTaxes)} $</span>
-        </div>
+        )}
+        {showRemainingTaxes && (
+          <div className="flex justify-between text-sm text-gray-700">
+            <div>
+              <div>
+                {t("payment.taxes")}
+                {taxRate != null ? ` (${formatTaxRate(taxRate)}%)` : ""}
+              </div>
+              {taxLabel && <div className="text-xs text-gray-600">{taxLabel}</div>}
+            </div>
+            <span>{fmt(remainingTaxes)} $</span>
+          </div>
+        )}
       </div>
 
       <p className="text-xs text-gray-600 mt-2">{t(remainingFooterKey)}</p>

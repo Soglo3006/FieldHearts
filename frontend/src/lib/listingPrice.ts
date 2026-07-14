@@ -255,6 +255,11 @@ export function formatBookingCheckoutTotalDisplay(
     status?: string | null;
     price_confirmed_by_client_at?: string | null;
     price_confirmed_by_worker_at?: string | null;
+    estimated_hours?: number | string | null;
+    approved_hours_total?: number | string | null;
+    pricing_mode?: string | null;
+    price?: number | string | null;
+    custom_price?: number | string | null;
   },
   taxRate: number,
 ): string {
@@ -277,7 +282,13 @@ export function formatBookingCheckoutTotalDisplay(
       max: totalRange.max.toFixed(2),
     });
   }
-  return `${computeCheckoutTotalOnBase(resolveBookingCheckoutBase(booking), taxRate).toFixed(2)} $`;
+  // Prefer approved hours when present so cards reflect validated work.
+  const base =
+    normalizePricingMode(booking.pricing_mode) === "hourly" &&
+    Number(booking.approved_hours_total) > 0
+      ? getEffectiveBookingPrice(booking)
+      : resolveBookingCheckoutBase(booking);
+  return `${computeCheckoutTotalOnBase(base, taxRate).toFixed(2)} $`;
 }
 
 function isNegotiatingWithoutAgreedPrice(booking: {

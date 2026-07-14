@@ -5,14 +5,15 @@ import {
   useEffect,
   useImperativeHandle,
   useState,
+  type ReactNode,
 } from "react";
-import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { AlertCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import LinkLabelWithLoadingSpinner from "@/components/ui/LinkLabelWithLoadingSpinner";
 import BillingAddressSelector, { type BillingAddress } from "@/components/payment/BillingAddressSelector";
 import PaymentCheckoutForm from "@/components/payment/PaymentCheckoutForm";
+import PaymentSuccessReceipt from "@/components/payment/PaymentSuccessReceipt";
 import { getTaxRate, getTaxLabel, formatTaxRate } from "@/lib/taxes";
 import { getIntlLocale } from "@/lib/locale";
 import { PaymentDepositRows } from "@/components/payment/PaymentDepositRows";
@@ -24,7 +25,7 @@ import {
 } from "@/lib/hourlyPayment";
 import { normalizePricingMode } from "@/lib/listingPrice";
 
-export type PaymentInlinePhase = "billing" | "card";
+export type PaymentInlinePhase = "billing" | "card" | "confirming" | "success";
 
 export type PaymentInlinePanelHandle = {
   /** Returns true if back was handled (card → billing). */
@@ -42,9 +43,11 @@ interface Props {
   checkoutKind?: CheckoutKind | null;
   fullServiceBase?: number | null;
   pricingMode?: string | null;
-  onPaymentSuccess?: () => void;
+  onPaymentSuccess?: () => void | Promise<void>;
   onPhaseChange?: (phase: PaymentInlinePhase) => void;
-}
+  /** Shown under the in-modal receipt (e.g. close / view bookings). */
+  successActions?: ReactNode;
+};
 
 const PaymentInlinePanel = forwardRef<PaymentInlinePanelHandle, Props>(function PaymentInlinePanel(
   {
@@ -60,11 +63,11 @@ const PaymentInlinePanel = forwardRef<PaymentInlinePanelHandle, Props>(function 
     pricingMode = null,
     onPaymentSuccess,
     onPhaseChange,
+    successActions,
   },
   ref,
 ) {
   const { t, i18n } = useTranslation();
-  const router = useRouter();
   const checkoutLocale = getIntlLocale(i18n.language, { fr: "fr-CA", en: "en" });
 
   const [billingAddresses, setBillingAddresses] = useState<BillingAddress[]>([]);
@@ -89,7 +92,7 @@ const PaymentInlinePanel = forwardRef<PaymentInlinePanelHandle, Props>(function 
       goToPhase("billing");
       return true;
     },
-  }), [phase, onPhaseChange]);
+  }), [phase]);
 
   useEffect(() => {
     fetch(`${process.env.NEXT_PUBLIC_API_URL}/payments/config`)
@@ -207,23 +210,55 @@ const PaymentInlinePanel = forwardRef<PaymentInlinePanelHandle, Props>(function 
   const handlePaymentSuccess = async () => {
     setPaying(true);
     setError("");
-    try {
-      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/payments/verify`, {
+    goToPhase("confirming");
+
+    const headers = {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    };
+
+    const verifyOnce = async () => {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/payments/verify`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
-        },
+        headers,
         body: JSON.stringify({ booking_id: bookingId }),
       });
+      return res.json().catch(() => ({}));
+    };
+
+    const waitForSettledBooking = async () => {
+      for (let attempt = 0; attempt < 6; attempt++) {
+        try {
+          const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/bookings/${bookingId}`, {
+            headers: { Authorization: `Bearer ${accessToken}` },
+          });
+          if (res.ok) {
+            const data = await res.json();
+            const status = data?.payment_status;
+            if (status === "deposit_paid" || status === "paid") {
+              return data;
+            }
+          }
+        } catch {
+          // retry
+        }
+        await new Promise((r) => setTimeout(r, 800 + attempt * 400));
+        await verifyOnce().catch(() => ({}));
+      }
+      return null;
+    };
+
+    try {
+      await verifyOnce();
+      await waitForSettledBooking();
       if (onPaymentSuccess) {
         await onPaymentSuccess();
-      } else {
-        router.push(`/payment/success?booking_id=${bookingId}`);
       }
+      goToPhase("success");
     } catch {
       setError(t("payment.networkError"));
       setPaying(false);
+      goToPhase("card");
     }
   };
 
@@ -283,6 +318,34 @@ const PaymentInlinePanel = forwardRef<PaymentInlinePanelHandle, Props>(function 
       : t("payment.payNowLabel");
 
   const showCardPhase = phase === "card" && Boolean(clientSecret && publishableKey);
+
+  if (phase === "confirming") {
+    return (
+      <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 px-5 py-10 text-center">
+        <Loader2 className="h-8 w-8 animate-spin text-green-700" />
+        <p className="text-base font-semibold text-gray-900">{t("payment.confirmingPayment")}</p>
+        <p className="max-w-xs text-sm text-gray-500">{t("payment.confirmingPaymentDesc")}</p>
+      </div>
+    );
+  }
+
+  if (phase === "success") {
+    return (
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        <PaymentSuccessReceipt
+          bookingId={bookingId}
+          accessToken={accessToken}
+          embedded
+          showHeroImage={false}
+        />
+        {successActions ? (
+          <div className="shrink-0 border-t border-gray-100 px-5 py-4">
+            {successActions}
+          </div>
+        ) : null}
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">

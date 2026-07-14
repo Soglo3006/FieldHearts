@@ -178,7 +178,7 @@ export default function ConditionalShell({ children }: { children: React.ReactNo
           </div>
           <main
             data-messages-main
-            className="flex min-h-svh flex-col bg-white md:min-h-0 md:flex-1 md:overflow-hidden"
+            className="flex h-svh max-h-svh flex-col overflow-hidden bg-white md:h-auto md:max-h-none md:min-h-0 md:flex-1"
           >
             {children}
           </main>

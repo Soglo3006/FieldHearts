@@ -353,7 +353,7 @@ export function MessageThread({
       <div
         ref={scrollViewportRef}
         data-message-thread-viewport
-        className={`h-0 min-h-0 flex-1 overflow-y-auto overscroll-contain bg-white ${pinnedModalOpen ? "pointer-events-none" : ""}`}
+        className={`h-0 min-h-0 flex-1 overflow-y-auto overscroll-y-auto bg-white ${pinnedModalOpen ? "pointer-events-none" : ""}`}
       >
         <div className="p-4">
           {loadingMore && (

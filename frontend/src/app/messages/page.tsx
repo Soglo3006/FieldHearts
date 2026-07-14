@@ -913,9 +913,9 @@ function MessagesContent() {
   if (showFullPageSkeleton) {
     return (
       <TooltipProvider>
-        <div className="flex min-h-svh flex-1 flex-col bg-white md:h-full md:min-h-0">
-        <div className="mx-auto flex min-h-svh w-full max-w-400 flex-1 flex-col p-0 md:h-full md:min-h-0 lg:p-5">
-            <div className="flex min-h-svh flex-1 flex-col overflow-hidden bg-white md:h-full md:min-h-0 lg:rounded-xl lg:shadow-sm">
+        <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-white">
+        <div className="mx-auto flex h-full min-h-0 w-full max-w-400 flex-1 flex-col overflow-hidden p-0 lg:p-5">
+            <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-white lg:rounded-xl lg:shadow-sm">
               <MessagesThreeColumnSkeleton />
             </div>
           </div>
@@ -926,7 +926,7 @@ function MessagesContent() {
 
   return (
     <TooltipProvider>
-      <div className="flex min-h-svh flex-1 flex-col bg-white md:h-full md:min-h-0">
+      <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-white">
         {!isOnline && (
           <div className="flex items-center justify-center gap-2 bg-amber-50 border-b border-amber-200 px-4 py-2 shrink-0">
             <WifiOff className="h-4 w-4 text-amber-600 shrink-0" />
@@ -934,9 +934,9 @@ function MessagesContent() {
           </div>
         )}
 
-        <div className="mx-auto flex min-h-svh w-full max-w-400 flex-1 flex-col p-0 md:h-full md:min-h-0 lg:p-5">
-          <div className="flex min-h-svh flex-1 flex-col overflow-hidden bg-white md:h-full md:min-h-0 lg:rounded-xl lg:shadow-sm">
-            <div className="relative flex min-h-svh flex-1 overflow-hidden md:h-full md:min-h-0">
+        <div className="mx-auto flex h-full min-h-0 w-full max-w-400 flex-1 flex-col overflow-hidden p-0 lg:p-5">
+          <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-white lg:rounded-xl lg:shadow-sm">
+            <div className="relative flex h-full min-h-0 flex-1 overflow-hidden">
 
               {/* Colonne 1 : Liste des conversations */}
               <div className={`${showMobileChat ? 'hidden' : 'flex'} h-full md:flex w-full md:w-56 lg:w-72 xl:w-80 border-r flex-col bg-white min-h-0`}>
@@ -957,7 +957,7 @@ function MessagesContent() {
               {/* Colonne 2 : Zone de messages */}
               <div
                 className={cn(
-                  "relative flex-1 min-w-0 flex-col bg-white min-h-0 max-h-full overflow-hidden",
+                  "relative h-full min-h-0 max-h-full min-w-0 flex-1 flex-col overflow-hidden bg-white",
                   (isLargeScreen || (isMobile ? showMobileChat : true))
                     && !(showMobileSidebar && !isLargeScreen && isMobile)
                     ? "flex"

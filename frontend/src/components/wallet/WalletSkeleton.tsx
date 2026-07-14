@@ -36,6 +36,30 @@ export function WalletSummaryListSkeleton() {
   );
 }
 
+/** Total gagné / Total dépensé — montant + liste. */
+export function WalletSummaryModalSkeleton({ rows = 4 }: { rows?: number }) {
+  return (
+    <>
+      <div className="px-5 py-2.5 border-b border-gray-100 bg-gray-50/80 space-y-2">
+        <Skeleton className="h-3 w-full max-w-[18rem]" />
+        <Skeleton className="h-8 w-28" />
+      </div>
+      <div className="px-5 py-4 space-y-0">
+        {Array.from({ length: rows }).map((_, i) => (
+          <div key={i} className="flex items-center gap-3 py-3 border-b border-gray-100 last:border-0">
+            <Skeleton className="h-9 w-9 rounded-full shrink-0" />
+            <div className="min-w-0 flex-1 space-y-1.5">
+              <Skeleton className="h-4 w-4/5" />
+              <Skeleton className="h-3 w-3/5" />
+            </div>
+            <Skeleton className="h-5 w-16 shrink-0" />
+          </div>
+        ))}
+      </div>
+    </>
+  );
+}
+
 export function WalletModalListSkeleton({ rows = 4 }: { rows?: number }) {
   return (
     <div className="px-5 py-4 space-y-2">
@@ -47,6 +71,40 @@ export function WalletModalListSkeleton({ rows = 4 }: { rows?: number }) {
             <Skeleton className="h-3 w-2/5" />
           </div>
           <Skeleton className="h-5 w-14 shrink-0" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** Fonds en attente et litiges — sections + cartes. */
+export function WalletPendingModalSkeleton() {
+  return (
+    <div className="divide-y divide-gray-100">
+      {[0, 1].map((section) => (
+        <div key={section} className="px-5 py-4 space-y-3">
+          <div className="space-y-1.5">
+            <Skeleton className="h-3 w-48" />
+            <Skeleton className="h-3 w-full max-w-[20rem]" />
+          </div>
+          <div className="space-y-2">
+            {Array.from({ length: section === 0 ? 1 : 2 }).map((_, i) => (
+              <div
+                key={i}
+                className="flex items-center gap-3 rounded-lg border border-gray-100 px-3 py-3"
+              >
+                <div className="min-w-0 flex-1 space-y-2">
+                  <Skeleton className="h-4 w-4/5" />
+                  <Skeleton className="h-3 w-1/2" />
+                  <Skeleton className="h-3 w-2/5" />
+                </div>
+                <div className="shrink-0 space-y-1.5 flex flex-col items-end">
+                  <Skeleton className="h-5 w-14" />
+                  {section === 1 ? <Skeleton className="h-2.5 w-8" /> : null}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       ))}
     </div>

@@ -80,10 +80,10 @@ export function ChatHeader({
       </div>
 
       <div className="flex items-center gap-1 shrink-0">
-        <Button variant="ghost" size="icon" disabled className="opacity-40 cursor-not-allowed">
+        <Button variant="ghost" size="icon" disabled className="hidden lg:inline-flex opacity-40 cursor-not-allowed">
           <Phone className="h-5 w-5" />
         </Button>
-        <Button variant="ghost" size="icon" disabled className="opacity-40 cursor-not-allowed">
+        <Button variant="ghost" size="icon" disabled className="hidden lg:inline-flex opacity-40 cursor-not-allowed">
           <Video className="h-5 w-5" />
         </Button>
         <Button

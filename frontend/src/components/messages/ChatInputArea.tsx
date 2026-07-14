@@ -47,8 +47,12 @@ export function ChatInputArea({
       <ReplyPreview repliedMessage={replyingTo} onCancel={onCancelReply} />
 
       {blockCheckLoading ? (
-        <div className="border-t bg-white px-4 py-3">
-          <div className="h-10 rounded-xl bg-gray-100 animate-pulse" />
+        <div className="border-t bg-white p-4">
+          <div className="flex items-center gap-3">
+            <div className="size-9 shrink-0 rounded-md bg-gray-100 animate-pulse" />
+            <div className="h-9 min-w-0 flex-1 rounded-md bg-gray-100 animate-pulse" />
+            <div className="size-9 shrink-0 rounded-md bg-gray-100 animate-pulse" />
+          </div>
         </div>
       ) : isBlocked ? (
         <div className="border-t bg-white">

@@ -34,10 +34,32 @@ import { useTranslation } from 'react-i18next';
 import { DraftMessagePreparationError, prepareDraftMessageTarget } from '@/lib/draftMessage';
 import { cn } from '@/lib/utils';
 
+/** Matches MessageInput footer: p-4 + [+] input [send]. */
+function MessageComposerFooterSkeleton() {
+  return (
+    <div className="shrink-0 border-t bg-white p-4">
+      <div className="flex items-center gap-3">
+        <Skeleton className="size-9 shrink-0 rounded-md" />
+        <Skeleton className="h-9 min-w-0 flex-1 rounded-md" />
+        <Skeleton className="size-9 shrink-0 rounded-md" />
+      </div>
+    </div>
+  );
+}
+
+/** Matches ProfileSidebar footer: p-4 + full-width h-9 button + safe area. */
+function ProfileSidebarFooterSkeleton() {
+  return (
+    <div className="shrink-0 border-t bg-white p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+      <Skeleton className="h-9 w-full rounded-md" />
+    </div>
+  );
+}
+
 function MessagesThreeColumnSkeleton() {
   return (
     <div className="flex h-full min-h-0 overflow-hidden">
-      <div className="flex w-full md:w-64 lg:w-80 border-r flex-col bg-white min-h-0">
+      <div className="flex w-full md:w-56 lg:w-72 xl:w-80 border-r flex-col bg-white min-h-0">
         <div className="sticky top-0 z-10 border-b bg-white p-4 h-18.25 flex items-center">
           <Skeleton className="h-10 w-full rounded-lg" />
         </div>
@@ -83,9 +105,7 @@ function MessagesThreeColumnSkeleton() {
             </div>
           ))}
         </div>
-        <div className="shrink-0 border-t bg-white px-4 py-3">
-          <Skeleton className="h-11 w-full rounded-xl" />
-        </div>
+        <MessageComposerFooterSkeleton />
       </div>
 
       <div className="relative hidden lg:flex w-72 shrink-0 border-l flex-col bg-white min-h-0">
@@ -117,9 +137,7 @@ function MessagesThreeColumnSkeleton() {
             </div>
           ))}
         </div>
-        <div className="shrink-0 border-t bg-white p-4">
-          <Skeleton className="h-10 w-full rounded-md" />
-        </div>
+        <ProfileSidebarFooterSkeleton />
       </div>
     </div>
   );
@@ -884,8 +902,8 @@ function MessagesContent() {
     return (
       <TooltipProvider>
         <div className="flex min-h-0 flex-1 flex-col bg-white">
-          <div className="mx-auto flex min-h-0 w-full max-w-400 flex-1 flex-col p-0 sm:p-5">
-            <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-white sm:rounded-xl sm:shadow-sm">
+          <div className="mx-auto flex min-h-0 w-full max-w-400 flex-1 flex-col p-0 lg:p-5">
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-white lg:rounded-xl lg:shadow-sm">
               <MessagesThreeColumnSkeleton />
             </div>
           </div>
@@ -904,12 +922,12 @@ function MessagesContent() {
           </div>
         )}
 
-        <div className="mx-auto flex min-h-0 w-full max-w-400 flex-1 flex-col p-0 sm:p-5">
-          <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-white sm:rounded-xl sm:shadow-sm">
+        <div className="mx-auto flex min-h-0 w-full max-w-400 flex-1 flex-col p-0 lg:p-5">
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-white lg:rounded-xl lg:shadow-sm">
             <div className="relative flex h-full min-h-0 overflow-hidden">
 
               {/* Colonne 1 : Liste des conversations */}
-              <div className={`${showMobileChat ? 'hidden' : 'flex'} md:flex w-full md:w-64 lg:w-80 border-r flex-col bg-white min-h-0`}>
+              <div className={`${showMobileChat ? 'hidden' : 'flex'} md:flex w-full md:w-56 lg:w-72 xl:w-80 border-r flex-col bg-white min-h-0`}>
                 <ConversationList
                   chats={chats}
                   activeChatId={activeChatId}
@@ -1203,9 +1221,7 @@ function MessagesContent() {
                       ))}
                     </div>
 
-                    <div className="shrink-0 border-t bg-white px-4 py-3">
-                      <Skeleton className="h-11 w-full rounded-xl" />
-                    </div>
+                    <MessageComposerFooterSkeleton />
                   </div>
                 )}
               </div>
@@ -1303,9 +1319,7 @@ function MessagesContent() {
                       ))}
                     </div>
 
-                    <div className="shrink-0 border-t bg-white p-4">
-                      <Skeleton className="h-10 w-full rounded-md" />
-                    </div>
+                    <ProfileSidebarFooterSkeleton />
                   </div>
                 ) : null}
               </div>

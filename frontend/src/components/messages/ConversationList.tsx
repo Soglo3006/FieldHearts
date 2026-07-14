@@ -249,7 +249,7 @@ export function ConversationList({
   });
 
   return (
-    <div className="w-full md:w-64 lg:w-80 border-r flex flex-col bg-white h-full min-h-0">
+    <div className="flex h-full min-h-0 w-full flex-col border-r bg-white">
       {/* Search bar sticky */}
       <div className="sticky top-0 z-10 p-4 border-b bg-white h-18.25 flex items-center">
         <div className="relative w-full">

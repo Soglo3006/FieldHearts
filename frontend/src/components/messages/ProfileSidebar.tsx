@@ -417,7 +417,7 @@ export function ProfileSidebar({
       </div>
 
       {/* Bouton fixe en bas */}
-      <div className="shrink-0 p-4 bg-white border-t">
+      <div className="shrink-0 border-t bg-white p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
         <Link href={`/profile/${otherUser.id}`}>
           <Button className="w-full bg-green-700 hover:bg-green-800 text-white cursor-pointer">
             {t("messages.viewFullProfile")}

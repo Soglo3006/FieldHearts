@@ -35,7 +35,8 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import WalletSkeleton, {
   WalletModalListSkeleton,
-  WalletSummaryListSkeleton,
+  WalletPendingModalSkeleton,
+  WalletSummaryModalSkeleton,
   WalletTransactionListSkeleton,
 } from "@/components/wallet/WalletSkeleton";
 import StripePayoutSetup from "@/components/stripe/StripePayoutSetup";
@@ -124,6 +125,16 @@ interface SummaryTransactionItem {
   created_at: string;
 }
 
+/** Keep modal skeletons visible briefly so fast responses don’t flash. */
+const WALLET_MODAL_SKELETON_MS = 450;
+
+async function settleModalSkeleton(startedAt: number, minMs = WALLET_MODAL_SKELETON_MS) {
+  const remaining = minMs - (Date.now() - startedAt);
+  if (remaining > 0) {
+    await new Promise((resolve) => setTimeout(resolve, remaining));
+  }
+}
+
 function WalletSummaryModal({
   open,
   onClose,
@@ -195,7 +206,9 @@ function WalletSummaryModal({
           <div
             className={cn(
               "w-1/2 shrink-0 grid min-h-0 max-h-[min(85dvh,calc(100dvh-2rem))]",
-              "grid-rows-[auto_auto_minmax(0,1fr)_auto]",
+              loading
+                ? "grid-rows-[auto_minmax(0,1fr)]"
+                : "grid-rows-[auto_auto_minmax(0,1fr)_auto]",
               isDetail && "h-full",
             )}
           >
@@ -206,6 +219,12 @@ function WalletSummaryModal({
               </button>
             </div>
 
+            {loading ? (
+              <div className="min-h-0 overflow-y-auto overscroll-contain">
+                <WalletSummaryModalSkeleton />
+              </div>
+            ) : (
+              <>
             <div className="px-5 py-2.5 border-b border-gray-100 bg-gray-50/80">
               <p className="text-xs text-gray-500 leading-snug">{hint}</p>
               <p className={cn("text-2xl font-bold mt-0.5 tabular-nums", toneClass)}>
@@ -214,9 +233,7 @@ function WalletSummaryModal({
             </div>
 
             <div className="min-h-0 overflow-y-auto overscroll-contain">
-              {loading ? (
-                <WalletSummaryListSkeleton />
-              ) : items.length === 0 ? (
+              {items.length === 0 ? (
                 <p className="px-5 py-10 text-center text-sm text-gray-400">{t("wallet.noSummaryItems")}</p>
               ) : (
                 <ul
@@ -303,6 +320,8 @@ function WalletSummaryModal({
                 </ul>
               )}
             </div>
+              </>
+            )}
 
             {!loading && totalPages > 1 && (
               <div className="flex items-center justify-between gap-3 px-5 py-3 border-t border-gray-100">
@@ -574,9 +593,10 @@ export default function WalletPage() {
       .finally(() => setTxLoading(false));
   }, [period]);
 
-  const fetchPendingDetails = useCallback(async () => {
+  const fetchPendingDetails = useCallback(async (opts?: { minSkeletonMs?: number }) => {
     if (!session?.access_token) return;
     setPendingDetailsLoading(true);
+    const startedAt = Date.now();
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/wallet/pending-details`, {
         headers: { Authorization: `Bearer ${session.access_token}` },
@@ -587,6 +607,7 @@ export default function WalletPage() {
       setDisputeEligible(Array.isArray(data.dispute_eligible) ? data.dispute_eligible : []);
     } catch {
     } finally {
+      await settleModalSkeleton(startedAt, opts?.minSkeletonMs ?? 0);
       setPendingDetailsLoading(false);
     }
   }, [session?.access_token]);
@@ -607,9 +628,10 @@ export default function WalletPage() {
     }
   }, [session?.access_token]);
 
-  const fetchEarnedDetails = useCallback(async () => {
+  const fetchEarnedDetails = useCallback(async (opts?: { minSkeletonMs?: number }) => {
     if (!session?.access_token) return;
     setEarnedDetailsLoading(true);
+    const startedAt = Date.now();
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/wallet/earned-details`, {
         headers: { Authorization: `Bearer ${session.access_token}` },
@@ -619,13 +641,15 @@ export default function WalletPage() {
       setEarnedItems(Array.isArray(data.items) ? data.items : []);
     } catch {
     } finally {
+      await settleModalSkeleton(startedAt, opts?.minSkeletonMs ?? 0);
       setEarnedDetailsLoading(false);
     }
   }, [session?.access_token]);
 
-  const fetchSpentDetails = useCallback(async () => {
+  const fetchSpentDetails = useCallback(async (opts?: { minSkeletonMs?: number }) => {
     if (!session?.access_token) return;
     setSpentDetailsLoading(true);
+    const startedAt = Date.now();
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/wallet/spent-details`, {
         headers: { Authorization: `Bearer ${session.access_token}` },
@@ -635,6 +659,7 @@ export default function WalletPage() {
       setSpentItems(Array.isArray(data.items) ? data.items : []);
     } catch {
     } finally {
+      await settleModalSkeleton(startedAt, opts?.minSkeletonMs ?? 0);
       setSpentDetailsLoading(false);
     }
   }, [session?.access_token]);
@@ -655,8 +680,9 @@ export default function WalletPage() {
   const openPendingModal = () => {
     setPendingModalView("list");
     setPendingDetailBooking(null);
+    setPendingDetailsLoading(true);
     setPendingModalOpen(true);
-    fetchPendingDetails();
+    fetchPendingDetails({ minSkeletonMs: WALLET_MODAL_SKELETON_MS });
   };
 
   const backToPendingList = () => {
@@ -675,6 +701,7 @@ export default function WalletPage() {
   const openApprovedModal = () => {
     setApprovedModalView("list");
     setApprovedDetailBooking(null);
+    setApprovedDetailsLoading(true);
     setApprovedModalOpen(true);
     fetchApprovedDetails();
   };
@@ -700,8 +727,9 @@ export default function WalletPage() {
     setEarnedDetailBooking(null);
     setEarnedPage(1);
     setEarnedSlideDir("next");
+    setEarnedDetailsLoading(true);
     setEarnedModalOpen(true);
-    fetchEarnedDetails();
+    fetchEarnedDetails({ minSkeletonMs: WALLET_MODAL_SKELETON_MS });
   };
 
   const backToEarnedList = () => {
@@ -726,8 +754,9 @@ export default function WalletPage() {
     setSpentDetailBooking(null);
     setSpentPage(1);
     setSpentSlideDir("next");
+    setSpentDetailsLoading(true);
     setSpentModalOpen(true);
-    fetchSpentDetails();
+    fetchSpentDetails({ minSkeletonMs: WALLET_MODAL_SKELETON_MS });
   };
 
   const backToSpentList = () => {
@@ -1466,7 +1495,7 @@ export default function WalletPage() {
                 </div>
                 <div className="overflow-y-auto flex-1 divide-y divide-gray-100">
                   {pendingDetailsLoading ? (
-                    <WalletModalListSkeleton />
+                    <WalletPendingModalSkeleton />
                   ) : workerHolds.length === 0 && disputeEligible.length === 0 ? (
                     <p className="px-5 py-10 text-center text-sm text-gray-400">{t("wallet.noPendingItems")}</p>
                   ) : (

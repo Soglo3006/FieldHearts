@@ -57,13 +57,30 @@ type Props = {
   /** Compact layout for modal (no large page title when parent shows one). */
   embedded?: boolean;
   showHeroImage?: boolean;
+  /** Checkout just completed — keeps balance receipts on the full dépôt+solde layout. */
+  preferredPaymentKind?: PaidCheckoutKind | null;
 };
+
+function isPaymentSettledForKind(
+  paymentStatus: string | null | undefined,
+  preferredKind?: PaidCheckoutKind | null,
+): boolean {
+  const status = (paymentStatus || "").toLowerCase();
+  if (preferredKind === "balance" || preferredKind === "full") {
+    return status === "paid" || status === "transferred";
+  }
+  if (preferredKind === "deposit") {
+    return status === "deposit_paid" || status === "paid" || status === "transferred";
+  }
+  return status === "deposit_paid" || status === "paid" || status === "transferred";
+}
 
 export default function PaymentSuccessReceipt({
   bookingId,
   accessToken,
   embedded = false,
   showHeroImage = true,
+  preferredPaymentKind = null,
 }: Props) {
   const { t, i18n } = useTranslation();
   const bookingLocale = getIntlLocale(i18n.language, { fr: "fr-CA", en: "en-CA" });
@@ -129,26 +146,49 @@ export default function PaymentSuccessReceipt({
               payment_kind: paymentStatus.payment.payment_kind ?? prev?.payment_kind,
             }));
           }
-          const paymentSettled =
-            bookingData?.status === "active" &&
-            (bookingData?.payment_status === "deposit_paid" || bookingData?.payment_status === "paid");
-          if (!paymentSettled && attempt < 4) {
-            setTimeout(() => fetchBookingDetails(attempt + 1), 4000);
+          const paymentSettled = isPaymentSettledForKind(
+            bookingData?.payment_status,
+            preferredPaymentKind,
+          );
+          if (!paymentSettled && attempt < 8) {
+            setTimeout(() => fetchBookingDetails(attempt + 1), 1500);
           }
         })
         .catch(() => {
-          if (attempt < 4) setTimeout(() => fetchBookingDetails(attempt + 1), 4000);
+          if (attempt < 8) setTimeout(() => fetchBookingDetails(attempt + 1), 1500);
         });
     };
     fetchBookingDetails();
 
     return () => retryTimers.forEach(clearTimeout);
-  }, [bookingId, accessToken]);
+  }, [bookingId, accessToken, preferredPaymentKind]);
 
   const breakdown = useMemo(() => {
     if (!booking) return null;
-    return buildPaymentSuccessBreakdown(booking, latestPayment, verifyMeta?.payment_kind);
-  }, [booking, latestPayment, verifyMeta?.payment_kind]);
+    if (!isPaymentSettledForKind(booking.payment_status, preferredPaymentKind)) {
+      return null;
+    }
+    // Still polling an older deposit row — keep the spinner until balance payment is visible.
+    if (
+      preferredPaymentKind === "balance" &&
+      latestPayment?.payment_kind === "deposit"
+    ) {
+      return null;
+    }
+    const kindOverride =
+      preferredPaymentKind ||
+      verifyMeta?.payment_kind ||
+      latestPayment?.payment_kind ||
+      null;
+    // Avoid using a prior deposit payment row while preferring the balance receipt.
+    const paymentForBreakdown =
+      preferredPaymentKind &&
+      latestPayment?.payment_kind &&
+      latestPayment.payment_kind !== preferredPaymentKind
+        ? null
+        : latestPayment;
+    return buildPaymentSuccessBreakdown(booking, paymentForBreakdown, kindOverride);
+  }, [booking, latestPayment, verifyMeta?.payment_kind, preferredPaymentKind]);
 
   const taxLabel = getTaxLabel(booking?.client_province ?? "QC", i18n.language ?? "fr");
   const taxRate = booking?.tax_rate ? Number(booking.tax_rate) : undefined;
@@ -192,14 +232,14 @@ export default function PaymentSuccessReceipt({
             )}
             <div className="p-5">
               <h2 className="mb-3 text-base font-semibold text-gray-900">{booking.title}</h2>
-              <div className="space-y-1.5 text-sm text-gray-600">
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm text-gray-600">
                 {booking.service_location && (
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
                     <MapPin className="h-4 w-4 shrink-0 text-gray-400" />
-                    <span>{booking.service_location}</span>
+                    <span className="truncate">{booking.service_location}</span>
                   </div>
                 )}
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 shrink-0">
                   <Calendar className="h-4 w-4 shrink-0 text-gray-400" />
                   <span>{new Date(booking.created_at).toLocaleDateString(bookingLocale)}</span>
                 </div>

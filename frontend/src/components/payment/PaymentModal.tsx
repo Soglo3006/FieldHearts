@@ -83,10 +83,10 @@ function PaymentModalInner({
       <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col z-10 overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-gray-100 shrink-0">
-          {paymentPhase === "card" ? (
+          {paymentPhase === "card" || paymentPhase === "success" ? (
             <button
               type="button"
-              onClick={handleBack}
+              onClick={paymentPhase === "success" ? onClose : handleBack}
               aria-label={t("common.back")}
               className="-ml-1 flex shrink-0 cursor-pointer items-center justify-center p-1 text-gray-500 transition-colors hover:text-gray-700"
             >
@@ -99,10 +99,8 @@ function PaymentModalInner({
             {paymentPhase === "confirming"
               ? t("payment.confirmingPayment")
               : paymentPhase === "success"
-                ? ""
-                : paymentPhase === "card"
-                  ? t("payment.completePayment")
-                  : headerTitle}
+                ? t("payment.confirmationTitle")
+                : headerTitle}
           </span>
           <button type="button" onClick={onClose} aria-label={t("common.close")} className="cursor-pointer shrink-0 text-gray-400 hover:text-gray-600 transition-colors">
             <X className="h-5 w-5" />

@@ -2106,6 +2106,7 @@
   },
   "payment": {
     "confirmed": "Payment confirmed!",
+    "confirmationTitle": "Payment confirmation",
     "confirmedDesc": "Your booking is now active. The provider has been notified.",
     "confirmedDeposit": "Deposit confirmed!",
     "confirmedDepositDesc": "Your booking is active. The balance will be billed after work hours are approved.",

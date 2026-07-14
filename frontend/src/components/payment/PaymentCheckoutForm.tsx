@@ -85,9 +85,17 @@ function CheckoutForm({
     <button
       type="submit"
       disabled={!canSubmit}
+      aria-busy={processing}
       className="w-full h-14 text-base font-semibold bg-green-700 hover:bg-green-800 text-white rounded-xl disabled:opacity-50 disabled:cursor-not-allowed"
     >
-      {processing ? processingLabel : submitLabel}
+      {processing ? (
+        <span className="inline-flex items-center justify-center gap-2">
+          <Loader2 className="h-5 w-5 animate-spin" />
+          {processingLabel}
+        </span>
+      ) : (
+        submitLabel
+      )}
     </button>
   );
 

@@ -6,9 +6,10 @@ import { formatTaxRate, getTaxRate, getTaxLabel } from "@/lib/taxes";
 import { useClientTax } from "@/hooks/useClientTax";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { CheckCircle, X } from "lucide-react";
+import { X } from "lucide-react";
 import Link from "next/link";
 import { getLanguageCode } from "@/lib/locale";
+import { normalizePricingMode } from "@/lib/listingPrice";
 
 interface Props {
   state: "idle" | "loading" | "success" | "error";
@@ -33,6 +34,40 @@ interface Props {
   onMessageProvider: () => void;
 }
 
+function FeeTotalsSkeleton({ showRangeAmounts = false }: { showRangeAmounts?: boolean }) {
+  const amountClass = showRangeAmounts ? "h-4 w-28 bg-gray-200" : "h-4 w-14 bg-gray-200";
+  return (
+    <div className="space-y-2 pt-1" aria-busy="true" aria-label="Loading">
+      <div className="flex justify-between gap-2 items-center">
+        <Skeleton className="h-8 w-36 bg-gray-200" />
+        <Skeleton className={amountClass} />
+      </div>
+      <div className="flex justify-between gap-2 items-center">
+        <Skeleton className="h-8 w-32 bg-gray-200" />
+        <Skeleton className={amountClass} />
+      </div>
+      <div className="flex justify-between gap-2 items-center border-t border-gray-200 pt-2">
+        <Skeleton className="h-5 w-16 bg-gray-200" />
+        <Skeleton className={`h-5 ${showRangeAmounts ? "w-32" : "w-20"} bg-gray-200`} />
+      </div>
+    </div>
+  );
+}
+
+/** Full price breakdown placeholder shown when opening the modal for range listings. */
+function RangePriceCardSkeleton() {
+  return (
+    <div className="space-y-2.5" aria-busy="true" aria-label="Loading">
+      <div className="flex justify-between gap-2 items-center">
+        <Skeleton className="h-4 w-28 bg-gray-200" />
+        <Skeleton className="h-4 w-36 bg-gray-200" />
+      </div>
+      <FeeTotalsSkeleton showRangeAmounts />
+      <Skeleton className="mt-1 h-3 w-full max-w-[90%] bg-gray-200" />
+    </div>
+  );
+}
+
 function HourlyTotalsSkeleton({ showFees }: { showFees: boolean }) {
   return (
     <div className="border-t border-gray-100 pt-2 space-y-2" aria-busy="true" aria-label="Loading">
@@ -40,22 +75,7 @@ function HourlyTotalsSkeleton({ showFees }: { showFees: boolean }) {
         <Skeleton className="h-4 w-28 bg-gray-200" />
         <Skeleton className="h-4 w-16 bg-gray-200" />
       </div>
-      {showFees && (
-        <>
-          <div className="flex justify-between gap-2 items-center">
-            <Skeleton className="h-8 w-32 bg-gray-200" />
-            <Skeleton className="h-4 w-14 bg-gray-200" />
-          </div>
-          <div className="flex justify-between gap-2 items-center">
-            <Skeleton className="h-8 w-28 bg-gray-200" />
-            <Skeleton className="h-4 w-14 bg-gray-200" />
-          </div>
-          <div className="flex justify-between gap-2 items-center border-t border-gray-200 pt-2">
-            <Skeleton className="h-5 w-16 bg-gray-200" />
-            <Skeleton className="h-5 w-20 bg-gray-200" />
-          </div>
-        </>
-      )}
+      {showFees && <FeeTotalsSkeleton />}
     </div>
   );
 }
@@ -88,16 +108,40 @@ export default function BookingModal({
   // Buyer = requester on offers, listing owner on "looking" searches
   const buyerProvince =
     serviceType === "looking"
-      ? (clientTaxProvince ?? workerProvince)
+      ? (clientTaxProvince ?? workerProvince ?? profileTax.province)
       : profileTax.province;
-  const taxReady = serviceType === "looking" ? true : !profileTax.loading;
+  // Wait for tax province before showing commission / taxes (avoids wrong rates then a jump).
+  const taxReady =
+    serviceType === "looking"
+      ? Boolean(clientTaxProvince || workerProvince) || !profileTax.loading
+      : !profileTax.loading;
   const taxRate = getTaxRate(buyerProvince ?? "QC");
   const taxLabel = getTaxLabel(buyerProvince ?? "QC", lang);
   const showBuyerFees = taxReady;
   const isHourly = String(pricingMode ?? "").toLowerCase() === "hourly";
+  const isRangePricing =
+    normalizePricingMode(pricingMode) === "range" ||
+    (estimatedTotalBase != null &&
+      estimatedTotalBaseMax != null &&
+      estimatedTotalBaseMax > estimatedTotalBase + 0.001);
 
   const [debouncedHours, setDebouncedHours] = useState(estimatedHours);
   const [hoursEstimating, setHoursEstimating] = useState(false);
+  // Range listings: show price skeleton as soon as the modal opens (Postuler / Demande).
+  const [rangePriceReady, setRangePriceReady] = useState(
+    () => !isRangePricing || estimatedTotalBase == null,
+  );
+
+  useEffect(() => {
+    if (!isRangePricing || estimatedTotalBase == null) {
+      setRangePriceReady(true);
+      return;
+    }
+    setRangePriceReady(false);
+    if (!taxReady) return;
+    const timer = window.setTimeout(() => setRangePriceReady(true), 280);
+    return () => window.clearTimeout(timer);
+  }, [isRangePricing, estimatedTotalBase, estimatedTotalBaseMax, taxReady]);
 
   useEffect(() => {
     const trimmed = estimatedHours.trim();
@@ -138,9 +182,6 @@ export default function BookingModal({
 
         {state === "success" ? (
           <div className="text-center py-4">
-            <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
-              <CheckCircle className="h-8 w-8 text-green-600" />
-            </div>
             <h4 className="text-lg font-semibold text-gray-900 mb-1">{t("serviceDetail.requestSent")}</h4>
             <p className="text-sm text-gray-600 mb-6">
               {t("serviceDetail.willReview")}
@@ -253,6 +294,8 @@ export default function BookingModal({
                     <p className="text-xs text-gray-600 leading-relaxed">{t("listingPrice.quoteTotalsHint")}</p>
                   )}
                 </div>
+              ) : isRangePricing && !rangePriceReady ? (
+                <RangePriceCardSkeleton />
               ) : (
                 (() => {
                   const minB = estimatedTotalBase;
@@ -278,7 +321,9 @@ export default function BookingModal({
                         </span>
                         <span className="font-semibold text-right">{displayPriceLabel}</span>
                       </div>
-                      {showBuyerFees && (
+                      {!showBuyerFees ? (
+                        <FeeTotalsSkeleton showRangeAmounts={isRangePricing || showRangeTotals} />
+                      ) : (
                         <>
                           <div className="flex justify-between gap-2">
                             <div>

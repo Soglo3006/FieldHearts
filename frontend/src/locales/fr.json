@@ -2680,6 +2680,7 @@
   },
   "payment": {
     "confirmed": "Paiement confirmé !",
+    "confirmationTitle": "Confirmation de paiement",
     "confirmedDesc": "Votre réservation est maintenant active. Le prestataire a été notifié.",
     "confirmedDeposit": "Dépôt confirmé !",
     "confirmedDepositDesc": "Votre réservation est active. Le solde sera facturé après validation des heures de travail.",

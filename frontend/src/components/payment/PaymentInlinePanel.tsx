@@ -226,16 +226,24 @@ const PaymentInlinePanel = forwardRef<PaymentInlinePanelHandle, Props>(function 
       return res.json().catch(() => ({}));
     };
 
+    const isSettledForCheckout = (paymentStatus: string | null | undefined) => {
+      const status = (paymentStatus || "").toLowerCase();
+      // Balance/full starts from deposit_paid — wait until the booking is fully paid.
+      if (checkoutKind === "balance" || checkoutKind === "full") {
+        return status === "paid" || status === "transferred";
+      }
+      return status === "deposit_paid" || status === "paid" || status === "transferred";
+    };
+
     const waitForSettledBooking = async () => {
-      for (let attempt = 0; attempt < 6; attempt++) {
+      for (let attempt = 0; attempt < 12; attempt++) {
         try {
           const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/bookings/${bookingId}`, {
             headers: { Authorization: `Bearer ${accessToken}` },
           });
           if (res.ok) {
             const data = await res.json();
-            const status = data?.payment_status;
-            if (status === "deposit_paid" || status === "paid") {
+            if (isSettledForCheckout(data?.payment_status)) {
               return data;
             }
           }
@@ -337,6 +345,7 @@ const PaymentInlinePanel = forwardRef<PaymentInlinePanelHandle, Props>(function 
           accessToken={accessToken}
           embedded
           showHeroImage={false}
+          preferredPaymentKind={checkoutKind}
         />
         {successActions ? (
           <div className="shrink-0 border-t border-gray-100 px-5 py-4">

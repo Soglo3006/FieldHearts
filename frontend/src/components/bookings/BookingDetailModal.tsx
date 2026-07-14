@@ -479,6 +479,12 @@ export default function BookingDetailModal({
   const paymentNeed = needsBookingPayment(booking, depositConfig);
   const needsPayment = paymentNeed.needed;
   const checkoutKind = paymentNeed.kind;
+  const paymentStepTitle =
+    checkoutKind === "deposit"
+      ? t("payment.payDepositLabel")
+      : checkoutKind === "balance"
+        ? t("payment.payBalanceLabel")
+        : t("payment.completePayment");
   const balanceDueCents = computeHourlyBalanceDueCents(booking);
   const showBalanceDueStatusBadge =
     booking.status === "completed" && needsPayment && checkoutKind === "balance";
@@ -720,7 +726,7 @@ export default function BookingDetailModal({
         <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-gray-100 shrink-0">
           {step === "payment" ? (
             <>
-              {paymentPhase !== "success" && paymentPhase !== "confirming" ? (
+              {paymentPhase !== "confirming" ? (
                 <button
                   type="button"
                   onClick={handlePaymentHeaderBack}
@@ -736,8 +742,8 @@ export default function BookingDetailModal({
                 {paymentPhase === "confirming"
                   ? t("payment.confirmingPayment")
                   : paymentPhase === "success"
-                    ? ""
-                    : t("payment.completePayment")}
+                    ? t("payment.confirmationTitle")
+                    : paymentStepTitle}
               </h2>
             </>
           ) : (
@@ -1017,16 +1023,16 @@ export default function BookingDetailModal({
                 if (isAwaitingPriceAgreement(booking)) {
                   const isQuoteMode = normalizePricingMode(booking.pricing_mode) === "quote";
                   return (
-                    <Card className="overflow-hidden shadow-none">
-                      <div className="flex items-center gap-2 bg-white px-4 py-2.5 border-b border-gray-100">
+                    <Card className="gap-0 overflow-hidden py-0 shadow-none">
+                      <div className="flex items-center gap-2 border-b border-gray-100 bg-white px-4 py-2">
                         <TrendingDown className="h-3.5 w-3.5 text-gray-500" />
-                        <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                        <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">
                           {userRole === "worker" ? t("bookings.clientPaid") : t("bookings.paymentSummary")}
                         </span>
                       </div>
-                      <CardContent className="px-4 py-4 text-sm">
+                      <CardContent className="space-y-1.5 px-4 py-3 text-sm">
                         <p className="font-semibold text-green-700">{totalLine}</p>
-                        <p className="text-xs text-gray-500 mt-2 leading-relaxed">
+                        <p className="text-xs leading-relaxed text-gray-500">
                           {t(isQuoteMode ? "listingPrice.quoteTotalsHint" : "serviceDetail.rangeTotalsHint")}
                         </p>
                       </CardContent>
@@ -1063,8 +1069,8 @@ export default function BookingDetailModal({
                   if (userRole === "worker") {
                     return (
                       <div className="space-y-3">
-                        <Card className="overflow-hidden shadow-none">
-                          <div className="flex items-center gap-2 bg-white px-4 py-2.5 border-b border-gray-100">
+                        <Card className="gap-0 overflow-hidden py-0 shadow-none">
+                          <div className="flex items-center gap-2 bg-white px-4 py-2 border-b border-gray-100">
                             <TrendingDown className="h-3.5 w-3.5 text-gray-500" />
                             <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
                               {t("bookings.paymentReceipt")}
@@ -1096,8 +1102,8 @@ export default function BookingDetailModal({
                           </CardContent>
                         </Card>
                         {workerDepositPayout !== null && platformDepositCommission !== null && (
-                          <Card className="overflow-hidden border-green-100 shadow-none">
-                            <div className="flex items-center gap-2 bg-green-50 px-4 py-2.5 border-b border-green-100">
+                          <Card className="gap-0 overflow-hidden border-green-100 py-0 shadow-none">
+                            <div className="flex items-center gap-2 bg-green-50 px-4 py-2 border-b border-green-100">
                               <TrendingUp className="h-3.5 w-3.5 text-green-600" />
                               <span className="text-xs font-semibold text-green-700 uppercase tracking-wide">
                                 {t("bookings.workerDepositPayoutLabel")}
@@ -1127,8 +1133,8 @@ export default function BookingDetailModal({
                   return (
                     <div className="space-y-3">
                       {hasDepositCancellation && (
-                        <Card className="overflow-hidden border-red-200 shadow-none">
-                          <div className="flex items-center gap-2 bg-red-50 px-4 py-2.5 border-b border-red-100">
+                        <Card className="gap-0 overflow-hidden border-red-200 py-0 shadow-none">
+                          <div className="flex items-center gap-2 bg-red-50 px-4 py-2 border-b border-red-100">
                             <span className="text-xs font-semibold text-red-800 uppercase tracking-wide">
                               {t("bookings.cancellationReceiptTitle")}
                             </span>
@@ -1158,8 +1164,8 @@ export default function BookingDetailModal({
                           </CardContent>
                         </Card>
                       )}
-                      <Card className="overflow-hidden shadow-none">
-                        <div className="flex items-center gap-2 bg-white px-4 py-2.5 border-b border-gray-100">
+                      <Card className="gap-0 overflow-hidden py-0 shadow-none">
+                        <div className="flex items-center gap-2 bg-white px-4 py-2 border-b border-gray-100">
                           <TrendingDown className="h-3.5 w-3.5 text-gray-500" />
                           <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
                             {t("bookings.paymentReceipt")}
@@ -1202,7 +1208,7 @@ export default function BookingDetailModal({
                         </CardContent>
                       </Card>
                       {booking.payment_status === "refunded" && !hasDepositCancellation && refundedToClient !== null && (
-                        <Card className="overflow-hidden border-gray-200 shadow-none">
+                        <Card className="gap-0 overflow-hidden border-gray-200 py-0 shadow-none">
                           <CardContent className="px-4 py-3">
                             <div className="flex justify-between text-sm font-semibold text-gray-700">
                               <span>{t("bookings.amountRefundedLabel")}</span>
@@ -1224,8 +1230,8 @@ export default function BookingDetailModal({
                           <div className="rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-xs text-green-700">
                             {t("bookings.waitingForBalance")}
                           </div>
-                          <Card className="overflow-hidden shadow-none">
-                            <div className="flex items-center gap-2 bg-white px-4 py-2.5 border-b border-gray-100">
+                          <Card className="gap-0 overflow-hidden py-0 shadow-none">
+                            <div className="flex items-center gap-2 bg-white px-4 py-2 border-b border-gray-100">
                               <TrendingDown className="h-3.5 w-3.5 text-gray-500" />
                               <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
                                 {t("bookings.clientPaid")}
@@ -1278,8 +1284,8 @@ export default function BookingDetailModal({
                     return (
                       <div className="space-y-3">
                         {/* What the client paid */}
-                        <Card className="overflow-hidden shadow-none">
-                          <div className="flex items-center gap-2 bg-white px-4 py-2.5 border-b border-gray-100">
+                        <Card className="gap-0 overflow-hidden py-0 shadow-none">
+                          <div className="flex items-center gap-2 bg-white px-4 py-2 border-b border-gray-100">
                             <TrendingDown className="h-3.5 w-3.5 text-gray-500" />
                             <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{t("bookings.clientPaid")}</span>
                           </div>
@@ -1329,14 +1335,14 @@ export default function BookingDetailModal({
                           </CardContent>
                         </Card>
                         {/* Worker payout */}
-                        <Card className={`overflow-hidden shadow-none ${disputeFinancialOutcome.hasFinancialAdjustment ? "border-amber-200" : "border-green-100"}`}>
-                          <div className={`flex items-center gap-2 px-4 py-2.5 border-b ${disputeFinancialOutcome.hasFinancialAdjustment ? "bg-amber-50 border-amber-100" : "bg-green-50 border-green-100"}`}>
+                        <Card className={`gap-0 overflow-hidden py-0 shadow-none ${disputeFinancialOutcome.hasFinancialAdjustment ? "border-amber-200" : "border-green-100"}`}>
+                          <div className={`flex items-center gap-2 px-4 py-2 border-b ${disputeFinancialOutcome.hasFinancialAdjustment ? "bg-amber-50 border-amber-100" : "bg-green-50 border-green-100"}`}>
                             <TrendingUp className="h-3.5 w-3.5 text-green-600" />
                             <span className={`text-xs font-semibold uppercase tracking-wide ${disputeFinancialOutcome.hasFinancialAdjustment ? "text-amber-800" : "text-green-700"}`}>
                               {disputeFinancialOutcome.hasFinancialAdjustment ? t("bookings.workerPayoutAfterDecision") : t("bookings.workerPayout")}
                             </span>
                           </div>
-                          <CardContent className="px-4 pt-0 pb-4 space-y-2 text-sm">
+                          <CardContent className="px-4 pt-3 pb-4 space-y-2 text-sm">
                             <div className="flex justify-between text-gray-600">
                               <span>{t("serviceDetail.servicePrice")}</span>
                               <span className="font-medium">{fmt(base)} $</span>
@@ -1367,8 +1373,8 @@ export default function BookingDetailModal({
                   // Client completed view
                   if (hasPendingFinalBalance) {
                     return (
-                      <Card className="overflow-hidden shadow-none">
-                        <div className="flex items-center gap-2 bg-white px-4 py-2.5 border-b border-gray-100">
+                      <Card className="gap-0 overflow-hidden py-0 shadow-none">
+                        <div className="flex items-center gap-2 bg-white px-4 py-2 border-b border-gray-100">
                           <TrendingDown className="h-3.5 w-3.5 text-gray-500" />
                           <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
                             {t("bookings.paymentSummary")}
@@ -1419,8 +1425,8 @@ export default function BookingDetailModal({
                   }
                   return (
                     <div className="space-y-3">
-                      <Card className="overflow-hidden shadow-none">
-                        <div className="flex items-center gap-2 bg-white px-4 py-2.5 border-b border-gray-100">
+                      <Card className="gap-0 overflow-hidden py-0 shadow-none">
+                        <div className="flex items-center gap-2 bg-white px-4 py-2 border-b border-gray-100">
                           <TrendingDown className="h-3.5 w-3.5 text-gray-500" />
                           <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{t("bookings.totalPaid")}</span>
                         </div>
@@ -1475,8 +1481,8 @@ export default function BookingDetailModal({
                         </CardContent>
                       </Card>
                       {disputeFinancialOutcome.hasFinancialAdjustment && disputeFinancialOutcome.finalClientPaid !== null && disputeFinancialOutcome.refundedAmount !== null && (
-                        <Card className="overflow-hidden border-amber-200 shadow-none">
-                          <div className="flex items-center gap-2 bg-amber-50 px-4 py-2.5 border-b border-amber-100">
+                        <Card className="gap-0 overflow-hidden border-amber-200 py-0 shadow-none">
+                          <div className="flex items-center gap-2 bg-amber-50 px-4 py-2 border-b border-amber-100">
                             <span className="text-xs font-semibold text-amber-800 uppercase tracking-wide">{t("bookings.finalOutcomeTitle")}</span>
                           </div>
                           <CardContent className="px-4 pt-0 pb-4 space-y-2 text-sm">
@@ -1505,8 +1511,8 @@ export default function BookingDetailModal({
                   return (
                     <div className="space-y-3">
                       {/* Full payment breakdown — what the client paid */}
-                      <Card className="overflow-hidden shadow-none">
-                        <div className="flex items-center gap-2 bg-white px-4 py-2.5 border-b border-gray-100">
+                      <Card className="gap-0 overflow-hidden py-0 shadow-none">
+                        <div className="flex items-center gap-2 bg-white px-4 py-2 border-b border-gray-100">
                           <TrendingDown className="h-3.5 w-3.5 text-gray-500" />
                           <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{t("bookings.clientPaid")}</span>
                         </div>
@@ -1588,12 +1594,12 @@ export default function BookingDetailModal({
                         </CardContent>
                       </Card>
                       {/* Worker earnings */}
-                      <Card className="overflow-hidden border-green-100 shadow-none">
-                        <div className="flex items-center gap-2 bg-green-50 px-4 py-2.5 border-b border-green-100">
+                      <Card className="gap-0 overflow-hidden border-green-100 py-0 shadow-none">
+                        <div className="flex items-center gap-2 bg-green-50 px-4 py-2 border-b border-green-100">
                           <TrendingUp className="h-3.5 w-3.5 text-green-600" />
                           <span className="text-xs font-semibold text-green-700 uppercase tracking-wide">{t("bookings.yourEarnings")}</span>
                         </div>
-                        <CardContent className="px-4 pt-0 pb-4 space-y-2 text-sm">
+                        <CardContent className="px-4 pt-3 pb-4 space-y-2 text-sm">
                           <div className="flex justify-between text-gray-600">
                             <div>
                               <div>{t("serviceDetail.servicePrice")}</div>
@@ -1621,8 +1627,8 @@ export default function BookingDetailModal({
 
                 // Client view (pending/accepted/active): payment summary
                 return (
-                  <Card className="overflow-hidden shadow-none">
-                    <div className="flex items-center gap-2 bg-white px-4 py-2.5 border-b border-gray-100">
+                  <Card className="gap-0 overflow-hidden py-0 shadow-none">
+                    <div className="flex items-center gap-2 bg-white px-4 py-2 border-b border-gray-100">
                       <TrendingDown className="h-3.5 w-3.5 text-gray-500" />
                       <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{t("bookings.paymentSummary")}</span>
                     </div>
@@ -1747,21 +1753,22 @@ export default function BookingDetailModal({
                   {otherUserName.charAt(0).toUpperCase()}
                 </AvatarFallback>
               </Avatar>
-              <div>
-                <p className="text-xs text-gray-500">
+              <p className="min-w-0 text-sm leading-snug">
+                <span className="text-gray-500">
                   {userRole === "worker"
                     ? t("bookings.requestFrom")
                     : booking.service_type === "looking"
                       ? t("bookings.from")
                       : t("bookings.serviceBy")}
-                </p>
+                  {" "}
+                </span>
                 <Link
                   href={`/profile/${otherUserId}`}
-                  className="text-sm font-semibold text-gray-900 hover:text-green-700 transition-colors"
+                  className="font-semibold text-gray-900 hover:text-green-700 transition-colors"
                 >
                   {otherUserName}
                 </Link>
-              </div>
+              </p>
             </div>
 
             {booking.deposit_enabled && !isAwaitingPriceAgreement(booking) && (

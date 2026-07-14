@@ -31,9 +31,6 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import type { PricingMode } from "@/lib/listingPrice";
 import { formatListingPriceLine, type ListingPricingFields } from "@/lib/listingPrice";
-import type { DepositType } from "@/lib/deposit";
-import { resolveDepositBaseAmount, isDepositFormValueValid } from "@/lib/deposit";
-import DepositFields from "@/components/post/DepositFields";
 import {
   labelAvailability,
   labelSpokenLanguage,
@@ -81,9 +78,6 @@ export default function LookingForWorkerForm({ onSuccess }: Props) {
   const [isOneTime, setIsOneTime] = useState(false);
   const [hideExactLocation, setHideExactLocation] = useState(false);
   const [isPublic, setIsPublic] = useState(true);
-  const [depositEnabled, setDepositEnabled] = useState(false);
-  const [depositType, setDepositType] = useState<DepositType>("fixed");
-  const [depositValue, setDepositValue] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
 
@@ -124,10 +118,6 @@ export default function LookingForWorkerForm({ onSuccess }: Props) {
       Number(budgetMin) >= 0.01 &&
       Number(budgetMax) >= Number(budgetMin));
 
-  const depositBase = resolveDepositBaseAmount(jobPricingFields(), null);
-
-  const depositOk = isDepositFormValueValid(depositEnabled, depositType, depositValue, jobPricingFields());
-
   const confirmPriceSummary =
     pricingMode === "quote"
       ? t("post.pricingModeQuote")
@@ -153,8 +143,7 @@ export default function LookingForWorkerForm({ onSuccess }: Props) {
     category.trim() !== "" &&
     tags.length >= 1 &&
     pricingOk &&
-    locationOk &&
-    depositOk;
+    locationOk;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -201,9 +190,10 @@ export default function LookingForWorkerForm({ onSuccess }: Props) {
           is_one_time: isOneTime,
           hide_exact_location: hideExactLocation,
           is_public: isPublic,
-          deposit_enabled: depositEnabled,
-          deposit_type: depositEnabled ? depositType : null,
-          deposit_value: depositEnabled ? Number(depositValue) : null,
+          // Looking ads: poster is the payer — listing deposit config does not apply.
+          deposit_enabled: false,
+          deposit_type: null,
+          deposit_value: null,
         }),
       });
       if (!res.ok) {
@@ -361,18 +351,6 @@ export default function LookingForWorkerForm({ onSuccess }: Props) {
           </div>
         </div>
       )}
-
-      <DepositFields
-        enabled={depositEnabled}
-        onEnabledChange={setDepositEnabled}
-        type={depositType}
-        onTypeChange={setDepositType}
-        value={depositValue}
-        onValueChange={setDepositValue}
-        pricingMode={pricingMode}
-        servicePrice={depositBase}
-        pricingFields={jobPricingFields()}
-      />
 
       <div className="space-y-2">
         <Label htmlFor="jobLocation" className="text-base font-medium text-gray-900">

@@ -74,7 +74,7 @@ export default function ServiceTitleCard({
   const hourlyEstimatedHours = isHourly ? parseListingPriceNum(service.estimated_hours) : null;
   const depositBase = resolveDepositBaseAmount(service, null);
   const depositLabel =
-    service.deposit_enabled && depositBase != null
+    service.type === "offer" && service.deposit_enabled && depositBase != null
       ? formatDepositLabel(t, service, depositBase)
       : "";
   const categoryLine = formatListingCategoryLine(service.category_name, service, t, " · ");

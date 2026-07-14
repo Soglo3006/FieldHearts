@@ -226,12 +226,14 @@ export default function EditListingModal({ service, accessToken, onClose, onSave
   const primaryLocation = resolvedLocations[0];
   const locationOk = resolvedLocations.length >= 1;
 
-  const depositOk = isDepositFormValueValid(
-    pricingMode !== "quote" && depositEnabled,
-    depositType,
-    depositValue,
-    editPricingFields(),
-  );
+  const depositOk =
+    !isOffer ||
+    isDepositFormValueValid(
+      pricingMode !== "quote" && depositEnabled,
+      depositType,
+      depositValue,
+      editPricingFields(),
+    );
 
   const isValid =
     hasRequiredBilingualFields(translations) &&
@@ -283,9 +285,13 @@ export default function EditListingModal({ service, accessToken, onClose, onSave
             is_one_time: isOneTime,
             hide_exact_location: hideExactLocation,
             is_public: isPublic,
-            deposit_enabled: pricingMode === "quote" ? false : depositEnabled,
-            deposit_type: pricingMode === "quote" || !depositEnabled ? null : depositType,
-            deposit_value: pricingMode === "quote" || !depositEnabled ? null : Number(depositValue),
+            deposit_enabled: !isOffer || pricingMode === "quote" ? false : depositEnabled,
+            deposit_type:
+              !isOffer || pricingMode === "quote" || !depositEnabled ? null : depositType,
+            deposit_value:
+              !isOffer || pricingMode === "quote" || !depositEnabled
+                ? null
+                : Number(depositValue),
           }),
         }
       );
@@ -432,7 +438,7 @@ export default function EditListingModal({ service, accessToken, onClose, onSave
             </>
           )}
 
-          {pricingMode !== "quote" && (
+          {isOffer && pricingMode !== "quote" && (
             <DepositFields
               enabled={depositEnabled}
               onEnabledChange={setDepositEnabled}

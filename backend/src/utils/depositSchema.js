@@ -118,6 +118,24 @@ export function resolveBookingDepositMeta(row) {
     Number.isFinite(bookingValue) &&
     bookingValue > 0;
 
+  // Looking listings: poster is the payer. Listing-level deposit never applies.
+  // Booking overrides (worker-set during customize / negotiation) still can.
+  const listingType = row.service_type ?? row.type ?? null;
+  if (listingType === "looking") {
+    if (hasBookingOverride) {
+      return {
+        deposit_enabled: row.deposit_enabled !== false,
+        deposit_type: bookingType,
+        deposit_value: bookingValue,
+      };
+    }
+    return {
+      deposit_enabled: false,
+      deposit_type: null,
+      deposit_value: null,
+    };
+  }
+
   if (hasBookingOverride) {
     return {
       deposit_enabled: row.deposit_enabled !== false,

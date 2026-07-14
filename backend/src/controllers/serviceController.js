@@ -150,13 +150,22 @@ export const createService = async (req, res) => {
       { ...pricingResolved, pricing_mode: pricingResolved.pricing_mode },
       null,
     );
-    const depositParsed = parseDepositFields(
+    let depositParsed = parseDepositFields(
       req.body,
       depositBase,
       pricingResolved.pricing_mode,
     );
     if (depositParsed.error) {
       return res.status(400).json({ message: depositParsed.error });
+    }
+    // Looking ads: poster pays — no listing-level deposit.
+    if (type === "looking") {
+      depositParsed = {
+        deposit_enabled: false,
+        deposit_type: null,
+        deposit_value: null,
+        error: null,
+      };
     }
 
     const locationsParsed = normalizeLocationsInput(req.body);
@@ -987,6 +996,16 @@ export const updateService = async (req, res) => {
       depositEnabled = depositParsed.deposit_enabled;
       depositType = depositParsed.deposit_type;
       depositValue = depositParsed.deposit_value;
+    }
+
+    const effectiveType = req.body.type === "offer" || req.body.type === "looking"
+      ? req.body.type
+      : existing.type;
+    // Looking ads: poster pays — clear any listing-level deposit.
+    if (effectiveType === "looking") {
+      depositEnabled = false;
+      depositType = null;
+      depositValue = null;
     }
 
     const touchesLocation =

@@ -16,14 +16,16 @@ export default function ProfileIncompleteBanner({ profile }: Props) {
 
   return (
     <div className="shrink-0 border-b border-gray-200 bg-white">
-      <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-center gap-1.5 px-4 py-2.5 text-sm">
-        <span className="text-gray-900">{t("onboarding.profileIncompleteBanner")}</span>
-        <Link
-          href={profileCompletionPath(profile.account_type)}
-          className="font-semibold whitespace-nowrap text-gray-900 underline underline-offset-2 hover:text-red-600"
-        >
-          {t("onboarding.completeProfileLink")}
-        </Link>
+      <div className="mx-auto max-w-6xl px-4 py-2.5 text-center text-sm">
+        <p className="text-balance text-gray-900">
+          {t("onboarding.profileIncompleteBanner")}{" "}
+          <Link
+            href={profileCompletionPath(profile.account_type)}
+            className="font-semibold whitespace-nowrap text-gray-900 underline underline-offset-2 hover:text-red-600"
+          >
+            {t("onboarding.completeProfileLink")}
+          </Link>
+        </p>
       </div>
     </div>
   );

@@ -113,13 +113,12 @@ export default function ConditionalShell({ children }: { children: React.ReactNo
     );
   }
 
-  // Messages: full-viewport chat (h-dvh). Banner sits above in document flow
-  // so the gray page scrollbar works when the profile banner is present.
-  // ProfileSidebar must not call useScrollLock(true) on desktop (see lockScroll prop).
+  // Messages: one 100dvh column so conversation/chat/about get remaining height.
+  // Banner + header + categories stay visually unchanged (not compacted).
   if (isNoFooterPage) {
     return (
-      <SiteChrome>
-        <div className="flex h-dvh shrink-0 flex-col overflow-hidden bg-white">
+      <SiteChrome fillViewport>
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-white">
           <div className="shrink-0">
             <Suspense><Header /></Suspense>
             <CategoryNav />

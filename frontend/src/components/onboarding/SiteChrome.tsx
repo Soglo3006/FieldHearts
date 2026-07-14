@@ -15,12 +15,11 @@ export default function SiteChrome({
 
   if (fillViewport) {
     return (
-      // Mobile: page can scroll so site chrome (banner/header/categories) leaves
-      // the viewport and the messages panel can grow to full height.
-      // Desktop: lock to one viewport column.
-      <div className="flex flex-col bg-white md:h-dvh md:max-h-dvh md:overflow-hidden">
+      // Natural document height (banner + chrome + messages). No viewport lock —
+      // page scrollbar appears once content exceeds the window.
+      <div className="flex w-full flex-col bg-white">
         <ProfileIncompleteBanner profile={profile} />
-        <div className="flex flex-1 flex-col md:min-h-0 md:overflow-hidden">{children}</div>
+        <div className="flex w-full flex-col">{children}</div>
       </div>
     );
   }

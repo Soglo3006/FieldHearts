@@ -914,7 +914,7 @@ function MessagesContent() {
     return (
       <TooltipProvider>
         <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-white">
-        <div className="mx-auto flex h-full min-h-0 w-full max-w-400 flex-1 flex-col overflow-hidden p-0 lg:p-5">
+        <div className="mx-auto flex h-full min-h-0 w-full max-w-400 flex-1 flex-col overflow-hidden p-0 md:px-4 md:pt-2 md:pb-1 lg:px-5 lg:pt-2 lg:pb-1">
             <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-white lg:rounded-xl lg:shadow-sm">
               <MessagesThreeColumnSkeleton />
             </div>
@@ -934,7 +934,7 @@ function MessagesContent() {
           </div>
         )}
 
-        <div className="mx-auto flex h-full min-h-0 w-full max-w-400 flex-1 flex-col overflow-hidden p-0 lg:p-5">
+        <div className="mx-auto flex h-full min-h-0 w-full max-w-400 flex-1 flex-col overflow-hidden p-0 md:px-4 md:pt-2 md:pb-1 lg:px-5 lg:pt-2 lg:pb-1">
           <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-white lg:rounded-xl lg:shadow-sm">
             <div className="relative flex h-full min-h-0 flex-1 overflow-hidden">
 

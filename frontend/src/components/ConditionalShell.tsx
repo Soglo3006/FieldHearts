@@ -48,8 +48,22 @@ function clearStaleDocumentLocks() {
   const body = document.body;
   html.classList.remove(MESSAGES_SCROLL_LOCK_CLASS);
   html.style.removeProperty("overflow");
+  html.style.removeProperty("overflow-y");
+  html.style.removeProperty("overflow-x");
   html.style.removeProperty("scrollbar-gutter");
+  html.style.removeProperty("height");
+  html.style.removeProperty("max-height");
+  html.style.removeProperty("min-height");
   body.style.removeProperty("overflow");
+  body.style.removeProperty("overflow-y");
+  body.style.removeProperty("overflow-x");
+  body.style.removeProperty("height");
+  body.style.removeProperty("max-height");
+  body.style.removeProperty("min-height");
+  body.style.removeProperty("position");
+  body.style.removeProperty("top");
+  body.style.removeProperty("width");
+  body.style.removeProperty("touch-action");
   forceClearScrollLock();
 }
 
@@ -74,61 +88,16 @@ export default function ConditionalShell({ children }: { children: React.ReactNo
   useLayoutEffect(() => {
     // Always heal stuck locks on route change — including /messages.
     // (ProfileSidebar used to leave data-scroll-locked on forever.)
+    // Messages page keeps document scroll so the section can exceed the window.
     clearStaleDocumentLocks();
+  }, [pathname]);
 
+  // Re-clear after paint: HMR / prior viewport locks can leave max-height on body
+  // which kills the page scrollbar even after overflow is restored.
+  useEffect(() => {
     if (!isNoFooterPage) return;
-
-    // Desktop only: pin the shell. On mobile we keep document scroll so the
-    // user can scroll site chrome away and enlarge the messages section.
-    const mq = window.matchMedia("(min-width: 768px)");
-    const html = document.documentElement;
-    const body = document.body;
-    const prev = {
-      htmlOverflow: html.style.overflow,
-      htmlHeight: html.style.height,
-      htmlMaxHeight: html.style.maxHeight,
-      bodyOverflow: body.style.overflow,
-      bodyHeight: body.style.height,
-      bodyMaxHeight: body.style.maxHeight,
-      bodyMinHeight: body.style.minHeight,
-    };
-
-    const applyDesktopLock = () => {
-      if (!mq.matches) {
-        html.classList.remove(MESSAGES_SCROLL_LOCK_CLASS);
-        html.style.overflow = prev.htmlOverflow;
-        html.style.height = prev.htmlHeight;
-        html.style.maxHeight = prev.htmlMaxHeight;
-        body.style.overflow = prev.bodyOverflow;
-        body.style.height = prev.bodyHeight;
-        body.style.maxHeight = prev.bodyMaxHeight;
-        body.style.minHeight = prev.bodyMinHeight;
-        return;
-      }
-      html.classList.add(MESSAGES_SCROLL_LOCK_CLASS);
-      html.style.overflow = "hidden";
-      html.style.height = "100%";
-      html.style.maxHeight = "100dvh";
-      body.style.overflow = "hidden";
-      body.style.height = "100%";
-      body.style.maxHeight = "100dvh";
-      body.style.minHeight = "0";
-    };
-
-    applyDesktopLock();
-    mq.addEventListener("change", applyDesktopLock);
-    return () => {
-      mq.removeEventListener("change", applyDesktopLock);
-      html.classList.remove(MESSAGES_SCROLL_LOCK_CLASS);
-      html.style.overflow = prev.htmlOverflow;
-      html.style.height = prev.htmlHeight;
-      html.style.maxHeight = prev.htmlMaxHeight;
-      body.style.overflow = prev.bodyOverflow;
-      body.style.height = prev.bodyHeight;
-      body.style.maxHeight = prev.bodyMaxHeight;
-      body.style.minHeight = prev.bodyMinHeight;
-    };
-  }, [pathname, isNoFooterPage]);
+    clearStaleDocumentLocks();
+  }, [isNoFooterPage, pathname]);
 
   useEffect(() => {
     if (authLoading) return;
@@ -166,19 +135,21 @@ export default function ConditionalShell({ children }: { children: React.ReactNo
     );
   }
 
-  // Messages: on mobile, chrome stays scrollable so the chat can expand to
-  // nearly full screen after scrolling. Desktop keeps a fixed viewport column.
+  // Messages: site chrome above + fixed-height chat panel. Page can scroll
+  // (desktop + mobile); conversation keeps its own internal scroll.
+  // shrink-0 on main is required — otherwise flex parents squash h-svh into
+  // the remaining viewport and the document never overflows (no page scrollbar).
   if (isNoFooterPage) {
     return (
       <SiteChrome fillViewport>
-        <div className="flex flex-1 flex-col bg-white md:min-h-0 md:overflow-hidden">
+        <div className="flex flex-col bg-white">
           <div className="shrink-0">
             <Suspense><Header /></Suspense>
             <CategoryNav />
           </div>
           <main
             data-messages-main
-            className="flex h-svh max-h-svh flex-col overflow-hidden bg-white md:h-auto md:max-h-none md:min-h-0 md:flex-1"
+            className="flex h-svh max-h-svh shrink-0 flex-col overflow-hidden bg-white"
           >
             {children}
           </main>

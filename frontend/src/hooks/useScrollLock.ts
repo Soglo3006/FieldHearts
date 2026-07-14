@@ -117,23 +117,32 @@ function applyUnlock() {
 
 /** Force-clear document scroll lock (e.g. after client navigation left a stuck lock). */
 export function forceClearScrollLock() {
+  const { body, documentElement } = document;
+
   if (activeLocks === 0) {
-    const { body, documentElement } = document;
     removeScrollFreeze?.();
     if (
       documentElement.hasAttribute("data-scroll-locked") ||
       body.hasAttribute("data-scroll-locked") ||
-      body.style.position === "fixed"
+      body.style.position === "fixed" ||
+      body.style.overflow === "hidden" ||
+      body.style.maxHeight ||
+      documentElement.style.maxHeight
     ) {
       documentElement.removeAttribute("data-scroll-locked");
       body.removeAttribute("data-scroll-locked");
       body.style.removeProperty("position");
       body.style.removeProperty("top");
       body.style.removeProperty("width");
-      if (body.style.overflow === "hidden") body.style.removeProperty("overflow");
-      if (documentElement.style.overflowY === "scroll" || documentElement.style.overflowY === "hidden") {
-        documentElement.style.removeProperty("overflow-y");
-      }
+      body.style.removeProperty("overflow");
+      body.style.removeProperty("height");
+      body.style.removeProperty("max-height");
+      body.style.removeProperty("min-height");
+      documentElement.style.removeProperty("overflow");
+      documentElement.style.removeProperty("overflow-y");
+      documentElement.style.removeProperty("height");
+      documentElement.style.removeProperty("max-height");
+      documentElement.style.removeProperty("min-height");
     }
     return;
   }

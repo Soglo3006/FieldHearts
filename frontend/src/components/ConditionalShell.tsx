@@ -78,11 +78,11 @@ export default function ConditionalShell({ children }: { children: React.ReactNo
 
     if (!isNoFooterPage) return;
 
-    // Body uses min-h-screen (100vh) which on iOS is taller than the visible
-    // area → white gap under the composer. Pin html/body to the small viewport.
+    // Desktop only: pin the shell. On mobile we keep document scroll so the
+    // user can scroll site chrome away and enlarge the messages section.
+    const mq = window.matchMedia("(min-width: 768px)");
     const html = document.documentElement;
     const body = document.body;
-    html.classList.add(MESSAGES_SCROLL_LOCK_CLASS);
     const prev = {
       htmlOverflow: html.style.overflow,
       htmlHeight: html.style.height,
@@ -92,14 +92,33 @@ export default function ConditionalShell({ children }: { children: React.ReactNo
       bodyMaxHeight: body.style.maxHeight,
       bodyMinHeight: body.style.minHeight,
     };
-    html.style.overflow = "hidden";
-    html.style.height = "100%";
-    html.style.maxHeight = "100svh";
-    body.style.overflow = "hidden";
-    body.style.height = "100%";
-    body.style.maxHeight = "100svh";
-    body.style.minHeight = "0";
+
+    const applyDesktopLock = () => {
+      if (!mq.matches) {
+        html.classList.remove(MESSAGES_SCROLL_LOCK_CLASS);
+        html.style.overflow = prev.htmlOverflow;
+        html.style.height = prev.htmlHeight;
+        html.style.maxHeight = prev.htmlMaxHeight;
+        body.style.overflow = prev.bodyOverflow;
+        body.style.height = prev.bodyHeight;
+        body.style.maxHeight = prev.bodyMaxHeight;
+        body.style.minHeight = prev.bodyMinHeight;
+        return;
+      }
+      html.classList.add(MESSAGES_SCROLL_LOCK_CLASS);
+      html.style.overflow = "hidden";
+      html.style.height = "100%";
+      html.style.maxHeight = "100dvh";
+      body.style.overflow = "hidden";
+      body.style.height = "100%";
+      body.style.maxHeight = "100dvh";
+      body.style.minHeight = "0";
+    };
+
+    applyDesktopLock();
+    mq.addEventListener("change", applyDesktopLock);
     return () => {
+      mq.removeEventListener("change", applyDesktopLock);
       html.classList.remove(MESSAGES_SCROLL_LOCK_CLASS);
       html.style.overflow = prev.htmlOverflow;
       html.style.height = prev.htmlHeight;
@@ -147,17 +166,20 @@ export default function ConditionalShell({ children }: { children: React.ReactNo
     );
   }
 
-  // Messages: one 100dvh column so conversation/chat/about get remaining height.
-  // Banner + header + categories stay visually unchanged (not compacted).
+  // Messages: on mobile, chrome stays scrollable so the chat can expand to
+  // nearly full screen after scrolling. Desktop keeps a fixed viewport column.
   if (isNoFooterPage) {
     return (
       <SiteChrome fillViewport>
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-white">
+        <div className="flex flex-1 flex-col bg-white md:min-h-0 md:overflow-hidden">
           <div className="shrink-0">
             <Suspense><Header /></Suspense>
             <CategoryNav />
           </div>
-          <main className="flex min-h-0 flex-1 flex-col overflow-hidden bg-white">
+          <main
+            data-messages-main
+            className="flex min-h-svh flex-col bg-white md:min-h-0 md:flex-1 md:overflow-hidden"
+          >
             {children}
           </main>
         </div>

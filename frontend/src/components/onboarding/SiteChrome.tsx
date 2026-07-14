@@ -15,11 +15,12 @@ export default function SiteChrome({
 
   if (fillViewport) {
     return (
-      // svh = visible mobile viewport (avoids empty gap above Safari chrome).
-      // dvh on md+ where browser chrome doesn't steal the bottom.
-      <div className="flex h-svh max-h-svh flex-col overflow-hidden bg-white md:h-dvh md:max-h-dvh">
+      // Mobile: page can scroll so site chrome (banner/header/categories) leaves
+      // the viewport and the messages panel can grow to full height.
+      // Desktop: lock to one viewport column.
+      <div className="flex flex-col bg-white md:h-dvh md:max-h-dvh md:overflow-hidden">
         <ProfileIncompleteBanner profile={profile} />
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">{children}</div>
+        <div className="flex flex-1 flex-col md:min-h-0 md:overflow-hidden">{children}</div>
       </div>
     );
   }

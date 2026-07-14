@@ -29,16 +29,14 @@ export default function BookingSidebar({
   serviceType,
   displayPriceLabel,
   estimatedTotalBase,
-  estimatedTotalBaseMax,
-  workerProvince,
-  providerFirstName,
-  providerIsCompany,
   pricingMode,
   serviceEstimatedHours,
   existingBookingStatus,
   contactLoading,
   onBookingRequest,
   onContact,
+  providerFirstName,
+  providerIsCompany,
 }: Props) {
   const { t } = useTranslation();
 
@@ -87,10 +85,10 @@ export default function BookingSidebar({
                 ? t("serviceDetail.requestAlreadySent")
                 : existingBookingStatus === "negotiating"
                   ? t("bookings.negotiating")
-                : t("serviceDetail.bookingStatus", { status: existingBookingStatusLabel })
+                  : t("serviceDetail.bookingStatus", { status: existingBookingStatusLabel })
               : serviceType === "looking"
-              ? t("serviceDetail.applyToJob")
-              : t("serviceDetail.requestBooking")}
+                ? t("serviceDetail.applyToJob")
+                : t("serviceDetail.requestBooking")}
           </Button>
           <Button
             variant="outline"

@@ -141,10 +141,11 @@ export default function ServiceDetailClient({ initialService = null }: ServiceDe
   const { startConversation, loading: contactLoading } = useStartConversation({
     onConversationReady: () => setShowConversationModal(true),
   });
-  const { user, session } = useAuth();
+  const { user, session, loading: authLoading } = useAuth();
   const router = useRouter();
 
   const [existingBookingStatus, setExistingBookingStatus] = useState<string | null>(null);
+  const [bookingStatusChecked, setBookingStatusChecked] = useState(false);
   const [showTaxLocationModal, setShowTaxLocationModal] = useState(false);
   const buyerTaxLocation = useBuyerTaxLocation();
 
@@ -181,6 +182,11 @@ export default function ServiceDetailClient({ initialService = null }: ServiceDe
 
   const serviceMatchesRoute =
     !!service && String(service.id) === String(serviceId);
+
+  useEffect(() => {
+    setExistingBookingStatus(null);
+    setBookingStatusChecked(false);
+  }, [serviceId]);
 
   useEffect(() => {
     if (!serviceId) return;
@@ -229,21 +235,6 @@ export default function ServiceDetailClient({ initialService = null }: ServiceDe
         fetch(`${process.env.NEXT_PUBLIC_API_URL}/services/user/${data.owner_id}`, { headers: ownerHeaders })
           .then((r) => r.json())
           .then((list) => setProviderListingCount(Array.isArray(list) ? list.length : 0))
-          .catch(() => {});
-      }
-
-      if (user && session?.access_token) {
-        const endpoint = data.type === "looking" ? "received-bookings" : "my-bookings";
-        fetch(`${process.env.NEXT_PUBLIC_API_URL}/bookings/${endpoint}`, {
-          headers: { Authorization: `Bearer ${session.access_token}` },
-        })
-          .then((r) => r.json())
-          .then((bookings: Array<{ service_id: string; status: string }>) => {
-            const active = bookings.find(
-              (b) => b.service_id === data.id && b.status !== "cancelled" && b.status !== "rejected",
-            );
-            if (active) setExistingBookingStatus(active.status);
-          })
           .catch(() => {});
       }
 
@@ -300,7 +291,59 @@ export default function ServiceDetailClient({ initialService = null }: ServiceDe
     fetchAll();
   }, [serviceId, session?.access_token, user]);
 
-  if (!serviceMatchesRoute || loading) {
+  // Resolve existing booking during page load so the CTA is correct on first paint.
+  useEffect(() => {
+    if (authLoading) return;
+    if (!serviceId || !service || String(service.id) !== String(serviceId)) return;
+
+    if (!user || !session?.access_token) {
+      setExistingBookingStatus(null);
+      setBookingStatusChecked(true);
+      return;
+    }
+
+    if (user.id === service.user_id) {
+      setExistingBookingStatus(null);
+      setBookingStatusChecked(true);
+      return;
+    }
+
+    let cancelled = false;
+    setBookingStatusChecked(false);
+
+    const endpoint = service.type === "looking" ? "received-bookings" : "my-bookings";
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/bookings/${endpoint}`, {
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    })
+      .then((r) => r.json())
+      .then((bookings: Array<{ service_id: string; status: string }>) => {
+        if (cancelled) return;
+        const list = Array.isArray(bookings) ? bookings : [];
+        const active = list.find(
+          (b) => b.service_id === service.id && b.status !== "cancelled" && b.status !== "rejected",
+        );
+        setExistingBookingStatus(active?.status ?? null);
+        setBookingStatusChecked(true);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setExistingBookingStatus(null);
+        setBookingStatusChecked(true);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [authLoading, serviceId, service?.id, service?.type, service?.user_id, user?.id, session?.access_token]);
+
+  const needsBookingStatusGate =
+    !authLoading &&
+    !!user &&
+    !!service &&
+    user.id !== service.user_id &&
+    !bookingStatusChecked;
+
+  if (!serviceMatchesRoute || loading || authLoading || needsBookingStatusGate) {
     return <ServiceDetailSkeleton />;
   }
 
@@ -372,6 +415,7 @@ export default function ServiceDetailClient({ initialService = null }: ServiceDe
         return;
       }
       setExistingBookingStatus("pending");
+      setBookingStatusChecked(true);
       setBookingState("success");
     } catch {
       setBookingErrorMsg(t("serviceDetail.bookingError"));

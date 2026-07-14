@@ -1,5 +1,4 @@
-import test from "node:test";
-import assert from "node:assert/strict";
+import { describe, expect, it } from "vitest";
 import { resolveListingLocationForSearch } from "../src/utils/serviceLocations.js";
 
 const multiLocationService = {
@@ -33,19 +32,21 @@ const multiLocationService = {
   ],
 };
 
-test("resolveListingLocationForSearch picks closest location for text search", () => {
-  const result = resolveListingLocationForSearch(multiLocationService, {
-    searchText: "La Cité-Limoilou",
+describe("resolveListingLocationForSearch", () => {
+  it("picks closest location for text search", () => {
+    const result = resolveListingLocationForSearch(multiLocationService, {
+      searchText: "La Cité-Limoilou",
+    });
+    expect(result.label).toMatch(/Limoilou/);
+    expect(result.extraCount).toBe(2);
   });
-  assert.match(result.label, /Limoilou/);
-  assert.equal(result.extraCount, 2);
-});
 
-test("resolveListingLocationForSearch picks closest location for coordinates", () => {
-  const result = resolveListingLocationForSearch(multiLocationService, {
-    searchLat: 46.8139,
-    searchLng: -71.208,
+  it("picks closest location for coordinates", () => {
+    const result = resolveListingLocationForSearch(multiLocationService, {
+      searchLat: 46.8139,
+      searchLng: -71.208,
+    });
+    expect(result.label).toMatch(/Limoilou/);
+    expect(result.extraCount).toBe(2);
   });
-  assert.match(result.label, /Limoilou/);
-  assert.equal(result.extraCount, 2);
 });

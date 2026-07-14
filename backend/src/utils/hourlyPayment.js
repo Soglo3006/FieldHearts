@@ -32,7 +32,17 @@ export function usesSplitDepositPayment(booking, service = null) {
   if (base == null || base < 0.02) return false;
 
   const deposit = calculateDepositAmount(base, meta);
-  return deposit >= 0.01;
+  if (deposit < 0.01) return false;
+
+  // Deposit that covers the full base is a normal full checkout, not a split —
+  // unless payment already went through the deposit/paid path (fees may still be due).
+  const coversFullBase = deposit + 0.005 >= base;
+  if (coversFullBase) {
+    const paymentStatus = booking.payment_status;
+    return paymentStatus === "deposit_paid" || paymentStatus === "paid";
+  }
+
+  return true;
 }
 
 /**

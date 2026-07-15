@@ -4,16 +4,16 @@ import { useState, useEffect } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Search, SquarePen } from 'lucide-react';
+import { Search, SquarePen, ChevronDown } from 'lucide-react';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { sanitizeMessage } from '@/lib/sanitize';
 import { useTranslation } from 'react-i18next';
+import { cn } from '@/lib/utils';
 
 interface Chat {
   id: string;
@@ -51,6 +51,48 @@ interface ConversationListProps {
   onNewConversation?: () => void;
   newConversationMode?: boolean;
   pendingUser?: { id: string; full_name?: string; company_name?: string; account_type?: string; avatar_url?: string | null } | null;
+  /** Controlled list filter (all / unread / archived). */
+  filter: string;
+  onFilterChange: (filter: string) => void;
+}
+
+/** Shared filter used by list + page (so the open chat stays in sync). */
+export function filterConversations(
+  chats: Chat[],
+  filter: string,
+  searchQuery: string,
+  pendingUserId?: string | null,
+): Chat[] {
+  return chats.filter((chat) => {
+    if (pendingUserId && chat.other_user?.id === pendingUserId) {
+      return false;
+    }
+
+    if (searchQuery.trim()) {
+      const isPerson = chat.other_user?.account_type === "person";
+      const isCompany = chat.other_user?.account_type === "company";
+
+      const name = isPerson
+        ? chat.other_user?.full_name
+        : isCompany
+          ? chat.other_user?.company_name
+          : chat.other_user?.full_name || chat.name || "";
+
+      if (!name?.toLowerCase().includes(searchQuery.toLowerCase())) {
+        return false;
+      }
+    }
+
+    switch (filter) {
+      case "unread":
+        return !!chat.unread_count && chat.unread_count > 0;
+      case "archived":
+        return chat.is_archived === true;
+      case "all":
+      default:
+        return !chat.is_archived;
+    }
+  });
 }
 
 function ConversationItem({
@@ -205,9 +247,10 @@ export function ConversationList({
   onNewConversation,
   newConversationMode,
   pendingUser,
+  filter,
+  onFilterChange,
 }: ConversationListProps) {
   const { t } = useTranslation();
-  const [filter, setFilter] = useState<string>('all');
   const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
@@ -215,43 +258,17 @@ export function ConversationList({
     return () => clearInterval(id);
   }, []);
 
-  const filteredChats = chats.filter(chat => {
-    if (pendingUser?.id && chat.other_user?.id === pendingUser.id) {
-      return false;
-    }
-
-    // Filtre par recherche
-    if (searchQuery.trim()) {
-      const isPerson = chat.other_user?.account_type === 'person';
-      const isCompany = chat.other_user?.account_type === 'company';
-      
-      const name = isPerson
-        ? chat.other_user?.full_name
-        : isCompany
-        ? chat.other_user?.company_name
-        : chat.other_user?.full_name || chat.name || '';
-      
-      if (!name?.toLowerCase().includes(searchQuery.toLowerCase())) {
-        return false;
-      }
-    }
-
-    // Filtre par catégorie
-    switch (filter) {
-      case 'unread':
-        return chat.unread_count && chat.unread_count > 0;
-      case 'archived':
-        return chat.is_archived === true;
-      case 'all':
-      default:
-        return !chat.is_archived; 
-    }
-  });
+  const filteredChats = filterConversations(
+    chats,
+    filter,
+    searchQuery,
+    pendingUser?.id,
+  );
 
   return (
     <div className="flex h-full min-h-0 w-full flex-col border-r bg-white">
       {/* Search bar sticky */}
-      <div className="sticky top-0 z-10 p-4 border-b bg-white h-18.25 flex items-center">
+      <div className="sticky top-0 z-10 flex h-18.25 items-center border-b bg-white px-4">
         <div className="relative w-full">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
           <Input
@@ -263,9 +280,9 @@ export function ConversationList({
         </div>
       </div>
 
-      {/* Title + Filter Select sticky */}
-      <div className="sticky top-18 z-10 px-4 py-3 border-b bg-white">
-        <div className="flex items-center justify-between gap-3">
+      {/* Title + Filter Select sticky — same height as pinned banner */}
+      <div className="sticky top-18 z-10 flex h-14 items-center border-b bg-white px-4">
+        <div className="flex w-full items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <h2 className="font-semibold text-gray-900 whitespace-nowrap">{t("messages.title")}</h2>
             {onNewConversation && (
@@ -279,16 +296,43 @@ export function ConversationList({
               </button>
             )}
           </div>
-          <Select value={filter} onValueChange={setFilter}>
-            <SelectTrigger className="w-35 h-9 cursor-pointer">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">{t("messages.filterAll")}</SelectItem>
-              <SelectItem value="unread">{t("messages.filterUnread")}</SelectItem>
-              <SelectItem value="archived">{t("messages.filterArchived")}</SelectItem>
-            </SelectContent>
-          </Select>
+          <DropdownMenu modal={false}>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                className="flex h-9 w-35 shrink-0 cursor-pointer items-center justify-between rounded-md border border-gray-300 bg-white px-3 text-left text-sm"
+              >
+                <span className="truncate">
+                  {filter === "unread"
+                    ? t("messages.filterUnread")
+                    : filter === "archived"
+                      ? t("messages.filterArchived")
+                      : t("messages.filterAll")}
+                </span>
+                <ChevronDown className="h-4 w-4 shrink-0 text-gray-400" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-44">
+              <DropdownMenuItem
+                className={cn("cursor-pointer", filter === "all" && "bg-accent")}
+                onClick={() => onFilterChange("all")}
+              >
+                {t("messages.filterAll")}
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className={cn("cursor-pointer", filter === "unread" && "bg-accent")}
+                onClick={() => onFilterChange("unread")}
+              >
+                {t("messages.filterUnread")}
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className={cn("cursor-pointer", filter === "archived" && "bg-accent")}
+                onClick={() => onFilterChange("archived")}
+              >
+                {t("messages.filterArchived")}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 

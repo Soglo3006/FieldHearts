@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, Suspense } from 'react';
+import { useState, useRef, useEffect, useMemo, Suspense } from 'react';
 import Image from 'next/image';
 import { useProtectedRoute } from '@/hooks/useProtectedRoute';
 import { useAuth } from '@/contexts/AuthContext';
@@ -9,7 +9,7 @@ import { useMessages } from '@/hooks/useMessages';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { ConversationList } from '@/components/messages/ConversationList';
+import { ConversationList, filterConversations } from '@/components/messages/ConversationList';
 import { MessageThread } from '@/components/messages/MessageThread';
 import { ProfileSidebar } from '@/components/messages/ProfileSidebar';
 import { WifiOff, X } from 'lucide-react';
@@ -63,8 +63,8 @@ function MessagesThreeColumnSkeleton() {
         <div className="sticky top-0 z-10 border-b bg-white p-4 h-18.25 flex items-center">
           <Skeleton className="h-10 w-full rounded-lg" />
         </div>
-        <div className="sticky top-18 z-10 border-b bg-white px-4 py-3">
-          <div className="flex items-center justify-between gap-3">
+        <div className="sticky top-18 z-10 flex h-14 items-center border-b bg-white px-4">
+          <div className="flex w-full items-center justify-between gap-3">
             <Skeleton className="h-5 w-28 rounded" />
             <Skeleton className="h-9 w-35 rounded-md" />
           </div>
@@ -92,8 +92,6 @@ function MessagesThreeColumnSkeleton() {
             </div>
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            <Skeleton className="h-9 w-9 rounded-md" />
-            <Skeleton className="h-9 w-9 rounded-md" />
             <Skeleton className="h-9 w-9 rounded-md" />
           </div>
         </div>
@@ -156,6 +154,7 @@ function MessagesContent() {
   const { chats, loading: chatsLoading, clearUnreadCount, archiveChat, removeChat, updateLastMessage, refreshChats } = useChats();
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [listFilter, setListFilter] = useState('all');
   const [messageInput, setMessageInput] = useState('');
   const [attachedFile, setAttachedFile] = useState<File | null>(null);
   const [attachmentPreview, setAttachmentPreview] = useState<string | null>(null);
@@ -191,6 +190,11 @@ function MessagesContent() {
     id: string; full_name?: string; company_name?: string; account_type?: string; avatar_url?: string | null;
   } | null>(null);
 
+  const visibleChats = useMemo(
+    () => filterConversations(chats, listFilter, searchQuery, pendingNewConvUser?.id),
+    [chats, listFilter, searchQuery, pendingNewConvUser?.id],
+  );
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isMobile, setIsMobile] = useState(false);
   const [isLargeScreen, setIsLargeScreen] = useState(false);
@@ -198,6 +202,8 @@ function MessagesContent() {
   const previousChatIdRef = useRef<string | null>(null);
   const previousSidebarChatIdRef = useRef<string | null>(null);
   const hasCompletedInitialLoadRef = useRef(false);
+  const suppressAutoSelectRef = useRef(false);
+  const clearedFilterUrlRef = useRef<string | null>(null);
   const [isProfileSidebarLoading, setIsProfileSidebarLoading] = useState(false);
 
   useEffect(() => {
@@ -284,19 +290,23 @@ function MessagesContent() {
       || blockCheckLoading
       || (shouldSyncSidebarLoading && isProfileSidebarLoading)
     );
+  // Only "syncing" while a concrete URL chat is being opened — never when the
+  // filter emptied the list / the user has no active conversation to show.
   const isSyncingActiveChat =
-    !newConversationMode &&
-    !pendingNewConvUser &&
-    chats.length > 0 &&
-    !activeChat &&
-    (Boolean(chatIdFromUrl) || !manualMobileListView);
+    !newConversationMode
+    && !pendingNewConvUser
+    && !chatsLoading
+    && !!chatIdFromUrl
+    && !activeChat
+    && chats.some((chat) => chat.id === chatIdFromUrl)
+    && visibleChats.some((chat) => chat.id === chatIdFromUrl);
   const isUnifiedConversationLoading = isConversationShellLoading || isSyncingActiveChat;
 
   useEffect(() => {
-    if (!isUnifiedConversationLoading && activeChat) {
+    if (!chatsLoading) {
       hasCompletedInitialLoadRef.current = true;
     }
-  }, [isUnifiedConversationLoading, activeChat]);
+  }, [chatsLoading]);
 
   useEffect(() => {
     if (!pendingNewConvUser?.id || !activeOtherUserId) return;
@@ -360,10 +370,33 @@ function MessagesContent() {
 
   useEffect(() => {
     if (!chatIdFromUrl || chatIdFromUrl === activeChatId) return;
+
+    // Wait for chats before deciding the URL chat is filtered out.
+    if (chatsLoading) {
+      setManualMobileListView(false);
+      setActiveChatId(chatIdFromUrl);
+      if (isMobile) setShowMobileChat(true);
+      return;
+    }
+
+    // Chat exists but is hidden by Tous / Non lus / Archivés — leave clearing to the filter effect.
+    const existsInAll = chats.some((chat) => chat.id === chatIdFromUrl);
+    const visibleInFilter = visibleChats.some((chat) => chat.id === chatIdFromUrl);
+    if (existsInAll && !visibleInFilter) {
+      return;
+    }
+
     setManualMobileListView(false);
     setActiveChatId(chatIdFromUrl);
     if (isMobile) setShowMobileChat(true);
-  }, [chatIdFromUrl, activeChatId, isMobile]);
+  }, [
+    chatIdFromUrl,
+    activeChatId,
+    isMobile,
+    chatsLoading,
+    chats,
+    visibleChats,
+  ]);
 
   useEffect(() => {
     if (!composeUserIdFromUrl || !user?.id) return;
@@ -416,14 +449,61 @@ function MessagesContent() {
   }, [composeUserIdFromUrl, chats, user?.id, session?.access_token, router, isMobile]);
 
   useEffect(() => {
+    if (suppressAutoSelectRef.current) {
+      suppressAutoSelectRef.current = false;
+      return;
+    }
+    if (chatsLoading) return;
     if (isMobile && manualMobileListView) return;
-    if (chatIdFromUrl || composeUserIdFromUrl || activeChatId || !chats.length || newConversationMode || pendingNewConvUser) return;
-    const firstId = chats[0].id;
+    if (chatIdFromUrl || composeUserIdFromUrl || activeChatId || !visibleChats.length || newConversationMode || pendingNewConvUser) return;
+    const firstId = visibleChats[0].id;
     setManualMobileListView(false);
     setActiveChatId(firstId);
     router.replace(`/messages?chat=${firstId}`);
     if (isMobile) setShowMobileChat(true);
-  }, [chats, chatIdFromUrl, composeUserIdFromUrl, activeChatId, isMobile, manualMobileListView, newConversationMode, pendingNewConvUser, router]);
+  }, [visibleChats, chatIdFromUrl, composeUserIdFromUrl, activeChatId, isMobile, manualMobileListView, newConversationMode, pendingNewConvUser, router, chatsLoading]);
+
+  // Keep the open pane + URL in sync with Tous / Non lus / Archivés.
+  useEffect(() => {
+    if (chatsLoading) return;
+    if (newConversationMode || pendingNewConvUser) return;
+
+    const activeHidden =
+      !!activeChatId && !visibleChats.some((chat) => chat.id === activeChatId);
+    const urlHidden =
+      !!chatIdFromUrl
+      && chats.some((chat) => chat.id === chatIdFromUrl)
+      && !visibleChats.some((chat) => chat.id === chatIdFromUrl);
+
+    if (!activeHidden && !urlHidden) {
+      clearedFilterUrlRef.current = null;
+      return;
+    }
+
+    if (activeHidden) {
+      suppressAutoSelectRef.current = true;
+      setActiveChatId(null);
+      setShowSettings(false);
+      setShowMobileSidebar(false);
+      setShowMobileChat(false);
+      setReplyingTo(null);
+      setManualMobileListView(true);
+    }
+
+    if (chatIdFromUrl && clearedFilterUrlRef.current !== chatIdFromUrl) {
+      clearedFilterUrlRef.current = chatIdFromUrl;
+      router.replace("/messages");
+    }
+  }, [
+    activeChatId,
+    visibleChats,
+    newConversationMode,
+    pendingNewConvUser,
+    chatIdFromUrl,
+    router,
+    chatsLoading,
+    chats,
+  ]);
 
   useEffect(() => {
     if (!activeChatId) return;
@@ -904,11 +984,9 @@ function MessagesContent() {
     ? displayedConversationUser?.company_name || ''
     : displayedConversationUser?.full_name || '';
 
-  // Show a full skeleton while chats are loading to avoid the jarring
-  // "Aucune conversation" + skeleton list appearing simultaneously.
-  const showFullPageSkeleton =
-    (chatsLoading && chats.length === 0)
-    || (isUnifiedConversationLoading && !showMobileChat && !hasCompletedInitialLoadRef.current);
+  // Show a full skeleton only for the first chats fetch — never forever after
+  // a filter empties the pane or sync state flips.
+  const showFullPageSkeleton = chatsLoading && chats.length === 0 && !hasCompletedInitialLoadRef.current;
 
   if (showFullPageSkeleton) {
     return (
@@ -951,6 +1029,8 @@ function MessagesContent() {
                   onNewConversation={openNewConversation}
                   newConversationMode={newConversationMode}
                   pendingUser={pendingNewConvUser}
+                  filter={listFilter}
+                  onFilterChange={setListFilter}
                 />
               </div>
 
@@ -1199,10 +1279,18 @@ function MessagesContent() {
                     />
                   </>
                 ) : (
-                  <div className="flex-1 flex items-center justify-center bg-white">
+                  <div className="flex flex-1 items-center justify-center bg-white px-6">
                     <div className="text-center">
-                      <h3 className="text-lg font-semibold text-gray-900 mb-2">{t("messages.noConversations")}</h3>
-                      <p className="text-gray-600">{t("messages.startConversation")}</p>
+                      <h3 className="mb-2 text-lg font-semibold text-gray-900">
+                        {listFilter === "unread"
+                          ? t("messages.noUnread")
+                          : listFilter === "archived"
+                            ? t("messages.noArchived")
+                            : t("messages.selectConversationTitle")}
+                      </h3>
+                      {listFilter === "all" ? (
+                        <p className="text-gray-600">{t("messages.selectConversationStart")}</p>
+                      ) : null}
                     </div>
                   </div>
                 )}
@@ -1218,8 +1306,6 @@ function MessagesContent() {
                         </div>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
-                        <Skeleton className="h-9 w-9 rounded-md" />
-                        <Skeleton className="h-9 w-9 rounded-md" />
                         <Skeleton className="h-9 w-9 rounded-md" />
                       </div>
                     </div>

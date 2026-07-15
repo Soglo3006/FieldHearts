@@ -3,7 +3,7 @@ import Link from "next/link";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { ArrowLeft, Info, Phone, Video } from "lucide-react";
+import { ArrowLeft, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface OtherUser {
@@ -35,7 +35,7 @@ export function ChatHeader({
       : otherUser?.full_name || "Unknown";
 
   return (
-    <div className="shrink-0 p-4 border-b flex items-center justify-between bg-white shadow-sm h-18.25">
+    <div className="flex h-18.25 shrink-0 items-center justify-between border-b bg-white px-4">
       <div className="flex items-center gap-3 min-w-0 flex-1">
         <Button variant="ghost" size="icon" className="md:hidden shrink-0 cursor-pointer" onClick={onBack}>
           <ArrowLeft className="h-5 w-5" />
@@ -80,12 +80,6 @@ export function ChatHeader({
       </div>
 
       <div className="flex items-center gap-1 shrink-0">
-        <Button variant="ghost" size="icon" disabled className="hidden lg:inline-flex opacity-40 cursor-not-allowed">
-          <Phone className="h-5 w-5" />
-        </Button>
-        <Button variant="ghost" size="icon" disabled className="hidden lg:inline-flex opacity-40 cursor-not-allowed">
-          <Video className="h-5 w-5" />
-        </Button>
         <Button
           variant="ghost"
           size="icon"

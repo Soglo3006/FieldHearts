@@ -246,7 +246,7 @@ export function PinnedMessages({
 
   return (
     <>
-      <div className="flex items-center gap-3 border-b bg-green-50 px-4 py-2">
+      <div className="flex h-14 shrink-0 items-center gap-3 border-b bg-green-50 px-4">
         <Pin className="h-4 w-4 shrink-0 text-green-700" />
 
         <div
@@ -255,10 +255,10 @@ export function PinnedMessages({
             onMessageClick(lastPinned.id);
           }}
         >
-          <p className="text-xs font-semibold text-green-800">
+          <p className="truncate text-xs font-semibold leading-tight text-green-800">
             {lastPinned.sender_name || t("messages.user")}
           </p>
-          <p className="truncate text-sm text-gray-600">{getPreview(lastPinned.content)}</p>
+          <p className="truncate text-sm leading-tight text-gray-600">{getPreview(lastPinned.content)}</p>
         </div>
 
         {pinnedMessages.length > 1 && (

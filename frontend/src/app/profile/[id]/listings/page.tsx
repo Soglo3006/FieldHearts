@@ -19,6 +19,10 @@ import { formatListingPriceLine } from "@/lib/listingPrice";
 import { formatListingCategoryLine } from "@/lib/listingTags";
 import { ListingCardSubtitle, ListingCardPriceRow, ListingCardTitle } from "@/components/listings/ListingTrustLine";
 import { formatListingCreationDate } from "@/lib/listingDate";
+import BookingSectionPagination from "@/components/bookings/BookingSectionPagination";
+import { cn } from "@/lib/utils";
+
+const LISTINGS_PAGE_SIZE = 6;
 
 interface Service extends ServiceLikeWithI18n {
   id: string;
@@ -53,6 +57,8 @@ export default function UserListingsPage() {
   const [listings, setListings] = useState<Service[]>([]);
   const [ownerName, setOwnerName] = useState("");
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [slideDir, setSlideDir] = useState<"prev" | "next">("next");
   const [blockResolved, setBlockResolved] = useState(false);
   const [blockedByMe, setBlockedByMe] = useState(false);
   const [blockedByOther, setBlockedByOther] = useState(false);
@@ -115,6 +121,7 @@ export default function UserListingsPage() {
     if (user && user.id !== id && blockedByOther) return;
 
     setLoading(true);
+    setPage(1);
     const headers: HeadersInit = {};
     if (session?.access_token) {
       headers.Authorization = `Bearer ${session.access_token}`;
@@ -136,6 +143,25 @@ export default function UserListingsPage() {
       })
       .finally(() => setLoading(false));
   }, [id, blockResolved, user, blockedByMe, blockedByOther, session?.access_token]);
+
+  const totalPages = Math.max(1, Math.ceil(listings.length / LISTINGS_PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const pagedListings = listings.slice(
+    (safePage - 1) * LISTINGS_PAGE_SIZE,
+    safePage * LISTINGS_PAGE_SIZE,
+  );
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
+
+  const changePage = (next: number) => {
+    setPage((current) => {
+      if (next === current) return current;
+      setSlideDir(next > current ? "next" : "prev");
+      return next;
+    });
+  };
 
   const viewingOtherWhileLoggedIn = Boolean(user && id && user.id !== id);
   const blockPending = viewingOtherWhileLoggedIn && !blockResolved;
@@ -183,80 +209,95 @@ export default function UserListingsPage() {
             <p className="font-medium text-gray-700">{t("profile.noListings")}</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {listings.map((s) => {
-              const thumb = s.image_urls?.[0] ?? s.image_url;
-              const resolved = resolveListingTitle(s, i18n.language);
-              const categoryLine = formatListingCategoryLine(
-                s.category_name ?? s.category ?? null,
-                s,
-                t,
-                " | ",
-              );
-              return (
-                <div
-                  key={s.id}
-                  className="group border border-gray-200 rounded-xl shadow-sm bg-white flex flex-col overflow-hidden hover:shadow-md transition-shadow"
-                >
-                  <Link href={`/serviceDetail/${s.id}`} className="block">
-                    <AspectRatio ratio={16 / 9}>
-                      <div className="relative h-full w-full">
-                        <ListingLangPills service={s} />
-                        {thumb ? (
-                          <AppImage
-                            src={thumb}
-                            alt={resolved}
-                            fill
-                            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                            className="object-cover"
-                          />
+          <>
+            <div
+              key={safePage}
+              className={cn(
+                "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4",
+                "animate-in fade-in-0 duration-300 ease-out",
+                slideDir === "next" ? "slide-in-from-right-4" : "slide-in-from-left-4",
+              )}
+            >
+              {pagedListings.map((s) => {
+                const thumb = s.image_urls?.[0] ?? s.image_url;
+                const resolved = resolveListingTitle(s, i18n.language);
+                const categoryLine = formatListingCategoryLine(
+                  s.category_name ?? s.category ?? null,
+                  s,
+                  t,
+                  " | ",
+                );
+                return (
+                  <div
+                    key={s.id}
+                    className="group border border-gray-200 rounded-xl shadow-sm bg-white flex flex-col overflow-hidden hover:shadow-md transition-shadow"
+                  >
+                    <Link href={`/serviceDetail/${s.id}`} className="block">
+                      <AspectRatio ratio={16 / 9}>
+                        <div className="relative h-full w-full">
+                          <ListingLangPills service={s} />
+                          {thumb ? (
+                            <AppImage
+                              src={thumb}
+                              alt={resolved}
+                              fill
+                              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                              className="object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-full bg-gray-100 flex items-center justify-center">
+                              <Grid3x3 className="h-12 w-12 text-gray-300" />
+                            </div>
+                          )}
+                        </div>
+                      </AspectRatio>
+                    </Link>
+
+                    <Link href={`/serviceDetail/${s.id}`} className="flex flex-col flex-1 p-3 text-left outline-none">
+                      <div className="flex items-start gap-2 mb-1">
+                        <ListingCardTitle title={resolved} className="group-hover:text-green-700 transition-colors" />
+                        {s.type === "looking" ? (
+                          <Badge className="shrink-0 border-0 bg-blue-100 text-xs text-blue-700">
+                            {t("listings.looking")}
+                          </Badge>
                         ) : (
-                          <div className="w-full h-full bg-gray-100 flex items-center justify-center">
-                            <Grid3x3 className="h-12 w-12 text-gray-300" />
-                          </div>
+                          <Badge className="shrink-0 border-0 bg-green-100 text-xs text-green-700">
+                            {t("listings.offering")}
+                          </Badge>
                         )}
                       </div>
-                    </AspectRatio>
-                  </Link>
 
-                  <Link href={`/serviceDetail/${s.id}`} className="flex flex-col flex-1 p-3 text-left outline-none">
-                    <div className="flex items-start gap-2 mb-1">
-                      <ListingCardTitle title={resolved} className="group-hover:text-green-700 transition-colors" />
-                      {s.type === "looking" ? (
-                        <Badge className="shrink-0 border-0 bg-blue-100 text-xs text-blue-700">
-                          {t("listings.looking")}
-                        </Badge>
-                      ) : (
-                        <Badge className="shrink-0 border-0 bg-green-100 text-xs text-green-700">
-                          {t("listings.offering")}
-                        </Badge>
+                      <ListingCardSubtitle
+                        categoryLine={categoryLine || null}
+                        reviewCount={s.review_count}
+                        averageRating={s.average_rating}
+                      />
+
+                      <ListingCardPriceRow
+                        price={formatListingPriceLine(t, s)}
+                        completedBookingsCount={s.completed_bookings_count}
+                        listingType={s.type === "looking" ? "looking" : s.type === "offer" ? "offer" : undefined}
+                      />
+
+                      <ListingLocationLine service={s} />
+                      {isOwner && s.created_at && (
+                        <div className="mt-1 flex items-center gap-1 text-xs text-gray-500">
+                          <Clock className="h-3 w-3 shrink-0" />
+                          <span>{formatListingCreationDate(s.created_at, i18n.language)}</span>
+                        </div>
                       )}
-                    </div>
-
-                    <ListingCardSubtitle
-                      categoryLine={categoryLine || null}
-                      reviewCount={s.review_count}
-                      averageRating={s.average_rating}
-                    />
-
-                    <ListingCardPriceRow
-                      price={formatListingPriceLine(t, s)}
-                      completedBookingsCount={s.completed_bookings_count}
-                      listingType={s.type === "looking" ? "looking" : s.type === "offer" ? "offer" : undefined}
-                    />
-
-                    <ListingLocationLine service={s} />
-                    {isOwner && s.created_at && (
-                      <div className="mt-1 flex items-center gap-1 text-xs text-gray-500">
-                        <Clock className="h-3 w-3 shrink-0" />
-                        <span>{formatListingCreationDate(s.created_at, i18n.language)}</span>
-                      </div>
-                    )}
-                  </Link>
-                </div>
-              );
-            })}
-          </div>
+                    </Link>
+                  </div>
+                );
+              })}
+            </div>
+            <BookingSectionPagination
+              page={safePage}
+              totalPages={totalPages}
+              onPrevious={() => changePage(safePage - 1)}
+              onNext={() => changePage(safePage + 1)}
+            />
+          </>
         )}
       </main>
     </div>

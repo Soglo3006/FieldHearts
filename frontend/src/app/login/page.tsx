@@ -88,6 +88,7 @@ export default function LoginPage() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!password.trim()) return;
     setError("");
     setLoggingIn(true);
     try {
@@ -216,7 +217,7 @@ export default function LoginPage() {
 
             {/* ── STEP: password ── */}
             {step === "password" && (
-              <form onSubmit={handleLogin}>
+              <form onSubmit={handleLogin} noValidate>
                 <div className="flex flex-col gap-5">
                   {error && (
                     <div className="bg-red-50 text-red-600 p-3 rounded-md text-sm">
@@ -260,7 +261,6 @@ export default function LoginPage() {
                         onChange={(e) => setPassword(e.target.value)}
                         autoComplete="current-password"
                         autoFocus
-                        required
                         className="pr-10"
                       />
                       <button
@@ -277,7 +277,7 @@ export default function LoginPage() {
                   <Button
                     type="submit"
                     className="flex w-full items-center justify-center bg-green-800 hover:bg-green-900 cursor-pointer"
-                    disabled={loggingIn}
+                    disabled={loggingIn || !password.trim()}
                     aria-busy={loggingIn}
                     aria-label={loggingIn ? t("login.loading") : undefined}
                   >

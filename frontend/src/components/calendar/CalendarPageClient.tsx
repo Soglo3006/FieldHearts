@@ -107,6 +107,7 @@ export default function CalendarPageClient() {
   const [slideDirection, setSlideDirection] = useState<"prev" | "next">("next");
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [eventsLoading, setEventsLoading] = useState(true);
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
   const [selectedDay, setSelectedDay] = useState<Date | null>(new Date());
   const [dayPage, setDayPage] = useState(0);
   const [detailBooking, setDetailBooking] = useState<{
@@ -165,6 +166,7 @@ export default function CalendarPageClient() {
       setEvents(Array.isArray(data) ? data : []);
     } finally {
       setEventsLoading(false);
+      setHasLoadedOnce(true);
     }
   }, [cursor, selectedDay, session?.access_token]);
 
@@ -215,7 +217,8 @@ export default function CalendarPageClient() {
   const monthSlideClass =
     slideDirection === "prev" ? "calendar-month-enter-prev" : "calendar-month-enter-next";
 
-  if (eventsLoading && events.length === 0) {
+  // Full-page skeleton only on the very first load — month changes keep the title/layout.
+  if (!hasLoadedOnce && eventsLoading) {
     return <CalendarSkeleton />;
   }
 
@@ -268,15 +271,21 @@ export default function CalendarPageClient() {
             ))}
           </div>
 
-          {eventsLoading ? (
-            <div className="grid grid-cols-7 gap-1">
-              {Array.from({ length: 42 }).map((_, i) => (
-                <Skeleton key={i} className="aspect-square w-full rounded-xl" />
-              ))}
-            </div>
-          ) : (
-            <div className="relative overflow-hidden">
-              <div key={monthKey} className={cn("grid grid-cols-7 gap-1", monthSlideClass)}>
+          <div className="relative overflow-hidden">
+            {eventsLoading ? (
+              <div
+                key={`${monthKey}-skeleton`}
+                className={cn("grid grid-cols-7 gap-1", monthSlideClass)}
+              >
+                {Array.from({ length: 42 }).map((_, i) => (
+                  <Skeleton key={i} className="min-h-[3.25rem] w-full rounded-lg" />
+                ))}
+              </div>
+            ) : (
+              <div
+                key={monthKey}
+                className={cn("grid grid-cols-7 gap-1", monthSlideClass)}
+              >
                 {days.map((day) => {
                   const inMonth = day.getMonth() === cursor.getMonth();
                   const count = eventsForDay(day).length;
@@ -300,13 +309,8 @@ export default function CalendarPageClient() {
                   );
                 })}
               </div>
-              {eventsLoading && (
-                <div className="absolute inset-0 flex items-center justify-center bg-white/60 backdrop-blur-[1px]">
-                  <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
-                </div>
-              )}
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
         <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5">
@@ -328,7 +332,11 @@ export default function CalendarPageClient() {
             )}
           </div>
 
-          {selectedEvents.length === 0 ? (
+          {eventsLoading ? (
+            <div className="mt-4">
+              <CalendarPanelListSkeleton />
+            </div>
+          ) : selectedEvents.length === 0 ? (
             <p className="mt-4 text-sm text-gray-500">{t("calendar.noEvents")}</p>
           ) : (
             <>

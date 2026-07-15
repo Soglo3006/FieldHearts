@@ -1712,6 +1712,40 @@ export default function BookingDetailModal({
                 );
               })()}
 
+            {booking.deposit_enabled && !isAwaitingPriceAgreement(booking) && (
+              <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-800">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="font-medium">{t("deposit.listingNoticeTitle")}</p>
+                  {(() => {
+                    const cents = booking.deposit_amount_cents;
+                    if (cents && cents > 0) {
+                      return (
+                        <span className="font-semibold text-gray-900 whitespace-nowrap">
+                          {(cents / 100).toFixed(2)} $
+                        </span>
+                      );
+                    }
+                    if (booking.deposit_type === "percent" && booking.deposit_value) {
+                      return (
+                        <span className="font-semibold text-gray-900 whitespace-nowrap">
+                          {booking.deposit_value} %
+                        </span>
+                      );
+                    }
+                    if (booking.deposit_type === "fixed" && booking.deposit_value) {
+                      return (
+                        <span className="font-semibold text-gray-900 whitespace-nowrap">
+                          {Number(booking.deposit_value).toFixed(2)} $
+                        </span>
+                      );
+                    }
+                    return null;
+                  })()}
+                </div>
+                <p className="text-xs mt-1 text-red-500">{t("deposit.nonRefundableNotice")}</p>
+              </div>
+            )}
+
             {/* Service info */}
             {(booking.category || bookingLocationEntries.length > 0 || booking.service_location) && (
               <div className="space-y-2">
@@ -1770,40 +1804,6 @@ export default function BookingDetailModal({
                 </Link>
               </p>
             </div>
-
-            {booking.deposit_enabled && !isAwaitingPriceAgreement(booking) && (
-              <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-800">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="font-medium">{t("deposit.listingNoticeTitle")}</p>
-                  {(() => {
-                    const cents = booking.deposit_amount_cents;
-                    if (cents && cents > 0) {
-                      return (
-                        <span className="font-semibold text-gray-900 whitespace-nowrap">
-                          {(cents / 100).toFixed(2)} $
-                        </span>
-                      );
-                    }
-                    if (booking.deposit_type === "percent" && booking.deposit_value) {
-                      return (
-                        <span className="font-semibold text-gray-900 whitespace-nowrap">
-                          {booking.deposit_value} %
-                        </span>
-                      );
-                    }
-                    if (booking.deposit_type === "fixed" && booking.deposit_value) {
-                      return (
-                        <span className="font-semibold text-gray-900 whitespace-nowrap">
-                          {Number(booking.deposit_value).toFixed(2)} $
-                        </span>
-                      );
-                    }
-                    return null;
-                  })()}
-                </div>
-                <p className="text-xs mt-1 text-red-500">{t("deposit.nonRefundableNotice")}</p>
-              </div>
-            )}
 
             {/* Client description */}
             {booking.client_description ? (

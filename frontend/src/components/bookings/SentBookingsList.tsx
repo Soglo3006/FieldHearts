@@ -394,7 +394,7 @@ export default function SentBookingsList({
                         {b.status === "completed" && (
                           <>
                             {!b.has_reviewed ? (
-                              <Button type="button" size="sm" className="bg-yellow-500 hover:bg-yellow-600 text-white flex-1 gap-1.5"
+                              <Button type="button" size="sm" variant="outline" className="flex-1 gap-1.5 text-amber-600 border-amber-200 hover:bg-amber-500 hover:text-white hover:border-amber-500"
                                 onClick={() => onReview(b.id, b.worker_name)}>
                                 <Star className="h-3.5 w-3.5" /> {t("bookings.review")}
                               </Button>

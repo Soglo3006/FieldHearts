@@ -14,7 +14,7 @@ import { formatListingPriceLine } from "@/lib/listingPrice";
 import BookingSectionPagination from "@/components/bookings/BookingSectionPagination";
 import { cn } from "@/lib/utils";
 
-const FAVORITES_PAGE_SIZE = 4;
+const FAVORITES_PAGE_SIZE = 6;
 
 interface FavoriteService extends Pick<ServiceLikeWithI18n, "language" | "translations"> {
   id: string;
@@ -186,8 +186,8 @@ export default function FavoritesPage() {
               <div key={s.id} className="border rounded-xl shadow-sm bg-white flex flex-col overflow-hidden hover:shadow-lg transition-all">
                 <Link href={`/serviceDetail/${s.id}`} className="block">
                   <AspectRatio ratio={16 / 9}>
-                    {s.image_url ? (
-                      <AppImage src={s.image_url} alt={s.title} fill sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw" className="object-cover" />
+                    {s.image_urls?.[0] || s.image_url ? (
+                      <AppImage src={s.image_urls?.[0] ?? s.image_url!} alt={s.title} fill sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw" className="object-cover" />
                     ) : (
                       <div className="w-full h-full bg-gray-100 flex items-center justify-center">
                         <Grid3x3 className="h-12 w-12 text-gray-300" />
@@ -220,7 +220,7 @@ export default function FavoritesPage() {
                     <Button
                       size="sm"
                       variant="outline"
-                      className="w-full text-red-600 border-red-200 hover:bg-red-50 gap-1.5"
+                      className="w-full gap-1.5 text-red-600 border-red-200 hover:bg-red-600 hover:text-white hover:border-red-600"
                       onClick={() => remove(s.id)}
                     >
                       <HeartOff className="h-3.5 w-3.5" />

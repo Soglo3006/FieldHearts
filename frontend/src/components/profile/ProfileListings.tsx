@@ -115,7 +115,7 @@ export default function ProfileListings({
   const handleListingsPageChange = (p: number) => {
     setPage(p);
     requestAnimationFrame(() => {
-      listingsSectionTopRef.current?.scrollIntoView({ block: "start" });
+      listingsSectionTopRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     });
   };
 

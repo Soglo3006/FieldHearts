@@ -178,7 +178,7 @@
     "noAccount": "Vous n'avez pas de compte ?",
     "signUp": "S'inscrire",
     "emailNotConfirmed": "Veuillez vérifier votre courriel avant de vous connecter. Vérifiez votre boîte de réception !",
-    "loginFailed": "Échec de la connexion",
+    "loginFailed": "Mot de passe incorrect. Réessayez.",
     "continue": "Continuer",
     "emailRequired": "Veuillez entrer votre courriel.",
     "emailInvalid": "Veuillez entrer une adresse courriel valide.",

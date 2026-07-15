@@ -312,7 +312,7 @@ export default function ListingsGrid({ filters }: { filters?: ListingsFilters })
   const handlePageChange = (newPage: number) => {
     setCurrentPage(newPage);
     requestAnimationFrame(() => {
-      gridTopRef.current?.scrollIntoView({ block: "start" });
+      gridTopRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     });
   };
 

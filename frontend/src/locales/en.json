@@ -178,7 +178,7 @@
     "noAccount": "Don't have an account?",
     "signUp": "Sign up",
     "emailNotConfirmed": "Please verify your email before logging in. Check your inbox!",
-    "loginFailed": "Login failed",
+    "loginFailed": "Incorrect password. Please try again.",
     "continue": "Continue",
     "emailRequired": "Please enter your email.",
     "emailInvalid": "Please enter a valid email address.",

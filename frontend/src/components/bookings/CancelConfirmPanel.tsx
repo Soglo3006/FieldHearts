@@ -3,6 +3,8 @@
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { bookingBtnNeutral, bookingBtnRed } from "./bookingButtonStyles";
+import { cn } from "@/lib/utils";
 
 interface Props {
   mode: "deposit" | "dispute";
@@ -58,7 +60,8 @@ export default function CancelConfirmPanel({
       <div className="shrink-0 px-5 py-4 border-t border-gray-100 flex flex-col gap-2">
         {isDeposit ? (
           <Button
-            className="w-full bg-red-600 hover:bg-red-700 text-white h-11"
+            variant="outline"
+            className={cn("w-full h-11", bookingBtnRed)}
             onClick={onConfirmDeposit}
             disabled={updating}
           >
@@ -73,14 +76,15 @@ export default function CancelConfirmPanel({
           </Button>
         ) : (
           <Button
-            className="w-full bg-red-600 hover:bg-red-700 text-white h-11"
+            variant="outline"
+            className={cn("w-full h-11", bookingBtnRed)}
             onClick={onProceedDispute}
             disabled={updating}
           >
             {t("bookings.openDisputeInstead")}
           </Button>
         )}
-        <Button variant="outline" className="w-full h-11" onClick={onBack} disabled={updating}>
+        <Button variant="outline" className={cn("w-full h-11", bookingBtnNeutral)} onClick={onBack} disabled={updating}>
           {t("bookings.keepBooking")}
         </Button>
       </div>

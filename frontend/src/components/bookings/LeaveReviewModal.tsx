@@ -8,6 +8,8 @@ import { Label } from "@/components/ui/label";
 import { X, Star, CheckCircle, ChevronLeft } from "lucide-react";
 import { sanitizePlainText } from "@/lib/sanitize";
 import { useTranslation } from "react-i18next";
+import { bookingBtnGreen, bookingBtnNeutral } from "./bookingButtonStyles";
+import { cn } from "@/lib/utils";
 
 interface Props {
   bookingId: string;
@@ -154,9 +156,9 @@ export default function LeaveReviewModal({
 
         {/* Footer */}
         <div className="px-5 py-4 border-t border-gray-100 flex justify-end gap-3 shrink-0 bg-white">
-          <Button variant="outline" onClick={onClose} disabled={submitting}>{t("common.cancel")}</Button>
+          <Button variant="outline" className={bookingBtnNeutral} onClick={onClose} disabled={submitting}>{t("common.cancel")}</Button>
           <Button
-            className="bg-green-700 hover:bg-green-800 text-white min-w-32"
+            className={cn(bookingBtnGreen, "min-w-32")}
             onClick={handleSubmit}
             disabled={submitting || rating === 0}
           >

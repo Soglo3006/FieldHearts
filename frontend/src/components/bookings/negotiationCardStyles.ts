@@ -18,7 +18,7 @@ export const negotiationPriceInputClass =
   "w-[7.5rem] shrink-0 rounded-lg border border-gray-200 bg-white pl-7 pr-3 py-2 text-sm font-semibold text-gray-900 text-right tabular-nums focus:outline-none focus:ring-2 focus:ring-green-600/30 focus:border-green-600 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none";
 
 export const negotiationActionButtonClass =
-  "w-full bg-green-700 hover:bg-green-800 text-white";
+  "w-full bg-green-700 hover:bg-green-800 text-white border-green-700";
 
 export function partyConfirmCardClass(confirmed: boolean, isMe: boolean): string {
   const base = `${negotiationCardClass} transition-colors`;

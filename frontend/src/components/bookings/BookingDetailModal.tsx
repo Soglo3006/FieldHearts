@@ -316,7 +316,7 @@ export default function BookingDetailModal({
   }, [accessToken, onUpdated]);
 
   const handleInlinePaymentSuccess = useCallback(async () => {
-    // Refresh booking in place; confirmation receipt stays in the payment panel.
+    // Refresh booking then return to detail — keep the modal open.
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/bookings/${bookingRef.current.id}`, {
         headers: { Authorization: `Bearer ${accessToken}` },
@@ -326,12 +326,15 @@ export default function BookingDetailModal({
         const current = bookingRef.current;
         setBooking({ ...current, ...data });
         onUpdated(current.id, data);
-        return;
+      } else {
+        await refreshBookingFromApi();
       }
     } catch {
-      // fall through
+      await refreshBookingFromApi();
     }
-    await refreshBookingFromApi();
+    setPaymentPhase("billing");
+    setLayoutMode("review");
+    setStep("detail");
   }, [accessToken, onUpdated, refreshBookingFromApi]);
 
   useEffect(() => {
@@ -828,7 +831,13 @@ export default function BookingDetailModal({
             )}
           </div>
           )}
-          <button type="button" onClick={onClose} aria-label={t("common.close")} className="cursor-pointer shrink-0 text-gray-400 hover:text-gray-600 transition-colors">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={step === "payment" && paymentPhase === "confirming"}
+            aria-label={t("common.close")}
+            className="cursor-pointer shrink-0 text-gray-400 hover:text-gray-600 transition-colors disabled:pointer-events-none disabled:opacity-40"
+          >
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -1712,37 +1721,36 @@ export default function BookingDetailModal({
                 );
               })()}
 
-            {booking.deposit_enabled && !isAwaitingPriceAgreement(booking) && (
-              <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-800">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="font-medium">{t("deposit.listingNoticeTitle")}</p>
-                  {(() => {
-                    const cents = booking.deposit_amount_cents;
-                    if (cents && cents > 0) {
-                      return (
-                        <span className="font-semibold text-gray-900 whitespace-nowrap">
-                          {(cents / 100).toFixed(2)} $
-                        </span>
-                      );
-                    }
-                    if (booking.deposit_type === "percent" && booking.deposit_value) {
-                      return (
-                        <span className="font-semibold text-gray-900 whitespace-nowrap">
-                          {booking.deposit_value} %
-                        </span>
-                      );
-                    }
-                    if (booking.deposit_type === "fixed" && booking.deposit_value) {
-                      return (
-                        <span className="font-semibold text-gray-900 whitespace-nowrap">
-                          {Number(booking.deposit_value).toFixed(2)} $
-                        </span>
-                      );
-                    }
-                    return null;
-                  })()}
-                </div>
-                <p className="text-xs mt-1 text-red-500">{t("deposit.nonRefundableNotice")}</p>
+            {booking.deposit_enabled &&
+              !isAwaitingPriceAgreement(booking) &&
+              (!booking.payment_status || booking.payment_status === "unpaid") && (
+              <div className="flex justify-between text-red-700 bg-red-50 px-3 py-1.5 rounded-lg text-sm">
+                <span className="font-medium">{t("deposit.dueLine")}</span>
+                {(() => {
+                  const cents = booking.deposit_amount_cents;
+                  if (cents && cents > 0) {
+                    return (
+                      <span className="font-semibold whitespace-nowrap">
+                        {(cents / 100).toFixed(2)} $
+                      </span>
+                    );
+                  }
+                  if (booking.deposit_type === "percent" && booking.deposit_value) {
+                    return (
+                      <span className="font-semibold whitespace-nowrap">
+                        {booking.deposit_value} %
+                      </span>
+                    );
+                  }
+                  if (booking.deposit_type === "fixed" && booking.deposit_value) {
+                    return (
+                      <span className="font-semibold whitespace-nowrap">
+                        {Number(booking.deposit_value).toFixed(2)} $
+                      </span>
+                    );
+                  }
+                  return null;
+                })()}
               </div>
             )}
 
@@ -2139,6 +2147,7 @@ export default function BookingDetailModal({
               pricingMode={booking.pricing_mode}
               onPaymentSuccess={handleInlinePaymentSuccess}
               onPhaseChange={setPaymentPhase}
+              returnToParentOnSuccess
               successActions={
                 <Button
                   className="h-12 w-full rounded-xl bg-green-700 text-white hover:bg-green-800"
@@ -2174,7 +2183,10 @@ export default function BookingDetailModal({
     </div>
   ) : (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60">
-      <div className="absolute inset-0" onClick={onClose} />
+      <div
+        className="absolute inset-0"
+        onClick={step === "payment" && paymentPhase === "confirming" ? undefined : onClose}
+      />
       <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col z-10 overflow-hidden">
         {modalBody}
       </div>

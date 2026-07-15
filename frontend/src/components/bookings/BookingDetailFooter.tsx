@@ -13,8 +13,8 @@ import { type BookingDetail } from "./BookingDetailModal";
 import { getDisputeWindowState } from "@/lib/disputes";
 
 import { resolveCheckoutPrice, needsBookingPayment, hourlyAwaitingApprovedHours, fixedAwaitingWorkForBalance, resolveBalanceFullServiceBase } from "@/lib/hourlyPayment";
-
-
+import { bookingBtnAmber, bookingBtnGreen, bookingBtnNeutral, bookingBtnRed } from "./bookingButtonStyles";
+import { cn } from "@/lib/utils";
 
 type BookingStatus = "pending" | "negotiating" | "accepted" | "active" | "completed" | "cancelled" | "rejected";
 
@@ -120,16 +120,11 @@ export default function BookingDetailFooter({
 
             <div className="flex gap-2">
 
-              <Button className="flex-1 bg-green-700 hover:bg-green-800 text-white h-11" onClick={() => onCallStatus("accepted")} disabled={updating}>
-
+              <Button className={cn("flex-1 h-11", bookingBtnGreen)} onClick={() => onCallStatus("accepted")} disabled={updating}>
                 {updating ? "…" : t("bookings.accept")}
-
               </Button>
-
-              <Button variant="outline" className="flex-1 text-red-600 border-red-200 hover:bg-red-50 h-11" onClick={() => onCallStatus("rejected")} disabled={updating}>
-
+              <Button variant="outline" className={cn("flex-1 h-11", bookingBtnRed)} onClick={() => onCallStatus("rejected")} disabled={updating}>
                 {t("bookings.reject")}
-
               </Button>
 
             </div>
@@ -142,10 +137,8 @@ export default function BookingDetailFooter({
 
           return (
 
-            <Button variant="outline" className="w-full text-red-600 border-red-200 hover:bg-red-50 h-11" onClick={() => onCallStatus("cancelled")} disabled={updating}>
-
+            <Button variant="outline" className={cn("w-full h-11", bookingBtnRed)} onClick={() => onCallStatus("cancelled")} disabled={updating}>
               {updating ? "…" : t("bookings.cancelRequest")}
-
             </Button>
 
           );
@@ -160,20 +153,16 @@ export default function BookingDetailFooter({
 
       {/* Negotiating: both parties can cancel */}
       {booking.status === "negotiating" && (
-        <Button variant="outline" className="w-full text-red-600 border-red-200 hover:bg-red-50 h-11" onClick={() => onCallStatus("cancelled")} disabled={updating}>
+        <Button variant="outline" className={cn("w-full h-11", bookingBtnRed)} onClick={() => onCallStatus("cancelled")} disabled={updating}>
           {updating ? "…" : t("bookings.cancelBooking")}
         </Button>
       )}
 
       {/* Worker: accepted */}
       {userRole === "worker" && booking.status === "accepted" && (
-
-        <Button variant="outline" className="w-full text-red-600 border-red-200 hover:bg-red-50 h-11" onClick={() => onCallStatus("cancelled")} disabled={updating}>
-
+        <Button variant="outline" className={cn("w-full h-11", bookingBtnRed)} onClick={() => onCallStatus("cancelled")} disabled={updating}>
           {updating ? "…" : t("bookings.cancelBooking")}
-
         </Button>
-
       )}
 
 
@@ -234,10 +223,8 @@ export default function BookingDetailFooter({
 
       {booking.status === "active" && !booking.has_dispute && !hasMarkedDone && !clientMustPayBalance && (
 
-        <Button className="w-full bg-green-700 hover:bg-green-800 text-white h-11" onClick={onMarkCompleted} disabled={updating}>
-
+        <Button className={cn("w-full h-11", bookingBtnGreen)} onClick={onMarkCompleted} disabled={updating}>
           {updating ? "…" : userRole === "worker" ? t("bookings.markWorkDone") : t("bookings.markJobDone")}
-
         </Button>
 
       )}
@@ -313,7 +300,7 @@ export default function BookingDetailFooter({
             {showCancelDeposit && (
               <Button
                 variant="outline"
-                className="flex-1 min-w-0 text-red-600 border-red-200 hover:bg-red-50 h-10 text-xs sm:text-sm px-2"
+                className={cn("flex-1 min-w-0 h-10 text-xs sm:text-sm px-2", bookingBtnRed)}
                 onClick={onOpenCancelDeposit}
                 disabled={updating}
               >
@@ -323,7 +310,7 @@ export default function BookingDetailFooter({
             {showCancelBooking && (
               <Button
                 variant="outline"
-                className="flex-1 min-w-0 text-red-600 border-red-200 hover:bg-red-50 h-10 text-xs sm:text-sm px-2"
+                className={cn("flex-1 min-w-0 h-10 text-xs sm:text-sm px-2", bookingBtnRed)}
                 onClick={onOpenCancelDispute}
                 disabled={updating}
               >
@@ -340,12 +327,9 @@ export default function BookingDetailFooter({
 
       {booking.status === "completed" && !hasPendingFinalBalance && !booking.has_dispute && disputeWindow.isOpen && (
 
-        <Button variant="outline" className="w-full text-red-600 border-red-200 hover:bg-red-50 h-10"
-
+        <Button variant="outline" className={cn("w-full h-10", bookingBtnRed)}
           onClick={() => onOpenDispute(booking.id, booking.title)}>
-
           {t("bookings.openDispute")}
-
         </Button>
 
       )}
@@ -366,12 +350,9 @@ export default function BookingDetailFooter({
 
       {booking.status === "completed" && !hasPendingFinalBalance && !booking.has_reviewed && (
 
-        <Button className="w-full bg-yellow-500 hover:bg-yellow-600 text-white h-10 gap-2"
-
+        <Button variant="outline" className={cn("w-full h-10 gap-2", bookingBtnAmber)}
           onClick={() => onOpenReview(booking.id, otherUserName)}>
-
           <Star className="h-4 w-4" /> {t("bookings.leaveReview")}
-
         </Button>
 
       )}
@@ -390,10 +371,8 @@ export default function BookingDetailFooter({
 
       {/* Message */}
 
-      <Button variant="outline" className="w-full h-10 gap-2" onClick={() => { onMessage(otherUserId); onClose(); }}>
-
+      <Button variant="outline" className={cn("w-full h-10 gap-2", bookingBtnNeutral)} onClick={() => { onMessage(otherUserId); onClose(); }}>
         {t("bookings.message")} {otherUserName.split(" ")[0]}
-
       </Button>
 
     </div>

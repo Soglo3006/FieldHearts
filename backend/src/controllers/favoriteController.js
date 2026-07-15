@@ -44,9 +44,13 @@ export const getFavorites = async (req, res) => {
   try {
     await ensureListingVisibilitySchema(pool);
     const result = await pool.query(
-      `SELECT s.id, s.title, s.price, s.location, s.address, s.city, s.hide_exact_location,
+      `SELECT s.id, s.title, s.type, s.price, s.pricing_mode, s.price_min, s.price_max,
+              s.location, s.address, s.city, s.hide_exact_location,
               s.image_url, s.image_urls, s.language, s.translations,
-              COALESCE(c.name, s.category) AS category_name, s.subcategory
+              COALESCE(c.name, s.category) AS category_name, s.subcategory,
+              (SELECT COUNT(*)::int FROM bookings b WHERE b.service_id = s.id AND b.status = 'completed') AS completed_bookings_count,
+              (SELECT COUNT(*)::int FROM reviews r WHERE r.target_id = s.user_id) AS review_count,
+              (SELECT ROUND(AVG(r.rating)::numeric, 1) FROM reviews r WHERE r.target_id = s.user_id) AS average_rating
        FROM service_favorites f
        JOIN services s ON s.id = f.service_id
        LEFT JOIN categories c ON c.id = s.category_id

@@ -11,6 +11,8 @@ import {
   usesFullUpfrontDepositPayment,
 } from "@/lib/hourlyPayment";
 import type { DepositConfig } from "@/lib/deposit";
+import { bookingBtnGreen } from "./bookingButtonStyles";
+import { cn } from "@/lib/utils";
 
 interface Props {
   bookingId: string;
@@ -84,7 +86,12 @@ export default function PayNowButton({
     <>
       <Button
         size={fullWidth ? "default" : "sm"}
-        className={`bg-green-700 hover:bg-green-800 text-white gap-1.5 ${fullWidth ? "w-full h-11" : "w-full justify-center"} ${isNavigating ? "pointer-events-none opacity-90" : ""}`}
+        className={cn(
+          "gap-1.5",
+          bookingBtnGreen,
+          fullWidth ? "w-full h-11" : "w-full justify-center",
+          isNavigating && "pointer-events-none opacity-90",
+        )}
         onClick={handleClick}
         disabled={isNavigating}
         aria-busy={isNavigating}

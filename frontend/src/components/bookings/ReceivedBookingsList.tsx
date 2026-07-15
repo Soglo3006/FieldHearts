@@ -9,13 +9,14 @@ import { ReceivedBooking, BookingStatus, STATUS_CONFIG, BOOKING_GROUPS, formatDa
 import { type BookingDetail } from "./BookingDetailModal";
 import PayNowButton from "./PayNowButton";
 import BookingSectionPagination from "./BookingSectionPagination";
+import { bookingBtnAmber, bookingBtnGreen, bookingBtnNeutral, bookingBtnRed } from "./bookingButtonStyles";
 import { negotiationHintPrimary, negotiationHintAction } from "./negotiationCardStyles";
+import { cn } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
 import { getDisputeWindowState } from "@/lib/disputes";
 import { formatBookingCheckoutTotalDisplay, resolveBookingCheckoutBase } from "@/lib/listingPrice";
 import { resolveCheckoutPrice, needsBookingPayment, resolveBalanceFullServiceBase } from "@/lib/hourlyPayment";
 import { getTaxRate } from "@/lib/taxes";
-import { cn } from "@/lib/utils";
 import ListingLocationLine from "@/components/listings/ListingLocationLine";
 
 const RECEIVED_PAGE_SIZE = 4;
@@ -263,11 +264,11 @@ export default function ReceivedBookingsList({
                         {b.status === "pending" && (
                           // Both offer and looking: you received the request → you accept or reject
                           <>
-                            <Button type="button" size="sm" className="bg-green-700 hover:bg-green-800 text-white flex-1"
+                            <Button type="button" size="sm" className={cn("flex-1", bookingBtnGreen)}
                               onClick={() => onUpdateStatus(b.id, "accepted", "received")} disabled={updating === b.id}>
                               {updating === b.id ? "…" : t("bookings.accept")}
                             </Button>
-                            <Button type="button" size="sm" variant="outline" className="text-red-600 border-red-200 hover:bg-red-50 flex-1"
+                            <Button type="button" size="sm" variant="outline" className={cn("flex-1", bookingBtnRed)}
                               onClick={() => onUpdateStatus(b.id, "rejected", "received")} disabled={updating === b.id}>
                               {t("bookings.reject")}
                             </Button>
@@ -280,7 +281,7 @@ export default function ReceivedBookingsList({
                               {t("priceNegotiation.openDetailHint")}
                             </span>
                             <Button type="button" size="sm" variant="outline"
-                              className="text-red-600 border-red-200 hover:bg-red-50 w-full"
+                              className={cn("w-full", bookingBtnRed)}
                               onClick={() => onUpdateStatus(b.id, "cancelled", "received")} disabled={updating === b.id}>
                               {updating === b.id ? "…" : t("bookings.cancelBooking")}
                             </Button>
@@ -308,7 +309,7 @@ export default function ReceivedBookingsList({
                             />
                             {b.status === "accepted" && (
                               <Button type="button" size="sm" variant="outline"
-                                className="text-red-600 border-red-200 hover:bg-red-50 w-full"
+                                className={cn("w-full", bookingBtnRed)}
                                 onClick={() => onUpdateStatus(b.id, "cancelled", "received")} disabled={updating === b.id}>
                                 {updating === b.id ? "…" : t("bookings.cancelBooking")}
                               </Button>
@@ -324,7 +325,7 @@ export default function ReceivedBookingsList({
                                 {t("bookings.waitingForPayment")}
                               </div>
                               <Button type="button" size="sm" variant="outline"
-                                className="text-red-600 border-red-200 hover:bg-red-50 w-full"
+                                className={cn("w-full", bookingBtnRed)}
                                 onClick={() => onUpdateStatus(b.id, "cancelled", "received")} disabled={updating === b.id}>
                                 {updating === b.id ? "…" : t("bookings.cancelBooking")}
                               </Button>
@@ -341,7 +342,7 @@ export default function ReceivedBookingsList({
                             // Looking: you are the client → confirm job is done
                             <>
                               {!b.completed_by_client ? (
-                                <Button type="button" size="sm" className="bg-green-700 hover:bg-green-800 text-white flex-1"
+                                <Button type="button" size="sm" className={cn("flex-1", bookingBtnGreen)}
                                   onClick={() => onMarkCompleted(b.id, "received")} disabled={updating === b.id}>
                                   {updating === b.id ? "…" : t("bookings.markJobDone")}
                                 </Button>
@@ -352,7 +353,7 @@ export default function ReceivedBookingsList({
                                 </span>
                               )}
                               {!b.has_dispute && (
-                                <Button type="button" size="sm" variant="outline" className="w-full justify-center text-red-600 border-red-200 hover:bg-red-50 gap-1.5"
+                                <Button type="button" size="sm" variant="outline" className={cn("w-full justify-center gap-1.5", bookingBtnRed)}
                                   onClick={() => onDispute(b.id, b.title)}>
                                   {t("bookings.dispute")}
                                 </Button>
@@ -362,7 +363,7 @@ export default function ReceivedBookingsList({
                             // Offer: you are the worker → mark work done
                             <>
                               {!b.completed_by_worker ? (
-                                <Button type="button" size="sm" className="bg-green-700 hover:bg-green-800 text-white flex-1"
+                                <Button type="button" size="sm" className={cn("flex-1", bookingBtnGreen)}
                                   onClick={() => onMarkCompleted(b.id, "received")} disabled={updating === b.id}>
                                   {updating === b.id ? "…" : t("bookings.markWorkDone")}
                                 </Button>
@@ -373,7 +374,7 @@ export default function ReceivedBookingsList({
                                 </span>
                               )}
                               {!b.has_dispute && (
-                                <Button type="button" size="sm" variant="outline" className="w-full justify-center text-red-600 border-red-200 hover:bg-red-50 gap-1.5"
+                                <Button type="button" size="sm" variant="outline" className={cn("w-full justify-center gap-1.5", bookingBtnRed)}
                                   onClick={() => onDispute(b.id, b.title)}>
                                   {t("bookings.dispute")}
                                 </Button>
@@ -385,7 +386,7 @@ export default function ReceivedBookingsList({
                         {b.status === "completed" && (
                           <>
                             {!b.has_reviewed ? (
-                              <Button type="button" size="sm" variant="outline" className="flex-1 gap-1.5 text-amber-600 border-amber-200 hover:bg-amber-500 hover:text-white hover:border-amber-500"
+                              <Button type="button" size="sm" variant="outline" className={cn("flex-1 gap-1.5", bookingBtnAmber)}
                                 onClick={() => onReview(b.id, b.client_name)}>
                                 <Star className="h-3.5 w-3.5" /> {t("bookings.review")}
                               </Button>
@@ -395,7 +396,7 @@ export default function ReceivedBookingsList({
                               </span>
                             )}
                             {!hasPendingFinalBalance && !b.has_dispute && disputeWindow.isOpen && (
-                              <Button type="button" size="sm" variant="outline" className="w-full justify-center text-red-600 border-red-200 hover:bg-red-50 gap-1.5"
+                              <Button type="button" size="sm" variant="outline" className={cn("w-full justify-center gap-1.5", bookingBtnRed)}
                                 onClick={() => onDispute(b.id, b.title)}>
                                 {t("bookings.dispute")}
                               </Button>
@@ -434,7 +435,7 @@ export default function ReceivedBookingsList({
                           type="button"
                           size="sm"
                           variant="outline"
-                          className="w-full justify-center text-center"
+                          className={cn("w-full justify-center text-center", bookingBtnNeutral)}
                           onClick={() => onMessage(otherId)}
                           disabled={chatLoading}
                         >

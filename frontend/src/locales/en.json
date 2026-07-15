@@ -2228,6 +2228,7 @@
     "cancelPanelPoint2": "The amount paid beyond the deposit (balance and related taxes) will be refunded to your payment method.",
     "cancelPanelPoint3": "This action is immediate and final: once confirmed, the booking will be closed.",
     "listingNoticeTitle": "This listing requires a non-refundable deposit.",
+    "dueLine": "Deposit due",
     "quoteHint": "Deposit applies once a price is agreed before payment (based on max for ranges, estimated hours for hourly)."
   },
   "workSessions": {
@@ -2319,6 +2320,7 @@
     "scheduleOnCalendarTitle": "In the calendar",
     "scheduleOnCalendarHint": "This time slot is visible in the calendar",
     "endBeforeStart": "End must be after start (date and time).",
+    "scheduleInPast": "Please choose a date and time from now onward.",
     "hourlyScheduleBillingHint": "Changing the schedule does not change the billed amount. Actual hours worked are validated below.",
     "proposedBy": "Proposed by {{name}}",
     "you": "you",

@@ -2802,6 +2802,7 @@
     "cancelPanelPoint2": "Le montant payé en dehors du dépôt (solde et taxes associées) vous sera remboursé sur votre moyen de paiement.",
     "cancelPanelPoint3": "Cette action est immédiate et définitive : une fois confirmée, la réservation sera fermée.",
     "listingNoticeTitle": "Cette annonce exige un dépôt non remboursable.",
+    "dueLine": "Dépôt à payer",
     "quoteHint": "Le dépôt s'applique une fois le prix convenu avant paiement (max pour fourchette, heures estimées pour horaire)."
   },
   "workSessions": {
@@ -2893,6 +2894,7 @@
     "scheduleOnCalendarTitle": "Dans le calendrier",
     "scheduleOnCalendarHint": "Ce créneau est visible dans le calendrier",
     "endBeforeStart": "La fin doit être après le début (date et heure).",
+    "scheduleInPast": "Choisissez une date et une heure à partir de maintenant.",
     "hourlyScheduleBillingHint": "Changer l'horaire ne modifie pas le montant facturé. Les heures réellement travaillées sont validées plus bas.",
     "proposedBy": "Proposé par {{name}}",
     "you": "vous",

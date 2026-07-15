@@ -11,6 +11,8 @@ import PaymentInlinePanel, {
   type PaymentInlinePhase,
 } from "@/components/payment/PaymentInlinePanel";
 import type { DepositConfig } from "@/lib/deposit";
+import { bookingBtnGreen, bookingBtnNeutral } from "@/components/bookings/bookingButtonStyles";
+import { cn } from "@/lib/utils";
 import {
   type CheckoutKind,
   usesFullUpfrontDepositPayment,
@@ -126,11 +128,11 @@ function PaymentModalInner({
             successActions={
               <div className="flex flex-col gap-2.5">
                 <Link href="/bookings?payment=success" onClick={onClose}>
-                  <Button className="h-12 w-full rounded-xl bg-green-700 text-white hover:bg-green-800">
+                  <Button className={cn("h-12 w-full rounded-xl", bookingBtnGreen)}>
                     {t("payment.viewBookings")}
                   </Button>
                 </Link>
-                <Button variant="outline" className="h-12 w-full rounded-xl" onClick={onClose}>
+                <Button variant="outline" className={cn("h-12 w-full rounded-xl", bookingBtnNeutral)} onClick={onClose}>
                   {t("common.close")}
                 </Button>
               </div>

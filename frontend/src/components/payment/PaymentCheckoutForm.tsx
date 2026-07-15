@@ -9,6 +9,8 @@ import {
   useStripe,
 } from "@stripe/react-stripe-js";
 import { Loader2 } from "lucide-react";
+import { bookingBtnGreen } from "@/components/bookings/bookingButtonStyles";
+import { cn } from "@/lib/utils";
 
 type PaymentCheckoutFormProps = {
   clientSecret: string;
@@ -86,7 +88,10 @@ function CheckoutForm({
       type="submit"
       disabled={!canSubmit}
       aria-busy={processing}
-      className="w-full h-14 text-base font-semibold bg-green-700 hover:bg-green-800 text-white rounded-xl disabled:opacity-50 disabled:cursor-not-allowed"
+      className={cn(
+        "w-full h-14 text-base font-semibold rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-colors",
+        bookingBtnGreen,
+      )}
     >
       {processing ? (
         <span className="inline-flex items-center justify-center gap-2">

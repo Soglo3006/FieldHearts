@@ -12,7 +12,8 @@ import { cn } from "@/lib/utils";
 import { getIntlLocale } from "@/lib/locale";
 import { googleCalendarUrl } from "@/lib/calendarSync";
 import { toast } from "sonner";
-import DateTimeField from "@/components/ui/DateTimeField";
+import DateTimeField, { ceilLocalDateTimeMin } from "@/components/ui/DateTimeField";
+import { bookingBtnGreen } from "@/components/bookings/bookingButtonStyles";
 import CalendarEventSchedule from "@/components/calendar/CalendarEventSchedule";
 import ScheduleConfirmStatus, { ScheduleOutcomeBanner } from "@/components/calendar/ScheduleConfirmStatus";
 import CalendarSkeleton, { CalendarPanelListSkeleton } from "@/components/calendar/CalendarSkeleton";
@@ -477,6 +478,15 @@ export function BookingCalendarPanel({
     return new Date(endsAt).getTime() <= new Date(startsAt).getTime();
   }, [startsAt, endsAt]);
 
+  const scheduleInPast = useMemo(() => {
+    if (!startsAt) return false;
+    return new Date(startsAt).getTime() < Date.now();
+  }, [startsAt]);
+
+  const scheduleMin = ceilLocalDateTimeMin();
+  const endMin =
+    startsAt && startsAt > scheduleMin ? startsAt : scheduleMin;
+
   const myConfirmed = (event: CalendarEvent) =>
     userRole === "client" ? !!event.confirmed_by_client : !!event.confirmed_by_worker;
   const otherConfirmed = (event: CalendarEvent) =>
@@ -503,6 +513,10 @@ export function BookingCalendarPanel({
 
   const handleCreate = async () => {
     if (!session?.access_token || !startsAt || !endsAt) return;
+    if (new Date(startsAt).getTime() < Date.now()) {
+      toast.error(t("calendar.scheduleInPast"));
+      return;
+    }
     if (new Date(endsAt) <= new Date(startsAt)) {
       toast.error(t("calendar.endBeforeStart"));
       return;
@@ -582,22 +596,27 @@ export function BookingCalendarPanel({
       {canEdit && (
         <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 sm:p-4 space-y-4">
           <h4 className="text-sm font-semibold text-gray-900">{t("calendar.addSession")}</h4>
-          <div className="grid gap-3 md:grid-cols-2">
+          <div className="grid gap-3 md:grid-cols-2 md:items-start">
             <DateTimeField
               id={`start-${bookingId}`}
               label={t("calendar.startsAt")}
               value={startsAt}
+              min={scheduleMin}
+              invalid={scheduleInPast}
               onChange={setStartsAt}
             />
             <DateTimeField
               id={`end-${bookingId}`}
               label={t("calendar.endsAt")}
               value={endsAt}
-              min={startsAt || undefined}
+              min={endMin}
               invalid={scheduleRangeInvalid}
               onChange={setEndsAt}
             />
           </div>
+          {scheduleInPast && (
+            <p className="text-xs text-red-600 leading-relaxed">{t("calendar.scheduleInPast")}</p>
+          )}
           {scheduleRangeInvalid && (
             <p className="text-xs text-red-600 leading-relaxed">{t("calendar.endBeforeStart")}</p>
           )}
@@ -614,8 +633,8 @@ export function BookingCalendarPanel({
           <Button
             type="button"
             onClick={handleCreate}
-            disabled={saving || !startsAt || !endsAt || scheduleRangeInvalid}
-            className="w-full bg-green-700 hover:bg-green-800"
+            disabled={saving || !startsAt || !endsAt || scheduleRangeInvalid || scheduleInPast}
+            className={cn("w-full", bookingBtnGreen)}
           >
             {saving ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -665,7 +684,7 @@ export function BookingCalendarPanel({
                     <Button
                       type="button"
                       size="sm"
-                      className="bg-green-700 hover:bg-green-800 h-8"
+                      className={cn("h-8", bookingBtnGreen)}
                       disabled={confirmingId === event.id}
                       onClick={() => handleConfirm(event.id)}
                     >

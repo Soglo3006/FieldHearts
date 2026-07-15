@@ -14,6 +14,8 @@ import LinkLabelWithLoadingSpinner from "@/components/ui/LinkLabelWithLoadingSpi
 import BillingAddressSelector, { type BillingAddress } from "@/components/payment/BillingAddressSelector";
 import PaymentCheckoutForm from "@/components/payment/PaymentCheckoutForm";
 import PaymentSuccessReceipt from "@/components/payment/PaymentSuccessReceipt";
+import { bookingBtnGreen } from "@/components/bookings/bookingButtonStyles";
+import { cn } from "@/lib/utils";
 import { getTaxRate, getTaxLabel, formatTaxRate } from "@/lib/taxes";
 import { getIntlLocale } from "@/lib/locale";
 import { PaymentDepositRows } from "@/components/payment/PaymentDepositRows";
@@ -47,6 +49,8 @@ interface Props {
   onPhaseChange?: (phase: PaymentInlinePhase) => void;
   /** Shown under the in-modal receipt (e.g. close / view bookings). */
   successActions?: ReactNode;
+  /** After confirming payment, call onPaymentSuccess and skip the receipt (parent shows booking detail). */
+  returnToParentOnSuccess?: boolean;
 };
 
 const PaymentInlinePanel = forwardRef<PaymentInlinePanelHandle, Props>(function PaymentInlinePanel(
@@ -64,6 +68,7 @@ const PaymentInlinePanel = forwardRef<PaymentInlinePanelHandle, Props>(function 
     onPaymentSuccess,
     onPhaseChange,
     successActions,
+    returnToParentOnSuccess = false,
   },
   ref,
 ) {
@@ -262,6 +267,12 @@ const PaymentInlinePanel = forwardRef<PaymentInlinePanelHandle, Props>(function 
       if (onPaymentSuccess) {
         await onPaymentSuccess();
       }
+      if (returnToParentOnSuccess) {
+        setPaying(false);
+        setClientSecret(null);
+        goToPhase("billing");
+        return;
+      }
       goToPhase("success");
     } catch {
       setError(t("payment.networkError"));
@@ -294,12 +305,6 @@ const PaymentInlinePanel = forwardRef<PaymentInlinePanelHandle, Props>(function 
   const total = isDepositCheckout ? price : price + commission + taxes;
   const fmt = (n: number) => n.toFixed(2);
   const mode = normalizePricingMode(pricingMode);
-  const depositNoticeKey =
-    mode === "hourly"
-      ? "payment.hourlyDepositNotice"
-      : isWorkBasedPricingMode(mode)
-        ? "payment.fixedDepositNotice"
-        : "payment.splitDepositNotice";
   const balanceNoticeKey =
     mode === "hourly"
       ? "payment.balanceDueNoticeHourly"
@@ -385,9 +390,6 @@ const PaymentInlinePanel = forwardRef<PaymentInlinePanelHandle, Props>(function 
                   depositAmountCents={depositAmountCents}
                 />
               )}
-              {isDepositCheckout && (
-                <p className="text-xs text-gray-500">{t(depositNoticeKey)}</p>
-              )}
               {isFullDepositCheckout && (
                 <p className="text-xs text-gray-500">{t("payment.fullDepositCoversServiceNotice")}</p>
               )}
@@ -461,7 +463,11 @@ const PaymentInlinePanel = forwardRef<PaymentInlinePanelHandle, Props>(function 
             <Button
               onClick={handlePreparePayment}
               disabled={preparingPayment || paying || !billingConfirmed || !selectedAddress || !publishableKey}
-              className={`h-12 w-full rounded-xl bg-green-700 text-base font-semibold text-white hover:bg-green-800 disabled:opacity-50 ${preparingPayment ? "pointer-events-none" : ""}`}
+              className={cn(
+                "h-12 w-full rounded-xl text-base font-semibold disabled:opacity-50",
+                bookingBtnGreen,
+                preparingPayment && "pointer-events-none",
+              )}
               aria-busy={preparingPayment}
             >
               <LinkLabelWithLoadingSpinner
@@ -475,10 +481,10 @@ const PaymentInlinePanel = forwardRef<PaymentInlinePanelHandle, Props>(function 
 
         {/* Step 2 — Stripe card form */}
         <div className="flex w-1/2 min-h-0 flex-col overflow-hidden">
-          {(isDepositCheckout || isBalanceCheckout) && (
+          {isBalanceCheckout && (
             <div className="shrink-0 border-b border-gray-100 px-5 py-3">
               <p className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs leading-relaxed text-gray-600">
-                {isDepositCheckout ? t(depositNoticeKey) : t(balanceNoticeKey)}
+                {t(balanceNoticeKey)}
               </p>
             </div>
           )}

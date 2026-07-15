@@ -2,22 +2,28 @@
 
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
-import { Grid3x3, MapPin, HeartOff } from "lucide-react";
+import { Grid3x3, HeartOff } from "lucide-react";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
-import AppImage from "@/components/ui/AppImage";
 import { useAuth } from "@/contexts/AuthContext";
-import { getPublicServiceLocation } from "@/lib/serviceLocation";
-import { type ServiceLikeWithI18n } from "@/lib/serviceListingI18n";
+import { type ServiceLikeWithI18n, resolveListingTitle } from "@/lib/serviceListingI18n";
 import { formatListingPriceLine } from "@/lib/listingPrice";
+import { formatListingCategoryLine } from "@/lib/listingTags";
 import BookingSectionPagination from "@/components/bookings/BookingSectionPagination";
+import { ListingCardImageCarousel, getListingGalleryUrls } from "@/components/listings/ListingCardImageCarousel";
+import { ListingCardSubtitle, ListingCardPriceRow, ListingCardTitle } from "@/components/listings/ListingTrustLine";
+import ListingLocationLine from "@/components/listings/ListingLocationLine";
+import ListingLangPills from "@/components/ui/ListingLangPills";
 import { cn } from "@/lib/utils";
 
 const FAVORITES_PAGE_SIZE = 6;
 
-interface FavoriteService extends Pick<ServiceLikeWithI18n, "language" | "translations"> {
+interface FavoriteService extends ServiceLikeWithI18n {
   id: string;
+  type?: "offer" | "looking" | string | null;
   title: string;
   price: number | null;
   pricing_mode?: string | null;
@@ -31,10 +37,14 @@ interface FavoriteService extends Pick<ServiceLikeWithI18n, "language" | "transl
   subcategory: string | null;
   image_url: string | null;
   image_urls?: string[] | null;
+  completed_bookings_count?: number | string | null;
+  review_count?: number | string | null;
+  average_rating?: number | string | null;
 }
 
 export default function FavoritesPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const router = useRouter();
   const { user, session } = useAuth();
   const [items, setItems] = useState<FavoriteService[]>([]);
   const [loading, setLoading] = useState(true);
@@ -65,7 +75,6 @@ export default function FavoritesPage() {
     const load = async () => {
       setLoading(true);
       if (user && token) {
-        // Authenticated: fetch from backend
         try {
           const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/favorites`, {
             headers: { Authorization: `Bearer ${token}` },
@@ -76,7 +85,6 @@ export default function FavoritesPage() {
           }
         } catch {}
       } else {
-        // Guest: load from localStorage then fetch details
         try {
           const raw = localStorage.getItem("savedListings");
           const ids: string[] = raw ? JSON.parse(raw) : [];
@@ -94,6 +102,7 @@ export default function FavoritesPage() {
                   const data = await res.json();
                   results.push({
                     id: data.id,
+                    type: data.type ?? null,
                     title: data.title,
                     price: data.price != null && data.price !== "" ? Number(data.price) : null,
                     pricing_mode: data.pricing_mode ?? null,
@@ -109,10 +118,13 @@ export default function FavoritesPage() {
                     image_urls: data.image_urls ?? null,
                     language: data.language ?? null,
                     translations: data.translations ?? null,
+                    completed_bookings_count: data.completed_bookings_count ?? null,
+                    review_count: data.review_count ?? null,
+                    average_rating: data.average_rating ?? null,
                   });
                 }
               } catch {}
-            })
+            }),
           );
           setItems(results);
         } catch {}
@@ -140,18 +152,9 @@ export default function FavoritesPage() {
 
   if (loading) {
     return (
-      <div className="min-h-[50vh] flex items-center justify-center bg-white">
-        <p className="text-gray-500">{t("favorites.loading")}</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="min-h-screen bg-white">
-      <main className="max-w-5xl mx-auto px-4 py-8">
-        <h1 className="text-2xl font-bold text-gray-900 mb-6">{t("favorites.title")}</h1>
-
-        {loading ? (
+      <div className="min-h-screen bg-white">
+        <main className="max-w-5xl mx-auto px-4 py-8">
+          <h1 className="text-2xl font-bold text-gray-900 mb-6">{t("favorites.title")}</h1>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {[...Array(6)].map((_, i) => (
               <div key={i} className="border rounded-xl shadow-sm bg-white animate-pulse overflow-hidden">
@@ -164,7 +167,17 @@ export default function FavoritesPage() {
               </div>
             ))}
           </div>
-        ) : items.length === 0 ? (
+        </main>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-white">
+      <main className="max-w-5xl mx-auto px-4 py-8">
+        <h1 className="text-2xl font-bold text-gray-900 mb-6">{t("favorites.title")}</h1>
+
+        {items.length === 0 ? (
           <div className="text-center py-16 text-gray-500">
             <Grid3x3 className="h-12 w-12 mx-auto mb-3 text-gray-300" />
             <p className="font-medium text-gray-700">{t("favorites.noFavorites")}</p>
@@ -182,54 +195,93 @@ export default function FavoritesPage() {
                 slideDir === "next" ? "slide-in-from-right-4" : "slide-in-from-left-4",
               )}
             >
-              {pagedItems.map((s) => (
-              <div key={s.id} className="border rounded-xl shadow-sm bg-white flex flex-col overflow-hidden hover:shadow-lg transition-all">
-                <Link href={`/serviceDetail/${s.id}`} className="block">
-                  <AspectRatio ratio={16 / 9}>
-                    {s.image_urls?.[0] || s.image_url ? (
-                      <AppImage src={s.image_urls?.[0] ?? s.image_url!} alt={s.title} fill sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw" className="object-cover" />
-                    ) : (
-                      <div className="w-full h-full bg-gray-100 flex items-center justify-center">
-                        <Grid3x3 className="h-12 w-12 text-gray-300" />
+              {pagedItems.map((s) => {
+                const detailHref = `/serviceDetail/${s.id}`;
+                const galleryUrls = getListingGalleryUrls(s.image_urls, s.image_url);
+                const displayTitle = resolveListingTitle(s, i18n.language);
+                const categoryLine = formatListingCategoryLine(s.category_name, s, t, " | ");
+                return (
+                  <div
+                    key={s.id}
+                    className="group flex h-full flex-col border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white hover:shadow-md transition-shadow"
+                  >
+                    <AspectRatio ratio={16 / 9}>
+                      {galleryUrls.length > 0 ? (
+                        <div
+                          className="relative w-full h-full cursor-pointer"
+                          onClick={() => router.push(detailHref)}
+                        >
+                          <ListingLangPills service={s} />
+                          <ListingCardImageCarousel
+                            urls={galleryUrls}
+                            alt={displayTitle}
+                            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                          />
+                          <Link
+                            href={detailHref}
+                            className="absolute inset-0 z-5 outline-none hidden sm:block"
+                            aria-label={displayTitle}
+                          />
+                        </div>
+                      ) : (
+                        <div className="relative h-full w-full">
+                          <ListingLangPills service={s} />
+                          <Link
+                            href={detailHref}
+                            className="flex h-full w-full items-center justify-center bg-gray-100 outline-none"
+                            aria-label={displayTitle}
+                          >
+                            <Grid3x3 className="h-10 w-10 text-gray-300" />
+                          </Link>
+                        </div>
+                      )}
+                    </AspectRatio>
+
+                    <div className="flex flex-col flex-1 p-3">
+                      <Link href={detailHref} className="flex flex-col flex-1 text-left outline-none">
+                        <div className="flex items-start gap-2 mb-1">
+                          <ListingCardTitle
+                            title={displayTitle}
+                            className="group-hover:text-green-700 transition-colors"
+                          />
+                          {s.type === "looking" ? (
+                            <Badge className="shrink-0 border-0 bg-blue-100 text-xs text-blue-700">
+                              {t("listings.looking")}
+                            </Badge>
+                          ) : (
+                            <Badge className="shrink-0 border-0 bg-green-100 text-xs text-green-700">
+                              {t("listings.offering")}
+                            </Badge>
+                          )}
+                        </div>
+                        <ListingCardSubtitle
+                          categoryLine={categoryLine || null}
+                          reviewCount={s.review_count}
+                          averageRating={s.average_rating}
+                        />
+                        <ListingCardPriceRow
+                          price={formatListingPriceLine(t, s)}
+                          completedBookingsCount={s.completed_bookings_count}
+                          listingType={s.type === "looking" ? "looking" : s.type === "offer" ? "offer" : undefined}
+                        />
+                        <ListingLocationLine service={s} />
+                      </Link>
+
+                      <div className="mt-auto pt-3 border-t border-gray-100">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="w-full gap-1.5 text-red-600 border-red-200 hover:bg-red-600 hover:text-white hover:border-red-600"
+                          onClick={() => remove(s.id)}
+                        >
+                          <HeartOff className="h-3.5 w-3.5" />
+                          {t("favorites.remove")}
+                        </Button>
                       </div>
-                    )}
-                  </AspectRatio>
-                </Link>
-
-                <div className="p-4 flex flex-col flex-1">
-                  <Link href={`/serviceDetail/${s.id}`} className="flex-1">
-                    <h3 className="font-semibold text-gray-900 line-clamp-1 hover:text-green-700 transition-colors">
-                      {s.title}
-                    </h3>
-                  </Link>
-
-                  <p className="text-green-700 font-bold text-lg mb-2">{formatListingPriceLine(t, s)}</p>
-
-                  <div className="flex items-center text-sm text-gray-500 mb-2">
-                    <MapPin className="h-4 w-4 mr-1 shrink-0" />
-                    <span className="line-clamp-1">{getPublicServiceLocation(s)}</span>
+                    </div>
                   </div>
-
-                  {s.category_name && (
-                    <p className="text-xs text-gray-500 line-clamp-1 mb-3">
-                      {s.category_name}{s.subcategory && ` • ${s.subcategory}`}
-                    </p>
-                  )}
-
-                  <div className="mt-auto pt-3 border-t border-gray-100">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="w-full gap-1.5 text-red-600 border-red-200 hover:bg-red-600 hover:text-white hover:border-red-600"
-                      onClick={() => remove(s.id)}
-                    >
-                      <HeartOff className="h-3.5 w-3.5" />
-                      {t("favorites.remove")}
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            ))}
+                );
+              })}
             </div>
             <BookingSectionPagination
               page={safePage}

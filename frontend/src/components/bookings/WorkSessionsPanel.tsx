@@ -8,6 +8,7 @@ import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import HoursMinutesInput from "@/components/bookings/HoursMinutesInput";
+import { bookingBtnGreen } from "@/components/bookings/bookingButtonStyles";
 import {
   formatWorkDuration,
   parseHoursMinutesInput,
@@ -310,7 +311,7 @@ export default function WorkSessionsPanel({
               <Button
                 type="button"
                 size="sm"
-                className="bg-green-700 hover:bg-green-800 shrink-0"
+                className={cn(bookingBtnGreen, "shrink-0")}
                 disabled={saving || !hasHoursInput}
                 onClick={handleCreateAndSubmit}
               >
@@ -377,7 +378,7 @@ export default function WorkSessionsPanel({
                     <Button
                       type="button"
                       size="sm"
-                      className="bg-green-700 hover:bg-green-800 shrink-0"
+                      className={cn(bookingBtnGreen, "shrink-0")}
                       disabled={saving}
                       onClick={() => {
                         const hours = sessionHoursForSubmit(s);
@@ -396,7 +397,7 @@ export default function WorkSessionsPanel({
                       <Button
                         type="button"
                         size="sm"
-                        className="bg-green-700 hover:bg-green-800"
+                        className={bookingBtnGreen}
                         disabled={saving}
                         onClick={() => apiPost(`/${s.id}/client-respond`, { action: "approve" })}
                       >
@@ -464,7 +465,7 @@ export default function WorkSessionsPanel({
                       <Button
                         type="button"
                         size="sm"
-                        className="bg-green-700 hover:bg-green-800"
+                        className={bookingBtnGreen}
                         disabled={saving}
                         onClick={() => apiPost(`/${s.id}/worker-respond`, { action: "approve" })}
                       >

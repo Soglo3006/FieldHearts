@@ -53,6 +53,7 @@ import {
   resolveCheckoutPrice,
   resolveBalanceFullServiceBase,
   isWorkBasedPricingMode,
+  resolvePaymentBadgeDisplay,
   type CheckoutKind,
 } from "@/lib/hourlyPayment";
 import { normalizePricingMode, resolveBookingCheckoutBase, getEffectiveBookingPrice, getBookingPriceRangeBounds, formatBookingServiceBaseDisplay, formatBookingCheckoutTotalDisplay, formatBookingFeeComponentRange, shouldShowListingOriginalPriceStrike } from "@/lib/listingPrice";
@@ -664,28 +665,11 @@ export default function BookingDetailModal({
     if (booking.has_dispute && disputeIsClosed) {
       return { label: t("bookings.disputeClosedBadge"), className: "bg-gray-100 text-gray-700 border-gray-200" };
     }
-    if (booking.payment_status === "refunded") {
-      return { label: t("bookings.refunded"), className: "bg-gray-100 text-gray-600 border-gray-200" };
-    }
-    if (booking.payment_status === "deposit_paid") {
-      if (balanceDueCents > 0) {
-        return {
-          label: t("bookings.balanceDue"),
-          className: "bg-amber-100 text-amber-800 border-amber-200",
-        };
-      }
-      return {
-        label: t("bookings.depositPaid"),
-        className: "bg-green-100 text-green-700 border-green-200",
-      };
-    }
-    if (booking.payment_status && booking.payment_status !== "unpaid") {
-      return {
-        label: booking.payment_status === "transferred" ? t("bookings.paidOut") : t("bookings.paid"),
-        className: "bg-green-100 text-green-700 border-green-200",
-      };
-    }
-    return null;
+    const badge = resolvePaymentBadgeDisplay(booking, depositConfig, {
+      viewerPaysBalance: userRole === "client",
+    });
+    if (!badge) return null;
+    return { label: t(badge.labelKey), className: badge.className };
   })();
 
   const resetReviewPanel = () => {
@@ -2017,9 +2001,9 @@ export default function BookingDetailModal({
               </div>
             )}
             {booking.status === "active" && !booking.has_dispute && (
-              <div className="bg-green-50 border border-green-200 rounded-lg px-3 py-2 text-xs text-green-700 space-y-1">
-                <div className="flex items-center gap-1.5 font-medium">{t("bookings.jobInProgress")}</div>
-                <div className="flex gap-4">
+              <div className="space-y-1.5 text-xs text-green-700">
+                <div className="text-center font-medium">{t("bookings.jobInProgress")}</div>
+                <div className="flex justify-center gap-4">
                   <span className={`flex items-center gap-1 ${booking.completed_by_worker ? "text-green-600" : "text-gray-400"}`}>
                     <CheckCircle className="h-3.5 w-3.5" /> {t("bookings.providerLabel")} {booking.completed_by_worker ? "✓" : t("bookings.pending")}
                   </span>

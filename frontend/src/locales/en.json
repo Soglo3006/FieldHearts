@@ -342,7 +342,7 @@
     "platformCommissionPromo": "Platform commission (5%)*",
     "youWillReceive": "You will receive",
     "payoutDelay": "Credited to your wallet after both parties confirm completion.",
-    "jobInProgress": "Job in progress. Both parties must confirm completion.",
+    "jobInProgress": "Confirmation from both parties",
     "providerLabel": "Provider",
     "clientLabel": "Client",
     "youMarkedDone": "You marked done",

@@ -4,7 +4,7 @@ import { isPriceAgreementComplete, isNegotiablePricingMode } from "./priceNegoti
 
 export type CheckoutKind = "full" | "deposit" | "balance";
 
-type BookingPaymentFields = {
+export type BookingPaymentFields = {
   status?: string | null;
   payment_status?: string | null;
   pricing_mode?: string | null;
@@ -296,4 +296,55 @@ export function needsBookingPayment(
 } {
   const kind = resolveCheckoutKind(booking, depositConfig);
   return { needed: kind != null, kind };
+}
+
+/** deposit_paid + split deposit: service balance still outstanding (now or after work/hours). */
+export function hasOutstandingBalanceAfterDeposit(
+  booking: BookingPaymentFields,
+  depositConfig?: DepositConfig | null,
+): boolean {
+  if (booking.payment_status !== "deposit_paid") return false;
+  const meta = depositConfig ?? booking;
+  if (!usesSplitDepositPayment(booking, meta)) return false;
+  return (
+    computeBalanceDueCents(booking, meta) > 0 ||
+    fixedAwaitingWorkForBalance(booking, meta) ||
+    hourlyAwaitingApprovedHours(booking)
+  );
+}
+
+export type PaymentBadgeDisplay = {
+  labelKey: "bookings.paid" | "bookings.depositPaid" | "bookings.balanceDue" | "bookings.waitingBalanceShort" | "bookings.paidOut" | "bookings.refunded";
+  className: string;
+};
+
+/** Card / list payment pill — prefer "balance due" when deposit is paid but solde remains. */
+export function resolvePaymentBadgeDisplay(
+  booking: BookingPaymentFields,
+  depositConfig?: DepositConfig | null,
+  options?: { viewerPaysBalance?: boolean },
+): PaymentBadgeDisplay | null {
+  const status = booking.payment_status;
+  if (!status || status === "unpaid") return null;
+
+  if (status === "refunded") {
+    return { labelKey: "bookings.refunded", className: "bg-gray-100 text-gray-600 border-gray-200" };
+  }
+  if (status === "transferred") {
+    return { labelKey: "bookings.paidOut", className: "bg-blue-100 text-blue-700 border-blue-200" };
+  }
+  if (status === "paid") {
+    return { labelKey: "bookings.paid", className: "bg-green-100 text-green-700 border-green-200" };
+  }
+  if (status === "deposit_paid") {
+    if (hasOutstandingBalanceAfterDeposit(booking, depositConfig)) {
+      const viewerPaysBalance = options?.viewerPaysBalance ?? true;
+      return {
+        labelKey: viewerPaysBalance ? "bookings.balanceDue" : "bookings.waitingBalanceShort",
+        className: "bg-amber-100 text-amber-800 border-amber-200",
+      };
+    }
+    return { labelKey: "bookings.depositPaid", className: "bg-green-100 text-green-700 border-green-200" };
+  }
+  return null;
 }

@@ -35,6 +35,9 @@ interface Props {
   /** Parent should freeze list/card data while true (payment confirmation in flight) — otherwise a
    * realtime refresh can flip the booking's needsPayment/balanceDue flag and unmount this modal mid-payment. */
   onPaymentLockChange?: (locked: boolean) => void;
+  /** Called (with bookingId) when the user backs out of the success receipt — opens the full,
+   * now-updated booking detail instead of just dropping back to the plain list. */
+  onViewDetail?: (bookingId: string) => void;
 }
 
 function PaymentModalInner({
@@ -51,6 +54,7 @@ function PaymentModalInner({
   pricingMode = null,
   onPaymentSuccess,
   onPaymentLockChange,
+  onViewDetail,
 }: Omit<Props, "open">) {
   const { t } = useTranslation();
   useScrollLock(true);
@@ -71,12 +75,13 @@ function PaymentModalInner({
     prevPhaseRef.current = phase;
   }, [onPaymentLockChange]);
 
-  const requestClose = useCallback(() => {
+  const requestClose = useCallback((opts?: { viewDetail?: boolean }) => {
     if (paymentPhase === "confirming") return;
     if (Date.now() < suppressCloseUntilRef.current) return;
     onPaymentLockChange?.(false);
+    if (opts?.viewDetail) onViewDetail?.(bookingId);
     onClose();
-  }, [paymentPhase, onClose, onPaymentLockChange]);
+  }, [paymentPhase, onClose, onPaymentLockChange, onViewDetail, bookingId]);
 
   const showsFullDepositCopy =
     checkoutKind === "full" &&
@@ -108,7 +113,7 @@ function PaymentModalInner({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60">
       <div
         className="absolute inset-0"
-        onClick={requestClose}
+        onClick={() => requestClose()}
         onPointerDown={(e) => {
           if (paymentPhase === "confirming") {
             e.preventDefault();
@@ -122,7 +127,7 @@ function PaymentModalInner({
           {paymentPhase === "card" || paymentPhase === "success" ? (
             <button
               type="button"
-              onClick={paymentPhase === "success" ? requestClose : handleBack}
+              onClick={paymentPhase === "success" ? () => requestClose({ viewDetail: true }) : handleBack}
               aria-label={t("common.back")}
               className="-ml-1 flex shrink-0 cursor-pointer items-center justify-center p-1 text-gray-500 transition-colors hover:text-gray-700"
             >
@@ -140,7 +145,7 @@ function PaymentModalInner({
           </span>
           <button
             type="button"
-            onClick={requestClose}
+            onClick={() => requestClose()}
             disabled={paymentPhase === "confirming"}
             aria-label={t("common.close")}
             className="cursor-pointer shrink-0 text-gray-400 hover:text-gray-600 transition-colors disabled:pointer-events-none disabled:opacity-40"
@@ -167,12 +172,12 @@ function PaymentModalInner({
             onPaymentSuccess={onPaymentSuccess}
             successActions={
               <div className="flex flex-col gap-2.5">
-                <Link href="/bookings?payment=success" onClick={requestClose}>
+                <Link href="/bookings?payment=success" onClick={() => requestClose()}>
                   <Button className={cn("h-12 w-full rounded-xl", bookingBtnGreen)}>
                     {t("payment.viewBookings")}
                   </Button>
                 </Link>
-                <Button variant="outline" className={cn("h-12 w-full rounded-xl", bookingBtnNeutral)} onClick={requestClose}>
+                <Button variant="outline" className={cn("h-12 w-full rounded-xl", bookingBtnNeutral)} onClick={() => requestClose()}>
                   {t("common.close")}
                 </Button>
               </div>

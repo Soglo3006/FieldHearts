@@ -308,6 +308,34 @@ function BookingsContent() {
     }
   }, [router, searchParams]);
 
+  // Opens the full booking detail modal by id — used when a card-level PayNowButton
+  // finishes paying, so the user lands on the updated detail instead of the plain list.
+  const openBookingDetailById = useCallback((bookingId: string) => {
+    const openReceipt = (booking: ReceivedBooking | SentBooking) => {
+      const role = booking.worker_id === uid ? "worker" : "client";
+      setDetailBooking({ booking: booking as BookingDetail, role });
+      if (staysInCompletedBookingsList(booking)) {
+        setTab("done");
+      } else if (received.some((b) => b.id === booking.id)) {
+        setTab("received");
+      } else {
+        setTab("sent");
+      }
+    };
+    const fromLists = received.find((b) => b.id === bookingId) ?? sent.find((b) => b.id === bookingId);
+    if (fromLists) {
+      openReceipt(fromLists);
+      return;
+    }
+    if (!session?.access_token) return;
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/bookings/${bookingId}`, {
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((booking) => { if (booking) openReceipt(booking as ReceivedBooking); })
+      .catch(() => {});
+  }, [received, sent, uid, session?.access_token]);
+
   useEffect(() => {
     if (!openBookingId) {
       suppressOpenFromUrlRef.current = false;
@@ -624,6 +652,7 @@ function BookingsContent() {
               onDispute={(id, title) => setDisputeBooking({ id, title })}
               onCardClick={(booking) => setDetailBooking({ booking, role: booking.worker_id === uid ? "worker" : "client" })}
               onPaymentLockChange={handlePaymentLockChange}
+              onViewDetail={openBookingDetailById}
             />
           )}
         </>
@@ -645,6 +674,7 @@ function BookingsContent() {
             onDispute={(id, title) => setDisputeBooking({ id, title })}
             onCardClick={(booking) => setDetailBooking({ booking, role: booking.worker_id === uid ? "worker" : "client" })}
             onPaymentLockChange={handlePaymentLockChange}
+            onViewDetail={openBookingDetailById}
           />
         )
       )}
@@ -868,6 +898,7 @@ function BookingsContent() {
                                         }
                                         pricingMode={b.pricing_mode}
                                         onPaymentLockChange={handlePaymentLockChange}
+                                        onViewDetail={openBookingDetailById}
                                       />
                                     </div>
                                   )}

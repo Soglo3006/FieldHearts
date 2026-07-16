@@ -16,7 +16,8 @@ import { useTranslation } from "react-i18next";
 import { getTaxRate } from "@/lib/taxes";
 import { getDisputeWindowState } from "@/lib/disputes";
 import { formatBookingCheckoutTotalDisplay, resolveBookingCheckoutBase } from "@/lib/listingPrice";
-import { resolveCheckoutPrice, needsBookingPayment, hourlyAwaitingApprovedHours, fixedAwaitingWorkForBalance, resolveBalanceFullServiceBase } from "@/lib/hourlyPayment";
+import { resolveCheckoutPrice, needsBookingPayment, hourlyAwaitingApprovedHours, resolveBalanceFullServiceBase } from "@/lib/hourlyPayment";
+import BookingPaymentBadge from "./BookingPaymentBadge";
 import ListingLocationLine from "@/components/listings/ListingLocationLine";
 
 const SENT_PAGE_SIZE = 4;
@@ -39,28 +40,6 @@ function StatusBadge({
   );
 }
 
-function PaymentBadge({ status }: { status: string | null }) {
-  const { t } = useTranslation();
-  if (!status || status === "unpaid") return null;
-  const cfg: Record<string, string> = {
-    paid: "bg-green-100 text-green-700 border-green-200",
-    deposit_paid: "bg-green-100 text-green-700 border-green-200",
-    transferred: "bg-blue-100 text-blue-700 border-blue-200",
-    refunded: "bg-gray-100 text-gray-600 border-gray-200",
-  };
-  const labels: Record<string, string> = {
-    paid: t("bookings.paid"),
-    deposit_paid: t("bookings.depositPaid"),
-    transferred: t("bookings.paidOut"),
-    refunded: t("bookings.refunded"),
-  };
-  return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold border ${cfg[status] ?? "bg-gray-100 text-gray-500 border-gray-200"}`}>
-      {labels[status] ?? status}
-    </span>
-  );
-}
-
 interface Props {
   bookings: SentBooking[];
   updating: string | null;
@@ -73,11 +52,12 @@ interface Props {
   onDispute: (id: string, title: string) => void;
   onCardClick: (booking: BookingDetail) => void;
   onPaymentLockChange?: (locked: boolean) => void;
+  onViewDetail?: (bookingId: string) => void;
 }
 
 export default function SentBookingsList({
   bookings, updating, chatLoading, accessToken,
-  onUpdateStatus, onMarkCompleted, onMessage, onReview, onDispute, onCardClick, onPaymentLockChange,
+  onUpdateStatus, onMarkCompleted, onMessage, onReview, onDispute, onCardClick, onPaymentLockChange, onViewDetail,
 }: Props) {
   const { t } = useTranslation();
   const getDisplayStatus = (booking: SentBooking): BookingStatus => {
@@ -184,11 +164,9 @@ export default function SentBookingsList({
                 const checkoutKind = paymentNeed.kind;
                 const hasPendingFinalBalance = b.status === "completed" && checkoutKind === "balance";
                 const displayStatus = getDisplayStatus(b);
-                const showBalanceDueStatus = b.status === "completed" && currentUserPaysBalance && checkoutKind === "balance";
                 const showWaitingBalanceStatus = b.status === "completed" && !currentUserPaysBalance && checkoutKind === "balance";
                 const statusBar = STATUS_CONFIG[displayStatus]?.bar ?? "bg-gray-400";
                 const awaitingHours = !isLooking && hourlyAwaitingApprovedHours(b);
-                const awaitingWork = !isLooking && fixedAwaitingWorkForBalance(b, depositConfig);
 
                 const cardPriceLabel = formatBookingCheckoutTotalDisplay(t, b, cardTaxRate);
 
@@ -216,12 +194,12 @@ export default function SentBookingsList({
                           {b.title}
                         </h3>
                         <div className="flex items-center gap-1.5 shrink-0">
-                          <StatusBadge
-                            status={displayStatus}
-                            label={showBalanceDueStatus ? t("bookings.balanceDue") : showWaitingBalanceStatus ? t("bookings.waitingBalanceShort") : undefined}
-                            className={showBalanceDueStatus ? "bg-amber-100 text-amber-800 border-amber-200" : showWaitingBalanceStatus ? "bg-gray-100 text-gray-600 border-gray-200" : undefined}
+                          <StatusBadge status={displayStatus} />
+                          <BookingPaymentBadge
+                            booking={b}
+                            depositConfig={depositConfig}
+                            viewerPaysBalance={currentUserPaysBalance}
                           />
-                          <PaymentBadge status={b.payment_status} />
                         </div>
                       </div>
 
@@ -260,12 +238,6 @@ export default function SentBookingsList({
                       {showWaitingBalanceStatus && (
                         <div className="bg-green-50 border border-green-200 rounded-lg px-3 py-2 mb-3 text-xs text-green-700">
                           {t("bookings.waitingForBalance")}
-                        </div>
-                      )}
-
-                      {awaitingWork && (
-                        <div className="bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 mb-3 text-xs text-gray-600">
-                          {t("bookings.fixedPayBalanceAfterWork")}
                         </div>
                       )}
 
@@ -329,6 +301,7 @@ export default function SentBookingsList({
                             }
                             pricingMode={b.pricing_mode}
                             onPaymentLockChange={onPaymentLockChange}
+                            onViewDetail={onViewDetail}
                           />
                         )}
 

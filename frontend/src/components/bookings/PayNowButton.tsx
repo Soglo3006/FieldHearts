@@ -30,6 +30,7 @@ interface Props {
   pricingMode?: string | null;
   onPayNow?: () => void;
   onPaymentLockChange?: (locked: boolean) => void;
+  onViewDetail?: (bookingId: string) => void;
 }
 
 export default function PayNowButton({
@@ -43,6 +44,7 @@ export default function PayNowButton({
   pricingMode = null,
   onPayNow,
   onPaymentLockChange,
+  onViewDetail,
 }: Props) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
@@ -123,6 +125,7 @@ export default function PayNowButton({
           fullServiceBase={fullServiceBase}
           pricingMode={pricingMode}
           onPaymentLockChange={onPaymentLockChange}
+          onViewDetail={onViewDetail}
         />
       )}
     </>

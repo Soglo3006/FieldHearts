@@ -24,6 +24,8 @@ type PaymentCheckoutFormProps = {
   /** Fill parent height: PaymentElement scrolls, pay button stays sticky at the bottom. */
   fillHeight?: boolean;
   footerNote?: string;
+  /** Stripe redirect return URL (deep-link back into the open booking). */
+  returnUrl?: string;
 };
 
 function isIncompleteCardError(error: { type?: string; code?: string; message?: string }) {
@@ -40,6 +42,7 @@ function CheckoutForm({
   processingLabel,
   fillHeight,
   footerNote,
+  returnUrl,
 }: Omit<PaymentCheckoutFormProps, "clientSecret" | "publishableKey" | "loadingLabel">) {
   const stripe = useStripe();
   const elements = useElements();
@@ -55,9 +58,18 @@ function CheckoutForm({
     if (!stripe || !elements || disabled || !paymentReady) return;
 
     setProcessing(true);
+    const resolvedReturnUrl =
+      returnUrl ||
+      (typeof window !== "undefined"
+        ? `${window.location.origin}${window.location.pathname}${window.location.search || ""}`
+        : `${typeof window !== "undefined" ? window.location.origin : ""}/bookings`);
+
     const { error, paymentIntent } = await stripe.confirmPayment({
       elements,
       redirect: "if_required",
+      confirmParams: {
+        return_url: resolvedReturnUrl,
+      },
     });
 
     if (error) {

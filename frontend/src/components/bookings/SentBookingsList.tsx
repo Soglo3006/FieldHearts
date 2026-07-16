@@ -72,11 +72,12 @@ interface Props {
   onReview: (id: string, targetName: string) => void;
   onDispute: (id: string, title: string) => void;
   onCardClick: (booking: BookingDetail) => void;
+  onPaymentLockChange?: (locked: boolean) => void;
 }
 
 export default function SentBookingsList({
   bookings, updating, chatLoading, accessToken,
-  onUpdateStatus, onMarkCompleted, onMessage, onReview, onDispute, onCardClick,
+  onUpdateStatus, onMarkCompleted, onMessage, onReview, onDispute, onCardClick, onPaymentLockChange,
 }: Props) {
   const { t } = useTranslation();
   const getDisplayStatus = (booking: SentBooking): BookingStatus => {
@@ -327,6 +328,7 @@ export default function SentBookingsList({
                                 : null
                             }
                             pricingMode={b.pricing_mode}
+                            onPaymentLockChange={onPaymentLockChange}
                           />
                         )}
 

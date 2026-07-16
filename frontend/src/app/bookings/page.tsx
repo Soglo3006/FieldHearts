@@ -129,6 +129,8 @@ function BookingsContent() {
   const [reviewBooking, setReviewBooking] = useState<{ id: string; targetName: string } | null>(null);
   const [disputeBooking, setDisputeBooking] = useState<{ id: string; title: string } | null>(null);
   const [detailBooking, setDetailBooking] = useState<{ booking: BookingDetail; role: "worker" | "client" } | null>(null);
+  /** While true, ignore dismiss + skip list reflow from realtime (payment confirmation). */
+  const paymentLockRef = useRef(false);
 
   const paymentResult = searchParams.get("payment");
   const [paymentBanner, setPaymentBanner] = useState<"success" | "cancelled" | null>(
@@ -154,19 +156,32 @@ function BookingsContent() {
     const receivedOk = receivedRes.status === "fulfilled" && Array.isArray(receivedRes.value);
     const sentOk = sentRes.status === "fulfilled" && Array.isArray(sentRes.value);
 
-    if (receivedOk) setReceived(receivedRes.value);
-    if (sentOk) setSent(sentRes.value);
+    if (receivedOk) {
+      if (!paymentLockRef.current) setReceived(receivedRes.value);
+    }
+    if (sentOk) {
+      if (!paymentLockRef.current) setSent(sentRes.value);
+    }
 
-    setDetailBooking((prev) => {
-      if (!prev) return null;
-      const all = [
-        ...(receivedOk ? receivedRes.value : []),
-        ...(sentOk ? sentRes.value : []),
-      ];
-      const fresh = all.find((b: { id: string }) => b.id === prev.booking.id);
-      if (!fresh) return prev;
-      return { ...prev, booking: { ...prev.booking, ...fresh } };
-    });
+    if (!paymentLockRef.current) {
+      setDetailBooking((prev) => {
+        if (!prev) return null;
+        const all = [
+          ...(receivedOk ? receivedRes.value : []),
+          ...(sentOk ? sentRes.value : []),
+        ];
+        const fresh = all.find((b: { id: string }) => b.id === prev.booking.id);
+        if (!fresh) return prev;
+        // Keep the same object when nothing meaningful changed to avoid remount churn.
+        const merged = { ...prev.booking, ...fresh };
+        const same =
+          prev.booking.status === merged.status &&
+          prev.booking.payment_status === merged.payment_status &&
+          prev.booking.updated_at === merged.updated_at;
+        if (same) return prev;
+        return { ...prev, booking: merged };
+      });
+    }
 
     if (!receivedOk || !sentOk) {
       if (attempt < 2) {
@@ -183,7 +198,7 @@ function BookingsContent() {
     setLoadingReceived(false);
     setLoadingSent(false);
 
-    if (sentOk) {
+    if (sentOk && !paymentLockRef.current) {
       const stale = sentRes.value.filter(
         (b: SentBooking) =>
           b.status === "accepted" && (!b.payment_status || b.payment_status === "unpaid"),
@@ -199,10 +214,19 @@ function BookingsContent() {
           ),
         );
         const refreshed = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/bookings/my-bookings`, { headers }).then((r) => r.json());
-        if (Array.isArray(refreshed)) setSent(refreshed);
+        if (Array.isArray(refreshed) && !paymentLockRef.current) setSent(refreshed);
       }
     }
   }, []);
+
+  // Shared by BookingDetailModal and any card-level PayNowButton — freezes list state while a
+  // payment is confirming so realtime/refetch churn cannot flip needsPayment and unmount the modal.
+  const handlePaymentLockChange = useCallback((locked: boolean) => {
+    paymentLockRef.current = locked;
+    if (!locked) {
+      void fetchBookings();
+    }
+  }, [fetchBookings]);
 
   useEffect(() => {
     if (authLoading) return;
@@ -273,6 +297,7 @@ function BookingsContent() {
   const suppressOpenFromUrlRef = useRef(false);
 
   const closeDetailBooking = useCallback(() => {
+    if (paymentLockRef.current) return;
     suppressOpenFromUrlRef.current = true;
     setDetailBooking(null);
     if (searchParams.get("booking")) {
@@ -598,6 +623,7 @@ function BookingsContent() {
               onReview={(id, targetName) => setReviewBooking({ id, targetName })}
               onDispute={(id, title) => setDisputeBooking({ id, title })}
               onCardClick={(booking) => setDetailBooking({ booking, role: booking.worker_id === uid ? "worker" : "client" })}
+              onPaymentLockChange={handlePaymentLockChange}
             />
           )}
         </>
@@ -618,6 +644,7 @@ function BookingsContent() {
             onReview={(id, targetName) => setReviewBooking({ id, targetName })}
             onDispute={(id, title) => setDisputeBooking({ id, title })}
             onCardClick={(booking) => setDetailBooking({ booking, role: booking.worker_id === uid ? "worker" : "client" })}
+            onPaymentLockChange={handlePaymentLockChange}
           />
         )
       )}
@@ -840,6 +867,7 @@ function BookingsContent() {
                                           resolveBalanceFullServiceBase(b) ?? resolveBookingCheckoutBase(b)
                                         }
                                         pricingMode={b.pricing_mode}
+                                        onPaymentLockChange={handlePaymentLockChange}
                                       />
                                     </div>
                                   )}
@@ -880,7 +908,14 @@ function BookingsContent() {
           userRole={detailBooking.role}
           accessToken={session.access_token}
           onClose={closeDetailBooking}
+          onPaymentLockChange={handlePaymentLockChange}
           onUpdated={(bookingId, updates) => {
+            if (paymentLockRef.current) {
+              setDetailBooking((prev) =>
+                prev ? { ...prev, booking: { ...prev.booking, ...updates } } : null,
+              );
+              return;
+            }
             setReceived((prev) => prev.map((b) => b.id === bookingId ? { ...b, ...updates } : b));
             setSent((prev) => prev.map((b) => b.id === bookingId ? { ...b, ...updates } : b));
             setDetailBooking((prev) => prev ? { ...prev, booking: { ...prev.booking, ...updates } } : null);

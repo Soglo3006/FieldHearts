@@ -4,6 +4,7 @@ import {
   forwardRef,
   useEffect,
   useImperativeHandle,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -122,7 +123,21 @@ const PaymentInlinePanel = forwardRef<PaymentInlinePanelHandle, Props>(function 
       .finally(() => setLoadingAddresses(false));
   }, [accessToken]);
 
+  const phaseRef = useRef(phase);
+  const payingRef = useRef(paying);
+  phaseRef.current = phase;
+  payingRef.current = paying;
+
   useEffect(() => {
+    // Do not reset checkout mid-confirm — parent prop churn / list realtime must not
+    // bounce the user back to billing or remount Stripe after they already paid.
+    if (
+      phaseRef.current === "confirming" ||
+      phaseRef.current === "success" ||
+      payingRef.current
+    ) {
+      return;
+    }
     setClientSecret(null);
     setPhase("billing");
     onPhaseChange?.("billing");
@@ -212,7 +227,13 @@ const PaymentInlinePanel = forwardRef<PaymentInlinePanelHandle, Props>(function 
     }
   };
 
+  const shellRef = useRef<HTMLDivElement>(null);
+  const [confirmMinHeight, setConfirmMinHeight] = useState<number | null>(null);
+
   const handlePaymentSuccess = async () => {
+    if (shellRef.current) {
+      setConfirmMinHeight(shellRef.current.offsetHeight);
+    }
     setPaying(true);
     setError("");
     goToPhase("confirming");
@@ -240,8 +261,15 @@ const PaymentInlinePanel = forwardRef<PaymentInlinePanelHandle, Props>(function 
       return status === "deposit_paid" || status === "paid" || status === "transferred";
     };
 
+    // Read the settled booking straight off verify's own response (it already includes a fresh
+    // snapshot once confirmed) instead of firing a separate /bookings GET every round trip.
     const waitForSettledBooking = async () => {
       for (let attempt = 0; attempt < 12; attempt++) {
+        const result = await verifyOnce().catch(() => null);
+        if (result?.booking && isSettledForCheckout(result.booking.payment_status)) {
+          return result.booking;
+        }
+        // Fallback in case verify() didn't hand back a booking snapshot (e.g. confirmed: false path).
         try {
           const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/bookings/${bookingId}`, {
             headers: { Authorization: `Bearer ${accessToken}` },
@@ -255,28 +283,33 @@ const PaymentInlinePanel = forwardRef<PaymentInlinePanelHandle, Props>(function 
         } catch {
           // retry
         }
-        await new Promise((r) => setTimeout(r, 800 + attempt * 400));
-        await verifyOnce().catch(() => ({}));
+        await new Promise((r) => setTimeout(r, Math.min(300 + attempt * 250, 3000)));
       }
       return null;
     };
 
     try {
-      await verifyOnce();
       await waitForSettledBooking();
       if (onPaymentSuccess) {
         await onPaymentSuccess();
       }
       if (returnToParentOnSuccess) {
         setPaying(false);
-        setClientSecret(null);
-        goToPhase("billing");
+        // Defer Stripe unmount so iframe teardown clicks cannot hit the backdrop
+        // in the same frame as returning to booking detail.
+        window.setTimeout(() => {
+          setClientSecret(null);
+          setConfirmMinHeight(null);
+          goToPhase("billing");
+        }, 400);
         return;
       }
+      setPaying(false);
       goToPhase("success");
     } catch {
       setError(t("payment.networkError"));
       setPaying(false);
+      setConfirmMinHeight(null);
       goToPhase("card");
     }
   };
@@ -305,12 +338,6 @@ const PaymentInlinePanel = forwardRef<PaymentInlinePanelHandle, Props>(function 
   const total = isDepositCheckout ? price : price + commission + taxes;
   const fmt = (n: number) => n.toFixed(2);
   const mode = normalizePricingMode(pricingMode);
-  const balanceNoticeKey =
-    mode === "hourly"
-      ? "payment.balanceDueNoticeHourly"
-      : isWorkBasedPricingMode(mode)
-        ? "payment.balanceDueNoticeFixed"
-        : "payment.balanceDueNotice";
   const balanceLabelKey =
     mode === "hourly"
       ? "payment.balanceAmountHourly"
@@ -331,16 +358,7 @@ const PaymentInlinePanel = forwardRef<PaymentInlinePanelHandle, Props>(function 
       : t("payment.payNowLabel");
 
   const showCardPhase = phase === "card" && Boolean(clientSecret && publishableKey);
-
-  if (phase === "confirming") {
-    return (
-      <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 px-5 py-10 text-center">
-        <Loader2 className="h-8 w-8 animate-spin text-green-700" />
-        <p className="text-base font-semibold text-gray-900">{t("payment.confirmingPayment")}</p>
-        <p className="max-w-xs text-sm text-gray-500">{t("payment.confirmingPaymentDesc")}</p>
-      </div>
-    );
-  }
+  const showConfirmingOverlay = phase === "confirming";
 
   if (phase === "success") {
     return (
@@ -362,7 +380,24 @@ const PaymentInlinePanel = forwardRef<PaymentInlinePanelHandle, Props>(function 
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+    <div
+      ref={shellRef}
+      className="relative flex min-h-0 flex-1 flex-col overflow-hidden"
+      style={confirmMinHeight ? { minHeight: confirmMinHeight } : undefined}
+    >
+      {showConfirmingOverlay ? (
+        <div className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-3 bg-white px-5 py-10 text-center">
+          <Loader2 className="h-8 w-8 animate-spin text-green-700" />
+          <p className="max-w-xs text-sm text-gray-500">{t("payment.confirmingPaymentDesc")}</p>
+        </div>
+      ) : null}
+      <div
+        className={cn(
+          "flex min-h-0 flex-1 flex-col overflow-hidden",
+          showConfirmingOverlay && "invisible pointer-events-none",
+        )}
+        aria-hidden={showConfirmingOverlay}
+      >
       <div
         className={`flex h-full min-h-0 w-[200%] transition-transform duration-300 ease-in-out ${
           showCardPhase ? "-translate-x-1/2" : "translate-x-0"
@@ -373,11 +408,6 @@ const PaymentInlinePanel = forwardRef<PaymentInlinePanelHandle, Props>(function 
           <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-5 py-4">
             <div className="space-y-1.5 rounded-xl border border-gray-100 bg-white px-4 py-3 text-sm">
               <p className="mb-2 text-base font-bold text-gray-900">{bookingTitle}</p>
-              {isBalanceCheckout && (
-                <p className="mb-1 rounded-lg border border-gray-200 bg-gray-50 px-2 py-1.5 text-xs text-gray-600">
-                  {t(balanceNoticeKey)}
-                </p>
-              )}
               <div className="flex justify-between text-gray-600">
                 <span>{isBalanceCheckout ? t(balanceLabelKey) : servicePriceLabel}</span>
                 <span className="font-medium text-gray-900">{fmt(price)} $</span>
@@ -481,13 +511,6 @@ const PaymentInlinePanel = forwardRef<PaymentInlinePanelHandle, Props>(function 
 
         {/* Step 2 — Stripe card form */}
         <div className="flex w-1/2 min-h-0 flex-col overflow-hidden">
-          {isBalanceCheckout && (
-            <div className="shrink-0 border-b border-gray-100 px-5 py-3">
-              <p className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs leading-relaxed text-gray-600">
-                {t(balanceNoticeKey)}
-              </p>
-            </div>
-          )}
           {error && phase === "card" && (
             <div className="mx-5 mt-3 flex shrink-0 items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
               <AlertCircle className="h-4 w-4 shrink-0" />
@@ -504,6 +527,11 @@ const PaymentInlinePanel = forwardRef<PaymentInlinePanelHandle, Props>(function 
               loadingLabel={t("payment.preparingPayment")}
               fillHeight
               footerNote={t("payment.securedByStripe")}
+              returnUrl={
+                typeof window !== "undefined"
+                  ? `${window.location.origin}/bookings?booking=${encodeURIComponent(bookingId)}`
+                  : undefined
+              }
               onSuccess={handlePaymentSuccess}
               onError={(message) => {
                 // Ignore incomplete-field copy in the red banner — button stays disabled instead.
@@ -518,6 +546,7 @@ const PaymentInlinePanel = forwardRef<PaymentInlinePanelHandle, Props>(function 
             </div>
           )}
         </div>
+      </div>
       </div>
     </div>
   );

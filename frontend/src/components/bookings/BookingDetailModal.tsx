@@ -53,6 +53,7 @@ import {
   resolveCheckoutPrice,
   resolveBalanceFullServiceBase,
   isWorkBasedPricingMode,
+  type CheckoutKind,
 } from "@/lib/hourlyPayment";
 import { normalizePricingMode, resolveBookingCheckoutBase, getEffectiveBookingPrice, getBookingPriceRangeBounds, formatBookingServiceBaseDisplay, formatBookingCheckoutTotalDisplay, formatBookingFeeComponentRange, shouldShowListingOriginalPriceStrike } from "@/lib/listingPrice";
 import { isAwaitingPriceAgreement, canAccessPriceNegotiation, isPriceAgreementComplete } from "@/lib/priceNegotiation";
@@ -145,6 +146,8 @@ interface Props {
   onClose: () => void;
   onUpdated: (bookingId: string, updates: Partial<BookingDetail>) => void;
   onMessage: (userId: string) => void;
+  /** Parent should ignore dismiss while true (payment confirmation ghost-clicks). */
+  onPaymentLockChange?: (locked: boolean) => void;
   /** Renders inside a parent shell (no backdrop); parent handles scroll lock. */
   embedded?: boolean;
   /** Back to parent list (embedded mode). */
@@ -244,7 +247,7 @@ function BookingDetailHeroCarousel({ images, title }: { images: string[]; title:
 
 export default function BookingDetailModal({
   booking: initialBooking, userRole, accessToken,
-  onClose, onUpdated, onMessage,
+  onClose, onUpdated, onMessage, onPaymentLockChange,
   embedded = false,
   onBack,
   embeddedBackLabel,
@@ -252,28 +255,6 @@ export default function BookingDetailModal({
   const { t, i18n } = useTranslation();
   useScrollLock(!embedded);
   const [booking, setBooking] = useState(initialBooking);
-
-  useEffect(() => {
-    setBooking(initialBooking);
-  }, [initialBooking]);
-
-  // Always refetch on open so deposit repair + fresh payment_status apply (list cache can be stale).
-  useEffect(() => {
-    void (async () => {
-      try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/bookings/${initialBooking.id}`, {
-          headers: { Authorization: `Bearer ${accessToken}` },
-        });
-        if (!res.ok) return;
-        const data = await res.json();
-        setBooking((prev) => ({ ...prev, ...data }));
-        onUpdated(initialBooking.id, data);
-      } catch {
-        // ignore
-      }
-    })();
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- run once per booking open
-  }, [initialBooking.id, accessToken]);
   const [serviceDescription, setServiceDescription] = useState<string | null>(null);
   const [updating, setUpdating] = useState(false);
   const [step, setStep] = useState<BookingStep>("detail");
@@ -296,7 +277,43 @@ export default function BookingDetailModal({
   const disputeFileInputRef = useRef<HTMLInputElement>(null);
   const paymentPanelRef = useRef<PaymentInlinePanelHandle>(null);
   const [paymentPhase, setPaymentPhase] = useState<PaymentInlinePhase>("billing");
+  /** Frozen when opening payment so realtime status updates cannot flip deposit → full mid-flow. */
+  const [paymentCheckoutKind, setPaymentCheckoutKind] = useState<CheckoutKind | null>(null);
+  const [paymentFrozenPrice, setPaymentFrozenPrice] = useState<number | null>(null);
+  const [paymentFrozenTitle, setPaymentFrozenTitle] = useState<string | null>(null);
+  const paymentInFlightRef = useRef(false);
+  /** Blocks backdrop ghost-clicks after Stripe iframe unmount / list reflow. */
+  const suppressCloseUntilRef = useRef(0);
+  const [closeLocked, setCloseLocked] = useState(false);
+  const modalShellRef = useRef<HTMLDivElement>(null);
+  const [paymentShellMinHeight, setPaymentShellMinHeight] = useState<number | null>(null);
   bookingRef.current = booking;
+
+  useEffect(() => {
+    // While paying, ignore parent list/realtime prop churn so the modal stays open
+    // and the checkout kind / panel state do not reset mid-confirmation.
+    if (step === "payment" || paymentInFlightRef.current) return;
+    setBooking(initialBooking);
+  }, [initialBooking, step]);
+
+  // Always refetch on open so deposit repair + fresh payment_status apply (list cache can be stale).
+  useEffect(() => {
+    void (async () => {
+      try {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/bookings/${initialBooking.id}`, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (paymentInFlightRef.current) return;
+        setBooking((prev) => ({ ...prev, ...data }));
+        onUpdated(initialBooking.id, data);
+      } catch {
+        // ignore
+      }
+    })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- run once per booking open
+  }, [initialBooking.id, accessToken]);
 
   const refreshBookingFromApi = useCallback(async () => {
     try {
@@ -307,6 +324,8 @@ export default function BookingDetailModal({
       const data = await res.json();
       const current = bookingRef.current;
       if (bookingLiveFingerprint(current) === bookingLiveFingerprint(data)) return data;
+      // During payment confirmation, keep local snapshot stable; parent list can still update.
+      if (paymentInFlightRef.current) return data;
       setBooking({ ...current, ...data });
       onUpdated(current.id, data);
       return data;
@@ -315,27 +334,77 @@ export default function BookingDetailModal({
     }
   }, [accessToken, onUpdated]);
 
+  const setPaymentLock = useCallback((locked: boolean) => {
+    setCloseLocked(locked);
+    paymentInFlightRef.current = locked;
+    onPaymentLockChange?.(locked);
+    if (locked) {
+      suppressCloseUntilRef.current = Date.now() + 5000;
+    }
+  }, [onPaymentLockChange]);
+
   const handleInlinePaymentSuccess = useCallback(async () => {
-    // Refresh booking then return to detail — keep the modal open.
+    // Refresh booking so the success receipt / detail panel show fresh payment_status.
+    // Do NOT touch step/phase here — PaymentInlinePanel transitions itself to the
+    // success receipt, and the user leaves it via the Close button (handlePaymentHeaderBack).
+    setPaymentLock(true);
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/bookings/${bookingRef.current.id}`, {
         headers: { Authorization: `Bearer ${accessToken}` },
       });
       if (res.ok) {
-        const data = await res.json();
+        const refreshed = await res.json();
         const current = bookingRef.current;
-        setBooking({ ...current, ...data });
-        onUpdated(current.id, data);
-      } else {
-        await refreshBookingFromApi();
+        setBooking({ ...current, ...refreshed });
       }
     } catch {
-      await refreshBookingFromApi();
+      // ignore — refreshBookingFromApi covers any follow-up sync
     }
-    setPaymentPhase("billing");
-    setLayoutMode("review");
-    setStep("detail");
-  }, [accessToken, onUpdated, refreshBookingFromApi]);
+  }, [accessToken, setPaymentLock]);
+
+  const requestClose = useCallback(() => {
+    if (closeLocked || paymentInFlightRef.current) return;
+    if (step === "payment") return;
+    if (Date.now() < suppressCloseUntilRef.current) return;
+    onClose();
+  }, [closeLocked, onClose, step]);
+
+  const handlePaymentPhaseChange = useCallback((phase: PaymentInlinePhase) => {
+    setPaymentPhase(phase);
+    if (phase === "confirming") {
+      setPaymentLock(true);
+      const el = modalShellRef.current;
+      if (el) setPaymentShellMinHeight(el.offsetHeight);
+    }
+  }, [setPaymentLock]);
+
+  // Hard block: while payment is locked, no click outside the shell can dismiss anything.
+  useEffect(() => {
+    if (!closeLocked && step !== "payment") return;
+    const swallow = (e: Event) => {
+      const target = e.target;
+      if (!(target instanceof Element)) {
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+      if (modalShellRef.current?.contains(target)) return;
+      e.preventDefault();
+      e.stopPropagation();
+    };
+    document.addEventListener("pointerdown", swallow, true);
+    document.addEventListener("pointerup", swallow, true);
+    document.addEventListener("click", swallow, true);
+    document.addEventListener("mousedown", swallow, true);
+    document.addEventListener("mouseup", swallow, true);
+    return () => {
+      document.removeEventListener("pointerdown", swallow, true);
+      document.removeEventListener("pointerup", swallow, true);
+      document.removeEventListener("click", swallow, true);
+      document.removeEventListener("mousedown", swallow, true);
+      document.removeEventListener("mouseup", swallow, true);
+    };
+  }, [closeLocked, step]);
 
   useEffect(() => {
     fetch(`${process.env.NEXT_PUBLIC_API_URL}/services/${initialBooking.service_id}`)
@@ -348,6 +417,7 @@ export default function BookingDetailModal({
   // Live sync while negotiating (price proposals / confirmations) or active (completion marks)
   useEffect(() => {
     const poll = () => {
+      if (paymentInFlightRef.current) return;
       const status = bookingRef.current.status;
       if (status === "active" || status === "negotiating" || (status === "accepted" && canAccessPriceNegotiation(bookingRef.current))) {
         refreshBookingFromApi();
@@ -482,12 +552,14 @@ export default function BookingDetailModal({
   const paymentNeed = needsBookingPayment(booking, depositConfig);
   const needsPayment = paymentNeed.needed;
   const checkoutKind = paymentNeed.kind;
+  const activeCheckoutKind = step === "payment" && paymentCheckoutKind ? paymentCheckoutKind : checkoutKind;
   const paymentStepTitle =
-    checkoutKind === "deposit"
+    paymentFrozenTitle ??
+    (activeCheckoutKind === "deposit"
       ? t("payment.payDepositLabel")
-      : checkoutKind === "balance"
+      : activeCheckoutKind === "balance"
         ? t("payment.payBalanceLabel")
-        : t("payment.completePayment");
+        : t("payment.completePayment"));
   const balanceDueCents = computeHourlyBalanceDueCents(booking);
   const showBalanceDueStatusBadge =
     booking.status === "completed" && needsPayment && checkoutKind === "balance";
@@ -495,21 +567,52 @@ export default function BookingDetailModal({
   const hasMarkedDone = userRole === "worker" ? booking.completed_by_worker : booking.completed_by_client;
   const otherHasMarkedDone = userRole === "worker" ? booking.completed_by_client : booking.completed_by_worker;
   const goToPaymentStep = useCallback(() => {
+    const priceAtOpen = resolveCheckoutPrice(
+      booking,
+      booking.deposit_enabled
+        ? {
+            deposit_enabled: true,
+            deposit_type: booking.deposit_type,
+            deposit_value: booking.deposit_value,
+          }
+        : null,
+    );
+    const titleAtOpen =
+      checkoutKind === "deposit"
+        ? t("payment.payDepositLabel")
+        : checkoutKind === "balance"
+          ? t("payment.payBalanceLabel")
+          : t("payment.completePayment");
+    setPaymentCheckoutKind(checkoutKind);
+    setPaymentFrozenPrice(priceAtOpen);
+    setPaymentFrozenTitle(titleAtOpen);
+    setPaymentLock(true);
     setPaymentPhase("billing");
     setLayoutMode("payment");
     setStep("payment");
-  }, []);
+  }, [booking, checkoutKind, setPaymentLock, t]);
 
   const handlePaymentHeaderBack = useCallback(() => {
+    if (paymentPhase === "confirming") return;
     if (paymentPhase === "success") {
+      setPaymentLock(false);
+      setPaymentCheckoutKind(null);
+      setPaymentFrozenPrice(null);
+      setPaymentFrozenTitle(null);
+      setPaymentShellMinHeight(null);
       setPaymentPhase("billing");
       setStep("detail");
       return;
     }
     if (paymentPhase === "card" && paymentPanelRef.current?.goBack()) return;
+    setPaymentLock(false);
+    setPaymentCheckoutKind(null);
+    setPaymentFrozenPrice(null);
+    setPaymentFrozenTitle(null);
+    setPaymentShellMinHeight(null);
     setPaymentPhase("billing");
     setStep("detail");
-  }, [paymentPhase]);
+  }, [paymentPhase, setPaymentLock]);
   const panelOrders = layoutMode === "dispute"
     ? { review: 0, detail: 1, dispute: 2, cancel: 3, payment: 4 }
     : layoutMode === "payment"
@@ -742,11 +845,7 @@ export default function BookingDetailModal({
                 <span className="w-7 shrink-0" aria-hidden />
               )}
               <h2 className="flex-1 text-center text-base font-semibold text-gray-900 truncate px-2">
-                {paymentPhase === "confirming"
-                  ? t("payment.confirmingPayment")
-                  : paymentPhase === "success"
-                    ? t("payment.confirmationTitle")
-                    : paymentStepTitle}
+                {paymentStepTitle}
               </h2>
             </>
           ) : (
@@ -779,7 +878,7 @@ export default function BookingDetailModal({
                 <h2 className="mt-2 text-lg font-bold text-gray-900 leading-snug line-clamp-2">
                   <Link
                     href={`/serviceDetail/${booking.service_id}`}
-                    onClick={onClose}
+                    onClick={requestClose}
                     className="hover:text-green-700 transition-colors"
                   >
                     {booking.title}
@@ -821,7 +920,7 @@ export default function BookingDetailModal({
                 <h2 className="mt-2 text-lg font-bold text-gray-900 leading-snug line-clamp-2">
                   <Link
                     href={`/serviceDetail/${booking.service_id}`}
-                    onClick={onClose}
+                    onClick={requestClose}
                     className="hover:text-green-700 transition-colors"
                   >
                     {booking.title}
@@ -833,8 +932,8 @@ export default function BookingDetailModal({
           )}
           <button
             type="button"
-            onClick={onClose}
-            disabled={step === "payment" && paymentPhase === "confirming"}
+            onClick={requestClose}
+            disabled={step === "payment"}
             aria-label={t("common.close")}
             className="cursor-pointer shrink-0 text-gray-400 hover:text-gray-600 transition-colors disabled:pointer-events-none disabled:opacity-40"
           >
@@ -1085,7 +1184,7 @@ export default function BookingDetailModal({
                               {t("bookings.paymentReceipt")}
                             </span>
                           </div>
-                          <CardContent className="px-4 pt-0 pb-4 space-y-2 text-sm">
+                          <CardContent className="px-4 pt-3 pb-4 space-y-2 text-sm">
                             <div className="flex justify-between text-gray-600">
                               <div>
                                 <div>{t("serviceDetail.servicePrice")}</div>
@@ -1118,7 +1217,7 @@ export default function BookingDetailModal({
                                 {t("bookings.workerDepositPayoutLabel")}
                               </span>
                             </div>
-                            <CardContent className="px-4 pt-0 pb-4 space-y-2 text-sm">
+                            <CardContent className="px-4 pt-3 pb-4 space-y-2 text-sm">
                               <div className="flex justify-between text-gray-600">
                                 <span>{t("bookings.depositRetainedGrossLabel")}</span>
                                 <span className="font-medium">{fmt(depositDollars)} $</span>
@@ -1148,7 +1247,7 @@ export default function BookingDetailModal({
                               {t("bookings.cancellationReceiptTitle")}
                             </span>
                           </div>
-                          <CardContent className="px-4 pt-0 pb-4 space-y-2 text-sm">
+                          <CardContent className="px-4 pt-3 pb-4 space-y-2 text-sm">
                             <div className="flex justify-between text-gray-600">
                               <span>{t("bookings.totalPaid")}</span>
                               <span className="font-medium text-gray-900">{fmt(totalPaid)} $</span>
@@ -1180,7 +1279,7 @@ export default function BookingDetailModal({
                             {t("bookings.paymentReceipt")}
                           </span>
                         </div>
-                        <CardContent className="px-4 pt-0 pb-4 space-y-2 text-sm">
+                        <CardContent className="px-4 pt-3 pb-4 space-y-2 text-sm">
                           <div className="flex justify-between text-gray-600">
                             <div>
                               <div>{t("serviceDetail.servicePrice")}</div>
@@ -1246,7 +1345,7 @@ export default function BookingDetailModal({
                                 {t("bookings.clientPaid")}
                               </span>
                             </div>
-                            <CardContent className="px-4 pt-0 pb-4 space-y-2 text-sm">
+                            <CardContent className="px-4 pt-3 pb-4 space-y-2 text-sm">
                               {splitPaymentSummary.variant === "split_deposit_paid" ? (
                                 <>
                                   <div className="flex justify-between text-green-700 bg-green-50 -mx-1 px-2 py-1.5 rounded-lg">
@@ -1298,7 +1397,7 @@ export default function BookingDetailModal({
                             <TrendingDown className="h-3.5 w-3.5 text-gray-500" />
                             <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{t("bookings.clientPaid")}</span>
                           </div>
-                          <CardContent className="px-4 pt-0 pb-4 space-y-2 text-sm">
+                          <CardContent className="px-4 pt-3 pb-4 space-y-2 text-sm">
                             {splitFullReceipt ? (
                               <SplitDepositFullReceiptBreakdown
                                 {...splitFullReceipt}
@@ -1389,7 +1488,7 @@ export default function BookingDetailModal({
                             {t("bookings.paymentSummary")}
                           </span>
                         </div>
-                        <CardContent className="px-4 pt-0 pb-4 space-y-2 text-sm">
+                        <CardContent className="px-4 pt-3 pb-4 space-y-2 text-sm">
                           {splitPaymentSummary.variant === "split_deposit_paid" ? (
                             <>
                               <div className="flex justify-between text-green-700 bg-green-50 -mx-1 px-2 py-1.5 rounded-lg">
@@ -1439,7 +1538,7 @@ export default function BookingDetailModal({
                           <TrendingDown className="h-3.5 w-3.5 text-gray-500" />
                           <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{t("bookings.totalPaid")}</span>
                         </div>
-                        <CardContent className="px-4 pt-0 pb-4 space-y-2 text-sm">
+                        <CardContent className="px-4 pt-3 pb-4 space-y-2 text-sm">
                           {splitFullReceipt ? (
                             <SplitDepositFullReceiptBreakdown
                               {...splitFullReceipt}
@@ -1494,7 +1593,7 @@ export default function BookingDetailModal({
                           <div className="flex items-center gap-2 bg-amber-50 px-4 py-2 border-b border-amber-100">
                             <span className="text-xs font-semibold text-amber-800 uppercase tracking-wide">{t("bookings.finalOutcomeTitle")}</span>
                           </div>
-                          <CardContent className="px-4 pt-0 pb-4 space-y-2 text-sm">
+                          <CardContent className="px-4 pt-3 pb-4 space-y-2 text-sm">
                             <div className="flex justify-between text-gray-600">
                               <span>{t("bookings.originalTotalPaidLabel")}</span>
                               <span>{fmt(disputeFinancialOutcome.totalPaidOriginal)} $</span>
@@ -1525,7 +1624,7 @@ export default function BookingDetailModal({
                           <TrendingDown className="h-3.5 w-3.5 text-gray-500" />
                           <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{t("bookings.clientPaid")}</span>
                         </div>
-                        <CardContent className="px-4 pt-0 pb-4 space-y-2 text-sm">
+                        <CardContent className="px-4 pt-3 pb-4 space-y-2 text-sm">
                           {splitFullReceipt ? (
                             <SplitDepositFullReceiptBreakdown
                               {...splitFullReceipt}
@@ -1641,7 +1740,7 @@ export default function BookingDetailModal({
                       <TrendingDown className="h-3.5 w-3.5 text-gray-500" />
                       <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{t("bookings.paymentSummary")}</span>
                     </div>
-                    <CardContent className="px-4 pt-0 pb-4 space-y-2 text-sm">
+                    <CardContent className="px-4 pt-3 pb-4 space-y-2 text-sm">
                       {splitFullReceipt ? (
                         <SplitDepositFullReceiptBreakdown
                           {...splitFullReceipt}
@@ -1724,27 +1823,27 @@ export default function BookingDetailModal({
             {booking.deposit_enabled &&
               !isAwaitingPriceAgreement(booking) &&
               (!booking.payment_status || booking.payment_status === "unpaid") && (
-              <div className="flex justify-between text-red-700 bg-red-50 px-3 py-1.5 rounded-lg text-sm">
-                <span className="font-medium">{t("deposit.dueLine")}</span>
+              <div className="flex justify-between text-red-600 bg-red-50/80 px-3 py-1.5 rounded-lg text-sm">
+                <span className="font-normal">{t("deposit.dueLine")}</span>
                 {(() => {
                   const cents = booking.deposit_amount_cents;
                   if (cents && cents > 0) {
                     return (
-                      <span className="font-semibold whitespace-nowrap">
+                      <span className="font-normal whitespace-nowrap tabular-nums">
                         {(cents / 100).toFixed(2)} $
                       </span>
                     );
                   }
                   if (booking.deposit_type === "percent" && booking.deposit_value) {
                     return (
-                      <span className="font-semibold whitespace-nowrap">
+                      <span className="font-normal whitespace-nowrap tabular-nums">
                         {booking.deposit_value} %
                       </span>
                     );
                   }
                   if (booking.deposit_type === "fixed" && booking.deposit_value) {
                     return (
-                      <span className="font-semibold whitespace-nowrap">
+                      <span className="font-normal whitespace-nowrap tabular-nums">
                         {Number(booking.deposit_value).toFixed(2)} $
                       </span>
                     );
@@ -2027,7 +2126,7 @@ export default function BookingDetailModal({
           onOpenDispute={openDisputeStep}
           onOpenReview={openReviewStep}
           onMessage={onMessage}
-          onClose={onClose}
+          onClose={requestClose}
           onPayNow={goToPaymentStep}
           onOpenCancelDeposit={openCancelDepositStep}
           onOpenCancelDispute={openCancelDisputeStep}
@@ -2116,21 +2215,24 @@ export default function BookingDetailModal({
               ref={paymentPanelRef}
               bookingId={booking.id}
               bookingTitle={booking.title}
-              price={resolveCheckoutPrice(
-                booking,
-                booking.deposit_enabled
-                  ? {
-                      deposit_enabled: true,
-                      deposit_type: booking.deposit_type,
-                      deposit_value: booking.deposit_value,
-                    }
-                  : null,
-              )}
+              price={
+                paymentFrozenPrice ??
+                resolveCheckoutPrice(
+                  booking,
+                  booking.deposit_enabled
+                    ? {
+                        deposit_enabled: true,
+                        deposit_type: booking.deposit_type,
+                        deposit_value: booking.deposit_value,
+                      }
+                    : null,
+                )
+              }
               accessToken={accessToken}
               clientProvince={booking.client_province ?? null}
-              checkoutKind={checkoutKind}
+              checkoutKind={activeCheckoutKind}
               fullServiceBase={
-                checkoutKind === "balance"
+                activeCheckoutKind === "balance"
                   ? resolveBalanceFullServiceBase(booking)
                   : null
               }
@@ -2146,15 +2248,11 @@ export default function BookingDetailModal({
               depositAmountCents={booking.deposit_amount_cents}
               pricingMode={booking.pricing_mode}
               onPaymentSuccess={handleInlinePaymentSuccess}
-              onPhaseChange={setPaymentPhase}
-              returnToParentOnSuccess
+              onPhaseChange={handlePaymentPhaseChange}
               successActions={
                 <Button
                   className="h-12 w-full rounded-xl bg-green-700 text-white hover:bg-green-800"
-                  onClick={() => {
-                    setPaymentPhase("billing");
-                    setStep("detail");
-                  }}
+                  onClick={handlePaymentHeaderBack}
                 >
                   {t("common.close")}
                 </Button>
@@ -2183,11 +2281,25 @@ export default function BookingDetailModal({
     </div>
   ) : (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60">
+      {/* Always capture outside clicks — never pointer-events-none (that lets clicks hit the list behind). */}
       <div
-        className="absolute inset-0"
-        onClick={step === "payment" && paymentPhase === "confirming" ? undefined : onClose}
+        className="absolute inset-0 z-0"
+        onClick={requestClose}
+        onPointerDown={(e) => {
+          if (closeLocked || step === "payment") {
+            e.preventDefault();
+            e.stopPropagation();
+          }
+        }}
+        aria-hidden
       />
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col z-10 overflow-hidden">
+      <div
+        ref={modalShellRef}
+        className="relative z-10 bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden"
+        style={paymentShellMinHeight ? { minHeight: paymentShellMinHeight } : undefined}
+        onClick={(e) => e.stopPropagation()}
+        onPointerDown={(e) => e.stopPropagation()}
+      >
         {modalBody}
       </div>
     </div>

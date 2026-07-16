@@ -29,6 +29,7 @@ interface Props {
   fullServiceBase?: number | null;
   pricingMode?: string | null;
   onPayNow?: () => void;
+  onPaymentLockChange?: (locked: boolean) => void;
 }
 
 export default function PayNowButton({
@@ -41,6 +42,7 @@ export default function PayNowButton({
   fullServiceBase = null,
   pricingMode = null,
   onPayNow,
+  onPaymentLockChange,
 }: Props) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
@@ -120,6 +122,7 @@ export default function PayNowButton({
           depositAmountCents={depositAmountCents}
           fullServiceBase={fullServiceBase}
           pricingMode={pricingMode}
+          onPaymentLockChange={onPaymentLockChange}
         />
       )}
     </>

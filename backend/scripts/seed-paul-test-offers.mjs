@@ -2,7 +2,7 @@ import "dotenv/config";
 import pool from "../src/config/db.js";
 
 /**
- * Creates 5 [TEST] offer listings similar to:
+ * Creates [TEST] offer listings similar to:
  * "[TEST] Peinture intérieure — prix fixe" (fixed price + % deposit)
  * for user Paul Ange Booh Louha.
  */
@@ -76,6 +76,90 @@ const LISTINGS = [
     deposit_enabled: true,
     deposit_type: "fixed",
     deposit_value: 20,
+  },
+  {
+    type: "offer",
+    title: "[TEST] Tonte de pelouse — prix fixe",
+    description:
+      "Annonce de test locale. Tonte et ramassage d'herbe, prix forfaitaire par visite. Calendrier et dépôt activés après réservation.",
+    pricing_mode: "fixed",
+    price: 55,
+    city: "Brossard",
+    location: "Brossard, QC",
+    category: "Entretien extérieur",
+    deposit_enabled: true,
+    deposit_type: "percent",
+    deposit_value: 20,
+  },
+  {
+    type: "offer",
+    title: "[TEST] Nettoyage de vitres — prix fixe",
+    description:
+      "Annonce de test locale. Nettoyage de vitres intérieur/extérieur (bungalow), prix forfaitaire. Calendrier et dépôt activés après réservation.",
+    pricing_mode: "fixed",
+    price: 140,
+    city: "Montréal",
+    location: "Montréal, QC",
+    category: "Ménage",
+    deposit_enabled: true,
+    deposit_type: "percent",
+    deposit_value: 15,
+  },
+  {
+    type: "offer",
+    title: "[TEST] Aide déménagement (petit volume) — prix fixe",
+    description:
+      "Annonce de test locale. Aide pour déménager un petit volume (studio / quelques meubles), prix forfaitaire. Calendrier et dépôt activés après réservation.",
+    pricing_mode: "fixed",
+    price: 180,
+    city: "Laval",
+    location: "Laval, QC",
+    category: "Aide à domicile",
+    deposit_enabled: true,
+    deposit_type: "fixed",
+    deposit_value: 40,
+  },
+  {
+    type: "offer",
+    title: "[TEST] Pose de store / rideaux — prix fixe",
+    description:
+      "Annonce de test locale. Installation de stores ou tringles à rideaux, prix forfaitaire. Calendrier et dépôt activés après réservation.",
+    pricing_mode: "fixed",
+    price: 75,
+    city: "Montréal",
+    location: "Montréal, QC",
+    category: "Aide à domicile",
+    deposit_enabled: true,
+    deposit_type: "percent",
+    deposit_value: 20,
+  },
+  {
+    type: "offer",
+    title: "[TEST] Nettoyage après rénovation — prix fixe",
+    description:
+      "Annonce de test locale. Nettoyage post-travaux (poussière, sols, surfaces), prix forfaitaire. Calendrier et dépôt activés après réservation.",
+    pricing_mode: "fixed",
+    price: 220,
+    city: "Longueuil",
+    location: "Longueuil, QC",
+    category: "Ménage",
+    deposit_enabled: true,
+    deposit_type: "percent",
+    deposit_value: 25,
+  },
+  {
+    type: "offer",
+    title: "[TEST] Réparation de clôture — prix fixe",
+    description:
+      "Annonce de test locale. Réparation / redressement de panneau de clôture, prix forfaitaire. Calendrier et dépôt activés après réservation.",
+    pricing_mode: "fixed",
+    price: 160,
+    city: "Laval",
+    location: "Laval, QC",
+    category: "Entretien extérieur",
+    deposit_enabled: true,
+    deposit_type: "fixed",
+    deposit_value: 35,
   },
 ];
 

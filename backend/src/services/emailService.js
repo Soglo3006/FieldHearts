@@ -16,8 +16,8 @@ function t(lang, fr, en) {
   return lang === "en" ? en : fr;
 }
 
-function bilingualSubject(fr, en) {
-  return `${fr} / ${en}`;
+function bilingualSubject(primary, secondary) {
+  return `${primary} / ${secondary}`;
 }
 
 function formatEmailDate(lang, date = new Date()) {
@@ -28,10 +28,14 @@ function formatEmailDate(lang, date = new Date()) {
   });
 }
 
-const BILINGUAL_DIVIDER = `
+const DIVIDER_LABEL = { fr: "Français", en: "English" };
+
+function bilingualDivider(secondLang) {
+  return `
 <hr style="border:none;border-top:1px solid #e5e7eb;margin:32px 0;" />
-<p style="margin:0 0 20px;font-size:11px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#9ca3af;">English</p>
+<p style="margin:0 0 20px;font-size:11px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#9ca3af;">${DIVIDER_LABEL[secondLang]}</p>
 `;
+}
 
 let _resend = null;
 const getResend = () => {
@@ -41,10 +45,12 @@ const getResend = () => {
 const FROM = process.env.FROM_EMAIL || "Uneden <noreply@uneden.ca>";
 const FRONTEND = process.env.FRONTEND_URL || "https://uneden.ca";
 
-function shellBilingual(frContent, enContent) {
+/** Primary language (recipient's preference) is shown first, the other language follows after a divider. */
+function shellBilingual(primaryContent, secondaryContent, primaryLang = "fr") {
+  const secondaryLang = primaryLang === "en" ? "fr" : "en";
   return `
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="${primaryLang}">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
 <body style="margin:0;padding:0;background:#f9fafb;font-family:Arial,sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" style="padding:32px 16px;">
@@ -55,7 +61,7 @@ function shellBilingual(frContent, enContent) {
             <img src="https://uneden.ca/logo.png" alt="Uneden" style="height:48px;width:auto;display:inline-block;" />
           </td>
         </tr>
-        <tr><td style="padding:32px;">${frContent}${BILINGUAL_DIVIDER}${enContent}</td></tr>
+        <tr><td style="padding:32px;">${primaryContent}${bilingualDivider(secondaryLang)}${secondaryContent}</td></tr>
         <tr>
           <td style="padding:20px 32px;background:#f3f4f6;border-top:1px solid #e5e7eb;">
             <p style="margin:0;font-size:12px;color:#9ca3af;">© ${new Date().getFullYear()} Uneden · <a href="${FRONTEND}" style="color:#15803d;text-decoration:none;">uneden.ca</a></p>
@@ -71,13 +77,16 @@ function shellBilingual(frContent, enContent) {
 const btn = (href, label, color = "#15803d") =>
   `<a href="${href}" style="display:inline-block;background:${color};color:#ffffff;padding:12px 24px;text-decoration:none;border-radius:8px;font-weight:600;font-size:14px;margin-top:16px;">${label}</a>`;
 
+/** Builds both languages; whichever matches the recipient's preferred `lang` is rendered first. */
 function bilingualTemplate(buildForLang) {
-  return (...args) => {
-    const fr = buildForLang("fr", ...args);
-    const en = buildForLang("en", ...args);
+  return (lang, ...args) => {
+    const primaryLang = lang === "en" ? "en" : "fr";
+    const secondaryLang = primaryLang === "en" ? "fr" : "en";
+    const primary = buildForLang(primaryLang, ...args);
+    const secondary = buildForLang(secondaryLang, ...args);
     return {
-      subject: bilingualSubject(fr.subject, en.subject),
-      html: shellBilingual(fr.body, en.body),
+      subject: bilingualSubject(primary.subject, secondary.subject),
+      html: shellBilingual(primary.body, secondary.body, primaryLang),
     };
   };
 }
@@ -409,12 +418,12 @@ const emailTemplates = {
   })),
 };
 
-export const sendEmail = async (to, templateName, templateData, _lang = "fr", options = {}) => {
+export const sendEmail = async (to, templateName, templateData, lang = "fr", options = {}) => {
   try {
     if (!to) { console.error("sendEmail: no recipient"); return false; }
     if (!process.env.RESEND_API_KEY) { console.warn("RESEND_API_KEY not set — skipping email"); return false; }
 
-    const template = emailTemplates[templateName](...templateData);
+    const template = emailTemplates[templateName](lang, ...templateData);
     const payload = {
       from: FROM,
       to,
@@ -435,54 +444,54 @@ export const sendEmail = async (to, templateName, templateData, _lang = "fr", op
   }
 };
 
-export const notifyBookingCreated = (workerEmail, workerName, clientName, serviceTitle, bookingId, imageUrl, imageUrls, _lang = "fr") => {
+export const notifyBookingCreated = (workerEmail, workerName, clientName, serviceTitle, bookingId, imageUrl, imageUrls, lang = "fr") => {
   const { src, attachments } = prepareEmailListingImage(imageUrl, imageUrls);
-  return sendEmail(workerEmail, "bookingCreated", [workerName, clientName, serviceTitle, bookingId, src], "fr", { attachments });
+  return sendEmail(workerEmail, "bookingCreated", [workerName, clientName, serviceTitle, bookingId, src], lang, { attachments });
 };
 
-export const notifyBookingStatusUpdated = (clientEmail, clientName, serviceTitle, status, bookingId, _lang = "fr") =>
-  sendEmail(clientEmail, "bookingStatusUpdated", [clientName, serviceTitle, status, bookingId]);
+export const notifyBookingStatusUpdated = (clientEmail, clientName, serviceTitle, status, bookingId, lang = "fr") =>
+  sendEmail(clientEmail, "bookingStatusUpdated", [clientName, serviceTitle, status, bookingId], lang);
 
-export const notifyNewMessage = (receiverEmail, receiverName, senderName, messagePreview, conversationId, _lang = "fr") =>
-  sendEmail(receiverEmail, "newMessage", [receiverName, senderName, messagePreview, conversationId]);
+export const notifyNewMessage = (receiverEmail, receiverName, senderName, messagePreview, conversationId, lang = "fr") =>
+  sendEmail(receiverEmail, "newMessage", [receiverName, senderName, messagePreview, conversationId], lang);
 
-export const notifyUnreadReminder = (receiverEmail, receiverName, senderName, unreadCount, _lang = "fr") =>
-  sendEmail(receiverEmail, "unreadReminder", [receiverName, senderName, unreadCount]);
+export const notifyUnreadReminder = (receiverEmail, receiverName, senderName, unreadCount, lang = "fr") =>
+  sendEmail(receiverEmail, "unreadReminder", [receiverName, senderName, unreadCount], lang);
 
-export const notifyNewReview = (targetEmail, targetName, reviewerName, rating, comment, _lang = "fr") =>
-  sendEmail(targetEmail, "newReview", [targetName, reviewerName, rating, comment]);
+export const notifyNewReview = (targetEmail, targetName, reviewerName, rating, comment, lang = "fr") =>
+  sendEmail(targetEmail, "newReview", [targetName, reviewerName, rating, comment], lang);
 
-export const notifyDisputeCreated = (userEmail, userName, bookingId, description, _lang = "fr") =>
-  sendEmail(userEmail, "disputeCreated", [userName, bookingId, description]);
+export const notifyDisputeCreated = (userEmail, userName, bookingId, description, lang = "fr") =>
+  sendEmail(userEmail, "disputeCreated", [userName, bookingId, description], lang);
 
-export const notifyDisputeOutcome = (userEmail, userName, bookingId, status, resolution, refundedAmount, _lang = "fr") =>
-  sendEmail(userEmail, "disputeOutcome", [userName, bookingId, status, resolution, refundedAmount]);
+export const notifyDisputeOutcome = (userEmail, userName, bookingId, status, resolution, refundedAmount, lang = "fr") =>
+  sendEmail(userEmail, "disputeOutcome", [userName, bookingId, status, resolution, refundedAmount], lang);
 
-export const notifyPaymentReceipt = (clientEmail, clientName, serviceTitle, amount, workerName, bookingId, imageUrl, imageUrls, _lang = "fr") => {
+export const notifyPaymentReceipt = (clientEmail, clientName, serviceTitle, amount, workerName, bookingId, imageUrl, imageUrls, lang = "fr") => {
   const { src, attachments } = prepareEmailListingImage(imageUrl, imageUrls);
   return sendEmail(
     clientEmail,
     "paymentReceipt",
     [clientName, serviceTitle, amount, workerName, bookingId, src],
-    "fr",
+    lang,
     { attachments },
   );
 };
 
-export const notifyPayoutReceived = (workerEmail, workerName, transferredAmount, commissionAmount, grossAmount, bookingsCount, nextPayoutDate, _lang = "fr") =>
-  sendEmail(workerEmail, "payoutReceived", [workerName, transferredAmount, commissionAmount, grossAmount, bookingsCount, nextPayoutDate]);
+export const notifyPayoutReceived = (workerEmail, workerName, transferredAmount, commissionAmount, grossAmount, bookingsCount, nextPayoutDate, lang = "fr") =>
+  sendEmail(workerEmail, "payoutReceived", [workerName, transferredAmount, commissionAmount, grossAmount, bookingsCount, nextPayoutDate], lang);
 
-export const notifyPasswordChanged = (userEmail, userName, _lang = "fr") =>
-  sendEmail(userEmail, "passwordChanged", [userName]);
+export const notifyPasswordChanged = (userEmail, userName, lang = "fr") =>
+  sendEmail(userEmail, "passwordChanged", [userName], lang);
 
-export const notifyWelcome = (userEmail, userName, _lang = "fr") =>
-  sendEmail(userEmail, "welcome", [userName]);
+export const notifyWelcome = (userEmail, userName, lang = "fr") =>
+  sendEmail(userEmail, "welcome", [userName], lang);
 
-export const notifyWaitlistConfirmation = (email, _lang = "fr") =>
-  sendEmail(email, "waitlistConfirmation", []);
+export const notifyWaitlistConfirmation = (email, lang = "fr") =>
+  sendEmail(email, "waitlistConfirmation", [], lang);
 
-export const notifyAdminEmailOtp = (email, code, _lang = "fr") =>
-  sendEmail(email, "adminEmailOtp", [code]);
+export const notifyAdminEmailOtp = (email, code, lang = "fr") =>
+  sendEmail(email, "adminEmailOtp", [code], lang);
 
 export default {
   sendEmail,

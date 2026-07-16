@@ -277,7 +277,7 @@ function HeaderMobileLoginMenuItem() {
 
 export default function Header() {
   const { t, i18n } = useTranslation();
-  const { user, signOut, loading: authLoading } = useAuth();
+  const { user, session, signOut, loading: authLoading } = useAuth();
   const { requireAuth, notifyAuthActionReady } = useAuthGate();
   const router = useRouter();
   const pathname = usePathname();
@@ -297,6 +297,22 @@ export default function Header() {
   const openSupportModal = () => {
     setShowSupport(true);
     notifyAuthActionReady();
+  };
+
+  // Keep the account's stored language preference in sync so emails (and anything else read
+  // server-side via getUserLang) match whatever the user last picked here, not just Settings.
+  const handleLanguageChange = (val: string) => {
+    if (!val) return;
+    const lng = val.toLowerCase();
+    i18n.changeLanguage(lng);
+    localStorage.setItem("i18nextLng", lng);
+    if (session?.access_token) {
+      fetch(`${process.env.NEXT_PUBLIC_API_URL}/profiles/settings`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({ language: lng }),
+      }).catch(() => {});
+    }
   };
 
   useAuthResumeAction("support", () => {
@@ -594,7 +610,7 @@ export default function Header() {
                 variant="outline"
                 value={languageToggleValue}
                 className={HEADER_CONTROL_H}
-                onValueChange={(val) => { if (val) { const lng = val.toLowerCase(); i18n.changeLanguage(lng); localStorage.setItem("i18nextLng", lng); } }}
+                onValueChange={handleLanguageChange}
               >
                 <ToggleGroupItem value="FR" className={`cursor-pointer text-xs px-2 lg:px-3 ${HEADER_CONTROL_H}`}>FR</ToggleGroupItem>
                 <ToggleGroupItem value="EN" className={`cursor-pointer text-xs px-2 lg:px-3 ${HEADER_CONTROL_H}`}>EN</ToggleGroupItem>
@@ -712,7 +728,7 @@ export default function Header() {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            <ToggleGroup type="single" variant="outline" value={languageToggleValue} onValueChange={(val) => { if (val) { const lng = val.toLowerCase(); i18n.changeLanguage(lng); localStorage.setItem("i18nextLng", lng); } }}>
+            <ToggleGroup type="single" variant="outline" value={languageToggleValue} onValueChange={handleLanguageChange}>
               <ToggleGroupItem value="FR" className={`cursor-pointer text-xs px-2 ${HEADER_CONTROL_H}`}>FR</ToggleGroupItem>
               <ToggleGroupItem value="EN" className={`cursor-pointer text-xs px-2 ${HEADER_CONTROL_H}`}>EN</ToggleGroupItem>
             </ToggleGroup>
@@ -859,7 +875,7 @@ export default function Header() {
                 </nav>
 
                 <div className="border-t border-gray-100 px-4 py-3">
-                  <ToggleGroup type="single" variant="outline" value={languageToggleValue} onValueChange={(val) => { if (val) { const lng = val.toLowerCase(); i18n.changeLanguage(lng); localStorage.setItem("i18nextLng", lng); } }}>
+                  <ToggleGroup type="single" variant="outline" value={languageToggleValue} onValueChange={handleLanguageChange}>
                     <ToggleGroupItem value="FR" className="cursor-pointer text-sm px-4 h-9 flex-1">FR</ToggleGroupItem>
                     <ToggleGroupItem value="EN" className="cursor-pointer text-sm px-4 h-9 flex-1">EN</ToggleGroupItem>
                   </ToggleGroup>

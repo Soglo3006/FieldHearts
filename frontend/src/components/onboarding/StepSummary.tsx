@@ -98,7 +98,6 @@ export default function StepSummary({
         </div>
 
         <div>
-          <h4 className="font-semibold text-gray-900 mb-2">{t("onboarding.contactSectionTitle")}</h4>
           {data.email?.trim() && (
             <p className="text-gray-700"><strong>{t("onboarding.emailLabel")}:</strong> {data.email}</p>
           )}

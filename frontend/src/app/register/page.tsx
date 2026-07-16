@@ -367,7 +367,15 @@ export default function RegisterPage() {
         </CardContent>
         <CardFooter className="flex-col gap-2">
           <CardDescription className="font-semibold text-xs text-center justify-center">
-            {t("register.terms")}
+            {t("register.terms")}{" "}
+            <Link href="/terms" className="underline transition-colors hover:text-green-700">
+              {t("footer.termsOfUse")}
+            </Link>
+            {t("register.termsConnector")}
+            <Link href="/privacy-policy" className="underline transition-colors hover:text-green-700">
+              {t("footer.privacyPolicy")}
+            </Link>
+            .
           </CardDescription>
         </CardFooter>
       </Card>

@@ -12,7 +12,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
 import { Badge } from "@/components/ui/badge";
@@ -51,6 +50,50 @@ import NotificationVisual from "@/components/notifications/NotificationVisual";
 
 /** Hauteur commune : barre de recherche, menus, langue, connexion, publier */
 const HEADER_CONTROL_H = "h-9";
+
+/** FR/EN switch with a sliding pill background instead of an instant color swap. */
+function LanguageToggle({
+  value,
+  onChange,
+  fullWidth = false,
+  size = "sm",
+}: {
+  value: "FR" | "EN";
+  onChange: (val: string) => void;
+  fullWidth?: boolean;
+  size?: "sm" | "lg";
+}) {
+  const isEn = value === "EN";
+  return (
+    <div
+      className={cn(
+        "relative inline-flex items-center rounded-md border border-gray-200 bg-white p-0.5",
+        fullWidth && "flex w-full",
+        size === "lg" ? "h-9" : HEADER_CONTROL_H,
+      )}
+    >
+      <span
+        aria-hidden
+        className="absolute inset-y-0.5 left-0.5 w-[calc(50%-2px)] rounded-[5px] bg-green-700 transition-transform duration-200 ease-out"
+        style={{ transform: isEn ? "translateX(100%)" : "translateX(0%)" }}
+      />
+      {(["FR", "EN"] as const).map((lng) => (
+        <button
+          key={lng}
+          type="button"
+          onClick={() => onChange(lng)}
+          className={cn(
+            "relative z-10 cursor-pointer rounded-[5px] font-medium transition-colors",
+            size === "lg" ? "flex-1 px-4 text-sm" : "px-2 text-xs lg:px-3",
+            value === lng ? "text-white" : "text-gray-600",
+          )}
+        >
+          {lng}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 interface SearchResult {
   id: string;
@@ -605,16 +648,7 @@ export default function Header() {
                 </DropdownMenuContent>
               </DropdownMenu>
 
-              <ToggleGroup
-                type="single"
-                variant="outline"
-                value={languageToggleValue}
-                className={HEADER_CONTROL_H}
-                onValueChange={handleLanguageChange}
-              >
-                <ToggleGroupItem value="FR" className={`cursor-pointer text-xs px-2 lg:px-3 ${HEADER_CONTROL_H}`}>FR</ToggleGroupItem>
-                <ToggleGroupItem value="EN" className={`cursor-pointer text-xs px-2 lg:px-3 ${HEADER_CONTROL_H}`}>EN</ToggleGroupItem>
-              </ToggleGroup>
+              <LanguageToggle value={languageToggleValue} onChange={handleLanguageChange} />
 
 
             </div>
@@ -637,7 +671,7 @@ export default function Header() {
 
               {/* md+: avatar dropdown */}
               <div className="hidden md:flex items-center gap-2">
-                {authLoading ? (
+                {!mounted || authLoading ? (
                   <div
                     className={`${HEADER_CONTROL_H} w-[148px] rounded-lg bg-gray-200 animate-pulse`}
                     aria-hidden
@@ -680,7 +714,7 @@ export default function Header() {
               </PostPublishLink>
 
               {/* Mobile only: hamburger — only shown when logged in */}
-              {!authLoading && user && (
+              {mounted && !authLoading && user && (
                 <div className="relative md:hidden">
                   <Button
                     variant="ghost"
@@ -728,13 +762,10 @@ export default function Header() {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            <ToggleGroup type="single" variant="outline" value={languageToggleValue} onValueChange={handleLanguageChange}>
-              <ToggleGroupItem value="FR" className={`cursor-pointer text-xs px-2 ${HEADER_CONTROL_H}`}>FR</ToggleGroupItem>
-              <ToggleGroupItem value="EN" className={`cursor-pointer text-xs px-2 ${HEADER_CONTROL_H}`}>EN</ToggleGroupItem>
-            </ToggleGroup>
+            <LanguageToggle value={languageToggleValue} onChange={handleLanguageChange} />
 
             {/* Support + Login — visible on mobile when not logged in (replaces hamburger) */}
-            {!authLoading && !user && (
+            {mounted && !authLoading && !user && (
               <>
                 <Button
                   variant="ghost"
@@ -875,10 +906,7 @@ export default function Header() {
                 </nav>
 
                 <div className="border-t border-gray-100 px-4 py-3">
-                  <ToggleGroup type="single" variant="outline" value={languageToggleValue} onValueChange={handleLanguageChange}>
-                    <ToggleGroupItem value="FR" className="cursor-pointer text-sm px-4 h-9 flex-1">FR</ToggleGroupItem>
-                    <ToggleGroupItem value="EN" className="cursor-pointer text-sm px-4 h-9 flex-1">EN</ToggleGroupItem>
-                  </ToggleGroup>
+                  <LanguageToggle value={languageToggleValue} onChange={handleLanguageChange} fullWidth size="lg" />
                 </div>
               </div>
 

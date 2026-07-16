@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useTranslation } from "react-i18next";
@@ -89,7 +89,7 @@ function hasRestrictiveFilters(f?: ListingsFilters): boolean {
 }
 
 const LISTINGS_PER_PAGE = 12;
-const AD_INTERVAL = 8; // insert ad every N cards
+const AD_INTERVAL = 6; // insert ad every N cards — must divide evenly into the 2-col and 3-col grids so no row is left short before it
 
 function normalizeListingsResponse(
   payload: unknown,
@@ -344,66 +344,47 @@ export default function ListingsGrid({ filters }: { filters?: ListingsFilters })
     );
   }
 
-  const firstListings = currentListings.slice(0, AD_INTERVAL);
-  const restListings = currentListings.slice(AD_INTERVAL);
-  const showMidPageAd = restListings.length > 0;
-  const { padSm: padFirstSm, padLg: padFirstLg } = gridVacancyPads(firstListings.length);
-  const { padSm: padRestSm, padLg: padRestLg } = gridVacancyPads(restListings.length);
+  const showMidPageAd = currentListings.length > AD_INTERVAL;
+  // AD_INTERVAL divides evenly into both the sm (2-col) and lg (3-col) grids, so the ad always
+  // lands on a fresh row — padding only ever needs to cover the trailing row at the very end.
+  const { padSm, padLg } = gridVacancyPads(currentListings.length);
   const locationSearchProps = {
     searchLat: filters?.locationLat ?? null,
     searchLng: filters?.locationLng ?? null,
     searchText: filters?.location?.trim() || null,
   };
 
+  const gridNodes: ReactNode[] = [];
+  currentListings.forEach((s, i) => {
+    gridNodes.push(<ListingGridCard key={s.id} s={s} globalIndex={i} {...locationSearchProps} />);
+    if (showMidPageAd && i === AD_INTERVAL - 1) {
+      gridNodes.push(
+        <div key="mid-page-ad" className="col-span-full">
+          <AdBanner slot="LISTINGS_GRID_AD_SLOT" format="horizontal" style={{ minHeight: 90 }} />
+        </div>,
+      );
+    }
+  });
+
   return (
     <div className="space-y-6 scroll-mt-24" ref={gridTopRef}>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {firstListings.map((s, i) => (
-          <ListingGridCard key={s.id} s={s} globalIndex={i} {...locationSearchProps} />
-        ))}
-        {Array.from({ length: padFirstSm }).map((_, i) => (
+        {gridNodes}
+        {Array.from({ length: padSm }).map((_, i) => (
           <div
-            key={`vac-first-sm-${i}`}
+            key={`vac-sm-${i}`}
             aria-hidden
             className="pointer-events-none hidden min-h-0 border-0 bg-transparent shadow-none sm:block lg:hidden"
           />
         ))}
-        {Array.from({ length: padFirstLg }).map((_, i) => (
+        {Array.from({ length: padLg }).map((_, i) => (
           <div
-            key={`vac-first-lg-${i}`}
+            key={`vac-lg-${i}`}
             aria-hidden
             className="pointer-events-none hidden min-h-0 border-0 bg-transparent shadow-none lg:block"
           />
         ))}
       </div>
-
-      {showMidPageAd && (
-        <div className="w-full">
-          <AdBanner slot="LISTINGS_GRID_AD_SLOT" format="horizontal" style={{ minHeight: 90 }} />
-        </div>
-      )}
-
-      {restListings.length > 0 && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {restListings.map((s, i) => (
-            <ListingGridCard key={s.id} s={s} globalIndex={AD_INTERVAL + i} {...locationSearchProps} />
-          ))}
-          {Array.from({ length: padRestSm }).map((_, i) => (
-            <div
-              key={`vac-rest-sm-${i}`}
-              aria-hidden
-              className="pointer-events-none hidden min-h-0 border-0 bg-transparent shadow-none sm:block lg:hidden"
-            />
-          ))}
-          {Array.from({ length: padRestLg }).map((_, i) => (
-            <div
-              key={`vac-rest-lg-${i}`}
-              aria-hidden
-              className="pointer-events-none hidden min-h-0 border-0 bg-transparent shadow-none lg:block"
-            />
-          ))}
-        </div>
-      )}
 
       {/* Pagination */}
       {totalPages > 1 && (

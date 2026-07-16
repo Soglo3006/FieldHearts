@@ -114,7 +114,7 @@
   },
   "listingPrice": {
     "quote": "Price to discuss",
-    "rangeCurrency": "{{min}} to {{max}} $",
+    "rangeCurrency": "{{min}} $ to {{max}} $",
     "hourlyRate": "{{rate}} $/h",
     "hourlyWithHours": "{{rate}} $/h · {{hours}} h",
     "quoteTotalsHint": "Totals are finalized after you discuss the price. Commission and taxes are calculated at checkout on the confirmed amount."
@@ -210,7 +210,8 @@
     "orContinueWith": "Or continue with",
     "signInWithGoogle": "Sign in with Google",
     "signInWithFacebook": "Sign in with Facebook",
-    "terms": "By creating an account, you agree to our Terms of Service and Privacy Policy.",
+    "terms": "By creating an account, you agree to our",
+    "termsConnector": " and our ",
     "alreadyHaveAccount": "Already have an account?",
     "signIn": "Sign in",
     "passwordsMismatch": "Passwords do not match",

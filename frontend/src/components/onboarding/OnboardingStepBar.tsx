@@ -14,7 +14,7 @@ interface Props {
   onStepClick?: (step: number) => void;
 }
 
-export default function OnboardingStepBar({ accountType, currentStep, totalSteps, completedSteps, maxStepReached, onStepClick }: Props) {
+export default function OnboardingStepBar({ accountType, currentStep, totalSteps, completedSteps, onStepClick }: Props) {
   const { t } = useTranslation();
 
   const personTitles = [
@@ -49,12 +49,12 @@ export default function OnboardingStepBar({ accountType, currentStep, totalSteps
             const stepNum = index + 1;
             const isCompleted = completedSteps[index] === true;
             const isCurrent = stepNum === currentStep;
-            const isClickable = onStepClick && maxStepReached !== undefined && stepNum <= maxStepReached && !isCurrent;
+            const isClickable = Boolean(onStepClick) && !isCurrent;
             return (
               <div
                 key={index}
                 className={`flex flex-col items-center ${isClickable ? "cursor-pointer" : ""}`}
-                onClick={() => isClickable && onStepClick(stepNum)}
+                onClick={() => isClickable && onStepClick?.(stepNum)}
               >
                 <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center transition-all ${
                   isCompleted

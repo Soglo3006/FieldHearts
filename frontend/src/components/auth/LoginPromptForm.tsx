@@ -7,6 +7,7 @@ import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/contexts/AuthContext";
+import { useAuthGate } from "@/hooks/useAuthGate";
 import { getEmailValidationIssue } from "@/lib/emailValidation";
 import { SocialOAuthButtons } from "@/components/auth/SocialOAuthButtons";
 
@@ -21,6 +22,7 @@ export function LoginPromptForm({
 }: LoginPromptFormProps) {
   const { t } = useTranslation();
   const { signInWithEmail } = useAuth();
+  const { closeLogin } = useAuthGate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -148,7 +150,7 @@ export function LoginPromptForm({
       </form>
 
       <div className="text-center">
-        <Link href="/forgot-password" className="text-sm font-medium text-green-700 hover:underline">
+        <Link href="/forgot-password" onClick={closeLogin} className="text-sm font-medium text-green-700 hover:underline">
           {t("login.forgotPassword")}
         </Link>
       </div>
@@ -166,7 +168,7 @@ export function LoginPromptForm({
         redirectTo={redirectTo}
       />
 
-      <Link href={registerHref} className="block">
+      <Link href={registerHref} onClick={closeLogin} className="block">
         <Button
           type="button"
           variant="outline"

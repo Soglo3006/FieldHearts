@@ -8,6 +8,9 @@ import * as Sentry from "@sentry/nextjs";
 Sentry.init({
   dsn: "https://7cd85ab49bc4314b86bbc83a5215c87d@o4511106103640064.ingest.us.sentry.io/4511106105540608",
 
+  // No telemetry in dev — avoids noisy network errors in the terminal.
+  enabled: process.env.NODE_ENV === "production",
+
   // Define how likely traces are sampled. Adjust this value in production, or use tracesSampler for greater control.
   tracesSampleRate: 1,
 

@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { MapPin, Calendar, Globe, Truck, Zap, Tag, Users } from "lucide-react";
+import { MapPin, Tag, Users } from "lucide-react";
 import SaveShareActions from "@/components/serviceDetail/SaveShareActions";
 import { useTranslation } from "react-i18next";
 import { getServiceLocationEntries } from "@/lib/serviceLocation";
@@ -77,6 +77,11 @@ export default function ServiceTitleCard({
     service.type === "offer" && service.deposit_enabled && depositBase != null
       ? formatDepositLabel(t, service, depositBase)
       : "";
+  const depositLabelSeparator = depositLabel.indexOf(":");
+  const depositLabelTitle =
+    depositLabelSeparator >= 0 ? depositLabel.slice(0, depositLabelSeparator + 1) : "";
+  const depositLabelValue =
+    depositLabelSeparator >= 0 ? depositLabel.slice(depositLabelSeparator + 1).trim() : depositLabel;
   const categoryLine = formatListingCategoryLine(service.category_name, service, t, " · ");
   const hasCategory = Boolean(service.category_name || service.subcategory || categoryLine);
   const clientsServed = (() => {
@@ -175,7 +180,10 @@ export default function ServiceTitleCard({
           {depositLabel && (
             <>
               <div className="mt-2 w-fit border border-gray-200 rounded-lg px-3 py-2">
-                <p className="text-sm font-medium text-gray-800">{depositLabel}</p>
+                <p className="text-sm font-medium text-gray-800">
+                  {depositLabelTitle}{" "}
+                  <span className="text-red-500">{depositLabelValue}</span>
+                </p>
                 <p className="mt-0.5 text-xs text-red-500">{t("deposit.nonRefundableNotice")}</p>
               </div>
             </>
@@ -228,27 +236,23 @@ export default function ServiceTitleCard({
           <h2 className="text-lg font-semibold text-gray-900 mb-4">{t("serviceDetail.detailsSection")}</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {service.availability && (
-              <div className="flex items-center gap-2 text-sm text-gray-700">
-                <Calendar className="h-4 w-4 text-green-600 shrink-0" />
-                <span><span className="font-medium">{t("serviceDetail.availability")}:</span> {formatAvailabilityLabel(service.availability, t)}</span>
+              <div className="text-sm text-gray-700">
+                <span className="font-medium">{t("serviceDetail.availability")}:</span> {formatAvailabilityLabel(service.availability, t)}
               </div>
             )}
             {service.language && (
-              <div className="flex items-center gap-2 text-sm text-gray-700">
-                <Globe className="h-4 w-4 shrink-0 text-green-600" />
-                <span><span className="font-medium">{t("serviceDetail.language")}:</span> {formatSpokenLanguageLabel(service.language, t)}</span>
+              <div className="text-sm text-gray-700">
+                <span className="font-medium">{t("serviceDetail.language")}:</span> {formatSpokenLanguageLabel(service.language, t)}
               </div>
             )}
             {service.mobility && (
-              <div className="flex items-center gap-2 text-sm text-gray-700">
-                <Truck className="h-4 w-4 shrink-0 text-green-600" />
-                <span><span className="font-medium">{t("serviceDetail.mobility")}:</span> {formatMobilityLabel(service.mobility, t)}</span>
+              <div className="text-sm text-gray-700">
+                <span className="font-medium">{t("serviceDetail.mobility")}:</span> {formatMobilityLabel(service.mobility, t)}
               </div>
             )}
             {service.urgency && (
-              <div className="flex items-center gap-2 text-sm text-gray-700">
-                <Zap className="h-4 w-4 shrink-0 text-green-600" />
-                <span><span className="font-medium">{t("serviceDetail.urgency")}:</span> {formatUrgencyLabel(service.urgency, t)}</span>
+              <div className="text-sm text-gray-700">
+                <span className="font-medium">{t("serviceDetail.urgency")}:</span> {formatUrgencyLabel(service.urgency, t)}
               </div>
             )}
           </div>

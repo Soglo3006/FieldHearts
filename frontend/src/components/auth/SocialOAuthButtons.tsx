@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { FcGoogle } from "react-icons/fc";
 import { FaFacebookF } from "react-icons/fa";
@@ -52,6 +52,17 @@ export function SocialOAuthButtons({
   const { signInWithGoogle, signInWithFacebook } = useAuth();
   const [loading, setLoading] = useState<OAuthProvider | null>(null);
   const [oauthError, setOauthError] = useState("");
+
+  // Google/Facebook can return the user to this exact page via the browser's back-forward cache
+  // instead of a fresh reload — that restores the frozen "loading" spinner forever. Clear it
+  // whenever the page becomes visible again from a bfcache restore (or a stale prior attempt).
+  useEffect(() => {
+    const resetOnRestore = (event: PageTransitionEvent) => {
+      if (event.persisted) setLoading(null);
+    };
+    window.addEventListener("pageshow", resetOnRestore);
+    return () => window.removeEventListener("pageshow", resetOnRestore);
+  }, []);
 
   const widthClass = fullWidth ? "w-full" : "";
 

@@ -25,7 +25,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "Uneden — Trouve de l'aide près de chez toi",
+    default: "Uneden · Trouve de l'aide près de chez toi",
     template: "%s | Uneden",
   },
   description: "Uneden connecte les gens de ta communauté pour offrir et trouver des services locaux. Publie ton service ou trouve de l'aide près de chez toi.",
@@ -53,21 +53,21 @@ export const metadata: Metadata = {
     type: "website",
     url: "https://uneden.ca",
     siteName: "Uneden",
-    title: "Uneden — Trouve de l'aide près de chez toi",
+    title: "Uneden · Trouve de l'aide près de chez toi",
     description: "Connecte-toi avec ta communauté pour offrir et trouver des services locaux.",
     images: [
       {
         url: "https://uneden.ca/og-image.png",
         width: 1200,
         height: 630,
-        alt: "Uneden — Trouve de l'aide près de chez toi",
+        alt: "Uneden · Trouve de l'aide près de chez toi",
       },
     ],
     locale: "fr_CA",
   },
   twitter: {
     card: "summary",
-    title: "Uneden — Trouve de l'aide près de chez toi",
+    title: "Uneden · Trouve de l'aide près de chez toi",
     description: "Connecte-toi avec ta communauté pour offrir et trouver des services locaux.",
     images: ["https://uneden.ca/og-image.png"],
   },

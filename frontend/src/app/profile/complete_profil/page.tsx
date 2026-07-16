@@ -57,25 +57,24 @@ function LanguageToggle() {
   };
 
   return (
-    <div className="flex items-center gap-1 text-sm font-medium">
+    <div className="flex items-center gap-1 rounded-full border border-gray-200 bg-white p-1 shadow-sm">
       <button
         type="button"
         onClick={() => handleChange("fr")}
-        className={`px-2 py-1 rounded transition-colors cursor-pointer ${
+        className={`rounded-full px-2.5 py-1 text-xs font-semibold transition-colors cursor-pointer ${
           activeLng === "fr"
-            ? "font-bold underline text-green-700"
+            ? "bg-green-700 text-white"
             : "text-gray-500 hover:text-gray-800"
         }`}
       >
         FR
       </button>
-      <span className="text-gray-300">|</span>
       <button
         type="button"
         onClick={() => handleChange("en")}
-        className={`px-2 py-1 rounded transition-colors cursor-pointer ${
+        className={`rounded-full px-2.5 py-1 text-xs font-semibold transition-colors cursor-pointer ${
           activeLng === "en"
-            ? "font-bold underline text-green-700"
+            ? "bg-green-700 text-white"
             : "text-gray-500 hover:text-gray-800"
         }`}
       >

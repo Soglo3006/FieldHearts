@@ -62,7 +62,7 @@ function CheckoutForm({
       returnUrl ||
       (typeof window !== "undefined"
         ? `${window.location.origin}${window.location.pathname}${window.location.search || ""}`
-        : `${typeof window !== "undefined" ? window.location.origin : ""}/bookings`);
+        : "/bookings");
 
     const { error, paymentIntent } = await stripe.confirmPayment({
       elements,

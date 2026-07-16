@@ -80,6 +80,7 @@ export interface BookingDetail {
   worker_id: string;
   status: BookingStatus;
   created_at: string;
+  updated_at?: string | null;
   title: string;
   price: string | number;
   image_url: string | null;

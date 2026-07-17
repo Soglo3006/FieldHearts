@@ -99,12 +99,13 @@ async function fetchConnectSession(
   }
 
   if (!res.ok) {
-    if (res.status === 400) {
-      const data = await res.json().catch(() => ({}));
-      if (data.code === "PROFILE_INCOMPLETE") {
-        throw new Error("profile_incomplete");
-      }
+    const data = await res.json().catch(() => ({}));
+    if (res.status === 400 && data.code === "PROFILE_INCOMPLETE") {
+      throw new Error("profile_incomplete");
     }
+    // Log Stripe's own error text (permission/config issues, e.g. mismatched Connect keys
+    // between environments) so it's visible in Sentry/console instead of just "session".
+    console.error(`Stripe Connect session request failed (${res.status}):`, data.stripe_message || data.message || "no detail");
     throw new Error("session");
   }
   const data = await res.json();

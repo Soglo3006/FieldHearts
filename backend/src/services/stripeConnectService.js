@@ -138,7 +138,7 @@ export function buildConnectUpdatePayload(user) {
   return payload;
 }
 
-export async function syncProfileToStripeAccount(userId, stripeAccountId) {
+export async function syncProfileToStripeAccount(userId, stripeAccountId, accountType = "custom") {
   const user = await loadUserConnectProfile(userId);
   if (!user) {
     const err = new Error("User not found");
@@ -153,6 +153,14 @@ export async function syncProfileToStripeAccount(userId, stripeAccountId) {
     err.code = "PROFILE_INCOMPLETE";
     err.missing_fields = missing;
     throw err;
+  }
+
+  // Express/Standard accounts are self-managed by the connected user through Stripe's own
+  // hosted onboarding — the platform isn't permitted to edit business_type/individual/email on
+  // them directly (Stripe rejects with a permission error). Only "custom" accounts
+  // (requirement_collection: "application") accept platform-driven updates.
+  if (accountType !== "custom") {
+    return { synced: false, stripe_account_id: stripeAccountId };
   }
 
   const updatePayload = buildConnectUpdatePayload(user);
@@ -322,15 +330,15 @@ async function createConnectAccountSessionUnlocked(userId, { components, require
     }
   }
 
-  const { stripeAccountId } = await ensureStripeConnectAccount(userId);
+  const { stripeAccountId, accountType: existingAccountType } = await ensureStripeConnectAccount(userId);
 
   // Sync profile only for onboarding. Management sessions skip accounts.update
   // so we don't contend with accountSessions.create (lock_timeout).
   if (requireProfile) {
     const user = await loadUserConnectProfile(userId);
     if (isUserPayoutProfileComplete(user)) {
-      await withStripeRetry(() => syncProfileToStripeAccount(userId, stripeAccountId));
-    } else if (user) {
+      await withStripeRetry(() => syncProfileToStripeAccount(userId, stripeAccountId, existingAccountType));
+    } else if (user && existingAccountType === "custom") {
       const businessPayload = buildConnectUpdatePayload(user);
       if (Object.keys(businessPayload).length > 0) {
         await withStripeRetry(() => stripe.accounts.update(stripeAccountId, businessPayload));

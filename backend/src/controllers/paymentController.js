@@ -131,8 +131,8 @@ export const createConnectAccount = async (req, res) => {
       });
     }
 
-    const { stripeAccountId } = await ensureStripeConnectAccount(userId);
-    await syncProfileToStripeAccount(userId, stripeAccountId);
+    const { stripeAccountId, accountType } = await ensureStripeConnectAccount(userId);
+    await syncProfileToStripeAccount(userId, stripeAccountId, accountType);
 
     const isValidRelativePath = (path) =>
       path
@@ -200,7 +200,12 @@ export const createAccountSession = async (req, res) => {
         missing_fields: err.missing_fields ?? [],
       });
     }
-    res.status(err.statusCode || 500).json({ message: "Failed to create account session" });
+    // Surface Stripe's own error message (e.g. permission/config issues) — safe to show,
+    // it's the same text Stripe's API returns, not an internal secret.
+    res.status(err.statusCode || 500).json({
+      message: "Failed to create account session",
+      stripe_message: err.raw?.message || err.message || null,
+    });
   }
 };
 
@@ -215,8 +220,8 @@ export const getConnectConfig = async (_req, res) => {
 export const syncConnectProfile = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { stripeAccountId } = await ensureStripeConnectAccount(userId);
-    const result = await syncProfileToStripeAccount(userId, stripeAccountId);
+    const { stripeAccountId, accountType } = await ensureStripeConnectAccount(userId);
+    const result = await syncProfileToStripeAccount(userId, stripeAccountId, accountType);
     res.json(result);
   } catch (err) {
     console.error("Connect profile sync error:", err);

@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, X, CheckCircle2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,14 +12,42 @@ interface Props {
   onClose: () => void;
 }
 
+const RESEND_COOLDOWN_S = 60;
+
 export default function ChangePasswordPage({ onBack, onClose }: Props) {
   const { t } = useTranslation();
-  const { session } = useAuth();
+  const { session, user } = useAuth();
+  const [step, setStep] = useState<"form" | "code">("form");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
   const [formData, setFormData] = useState({ oldPassword: "", newPassword: "", confirmPassword: "" });
   const [errors, setErrors] = useState({ oldPassword: "", newPassword: "", confirmPassword: "" });
+
+  const [code, setCode] = useState("");
+  const [codeError, setCodeError] = useState("");
+  const [verifying, setVerifying] = useState(false);
+  const [resending, setResending] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const cooldownTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => () => {
+    if (cooldownTimerRef.current) clearInterval(cooldownTimerRef.current);
+  }, []);
+
+  const startCooldown = () => {
+    setResendCooldown(RESEND_COOLDOWN_S);
+    if (cooldownTimerRef.current) clearInterval(cooldownTimerRef.current);
+    cooldownTimerRef.current = setInterval(() => {
+      setResendCooldown((prev) => {
+        if (prev <= 1) {
+          if (cooldownTimerRef.current) clearInterval(cooldownTimerRef.current);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
 
   const validateForm = () => {
     const newErrors = { oldPassword: "", newPassword: "", confirmPassword: "" };
@@ -33,27 +61,79 @@ export default function ChangePasswordPage({ onBack, onClose }: Props) {
     return !Object.values(newErrors).some(e => e !== "");
   };
 
+  const requestCode = async () => {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/change-password/request-code`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token}` },
+      body: JSON.stringify({ oldPassword: formData.oldPassword, newPassword: formData.newPassword }),
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.message || t("settings.otpSendFailed"));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(""); setSuccess(false);
+    setError("");
     if (!validateForm()) return;
     setLoading(true);
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/change-password`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token}` },
-        body: JSON.stringify({ oldPassword: formData.oldPassword, newPassword: formData.newPassword }),
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.message || t("settings.passwordError"));
-      setSuccess(true);
-      setFormData({ oldPassword: "", newPassword: "", confirmPassword: "" });
-      setTimeout(() => onBack(), 2000);
+      await requestCode();
+      setCode("");
+      setCodeError("");
+      setStep("code");
+      startCooldown();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : t("settings.passwordError"));
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleResend = async () => {
+    if (resendCooldown > 0 || resending) return;
+    setResending(true);
+    setCodeError("");
+    try {
+      await requestCode();
+      startCooldown();
+    } catch (err: unknown) {
+      setCodeError(err instanceof Error ? err.message : t("settings.otpSendFailed"));
+    } finally {
+      setResending(false);
+    }
+  };
+
+  const handleVerifyCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setCodeError("");
+    if (code.replace(/\D/g, "").length !== 6) {
+      setCodeError(t("settings.otpInvalidCode"));
+      return;
+    }
+    setVerifying(true);
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/change-password`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token}` },
+        body: JSON.stringify({ oldPassword: formData.oldPassword, newPassword: formData.newPassword, code }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || t("settings.passwordError"));
+      setSuccess(true);
+      setFormData({ oldPassword: "", newPassword: "", confirmPassword: "" });
+      setCode("");
+      setTimeout(() => onBack(), 2000);
+    } catch (err: unknown) {
+      setCodeError(err instanceof Error ? err.message : t("settings.passwordError"));
+    } finally {
+      setVerifying(false);
+    }
+  };
+
+  const handleBackToForm = () => {
+    setStep("form");
+    setCode("");
+    setCodeError("");
   };
 
   return (
@@ -62,7 +142,7 @@ export default function ChangePasswordPage({ onBack, onClose }: Props) {
       <div className="flex items-center justify-between px-5 py-4 border-b shrink-0">
         <button
           type="button"
-          onClick={onBack}
+          onClick={step === "code" ? handleBackToForm : onBack}
           className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 transition-colors cursor-pointer"
         >
           <ArrowLeft className="h-4 w-4" />
@@ -81,94 +161,156 @@ export default function ChangePasswordPage({ onBack, onClose }: Props) {
       <div className="flex-1 overflow-y-auto">
         <div className="max-w-md mx-auto px-6 py-10 space-y-8">
 
-          <div className="text-center space-y-1">
-            <h2 className="text-xl font-semibold text-gray-900">{t("settings.changePassword")}</h2>
-            <p className="text-sm text-gray-500 leading-relaxed">{t("settings.updatePassword")}</p>
-          </div>
+          {step === "form" ? (
+            <>
+              <div className="text-center space-y-1">
+                <h2 className="text-xl font-semibold text-gray-900">{t("settings.changePassword")}</h2>
+                <p className="text-sm text-gray-500 leading-relaxed">{t("settings.updatePassword")}</p>
+              </div>
 
-          {/* Success state */}
-          {success && (
-            <div className="flex items-center gap-3 p-4 bg-green-50 border border-green-100 rounded-xl">
-              <CheckCircle2 className="h-5 w-5 text-green-600 shrink-0" />
-              <p className="text-sm text-green-800">{t("settings.passwordUpdated")}</p>
-            </div>
-          )}
-
-          {/* Error */}
-          {error && (
-            <div className="p-4 bg-red-50 border border-red-100 rounded-xl">
-              <p className="text-sm text-red-700">{error}</p>
-            </div>
-          )}
-
-          {/* Form */}
-          <form onSubmit={handleSubmit} className="space-y-5 pb-6">
-            <div className="space-y-1.5">
-              <Label htmlFor="oldPassword" className="text-sm font-medium text-gray-700">
-                {t("settings.currentPassword")}
-              </Label>
-              <Input
-                id="oldPassword"
-                type="password"
-                value={formData.oldPassword}
-                onChange={(e) => { setFormData({ ...formData, oldPassword: e.target.value }); setErrors({ ...errors, oldPassword: "" }); }}
-                className={`h-11 ${errors.oldPassword ? "border-red-400 focus-visible:ring-red-300" : ""}`}
-                disabled={loading}
-                autoComplete="current-password"
-              />
-              {errors.oldPassword && <p className="text-xs text-red-500">{errors.oldPassword}</p>}
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="newPassword" className="text-sm font-medium text-gray-700">
-                {t("settings.newPassword")}
-              </Label>
-              <Input
-                id="newPassword"
-                type="password"
-                value={formData.newPassword}
-                onChange={(e) => { setFormData({ ...formData, newPassword: e.target.value }); setErrors({ ...errors, newPassword: "" }); }}
-                className={`h-11 ${errors.newPassword ? "border-red-400 focus-visible:ring-red-300" : ""}`}
-                disabled={loading}
-                autoComplete="new-password"
-              />
-              {errors.newPassword
-                ? <p className="text-xs text-red-500">{errors.newPassword}</p>
-                : <p className="text-xs text-gray-400">{t("settings.passwordMinLength")}</p>
-              }
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="confirmPassword" className="text-sm font-medium text-gray-700">
-                {t("settings.confirmPassword")}
-              </Label>
-              <Input
-                id="confirmPassword"
-                type="password"
-                value={formData.confirmPassword}
-                onChange={(e) => { setFormData({ ...formData, confirmPassword: e.target.value }); setErrors({ ...errors, confirmPassword: "" }); }}
-                className={`h-11 ${errors.confirmPassword ? "border-red-400 focus-visible:ring-red-300" : ""}`}
-                disabled={loading}
-                autoComplete="new-password"
-              />
-              {errors.confirmPassword && <p className="text-xs text-red-500">{errors.confirmPassword}</p>}
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full h-11 rounded-lg text-sm font-medium bg-green-700 hover:bg-green-800 text-white transition-colors cursor-pointer flex items-center justify-center gap-2 disabled:opacity-60 mt-2"
-            >
-              {loading ? (
-                <>
-                  <Spinner size="xs" />
-                  {t("settings.updating")}
-                </>
-              ) : (
-                t("settings.updatePassword")
+              {error && (
+                <div className="p-4 bg-red-50 border border-red-100 rounded-xl">
+                  <p className="text-sm text-red-700">{error}</p>
+                </div>
               )}
-            </button>
-          </form>
+
+              <form onSubmit={handleSubmit} className="space-y-5 pb-6">
+                <div className="space-y-1.5">
+                  <Label htmlFor="oldPassword" className="text-sm font-medium text-gray-700">
+                    {t("settings.currentPassword")}
+                  </Label>
+                  <Input
+                    id="oldPassword"
+                    type="password"
+                    value={formData.oldPassword}
+                    onChange={(e) => { setFormData({ ...formData, oldPassword: e.target.value }); setErrors({ ...errors, oldPassword: "" }); }}
+                    className={`h-11 ${errors.oldPassword ? "border-red-400 focus-visible:ring-red-300" : ""}`}
+                    disabled={loading}
+                    autoComplete="current-password"
+                  />
+                  {errors.oldPassword && <p className="text-xs text-red-500">{errors.oldPassword}</p>}
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="newPassword" className="text-sm font-medium text-gray-700">
+                    {t("settings.newPassword")}
+                  </Label>
+                  <Input
+                    id="newPassword"
+                    type="password"
+                    value={formData.newPassword}
+                    onChange={(e) => { setFormData({ ...formData, newPassword: e.target.value }); setErrors({ ...errors, newPassword: "" }); }}
+                    className={`h-11 ${errors.newPassword ? "border-red-400 focus-visible:ring-red-300" : ""}`}
+                    disabled={loading}
+                    autoComplete="new-password"
+                  />
+                  {errors.newPassword
+                    ? <p className="text-xs text-red-500">{errors.newPassword}</p>
+                    : <p className="text-xs text-gray-400">{t("settings.passwordMinLength")}</p>
+                  }
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="confirmPassword" className="text-sm font-medium text-gray-700">
+                    {t("settings.confirmPassword")}
+                  </Label>
+                  <Input
+                    id="confirmPassword"
+                    type="password"
+                    value={formData.confirmPassword}
+                    onChange={(e) => { setFormData({ ...formData, confirmPassword: e.target.value }); setErrors({ ...errors, confirmPassword: "" }); }}
+                    className={`h-11 ${errors.confirmPassword ? "border-red-400 focus-visible:ring-red-300" : ""}`}
+                    disabled={loading}
+                    autoComplete="new-password"
+                  />
+                  {errors.confirmPassword && <p className="text-xs text-red-500">{errors.confirmPassword}</p>}
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full h-11 rounded-lg text-sm font-medium bg-green-700 hover:bg-green-800 text-white transition-colors cursor-pointer flex items-center justify-center gap-2 disabled:opacity-60 mt-2"
+                >
+                  {loading ? (
+                    <>
+                      <Spinner size="xs" />
+                      {t("settings.updating")}
+                    </>
+                  ) : (
+                    t("settings.updatePassword")
+                  )}
+                </button>
+              </form>
+            </>
+          ) : (
+            <>
+              <div className="text-center space-y-1">
+                <h2 className="text-xl font-semibold text-gray-900">{t("settings.otpTitle")}</h2>
+                <p className="text-sm text-gray-500 leading-relaxed">
+                  {t("settings.otpDescription", { email: user?.email ?? "" })}
+                </p>
+              </div>
+
+              {success ? (
+                <div className="flex items-center gap-3 p-4 bg-green-50 border border-green-100 rounded-xl">
+                  <CheckCircle2 className="h-5 w-5 text-green-600 shrink-0" />
+                  <p className="text-sm text-green-800">{t("settings.passwordUpdated")}</p>
+                </div>
+              ) : (
+                <form onSubmit={handleVerifyCode} className="space-y-5 pb-6">
+                  {codeError && (
+                    <div className="p-4 bg-red-50 border border-red-100 rounded-xl">
+                      <p className="text-sm text-red-700">{codeError}</p>
+                    </div>
+                  )}
+
+                  <div className="space-y-1.5">
+                    <Label htmlFor="otpCode" className="text-sm font-medium text-gray-700">
+                      {t("settings.otpCodeLabel")}
+                    </Label>
+                    <Input
+                      id="otpCode"
+                      type="text"
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      maxLength={6}
+                      value={code}
+                      onChange={(e) => { setCode(e.target.value.replace(/\D/g, "").slice(0, 6)); setCodeError(""); }}
+                      className={`h-12 text-center text-xl tracking-[0.5em] ${codeError ? "border-red-400 focus-visible:ring-red-300" : ""}`}
+                      disabled={verifying}
+                      autoFocus
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={verifying}
+                    className="w-full h-11 rounded-lg text-sm font-medium bg-green-700 hover:bg-green-800 text-white transition-colors cursor-pointer flex items-center justify-center gap-2 disabled:opacity-60"
+                  >
+                    {verifying ? (
+                      <>
+                        <Spinner size="xs" />
+                        {t("settings.otpVerifying")}
+                      </>
+                    ) : (
+                      t("settings.otpConfirm")
+                    )}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleResend}
+                    disabled={resendCooldown > 0 || resending}
+                    className="w-full text-center text-sm text-green-700 hover:underline disabled:text-gray-400 disabled:no-underline cursor-pointer disabled:cursor-not-allowed"
+                  >
+                    {resendCooldown > 0
+                      ? t("settings.otpResendIn", { seconds: resendCooldown })
+                      : t("settings.otpResend")}
+                  </button>
+                </form>
+              )}
+            </>
+          )}
 
         </div>
       </div>

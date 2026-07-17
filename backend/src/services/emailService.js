@@ -393,6 +393,18 @@ const emailTemplates = {
     `,
   })),
 
+  passwordChangeOtp: bilingualTemplate((lang, code) => ({
+    subject: t(lang, "Code de vérification — Changement de mot de passe", "Verification code — Password change"),
+    body: `
+      <h2 style="margin:0 0 8px;color:#111827;">${t(lang, "Confirmez le changement de mot de passe", "Confirm your password change")}</h2>
+      <p style="color:#374151;">${t(lang, "Une demande de changement de mot de passe a été faite sur votre compte Uneden. Si c'est bien vous, entrez ce code pour confirmer :", "A password change was requested on your Uneden account. If this was you, enter this code to confirm:")}</p>
+      <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:24px;margin:24px 0;text-align:center;">
+        <p style="margin:0;font-size:32px;font-weight:700;letter-spacing:8px;color:#166534;font-family:monospace;">${esc(code)}</p>
+      </div>
+      <p style="color:#6b7280;font-size:13px;">${t(lang, "Ce code expire dans 10 minutes. Si vous n'avez pas demandé ce changement, ignorez cet e-mail — votre mot de passe reste inchangé.", "This code expires in 10 minutes. If you did not request this change, ignore this email — your password remains unchanged.")}</p>
+    `,
+  })),
+
   disputeOutcome: bilingualTemplate((lang, userName, bookingId, status, resolution, refundedAmount) => ({
     subject: t(
       lang,
@@ -493,6 +505,9 @@ export const notifyWaitlistConfirmation = (email, lang = "fr") =>
 export const notifyAdminEmailOtp = (email, code, lang = "fr") =>
   sendEmail(email, "adminEmailOtp", [code], lang);
 
+export const notifyPasswordChangeOtp = (email, code, lang = "fr") =>
+  sendEmail(email, "passwordChangeOtp", [code], lang);
+
 export default {
   sendEmail,
   notifyBookingCreated,
@@ -505,6 +520,7 @@ export default {
   notifyPaymentReceipt,
   notifyPayoutReceived,
   notifyPasswordChanged,
+  notifyPasswordChangeOtp,
   notifyWelcome,
   notifyWaitlistConfirmation,
   notifyAdminEmailOtp,

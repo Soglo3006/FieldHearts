@@ -110,8 +110,10 @@ function OnboardingContent() {
   const totalSteps = accountType === "company" ? 6 : 7;
   const paymentStep = accountType === "company" ? 5 : 6;
 
-  const storageKey = `onboarding_data_${accountType}`;
-  const maxStepKey = `onboarding_max_step_${accountType}`;
+  // Scoped per-user — otherwise a previous account's progress on the same browser/device
+  // leaks into a brand new signup (steps falsely shown as already completed).
+  const storageKey = `onboarding_data_${accountType}_${user?.id ?? "anon"}`;
+  const maxStepKey = `onboarding_max_step_${accountType}_${user?.id ?? "anon"}`;
 
   const [data, setData] = useState<OnboardingData>({
     accountType: "" as "" | "person" | "company",

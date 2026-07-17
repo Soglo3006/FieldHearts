@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslation } from "react-i18next";
 import { supabase } from "@/lib/supabaseClient";
 import { canAccessAdminPortal, safeInternalPath } from "@/lib/auth";
 import { needsOnboardingSetup } from "@/lib/onboarding";
@@ -11,77 +12,70 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 export default function AuthCallbackPage() {
   const router = useRouter();
-  const [message, setMessage] = useState("Authenticating...");
+  const { t } = useTranslation();
+  const [message, setMessage] = useState("");
 
   useEffect(() => {
-    const handleCallback = async () => {
-      try {
-        // PKCE flow: Supabase sends ?code=xxx in the URL
-        const code = new URLSearchParams(window.location.search).get("code");
-        if (code) {
-          const { error } = await supabase.auth.exchangeCodeForSession(code);
-          if (error) {
-            setMessage("Verification failed. Redirecting to login...");
-            setTimeout(() => router.replace("/login"), 1500);
-            return;
-          }
-          clearAdminStepUpToken();
-        }
+    const goToLogin = (key: string) => {
+      setMessage(t(key));
+      setTimeout(() => router.replace("/login"), 1500);
+    };
 
-        // Get session after potential code exchange
-        const { data: { session }, error } = await supabase.auth.getSession();
-
-        if (error) {
-          setMessage("Authentication failed. Redirecting to login...");
-          setTimeout(() => router.replace("/login"), 1500);
-          return;
-        }
-
-        if (session) {
-          clearAdminStepUpToken();
-          requestWelcomeEmail(session.access_token);
-          if (canAccessAdminPortal(session.user)) {
-            router.replace("/admin");
-          } else {
-            if (needsOnboardingSetup(session.user)) {
-              router.replace("/choose_type");
-            } else {
-              const next = new URLSearchParams(window.location.search).get("next");
-              router.replace(safeInternalPath(next, "/"));
-            }
-          }
-        } else {
-          // Implicit/hash flow fallback — listen for auth state change
-          const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-            if (event === "SIGNED_IN" && session) {
-              subscription.unsubscribe();
-              clearAdminStepUpToken();
-              requestWelcomeEmail(session.access_token);
-              if (canAccessAdminPortal(session.user)) {
-                router.replace("/admin");
-              } else {
-                if (needsOnboardingSetup(session.user)) {
-                  router.replace("/choose_type");
-                } else {
-                  const next = new URLSearchParams(window.location.search).get("next");
-                  router.replace(safeInternalPath(next, "/"));
-                }
-              }
-            }
-          });
-          setTimeout(() => {
-            subscription.unsubscribe();
-            setMessage("No session found. Redirecting to login...");
-            setTimeout(() => router.push("/login"), 1500);
-          }, 5000);
-        }
-      } catch (err) {
-        setMessage("Something went wrong. Redirecting to login...");
-        setTimeout(() => router.replace("/login"), 1500);
+    const routeAfterSession = (session: NonNullable<Awaited<ReturnType<typeof supabase.auth.getSession>>["data"]["session"]>) => {
+      clearAdminStepUpToken();
+      requestWelcomeEmail(session.access_token);
+      if (canAccessAdminPortal(session.user)) {
+        router.replace("/admin");
+      } else if (needsOnboardingSetup(session.user)) {
+        router.replace("/choose_type");
+      } else {
+        const next = new URLSearchParams(window.location.search).get("next");
+        router.replace(safeInternalPath(next, "/"));
       }
     };
 
+    const handleCallback = async () => {
+      try {
+        // PKCE flow: Supabase sends ?code=xxx in the URL. If exchange fails (e.g. the code was
+        // already consumed by an email client's link-prefetch/security scan), don't give up
+        // immediately — a session may already exist from that earlier exchange.
+        const code = new URLSearchParams(window.location.search).get("code");
+        if (code) {
+          const { error } = await supabase.auth.exchangeCodeForSession(code);
+          if (!error) clearAdminStepUpToken();
+        }
+
+        const { data: { session }, error } = await supabase.auth.getSession();
+
+        if (session) {
+          routeAfterSession(session);
+          return;
+        }
+
+        if (error) {
+          goToLogin("authCallback.authFailed");
+          return;
+        }
+
+        // Implicit/hash flow fallback — listen for auth state change
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((event, changedSession) => {
+          if (event === "SIGNED_IN" && changedSession) {
+            subscription.unsubscribe();
+            routeAfterSession(changedSession);
+          }
+        });
+        setTimeout(() => {
+          subscription.unsubscribe();
+          goToLogin("authCallback.noSession");
+        }, 5000);
+      } catch {
+        goToLogin("authCallback.genericError");
+      }
+    };
+
+    setMessage(t("authCallback.verifying"));
     handleCallback();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once; t() is stable enough for this one-shot redirect
   }, [router]);
 
   return (

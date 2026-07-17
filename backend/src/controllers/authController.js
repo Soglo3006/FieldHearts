@@ -1,9 +1,8 @@
 import pool from "../config/db.js";
-import bcrypt from "bcryptjs";
 import { notifyPasswordChanged, notifyWaitlistConfirmation } from "../services/emailService.js";
 import { getUserLang } from "../services/notificationService.js";
 import { sendWelcomeEmailOnce } from "../services/userWelcomeService.js";
-import { supabaseAdmin } from "../lib/supabase.js";
+import { supabaseAdmin, supabaseAnon } from "../lib/supabase.js";
 
 export const joinWaitlist = async (req, res) => {
   try {
@@ -93,7 +92,6 @@ export const changePassword = async (req, res) => {
             });
         }
 
-        // Récupérer l'utilisateur avec le mot de passe
         const result = await pool.query(
             'SELECT * FROM users WHERE id = $1',
             [userId]
@@ -105,22 +103,30 @@ export const changePassword = async (req, res) => {
 
         const user = result.rows[0];
 
-        // Vérifier l'ancien mot de passe
-        const isMatch = await bcrypt.compare(oldPassword, user.password);
-        if (!isMatch) {
-            return res.status(401).json({ 
-                message: "Current password is incorrect" 
+        // Credentials live in Supabase Auth, not this table — verify the current password there.
+        if (!supabaseAnon) {
+            return res.status(500).json({ message: "Server error while changing password" });
+        }
+        const { error: verifyError } = await supabaseAnon.auth.signInWithPassword({
+            email: user.email,
+            password: oldPassword,
+        });
+        if (verifyError) {
+            return res.status(401).json({
+                message: "Current password is incorrect"
             });
         }
 
-        // Hasher le nouveau mot de passe
-        const hashedPassword = await bcrypt.hash(newPassword, 10);
-
-        // Mettre à jour le mot de passe
-        await pool.query(
-            'UPDATE users SET password = $1, updated_at = NOW() WHERE id = $2',
-            [hashedPassword, userId]
-        );
+        // Update the password in Supabase Auth (the actual source of truth).
+        const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(userId, {
+            password: newPassword,
+        });
+        if (updateError) {
+            return res.status(500).json({
+                message: "Server error while changing password",
+                error: updateError.message
+            });
+        }
 
         // Notify user by email
         const displayName = user.account_type === "company" ? user.company_name : user.full_name;

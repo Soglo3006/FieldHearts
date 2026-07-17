@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { loadConnectAndInitialize, type StripeConnectInstance } from "@stripe/connect-js/pure";
 import {
   ConnectAccountManagement,
@@ -124,6 +125,8 @@ export default function StripeConnectOnboarding({
   onReady?: () => void;
   className?: string;
 }) {
+  const { i18n } = useTranslation();
+  const stripeLocale = i18n.language?.startsWith("en") ? "en-CA" : "fr-CA";
   const [publishableKey, setPublishableKey] = useState<string | null>(
     () => process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? null,
   );
@@ -217,10 +220,10 @@ export default function StripeConnectOnboarding({
           overlayBackdropColor: "rgba(0,0,0,0.35)",
         },
       },
-      locale: "fr-CA",
+      locale: stripeLocale,
     });
     setConnectInstance(instance);
-  }, [publishableKey, fetchClientSecret, instanceEpoch]);
+  }, [publishableKey, fetchClientSecret, instanceEpoch, stripeLocale]);
 
   useEffect(() => {
     if (!connectInstance || !coverWithSkeleton) return;

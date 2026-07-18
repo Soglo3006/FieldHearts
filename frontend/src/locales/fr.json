@@ -22,7 +22,12 @@
     "seeAllResults": "Voir tous les résultats pour « {{query}} » →",
     "favorites": "Favoris",
     "messages": "Messages",
-    "notifications": "Notifications"
+    "notifications": "Notifications",
+    "recentSearches": "Recherches récentes",
+    "clearAll": "Tout effacer",
+    "searchListings": "Annonces",
+    "searching": "Recherche...",
+    "noResultsFor": "Aucun résultat pour « {{query}} »"
   },
   "footer": {
     "about": "À propos",
@@ -81,6 +86,7 @@
     "extraPhotosAria": "{{count}} de plus dans la galerie"
   },
   "listings": {
+    "loadError": "Impossible de charger les annonces. Vérifiez votre connexion.",
     "filters": "Filtres",
     "type": "Type",
     "all": "Tous",
@@ -859,6 +865,13 @@
     "mobilityRegional": "Régional"
   },
   "profile": {
+    "loadError": "Échec du chargement du profil. Veuillez actualiser la page.",
+    "invalidImageType": "Veuillez téléverser une image.",
+    "uploadError": "Impossible d'enregistrer l'image.",
+    "ratingsAndReviews": "Évaluations et avis",
+    "noReviewsDesc": "n'a pas encore reçu d'avis.",
+    "closeRatings": "Fermer les évaluations",
+    "deleteItem": "Supprimer",
     "editProfile": "Modifier le profil",
     "portfolio": "Portfolio",
     "ourWork": "Nos réalisations",
@@ -1021,6 +1034,10 @@
   },
   "settings": {
     "title": "Paramètres",
+    "back": "Retour",
+    "dataToBeDeleted": "Ce qui sera supprimé",
+    "typeToConfirm": "Tapez",
+    "toConfirmAction": "pour confirmer la suppression",
     "account": "Compte",
     "changePassword": "Changer le mot de passe",
     "deleteAccount": "Supprimer le compte",
@@ -1160,7 +1177,9 @@
     "profileRequiredDesc": "Avant d'ajouter votre compte bancaire, renseignez votre nom, téléphone et adresse complète dans votre profil. Ces informations sont déjà configurées pour vous sur Uneden.",
     "completeProfileFirst": "Compléter mon profil",
     "prefilledHint": "Vos informations de profil sont déjà enregistrées. Il ne restera qu'à ajouter votre compte bancaire.",
-    "bankOnlyHint": "Ajoutez votre compte bancaire et complétez la vérification d'identité si demandée. Les autres informations sont déjà configurées par Uneden."
+    "bankOnlyHint": "Ajoutez votre compte bancaire et complétez la vérification d'identité si demandée. Les autres informations sont déjà configurées par Uneden.",
+    "profileIncompleteError": "Complétez votre profil (nom, téléphone et adresse) avant de continuer.",
+    "configError": "Configuration de paiement indisponible. Réessayez plus tard."
   },
   "onboarding": {
     "stepLabel": "Étape",
@@ -1299,6 +1318,9 @@
   },
   "messages": {
     "title": "Messages",
+    "messageOptions": "Options du message",
+    "unknownUser": "Utilisateur",
+    "cannotMessageSelf": "Vous ne pouvez pas vous envoyer un message à vous-même !",
     "noConversations": "Aucune conversation pour l'instant.",
     "startConversation": "Démarrer une conversation",
     "typeMessage": "Écrivez un message...",
@@ -1717,6 +1739,11 @@
   },
   "admin": {
     "title": "Admin",
+    "bookings": {
+      "workerReceived": "Reçu",
+      "clientPayment": "Ce que le client a payé",
+      "clientPaid": "Total payé"
+    },
     "nav": {
       "dashboard": "Admin",
       "disputes": "Litiges",
@@ -2652,6 +2679,11 @@
   },
   "common": {
     "loading": "Chargement...",
+    "expand": "Développer",
+    "collapse": "Réduire",
+    "zoomOut": "Réduire le zoom",
+    "zoom": "Zoom",
+    "zoomIn": "Augmenter le zoom",
     "error": "Une erreur s'est produite",
     "retry": "Réessayer",
     "close": "Fermer",

@@ -22,7 +22,12 @@
     "seeAllResults": "See all results for \"{{query}}\" →",
     "favorites": "Favorites",
     "messages": "Messages",
-    "notifications": "Notifications"
+    "notifications": "Notifications",
+    "recentSearches": "Recent searches",
+    "clearAll": "Clear all",
+    "searchListings": "Listings",
+    "searching": "Searching...",
+    "noResultsFor": "No results for \"{{query}}\""
   },
   "footer": {
     "about": "About",
@@ -81,6 +86,7 @@
     "extraPhotosAria": "{{count}} more in gallery"
   },
   "listings": {
+    "loadError": "Unable to load listings. Please check your connection.",
     "filters": "Filters",
     "type": "Type",
     "all": "All",
@@ -863,6 +869,13 @@
     "mobilityRegional": "Regional"
   },
   "profile": {
+    "loadError": "Failed to load profile. Please refresh the page.",
+    "invalidImageType": "Please upload an image.",
+    "uploadError": "Could not save image.",
+    "ratingsAndReviews": "Ratings & Reviews",
+    "noReviewsDesc": "hasn't received any reviews yet.",
+    "closeRatings": "Close ratings",
+    "deleteItem": "Delete",
     "editProfile": "Edit Profile",
     "portfolio": "Portfolio",
     "ourWork": "Our Work",
@@ -1025,6 +1038,10 @@
   },
   "settings": {
     "title": "Settings",
+    "back": "Back",
+    "dataToBeDeleted": "What will be deleted",
+    "typeToConfirm": "Type",
+    "toConfirmAction": "to confirm deletion",
     "account": "Account",
     "changePassword": "Change Password",
     "deleteAccount": "Delete Account",
@@ -1164,7 +1181,9 @@
     "profileRequiredDesc": "Before adding your bank account, add your name, phone, and full address to your profile. This information is already configured for you on Uneden.",
     "completeProfileFirst": "Complete my profile",
     "prefilledHint": "Your profile details are already saved. You'll only need to add your bank account.",
-    "bankOnlyHint": "Add your bank account and complete identity verification if requested. Other details are already configured by Uneden."
+    "bankOnlyHint": "Add your bank account and complete identity verification if requested. Other details are already configured by Uneden.",
+    "profileIncompleteError": "Complete your profile (name, phone, and address) before continuing.",
+    "configError": "Payment setup unavailable. Please try again later."
   },
   "onboarding": {
     "stepLabel": "Step",
@@ -1303,6 +1322,9 @@
   },
   "messages": {
     "title": "Messages",
+    "messageOptions": "Message options",
+    "unknownUser": "User",
+    "cannotMessageSelf": "You cannot message yourself!",
     "noConversations": "No conversations yet.",
     "startConversation": "Start a conversation",
     "typeMessage": "Type a message...",
@@ -1721,6 +1743,11 @@
   },
   "admin": {
     "title": "Admin",
+    "bookings": {
+      "workerReceived": "Received",
+      "clientPayment": "What the client paid",
+      "clientPaid": "Total paid"
+    },
     "nav": {
       "dashboard": "Admin",
       "disputes": "Disputes",
@@ -2882,6 +2909,11 @@
   },
   "common": {
     "loading": "Loading...",
+    "expand": "Expand",
+    "collapse": "Collapse",
+    "zoomOut": "Zoom out",
+    "zoom": "Zoom",
+    "zoomIn": "Zoom in",
     "error": "An error occurred",
     "retry": "Retry",
     "close": "Close",

@@ -126,7 +126,7 @@ export default function StripeConnectOnboarding({
   onReady?: () => void;
   className?: string;
 }) {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
   const stripeLocale = i18n.language?.startsWith("en") ? "en-CA" : "fr-CA";
   const [publishableKey, setPublishableKey] = useState<string | null>(
     () => process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? null,
@@ -281,8 +281,8 @@ export default function StripeConnectOnboarding({
   if (error) {
     const message =
       error === "profile_incomplete"
-        ? "Complétez votre profil (nom, téléphone et adresse) avant de continuer."
-        : "Configuration de paiement indisponible. Réessayez plus tard.";
+        ? t("payoutSetup.profileIncompleteError")
+        : t("payoutSetup.configError");
     return (
       <div className={className}>
         <p className="py-4 text-center text-sm text-red-600">{message}</p>

@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import usePlacesAutocomplete, { getGeocode } from "use-places-autocomplete";
 import { useJsApiLoader } from "@react-google-maps/api";
 import { MapPin } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import { GOOGLE_MAPS_LIBRARIES } from "@/lib/googleMapsConfig";
 
@@ -120,6 +121,7 @@ function AddressInput({ value, onChange, onSelect, placeholder, className, id }:
 }
 
 export default function AddressAutocomplete(props: Props) {
+  const { t } = useTranslation();
   const { isLoaded } = useJsApiLoader({
     googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "",
     libraries: GOOGLE_MAPS_LIBRARIES,
@@ -134,7 +136,7 @@ export default function AddressAutocomplete(props: Props) {
           type="text"
           value={props.value}
           onChange={(e) => props.onChange(e.target.value)}
-          placeholder="Chargement…"
+          placeholder={t("common.loading")}
           disabled
           className={cn(
             "flex h-12 w-full rounded-md border border-input bg-background pl-9 pr-3 py-2 text-sm",

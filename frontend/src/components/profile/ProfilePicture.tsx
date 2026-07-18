@@ -44,7 +44,7 @@ export default function ProfilePictureUploader({
             if (!file) return;
 
             if (!file.type.startsWith("image/")) {
-            toast.error("Please upload an image.");
+            toast.error(t("profile.invalidImageType"));
             return;
             }
 
@@ -64,7 +64,7 @@ export default function ProfilePictureUploader({
             setShowCropper(false);
             setImageToCrop(null);
             } catch {
-            toast.error(t("profile.uploadError", "Could not save image."));
+            toast.error(t("profile.uploadError"));
             }
         };
         return (

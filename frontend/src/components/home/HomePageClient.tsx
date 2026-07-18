@@ -280,7 +280,7 @@ export default function HomePageClient({
         setNearbyListings(rows.slice(0, 3));
       } catch {
         if (!cancelled) {
-          toast.error("Unable to load listings. Please check your connection.");
+          toast.error(t("listings.loadError"));
           setListings([]);
           setNearbyListings([]);
         }

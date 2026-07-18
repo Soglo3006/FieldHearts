@@ -658,7 +658,7 @@ function ListingsContent({ username }: { username?: string }) {
                         <button
                           onClick={() => toggleExpand(cat.name)}
                           className="cursor-pointer p-2 shrink-0 text-gray-400 hover:text-gray-700"
-                          aria-label={isExpanded ? "Réduire" : "Développer"}
+                          aria-label={isExpanded ? t("common.collapse") : t("common.expand")}
                           aria-expanded={isExpanded}
                         >
                           <ChevronRight

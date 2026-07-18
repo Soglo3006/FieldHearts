@@ -315,6 +315,7 @@ function CityInput({ value, onChange, onCoordsChange, placeholder, className, id
 }
 
 export default function CityAutocomplete(props: Props) {
+  const { t } = useTranslation();
   const { isLoaded } = useJsApiLoader({
     googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "",
     libraries: GOOGLE_MAPS_LIBRARIES,
@@ -329,7 +330,7 @@ export default function CityAutocomplete(props: Props) {
           type="text"
           value={props.value}
           onChange={(e) => props.onChange(e.target.value)}
-          placeholder="Chargement…"
+          placeholder={t("common.loading")}
           disabled
           className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm bg-white opacity-60"
         />

@@ -222,7 +222,7 @@ export function PinnedMessages({
                         onClick={() => onUnpin(message.id)}
                         className="flex cursor-pointer items-center gap-1.5 text-xs font-medium text-red-500 hover:text-red-700"
                       >
-                        Désépingler
+                        {t("messages.unpin")}
                       </button>
                     </div>
                   </div>

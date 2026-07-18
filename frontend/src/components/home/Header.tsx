@@ -1039,13 +1039,13 @@ export default function Header() {
             <>
               <div className="px-4 pt-3 pb-1 flex items-center justify-between">
                 <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                  {lang === "fr" ? "Recherches récentes" : "Recent searches"}
+                  {t("header.recentSearches")}
                 </span>
                 <button
                   onClick={() => { setRecentSearches([]); localStorage.removeItem("uneden_recent_searches"); }}
                   className="cursor-pointer text-xs text-gray-400 hover:text-gray-600"
                 >
-                  {lang === "fr" ? "Tout effacer" : "Clear all"}
+                  {t("header.clearAll")}
                 </button>
               </div>
               {recentSearches.map((q, i) => (
@@ -1071,7 +1071,7 @@ export default function Header() {
             <>
               <div className="px-4 pb-1 pt-3">
                 <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                  {lang === "fr" ? "Annonces" : "Listings"}
+                  {t("header.searchListings")}
                 </span>
               </div>
               {searchResults.map((result, i) => {
@@ -1107,14 +1107,14 @@ export default function Header() {
           {/* ── Loading state ── */}
           {!showRecent && searchLoading && searchResults.length === 0 && (
             <div className="flex items-center justify-center py-6 gap-2 text-gray-400 text-sm">
-              <Spinner size="xs" /> {lang === "fr" ? "Recherche..." : "Searching..."}
+              <Spinner size="xs" /> {t("header.searching")}
             </div>
           )}
 
           {/* ── No results ── */}
           {!showRecent && !searchLoading && headerSearch.trim().length > 0 && searchResults.length === 0 && (
             <div className="px-4 py-5 text-center text-sm text-gray-500">
-              {lang === "fr" ? `Aucun résultat pour « ${headerSearch} »` : `No results for "${headerSearch}"`}
+              {t("header.noResultsFor", { query: headerSearch })}
             </div>
           )}
 

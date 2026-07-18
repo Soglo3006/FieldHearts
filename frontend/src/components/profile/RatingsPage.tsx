@@ -79,8 +79,8 @@ export default function RatingsPage({ onClose, profileId, displayName }: Ratings
           size="icon"
           onClick={onClose}
           className="mt-0.5 cursor-pointer text-gray-400 hover:text-gray-700"
-          aria-label="Close ratings"
-          title="Close ratings"
+          aria-label={t("profile.closeRatings")}
+          title={t("profile.closeRatings")}
         >
           <X className="h-5 w-5" />
         </Button>

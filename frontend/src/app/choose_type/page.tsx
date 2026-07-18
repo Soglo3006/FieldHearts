@@ -6,11 +6,12 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useTranslation } from "react-i18next";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { UserPen, Building2, ArrowLeft } from "lucide-react";
+import { ArrowLeft, Check } from "lucide-react";
 import Link from "next/link";
 import i18n from "@/lib/i18n";
 import { getLanguageCode } from "@/lib/locale";
 import { needsOnboardingSetup } from "@/lib/onboarding";
+import { PersonalIllustration, BusinessIllustration } from "@/components/onboarding/AccountTypeIllustrations";
 import { clearOnboardingStorage } from "@/lib/onboardingStorage";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
@@ -60,6 +61,7 @@ function ChooseTypeContent() {
   const searchParams = useSearchParams();
   const isChangingType = searchParams.get("change") === "true";
   const [phase, setPhase] = useState<Phase>("choose");
+  const [direction, setDirection] = useState<"forward" | "backward">("forward");
   const [selectedType, setSelectedType] = useState<AccountType | null>(null);
   const [submittingAction, setSubmittingAction] = useState<"skip" | "continue" | null>(null);
   const submitting = submittingAction !== null;
@@ -104,7 +106,13 @@ function ChooseTypeContent() {
 
   const handleSelectType = (type: AccountType) => {
     setSelectedType(type);
+    setDirection("forward");
     setPhase("intro");
+  };
+
+  const handleBackToChoose = () => {
+    setDirection("backward");
+    setPhase("choose");
   };
 
   const handleSkip = async () => {
@@ -151,8 +159,12 @@ function ChooseTypeContent() {
       <div className="flex-1 flex items-center justify-center px-4 py-8">
 
       {phase === "choose" && (
-        <Card className="p-6 sm:p-8 max-w-lg w-full animate-in fade-in duration-300">
-          <h2 className="text-xl font-bold text-gray-900 mb-2 text-center">
+        <Card
+          className={`flex min-h-[360px] w-full max-w-2xl flex-col justify-center border-0 p-5 sm:p-6 animate-in fade-in duration-300 ${
+            direction === "backward" ? "slide-in-from-left-4" : ""
+          }`}
+        >
+          <h2 className="text-xl font-bold text-gray-900 mb-1 text-center">
             {t("onboarding.accountTypeTitle")}
           </h2>
           <p className="text-sm text-gray-400 text-center mb-6">
@@ -163,30 +175,46 @@ function ChooseTypeContent() {
             <button
               type="button"
               onClick={() => handleSelectType("person")}
-              className="h-full cursor-pointer border rounded-xl p-6 flex flex-col items-center gap-3 transition-all hover:border-green-600 hover:bg-green-50 text-left"
+              className="group relative h-full cursor-pointer rounded-2xl border-2 border-gray-200 bg-white p-6 text-center transition-all hover:border-green-600 hover:shadow-md"
             >
-              <UserPen className="h-10 w-10 text-green-700" />
+              <span className="absolute right-3 top-3 flex h-6 w-6 items-center justify-center rounded-full border border-gray-300 bg-white text-transparent transition-colors group-hover:border-green-600 group-hover:bg-green-600 group-hover:text-white">
+                <Check className="h-3.5 w-3.5" />
+              </span>
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-50 text-green-700 transition-colors group-hover:bg-green-100">
+                <PersonalIllustration className="h-9 w-9" />
+              </div>
               <h3 className="text-lg font-semibold text-gray-900">{t("onboarding.individual")}</h3>
+              <p className="mt-1.5 text-sm text-gray-500 leading-relaxed">{t("onboarding.individualDesc")}</p>
             </button>
 
             <button
               type="button"
               onClick={() => handleSelectType("company")}
-              className="h-full cursor-pointer border rounded-xl p-6 flex flex-col items-center gap-3 transition-all hover:border-green-600 hover:bg-green-50 text-left"
+              className="group relative h-full cursor-pointer rounded-2xl border-2 border-gray-200 bg-white p-6 text-center transition-all hover:border-green-600 hover:shadow-md"
             >
-              <Building2 className="h-10 w-10 text-green-700" />
+              <span className="absolute right-3 top-3 flex h-6 w-6 items-center justify-center rounded-full border border-gray-300 bg-white text-transparent transition-colors group-hover:border-green-600 group-hover:bg-green-600 group-hover:text-white">
+                <Check className="h-3.5 w-3.5" />
+              </span>
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-50 text-green-700 transition-colors group-hover:bg-green-100">
+                <BusinessIllustration className="h-9 w-9" />
+              </div>
               <h3 className="text-lg font-semibold text-gray-900">{t("onboarding.company")}</h3>
+              <p className="mt-1.5 text-sm text-gray-500 leading-relaxed">{t("onboarding.companyDesc")}</p>
             </button>
           </div>
         </Card>
       )}
 
       {phase === "intro" && selectedType && (
-        <Card className="p-6 sm:p-8 max-w-lg w-full animate-in fade-in slide-in-from-bottom-2 duration-300">
+        <Card
+          className={`relative flex min-h-[360px] w-full max-w-2xl flex-col justify-center border-0 p-5 sm:p-6 animate-in fade-in duration-300 ${
+            direction === "forward" ? "slide-in-from-right-4" : ""
+          }`}
+        >
           <button
             type="button"
-            onClick={() => setPhase("choose")}
-            className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-800 mb-3 cursor-pointer"
+            onClick={handleBackToChoose}
+            className="absolute left-6 top-6 flex items-center gap-1 text-sm text-gray-500 hover:text-gray-800 cursor-pointer sm:left-8 sm:top-8"
             disabled={submitting}
           >
             ← {t("onboarding.changeAccountType")}

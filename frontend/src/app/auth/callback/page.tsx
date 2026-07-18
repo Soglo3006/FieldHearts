@@ -8,6 +8,7 @@ import { canAccessAdminPortal, safeInternalPath } from "@/lib/auth";
 import { needsOnboardingSetup } from "@/lib/onboarding";
 import { clearAdminStepUpToken } from "@/lib/adminStepUp";
 import { requestWelcomeEmail } from "@/lib/requestWelcomeEmail";
+import { syncLanguagePreference } from "@/lib/syncLanguagePreference";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function AuthCallbackPage() {
@@ -24,6 +25,7 @@ export default function AuthCallbackPage() {
     const routeAfterSession = (session: NonNullable<Awaited<ReturnType<typeof supabase.auth.getSession>>["data"]["session"]>) => {
       clearAdminStepUpToken();
       requestWelcomeEmail(session.access_token);
+      syncLanguagePreference(session.access_token);
       if (canAccessAdminPortal(session.user)) {
         router.replace("/admin");
       } else if (needsOnboardingSetup(session.user)) {

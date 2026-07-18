@@ -8,6 +8,7 @@ import { needsOnboardingSetup } from "@/lib/onboarding";
 import { clearMyProfileCache } from "@/lib/myProfileCache";
 import { fetchMyProfileOnce } from "@/lib/fetchMyProfile";
 import { clearAdminStepUpToken } from "@/lib/adminStepUp";
+import { syncLanguagePreference } from "@/lib/syncLanguagePreference";
 import type { User, Session } from "@supabase/supabase-js";
 
 interface AuthContextType {
@@ -150,6 +151,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(data.session.user ?? null);
       setLoading(false);
       setIsLoggingOut(false);
+      syncLanguagePreference(data.session.access_token);
     }
 
     if (canAccessAdminPortal(data.user)) {

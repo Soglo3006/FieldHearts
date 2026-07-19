@@ -7,7 +7,8 @@ import {
   adminIdentityOnly,
   verifyAdminStepUp,
 } from "../middleware/authMiddleware.js";
-import { notifyAdminEmailOtp } from "../services/emailService.js";
+import { notifyAdminEmailOtp, sendCustomEmail } from "../services/emailService.js";
+import { logAdminAction } from "../services/auditService.js";
 import pool from "../config/db.js";
 
 const router = express.Router();
@@ -152,6 +153,76 @@ router.get("/audit-logs", protect, adminOnly, async (req, res) => {
   } catch (err) {
     console.error("audit-logs error:", err);
     res.status(500).json({ message: "Server error" });
+  }
+});
+
+// POST /api/admin/emails/send-custom
+const EMAIL_HEADER_VARIANTS = ["standard"];
+const EMAIL_FOOTER_VARIANTS = ["standard"];
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+router.post("/emails/send-custom", protect, adminOnly, async (req, res) => {
+  try {
+    const {
+      recipientType,
+      manualEmail,
+      subject,
+      message,
+      headerVariant = "standard",
+      footerVariant = "standard",
+    } = req.body || {};
+
+    if (!subject || !String(subject).trim()) {
+      return res.status(400).json({ message: "Objet requis." });
+    }
+    if (!message || !String(message).trim()) {
+      return res.status(400).json({ message: "Message requis." });
+    }
+    if (!EMAIL_HEADER_VARIANTS.includes(headerVariant) || !EMAIL_FOOTER_VARIANTS.includes(footerVariant)) {
+      return res.status(400).json({ message: "En-tête ou bas de page invalide." });
+    }
+
+    let recipients = [];
+    if (recipientType === "manual") {
+      const email = String(manualEmail || "").trim().toLowerCase();
+      if (!EMAIL_RE.test(email)) {
+        return res.status(400).json({ message: "Adresse courriel invalide." });
+      }
+      recipients = [email];
+    } else if (recipientType === "all_users") {
+      const result = await pool.query(
+        `SELECT DISTINCT email FROM users WHERE is_suspended = false AND email IS NOT NULL AND email <> ''`
+      );
+      recipients = result.rows.map((r) => r.email);
+    } else {
+      return res.status(400).json({ message: "Destinataire invalide." });
+    }
+
+    if (recipients.length === 0) {
+      return res.status(400).json({ message: "Aucun destinataire trouvé." });
+    }
+
+    let sent = 0;
+    let failed = 0;
+    for (const email of recipients) {
+      const ok = await sendCustomEmail(email, { subject, message, headerVariant, footerVariant });
+      if (ok) sent += 1;
+      else failed += 1;
+    }
+
+    await logAdminAction({
+      adminId: req.user.id,
+      adminEmail: req.user.email,
+      action: "email.send_custom",
+      targetType: "email",
+      details: { recipientType, recipientCount: recipients.length, sent, failed, subject },
+      ipAddress: req.ip,
+    });
+
+    return res.json({ ok: true, sent, failed, total: recipients.length });
+  } catch (err) {
+    console.error("send-custom email error:", err);
+    return res.status(500).json({ message: "Erreur serveur." });
   }
 });
 

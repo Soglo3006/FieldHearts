@@ -27,6 +27,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const navLinks = [
     { href: "/admin/disputes", label: mounted ? t("admin.nav.disputes") : "Litiges" },
     { href: "/admin/support", label: mounted ? t("admin.nav.support") : "Support" },
+    { href: "/admin/emails", label: mounted ? t("admin.nav.emails") : "Courriels" },
   ];
 
   return (

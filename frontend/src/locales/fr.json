@@ -1747,7 +1747,8 @@
     "nav": {
       "dashboard": "Admin",
       "disputes": "Litiges",
-      "support": "Support"
+      "support": "Support",
+      "emails": "Courriels"
     },
     "logout": "Déconnexion",
     "status": {
@@ -1784,6 +1785,10 @@
         "support": {
           "label": "Support",
           "description": "Consultez et traitez les tickets de support des utilisateurs."
+        },
+        "emails": {
+          "label": "Courriels",
+          "description": "Envoyez un courriel personnalisé à tous les utilisateurs ou à une adresse en particulier."
         }
       },
       "payout": {
@@ -1899,6 +1904,31 @@
       "saveError": "Échec de l'enregistrement. Veuillez réessayer.",
       "saving": "Enregistrement...",
       "saveDecision": "Enregistrer la décision"
+    },
+    "emails": {
+      "title": "Courriels personnalisés",
+      "subtitle": "Composez et envoyez un courriel personnalisé à tous les utilisateurs ou à une adresse spécifique.",
+      "recipientLabel": "Destinataire",
+      "recipientAllUsers": "Tous les utilisateurs",
+      "recipientManual": "Entrer manuellement",
+      "manualEmailPlaceholder": "adresse@exemple.com",
+      "subjectLabel": "Objet",
+      "subjectPlaceholder": "Objet du courriel",
+      "headerLabel": "En-tête",
+      "headerStandard": "En-tête standard",
+      "messageLabel": "Message",
+      "messagePlaceholder": "Écrivez votre message...",
+      "footerLabel": "Bas de page",
+      "footerStandard": "Bas de page standard",
+      "sendButton": "Envoyer",
+      "sending": "Envoi en cours...",
+      "confirmAllUsers": "Envoyer ce courriel à tous les utilisateurs ? Cette action est irréversible.",
+      "confirmManual": "Envoyer ce courriel à cette adresse ?",
+      "sendSuccess": "Envoyé à {{sent}} destinataire(s) sur {{total}}.",
+      "sendError": "Échec de l'envoi du courriel. Veuillez réessayer.",
+      "subjectRequired": "L'objet est requis.",
+      "messageRequired": "Le message est requis.",
+      "invalidEmail": "Adresse courriel invalide."
     }
   },
   "disputeThread": {

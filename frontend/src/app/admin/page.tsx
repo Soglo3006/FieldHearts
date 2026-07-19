@@ -135,6 +135,14 @@ export default function AdminDashboard() {
       countLabel: "",
       color: "green",
     },
+    {
+      href: "/admin/emails",
+      label: t("admin.dashboard.sections.emails.label"),
+      description: t("admin.dashboard.sections.emails.description"),
+      count: null,
+      countLabel: "",
+      color: "green",
+    },
   ];
 
   return (

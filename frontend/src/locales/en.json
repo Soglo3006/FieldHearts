@@ -1751,7 +1751,8 @@
     "nav": {
       "dashboard": "Admin",
       "disputes": "Disputes",
-      "support": "Support"
+      "support": "Support",
+      "emails": "Emails"
     },
     "logout": "Logout",
     "status": {
@@ -1788,6 +1789,10 @@
         "support": {
           "label": "Support",
           "description": "View and respond to user support tickets."
+        },
+        "emails": {
+          "label": "Emails",
+          "description": "Send a custom email to all users or to a specific address."
         }
       },
       "payout": {
@@ -1903,6 +1908,31 @@
       "saveError": "Failed to save. Please try again.",
       "saving": "Saving...",
       "saveDecision": "Save decision"
+    },
+    "emails": {
+      "title": "Custom emails",
+      "subtitle": "Compose and send a custom email to all users or to a specific address.",
+      "recipientLabel": "Recipient",
+      "recipientAllUsers": "All users",
+      "recipientManual": "Enter manually",
+      "manualEmailPlaceholder": "address@example.com",
+      "subjectLabel": "Subject",
+      "subjectPlaceholder": "Email subject",
+      "headerLabel": "Header",
+      "headerStandard": "Standard header",
+      "messageLabel": "Message",
+      "messagePlaceholder": "Write your message...",
+      "footerLabel": "Footer",
+      "footerStandard": "Standard footer",
+      "sendButton": "Send",
+      "sending": "Sending...",
+      "confirmAllUsers": "Send this email to all users? This action cannot be undone.",
+      "confirmManual": "Send this email to this address?",
+      "sendSuccess": "Sent to {{sent}} of {{total}} recipient(s).",
+      "sendError": "Failed to send the email. Please try again.",
+      "subjectRequired": "Subject is required.",
+      "messageRequired": "Message is required.",
+      "invalidEmail": "Invalid email address."
     }
   },
   "disputeThread": {

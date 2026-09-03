@@ -15,8 +15,10 @@ interface ImageCropModalProps {
   title: string;
   saveLabel?: string;
   footer?: ReactNode;
+  /** Reopens the cropper on an existing frame; percentages survive a resize of the source. */
+  initialCroppedAreaPercentages?: Area;
   onCancel: () => void;
-  onSave: (croppedAreaPixels: Area) => void | Promise<void>;
+  onSave: (croppedAreaPixels: Area, croppedAreaPercentages: Area) => void | Promise<void>;
 }
 export default function ImageCropModal({
   image,
@@ -25,6 +27,7 @@ export default function ImageCropModal({
   title,
   saveLabel,
   footer,
+  initialCroppedAreaPercentages,
   onCancel,
   onSave,
 }: ImageCropModalProps) {
@@ -42,13 +45,14 @@ export default function ImageCropModal({
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
+  const [croppedAreaPercentages, setCroppedAreaPercentages] = useState<Area | null>(null);
   const [saving, setSaving] = useState(false);
 
   const handleSave = async () => {
-    if (!croppedAreaPixels) return;
+    if (!croppedAreaPixels || !croppedAreaPercentages) return;
     setSaving(true);
     try {
-      await onSave(croppedAreaPixels);
+      await onSave(croppedAreaPixels, croppedAreaPercentages);
     } finally {
       setSaving(false);
     }
@@ -101,7 +105,11 @@ export default function ImageCropModal({
             zoomWithScroll={false}
             onCropChange={setCrop}
             onZoomChange={setZoom}
-            onCropComplete={(_, px) => setCroppedAreaPixels(px)}
+            initialCroppedAreaPercentages={initialCroppedAreaPercentages}
+            onCropComplete={(percentages, px) => {
+              setCroppedAreaPercentages(percentages);
+              setCroppedAreaPixels(px);
+            }}
             style={{
               containerStyle: { background: "#18191a" },
               cropAreaStyle: {

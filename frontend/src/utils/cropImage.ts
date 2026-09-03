@@ -48,34 +48,38 @@ function encodeRegion(
   return canvas.toDataURL(mimeType, QUALITY);
 }
 
-export default function getCroppedImg(
+/**
+ * Loads a source image for canvas export. Re-editing a listing photo reads it
+ * back from Storage, so the request must be a CORS one or the canvas would be
+ * tainted and toDataURL would throw. Harmless for data: URLs.
+ */
+function loadImage(imageSrc: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.crossOrigin = "anonymous";
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error("Could not load image"));
+    image.src = imageSrc;
+  });
+}
+
+export default async function getCroppedImg(
   imageSrc: string,
   pixelCrop: Area,
   maxWidth: number = MAX_WIDTH
 ): Promise<string> {
-  const image = new Image();
-  image.src = imageSrc;
-
-  return new Promise((resolve) => {
-    image.onload = () => {
-      resolve(
-        encodeRegion(image, pixelCrop.x, pixelCrop.y, pixelCrop.width, pixelCrop.height, maxWidth)
-      );
-    };
-  });
+  const image = await loadImage(imageSrc);
+  return encodeRegion(image, pixelCrop.x, pixelCrop.y, pixelCrop.width, pixelCrop.height, maxWidth);
 }
 
 /**
  * Same downscale and encoding pipeline as getCroppedImg, but keeps the whole
  * image instead of a crop region — nothing is discarded.
  */
-export function getFullImage(imageSrc: string, maxWidth: number = MAX_WIDTH): Promise<string> {
-  const image = new Image();
-  image.src = imageSrc;
-
-  return new Promise((resolve) => {
-    image.onload = () => {
-      resolve(encodeRegion(image, 0, 0, image.naturalWidth, image.naturalHeight, maxWidth));
-    };
-  });
+export async function getFullImage(
+  imageSrc: string,
+  maxWidth: number = MAX_WIDTH
+): Promise<string> {
+  const image = await loadImage(imageSrc);
+  return encodeRegion(image, 0, 0, image.naturalWidth, image.naturalHeight, maxWidth);
 }

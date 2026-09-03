@@ -1,13 +1,18 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { Upload, Trash2, Star, X } from "lucide-react";
+import { Upload, Trash2, Star, X, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import AppImage from "@/components/ui/AppImage";
 import type { Area } from "react-easy-crop";
 import ImageCropModal from "@/components/ui/ImageCropModal";
 import getCroppedImg, { getFullImage, LISTING_MAX_WIDTH } from "@/utils/cropImage";
-import { uploadListingImage } from "@/lib/listingImages";
+import {
+  uploadListingImage,
+  fullListingImageUrl,
+  listingCropArea,
+  imageIsReachable,
+} from "@/lib/listingImages";
 import { toast } from "sonner";
 import { useScrollLock } from "@/hooks/useScrollLock";
 import { useTranslation } from "react-i18next";
@@ -25,6 +30,9 @@ export default function MultiImageUploader({ images, onChange, aspectRatio = 16 
   const [showCropper, setShowCropper] = useState(false);
   const [imageToCrop, setImageToCrop] = useState<string | null>(null);
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
+  // Index being re-framed, or null when the cropper is adding a new photo.
+  const [editIndex, setEditIndex] = useState<number | null>(null);
+  const [editCrop, setEditCrop] = useState<Area | undefined>(undefined);
   const inputRef = useRef<HTMLInputElement>(null);
   useScrollLock(previewIndex !== null);
 
@@ -50,15 +58,32 @@ export default function MultiImageUploader({ images, onChange, aspectRatio = 16 
     reader.readAsDataURL(file);
   };
 
-  // Uploads to Storage and keeps only the public URL in the form state.
-  const addImage = async (framed: string, full: string) => {
-    const url = await uploadListingImage(framed, full);
-    onChange([...images, url]);
+  const closeCropper = () => {
     setShowCropper(false);
     setImageToCrop(null);
+    setEditIndex(null);
+    setEditCrop(undefined);
   };
 
-  const saveCroppedImage = async (croppedAreaPixels: Area) => {
+  /**
+   * Re-frames an existing photo, starting from the full version kept on upload.
+   * Photos stored before full versions existed have none, so we fall back to the
+   * framed file — and then start from a blank frame, since the saved rectangle
+   * describes the full photo, not the crop we would be reopening.
+   */
+  const editImage = async (index: number) => {
+    const current = images[index];
+    const fullUrl = fullListingImageUrl(current);
+    const hasFull = fullUrl !== current && (await imageIsReachable(fullUrl));
+
+    setEditIndex(index);
+    setImageToCrop(hasFull ? fullUrl : current);
+    setEditCrop(hasFull ? listingCropArea(current) ?? undefined : undefined);
+    setPreviewIndex(null);
+    setShowCropper(true);
+  };
+
+  const saveCroppedImage = async (croppedAreaPixels: Area, croppedAreaPercentages: Area) => {
     if (!imageToCrop) return;
     try {
       // The crop only frames the card; the whole photo is kept for the lightbox.
@@ -66,7 +91,13 @@ export default function MultiImageUploader({ images, onChange, aspectRatio = 16 
         getCroppedImg(imageToCrop, croppedAreaPixels, LISTING_MAX_WIDTH),
         getFullImage(imageToCrop, LISTING_MAX_WIDTH),
       ]);
-      await addImage(framed, full);
+      const url = await uploadListingImage(framed, full, croppedAreaPercentages);
+      onChange(
+        editIndex === null
+          ? [...images, url]
+          : images.map((existing, i) => (i === editIndex ? url : existing))
+      );
+      closeCropper();
     } catch {
       toast.error(t("post.uploadImageError"));
     }
@@ -195,6 +226,15 @@ export default function MultiImageUploader({ images, onChange, aspectRatio = 16 
               )}
               <button
                 type="button"
+                aria-label={t("common.edit")}
+                title={t("common.edit")}
+                onClick={() => void editImage(previewIndex)}
+                className="cursor-pointer flex items-center justify-center gap-2 bg-white/15 hover:bg-white/25 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors"
+              >
+                <Pencil className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
                 aria-label={t("common.delete")}
                 onClick={() => { removeImage(previewIndex); }}
                 className="cursor-pointer flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors"
@@ -212,10 +252,8 @@ export default function MultiImageUploader({ images, onChange, aspectRatio = 16 
           aspect={aspectRatio}
           title={t("post.adjustImage")}
           saveLabel={t("post.saveImage")}
-          onCancel={() => {
-            setShowCropper(false);
-            setImageToCrop(null);
-          }}
+          initialCroppedAreaPercentages={editCrop}
+          onCancel={closeCropper}
           onSave={saveCroppedImage}
         />
       )}

@@ -581,13 +581,21 @@ export const createCheckoutSession = async (req, res) => {
         total_cents: String(totalCents),
         ...(billing_address_id ? { billing_address_id: String(billing_address_id) } : {}),
       },
+    }, {
+      // Reuse the session when the same booking asks for the same charge again,
+      // instead of creating a second one the client could pay separately.
+      // The amount is part of the key on purpose: an hourly balance legitimately
+      // changes when approved hours change, and must get its own session.
+      idempotencyKey: `checkout:${booking_id}:${checkoutKind}:${totalCents}`,
     });
 
-    // Record pending payment in DB
+    // Record pending payment in DB. ON CONFLICT covers the idempotent replay:
+    // Stripe handed back a session we already recorded, so there is nothing to add.
     await pool.query(
       `INSERT INTO payments
          (booking_id, amount, status, stripe_checkout_session_id, platform_fee, currency, deposit_amount_cents, payment_kind)
-       VALUES ($1, $2, 'pending', $3, $4, 'cad', $5, $6)`,
+       VALUES ($1, $2, 'pending', $3, $4, 'cad', $5, $6)
+       ON CONFLICT (stripe_checkout_session_id) DO NOTHING`,
       [booking_id, totalCents, session.id, buyerCommissionCents, depositAmountCents, checkoutKind]
     );
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useScrollLock } from "@/hooks/useScrollLock";
 import AppImage from '@/components/ui/AppImage';
@@ -8,11 +8,17 @@ import { X, Download } from 'lucide-react';
 
 interface ImageLightboxProps {
   imageUrl: string;
+  /** Used when imageUrl fails to load, e.g. a full-size version that was never stored. */
+  fallbackImageUrl?: string;
   onClose: () => void;
 }
 
-export function ImageLightbox({ imageUrl, onClose }: ImageLightboxProps) {
+export function ImageLightbox({ imageUrl, fallbackImageUrl, onClose }: ImageLightboxProps) {
   const { t } = useTranslation();
+  // Remembers which URL failed rather than mirroring the prop into state, so a
+  // new imageUrl is retried on its own instead of inheriting a stale fallback.
+  const [failedUrl, setFailedUrl] = useState<string | null>(null);
+  const src = failedUrl === imageUrl && fallbackImageUrl ? fallbackImageUrl : imageUrl;
   useScrollLock(true);
 
   // Fermer avec Escape
@@ -26,7 +32,7 @@ export function ImageLightbox({ imageUrl, onClose }: ImageLightboxProps) {
 
   const handleDownload = async () => {
     try {
-      const response = await fetch(imageUrl);
+      const response = await fetch(src);
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -35,7 +41,7 @@ export function ImageLightbox({ imageUrl, onClose }: ImageLightboxProps) {
       a.click();
       URL.revokeObjectURL(url);
     } catch {
-      window.open(imageUrl, '_blank');
+      window.open(src, '_blank');
     }
   };
 
@@ -72,11 +78,12 @@ export function ImageLightbox({ imageUrl, onClose }: ImageLightboxProps) {
         onClick={(e) => e.stopPropagation()}
       >
         <AppImage
-          src={imageUrl}
+          src={src}
           alt={t('messages.imagePreview')}
           width={1600}
           height={1200}
-          unoptimized={imageUrl.includes("/chat-attachments/")}
+          unoptimized={src.includes("/chat-attachments/")}
+          onError={() => setFailedUrl(imageUrl)}
           className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl"
         />
       </div>

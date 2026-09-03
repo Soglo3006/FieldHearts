@@ -51,8 +51,8 @@ export default function MultiImageUploader({ images, onChange, aspectRatio = 16 
   };
 
   // Uploads to Storage and keeps only the public URL in the form state.
-  const addImage = async (dataUrl: string) => {
-    const url = await uploadListingImage(dataUrl);
+  const addImage = async (framed: string, full: string) => {
+    const url = await uploadListingImage(framed, full);
     onChange([...images, url]);
     setShowCropper(false);
     setImageToCrop(null);
@@ -61,16 +61,12 @@ export default function MultiImageUploader({ images, onChange, aspectRatio = 16 
   const saveCroppedImage = async (croppedAreaPixels: Area) => {
     if (!imageToCrop) return;
     try {
-      await addImage(await getCroppedImg(imageToCrop, croppedAreaPixels, LISTING_MAX_WIDTH));
-    } catch {
-      toast.error(t("post.uploadImageError"));
-    }
-  };
-
-  const saveFullImage = async () => {
-    if (!imageToCrop) return;
-    try {
-      await addImage(await getFullImage(imageToCrop, LISTING_MAX_WIDTH));
+      // The crop only frames the card; the whole photo is kept for the lightbox.
+      const [framed, full] = await Promise.all([
+        getCroppedImg(imageToCrop, croppedAreaPixels, LISTING_MAX_WIDTH),
+        getFullImage(imageToCrop, LISTING_MAX_WIDTH),
+      ]);
+      await addImage(framed, full);
     } catch {
       toast.error(t("post.uploadImageError"));
     }
@@ -216,7 +212,6 @@ export default function MultiImageUploader({ images, onChange, aspectRatio = 16 
           aspect={aspectRatio}
           title={t("post.adjustImage")}
           saveLabel={t("post.saveImage")}
-          onUseFullImage={saveFullImage}
           onCancel={() => {
             setShowCropper(false);
             setImageToCrop(null);

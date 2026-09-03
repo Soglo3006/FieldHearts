@@ -5,6 +5,7 @@ import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { Grid3x3 } from "lucide-react";
 import AppImage from "@/components/ui/AppImage";
 import { ImageLightbox } from "@/components/messages/ImageLightbox";
+import { fullListingImageUrl } from "@/lib/listingImages";
 import ListingLangPills from "@/components/ui/ListingLangPills";
 import type { ServiceLikeWithI18n } from "@/lib/serviceListingI18n";
 import {
@@ -109,7 +110,12 @@ export default function ServiceHero({ images, title, listingForLangPills }: Prop
       </div>
 
       {lightboxImage && (
-        <ImageLightbox imageUrl={lightboxImage} onClose={() => setLightboxImage(null)} />
+        // Cards show the poster's framing; the lightbox shows the whole photo.
+        <ImageLightbox
+          imageUrl={fullListingImageUrl(lightboxImage)}
+          fallbackImageUrl={lightboxImage}
+          onClose={() => setLightboxImage(null)}
+        />
       )}
     </div>
   );

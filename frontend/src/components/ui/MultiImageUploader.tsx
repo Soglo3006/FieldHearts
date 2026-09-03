@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import AppImage from "@/components/ui/AppImage";
 import type { Area } from "react-easy-crop";
 import ImageCropModal from "@/components/ui/ImageCropModal";
-import getCroppedImg from "@/utils/cropImage";
+import getCroppedImg, { getFullImage, LISTING_MAX_WIDTH } from "@/utils/cropImage";
+import { uploadListingImage } from "@/lib/listingImages";
 import { toast } from "sonner";
 import { useScrollLock } from "@/hooks/useScrollLock";
 import { useTranslation } from "react-i18next";
@@ -49,15 +50,29 @@ export default function MultiImageUploader({ images, onChange, aspectRatio = 16 
     reader.readAsDataURL(file);
   };
 
+  // Uploads to Storage and keeps only the public URL in the form state.
+  const addImage = async (dataUrl: string) => {
+    const url = await uploadListingImage(dataUrl);
+    onChange([...images, url]);
+    setShowCropper(false);
+    setImageToCrop(null);
+  };
+
   const saveCroppedImage = async (croppedAreaPixels: Area) => {
     if (!imageToCrop) return;
     try {
-      const cropped = await getCroppedImg(imageToCrop, croppedAreaPixels);
-      onChange([...images, cropped]);
-      setShowCropper(false);
-      setImageToCrop(null);
+      await addImage(await getCroppedImg(imageToCrop, croppedAreaPixels, LISTING_MAX_WIDTH));
     } catch {
-      toast.error(t("post.cropImageError"));
+      toast.error(t("post.uploadImageError"));
+    }
+  };
+
+  const saveFullImage = async () => {
+    if (!imageToCrop) return;
+    try {
+      await addImage(await getFullImage(imageToCrop, LISTING_MAX_WIDTH));
+    } catch {
+      toast.error(t("post.uploadImageError"));
     }
   };
 
@@ -201,6 +216,7 @@ export default function MultiImageUploader({ images, onChange, aspectRatio = 16 
           aspect={aspectRatio}
           title={t("post.adjustImage")}
           saveLabel={t("post.saveImage")}
+          onUseFullImage={saveFullImage}
           onCancel={() => {
             setShowCropper(false);
             setImageToCrop(null);

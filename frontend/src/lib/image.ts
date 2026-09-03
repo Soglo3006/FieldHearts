@@ -47,8 +47,10 @@ export function getOptimizedImageUrl(
   const match = normalizedSrc.match(SUPABASE_STORAGE_RE);
   if (!match) return normalizedSrc;
 
-  // Direct public object URL — Image Transform is not reliable for this bucket
-  if (match[2].includes("/chat-attachments/")) {
+  // Direct public object URL — Image Transform is not reliable for these buckets.
+  // It is a paid Supabase feature, so on the current plan /render/image/ 403s;
+  // Next's own optimizer resizes these instead (see remotePatterns in next.config).
+  if (match[2].includes("/chat-attachments/") || match[2].includes("/listing-images/")) {
     return normalizedSrc;
   }
 

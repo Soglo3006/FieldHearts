@@ -17,6 +17,8 @@ interface ImageCropModalProps {
   footer?: ReactNode;
   onCancel: () => void;
   onSave: (croppedAreaPixels: Area) => void | Promise<void>;
+  /** When provided, offers an escape hatch that keeps the image uncropped. */
+  onUseFullImage?: () => void | Promise<void>;
 }
 export default function ImageCropModal({
   image,
@@ -27,6 +29,7 @@ export default function ImageCropModal({
   footer,
   onCancel,
   onSave,
+  onUseFullImage,
 }: ImageCropModalProps) {
   const { t } = useTranslation();
   useScrollLock(true);
@@ -43,6 +46,16 @@ export default function ImageCropModal({
   const [zoom, setZoom] = useState(1);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
   const [saving, setSaving] = useState(false);
+
+  const handleUseFullImage = async () => {
+    if (!onUseFullImage) return;
+    setSaving(true);
+    try {
+      await onUseFullImage();
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const handleSave = async () => {
     if (!croppedAreaPixels) return;
@@ -150,6 +163,16 @@ export default function ImageCropModal({
         )}
 
         <div className="flex items-center justify-end gap-2 px-5 pb-5">
+          {onUseFullImage && (
+            <button
+              type="button"
+              onClick={handleUseFullImage}
+              disabled={saving}
+              className="mr-auto cursor-pointer rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {t("common.useFullImage")}
+            </button>
+          )}
           <button
             type="button"
             onClick={onCancel}

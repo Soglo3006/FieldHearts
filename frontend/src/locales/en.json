@@ -663,6 +663,7 @@
     "uploadImageTypeError": "Please upload an image.",
     "uploadImageSizeError": "File size must be less than 5MB.",
     "cropImageError": "Failed to crop image. Please try again.",
+    "uploadImageError": "Failed to upload image. Please try again.",
     "uploadServiceImage": "Upload Service Image",
     "uploadJobImage": "Upload Job Image",
     "postService": "Post Service",
@@ -764,6 +765,7 @@
     "mobilityLimited": "Limited distance"
   },
   "serviceDetail": {
+    "viewFullImage": "View full photo",
     "bookNow": "Book Now",
     "requestBooking": "Request Booking",
     "sendRequest": "Send Request",
@@ -2944,6 +2946,7 @@
     "zoomOut": "Zoom out",
     "zoom": "Zoom",
     "zoomIn": "Zoom in",
+    "useFullImage": "Use full photo",
     "error": "An error occurred",
     "retry": "Retry",
     "close": "Close",

@@ -659,6 +659,7 @@
     "uploadImageTypeError": "Veuillez télécharger une image.",
     "uploadImageSizeError": "La taille du fichier doit être inférieure à 5 Mo.",
     "cropImageError": "Échec du recadrage. Veuillez réessayer.",
+    "uploadImageError": "Échec du téléversement de l'image. Veuillez réessayer.",
     "uploadServiceImage": "Image du service",
     "uploadJobImage": "Image du travail",
     "postService": "Publier le service",
@@ -760,6 +761,7 @@
     "mobilityLimited": "Distance limitée"
   },
   "serviceDetail": {
+    "viewFullImage": "Voir la photo en entier",
     "bookNow": "Réserver",
     "requestBooking": "Demande de réservation",
     "sendRequest": "Envoyer la demande",
@@ -2714,6 +2716,7 @@
     "zoomOut": "Réduire le zoom",
     "zoom": "Zoom",
     "zoomIn": "Augmenter le zoom",
+    "useFullImage": "Utiliser la photo entière",
     "error": "Une erreur s'est produite",
     "retry": "Réessayer",
     "close": "Fermer",

@@ -1,8 +1,10 @@
 "use client";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { Grid3x3 } from "lucide-react";
 import AppImage from "@/components/ui/AppImage";
+import { ImageLightbox } from "@/components/messages/ImageLightbox";
 import ListingLangPills from "@/components/ui/ListingLangPills";
 import type { ServiceLikeWithI18n } from "@/lib/serviceListingI18n";
 import {
@@ -26,6 +28,8 @@ export default function ServiceHero({ images, title, listingForLangPills }: Prop
   const count = validImages.length;
   const [api, setApi] = useState<CarouselApi>();
   const [index, setIndex] = useState(0);
+  const [lightboxImage, setLightboxImage] = useState<string | null>(null);
+  const { t } = useTranslation();
 
   useEffect(() => {
     if (!api) return;
@@ -59,14 +63,21 @@ export default function ServiceHero({ images, title, listingForLangPills }: Prop
                 <CarouselContent className="ml-0 h-full">
                   {validImages.map((image, imageIndex) => (
                     <CarouselItem key={`${image}-${imageIndex}`} className="pl-0 h-full">
-                      <AppImage
-                        src={image}
-                        alt={`${title} - ${imageIndex + 1}`}
-                        width={1600}
-                        height={900}
-                        sizes="(max-width: 1024px) 100vw, 66vw"
-                        className="h-full w-full object-cover"
-                      />
+                      <button
+                        type="button"
+                        onClick={() => setLightboxImage(image)}
+                        aria-label={t("serviceDetail.viewFullImage")}
+                        className="block h-full w-full cursor-zoom-in"
+                      >
+                        <AppImage
+                          src={image}
+                          alt={`${title} - ${imageIndex + 1}`}
+                          width={1600}
+                          height={900}
+                          sizes="(max-width: 1024px) 100vw, 66vw"
+                          className="h-full w-full object-cover"
+                        />
+                      </button>
                     </CarouselItem>
                   ))}
                 </CarouselContent>
@@ -97,6 +108,9 @@ export default function ServiceHero({ images, title, listingForLangPills }: Prop
         </AspectRatio>
       </div>
 
+      {lightboxImage && (
+        <ImageLightbox imageUrl={lightboxImage} onClose={() => setLightboxImage(null)} />
+      )}
     </div>
   );
 }

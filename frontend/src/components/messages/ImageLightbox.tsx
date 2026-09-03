@@ -18,6 +18,10 @@ export function ImageLightbox({ imageUrl, fallbackImageUrl, onClose }: ImageLigh
   // Remembers which URL failed rather than mirroring the prop into state, so a
   // new imageUrl is retried on its own instead of inheriting a stale fallback.
   const [failedUrl, setFailedUrl] = useState<string | null>(null);
+  // next/image declares a fixed 1600x1200, so a portrait photo would be letterboxed
+  // inside a 4:3 box and those dark bands would swallow backdrop clicks. Sizing the
+  // element to the real ratio makes it hug the photo, leaving the rest clickable.
+  const [ratio, setRatio] = useState<number | null>(null);
   const src = failedUrl === imageUrl && fallbackImageUrl ? fallbackImageUrl : imageUrl;
   useScrollLock(true);
 
@@ -73,10 +77,7 @@ export function ImageLightbox({ imageUrl, fallbackImageUrl, onClose }: ImageLigh
         </button>
       </div>
 
-      <div
-        className="max-w-[90vw] max-h-[90vh] flex items-center justify-center"
-        onClick={(e) => e.stopPropagation()}
-      >
+      <div className="max-w-[90vw] max-h-[90vh] flex items-center justify-center">
         <AppImage
           src={src}
           alt={t('messages.imagePreview')}
@@ -84,7 +85,13 @@ export function ImageLightbox({ imageUrl, fallbackImageUrl, onClose }: ImageLigh
           height={1200}
           unoptimized={src.includes("/chat-attachments/")}
           onError={() => setFailedUrl(imageUrl)}
+          onLoad={(e) => {
+            const { naturalWidth, naturalHeight } = e.currentTarget;
+            if (naturalWidth && naturalHeight) setRatio(naturalWidth / naturalHeight);
+          }}
+          style={ratio ? { aspectRatio: String(ratio), width: "auto", height: "auto" } : undefined}
           className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl"
+          onClick={(e) => e.stopPropagation()}
         />
       </div>
     </div>

@@ -27,11 +27,14 @@ export function ImageLightbox({ imageUrl, fallbackImageUrl, onClose }: ImageLigh
   // element to the real ratio makes it hug the photo, leaving the rest clickable.
   const [ratio, setRatio] = useState<number | null>(null);
 
-  // Desktop zoom: wheel or the toolbar buttons, drag to pan once zoomed in.
+  // Zoom: wheel or toolbar buttons on desktop, two-finger pinch on touch.
+  // One finger pans once zoomed in, on either.
   const [scale, setScale] = useState(MIN_SCALE);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [dragging, setDragging] = useState(false);
   const dragOrigin = useRef<{ x: number; y: number } | null>(null);
+  const pointers = useRef(new Map<number, { x: number; y: number }>());
+  const pinchStart = useRef<{ distance: number; scale: number } | null>(null);
 
   const zoomTo = (value: number) => {
     const next = Math.min(MAX_SCALE, Math.max(MIN_SCALE, Number(value.toFixed(2))));
@@ -40,21 +43,48 @@ export function ImageLightbox({ imageUrl, fallbackImageUrl, onClose }: ImageLigh
     if (next === MIN_SCALE) setOffset({ x: 0, y: 0 });
   };
 
-  const startDrag = (e: React.PointerEvent<HTMLImageElement>) => {
-    if (scale === MIN_SCALE) return;
-    dragOrigin.current = { x: e.clientX - offset.x, y: e.clientY - offset.y };
-    setDragging(true);
+  const pinchDistance = () => {
+    const [a, b] = [...pointers.current.values()];
+    return Math.hypot(a.x - b.x, a.y - b.y);
+  };
+
+  const startPointer = (e: React.PointerEvent<HTMLImageElement>) => {
     e.currentTarget.setPointerCapture(e.pointerId);
+    pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+    if (pointers.current.size === 2) {
+      // A second finger turns the gesture into a pinch, so stop panning.
+      pinchStart.current = { distance: pinchDistance(), scale };
+      dragOrigin.current = null;
+      setDragging(false);
+    } else if (pointers.current.size === 1 && scale > MIN_SCALE) {
+      dragOrigin.current = { x: e.clientX - offset.x, y: e.clientY - offset.y };
+      setDragging(true);
+    }
   };
 
-  const moveDrag = (e: React.PointerEvent<HTMLImageElement>) => {
-    if (!dragOrigin.current) return;
-    setOffset({ x: e.clientX - dragOrigin.current.x, y: e.clientY - dragOrigin.current.y });
+  const movePointer = (e: React.PointerEvent<HTMLImageElement>) => {
+    if (!pointers.current.has(e.pointerId)) return;
+    pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+    if (pointers.current.size === 2 && pinchStart.current) {
+      const { distance, scale: startScale } = pinchStart.current;
+      if (distance > 0) zoomTo(startScale * (pinchDistance() / distance));
+      return;
+    }
+
+    if (dragOrigin.current) {
+      setOffset({ x: e.clientX - dragOrigin.current.x, y: e.clientY - dragOrigin.current.y });
+    }
   };
 
-  const endDrag = () => {
-    dragOrigin.current = null;
-    setDragging(false);
+  const endPointer = (e: React.PointerEvent<HTMLImageElement>) => {
+    pointers.current.delete(e.pointerId);
+    if (pointers.current.size < 2) pinchStart.current = null;
+    if (pointers.current.size === 0) {
+      dragOrigin.current = null;
+      setDragging(false);
+    }
   };
 
   const src = failedUrl === imageUrl && fallbackImageUrl ? fallbackImageUrl : imageUrl;
@@ -148,14 +178,16 @@ export function ImageLightbox({ imageUrl, fallbackImageUrl, onClose }: ImageLigh
                 ? undefined
                 : `translate(${offset.x}px, ${offset.y}px) scale(${scale})`,
             cursor: scale === MIN_SCALE ? "zoom-in" : dragging ? "grabbing" : "grab",
+            // Without this the browser claims the gesture and pans/zooms the page.
+            touchAction: "none",
           }}
           className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl"
           onClick={(e) => e.stopPropagation()}
           onDoubleClick={() => zoomTo(scale > MIN_SCALE ? MIN_SCALE : 2)}
-          onPointerDown={startDrag}
-          onPointerMove={moveDrag}
-          onPointerUp={endDrag}
-          onPointerCancel={endDrag}
+          onPointerDown={startPointer}
+          onPointerMove={movePointer}
+          onPointerUp={endPointer}
+          onPointerCancel={endPointer}
         />
       </div>
     </div>

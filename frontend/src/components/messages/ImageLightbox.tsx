@@ -1,10 +1,14 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useScrollLock } from "@/hooks/useScrollLock";
 import AppImage from '@/components/ui/AppImage';
-import { X, Download } from 'lucide-react';
+import { X, Download, ZoomIn, ZoomOut } from 'lucide-react';
+
+const MIN_SCALE = 1;
+const MAX_SCALE = 4;
+const ZOOM_STEP = 0.25;
 
 interface ImageLightboxProps {
   imageUrl: string;
@@ -22,6 +26,37 @@ export function ImageLightbox({ imageUrl, fallbackImageUrl, onClose }: ImageLigh
   // inside a 4:3 box and those dark bands would swallow backdrop clicks. Sizing the
   // element to the real ratio makes it hug the photo, leaving the rest clickable.
   const [ratio, setRatio] = useState<number | null>(null);
+
+  // Desktop zoom: wheel or the toolbar buttons, drag to pan once zoomed in.
+  const [scale, setScale] = useState(MIN_SCALE);
+  const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const [dragging, setDragging] = useState(false);
+  const dragOrigin = useRef<{ x: number; y: number } | null>(null);
+
+  const zoomTo = (value: number) => {
+    const next = Math.min(MAX_SCALE, Math.max(MIN_SCALE, Number(value.toFixed(2))));
+    setScale(next);
+    // Recentre when back to natural size, otherwise the photo stays off to a side.
+    if (next === MIN_SCALE) setOffset({ x: 0, y: 0 });
+  };
+
+  const startDrag = (e: React.PointerEvent<HTMLImageElement>) => {
+    if (scale === MIN_SCALE) return;
+    dragOrigin.current = { x: e.clientX - offset.x, y: e.clientY - offset.y };
+    setDragging(true);
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
+
+  const moveDrag = (e: React.PointerEvent<HTMLImageElement>) => {
+    if (!dragOrigin.current) return;
+    setOffset({ x: e.clientX - dragOrigin.current.x, y: e.clientY - dragOrigin.current.y });
+  };
+
+  const endDrag = () => {
+    dragOrigin.current = null;
+    setDragging(false);
+  };
+
   const src = failedUrl === imageUrl && fallbackImageUrl ? fallbackImageUrl : imageUrl;
   useScrollLock(true);
 
@@ -56,11 +91,28 @@ export function ImageLightbox({ imageUrl, fallbackImageUrl, onClose }: ImageLigh
       aria-label={t('messages.imagePreview')}
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/90"
       onClick={onClose}
+      onWheel={(e) => zoomTo(scale + (e.deltaY > 0 ? -ZOOM_STEP : ZOOM_STEP))}
     >
       <div
         className="absolute top-4 right-4 flex items-center gap-2 z-10"
         onClick={(e) => e.stopPropagation()}
       >
+        <button
+          onClick={() => zoomTo(scale - ZOOM_STEP)}
+          disabled={scale === MIN_SCALE}
+          aria-label={t('common.zoomOut')}
+          className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          <ZoomOut className="h-5 w-5" />
+        </button>
+        <button
+          onClick={() => zoomTo(scale + ZOOM_STEP)}
+          disabled={scale === MAX_SCALE}
+          aria-label={t('common.zoomIn')}
+          className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          <ZoomIn className="h-5 w-5" />
+        </button>
         <button
           onClick={handleDownload}
           aria-label={t('messages.downloadImage')}
@@ -89,9 +141,21 @@ export function ImageLightbox({ imageUrl, fallbackImageUrl, onClose }: ImageLigh
             const { naturalWidth, naturalHeight } = e.currentTarget;
             if (naturalWidth && naturalHeight) setRatio(naturalWidth / naturalHeight);
           }}
-          style={ratio ? { aspectRatio: String(ratio), width: "auto", height: "auto" } : undefined}
+          style={{
+            ...(ratio ? { aspectRatio: String(ratio), width: "auto", height: "auto" } : {}),
+            transform:
+              scale === MIN_SCALE
+                ? undefined
+                : `translate(${offset.x}px, ${offset.y}px) scale(${scale})`,
+            cursor: scale === MIN_SCALE ? "zoom-in" : dragging ? "grabbing" : "grab",
+          }}
           className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl"
           onClick={(e) => e.stopPropagation()}
+          onDoubleClick={() => zoomTo(scale > MIN_SCALE ? MIN_SCALE : 2)}
+          onPointerDown={startDrag}
+          onPointerMove={moveDrag}
+          onPointerUp={endDrag}
+          onPointerCancel={endDrag}
         />
       </div>
     </div>
